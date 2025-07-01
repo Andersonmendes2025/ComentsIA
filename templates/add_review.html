@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Adicionar Avaliação - Gerenciador de Avaliações Google{% endblock %}
+
+{% block extra_head %}
+<style>
+.star-rating {
+    font-size: 2rem;
+    color: #ddd;
+    cursor: pointer;
+}
+.star-rating .star {
+    transition: color 0.2s;
+}
+.star-rating .star:hover,
+.star-rating .star.active {
+    color: #ffc107;
+}
+.form-floating textarea {
+    min-height: 120px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center mb-4">
+                <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-3">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="mb-1">
+                        <i class="bi bi-plus-circle me-2"></i>
+                        Adicionar Nova Avaliação
+                    </h2>
+                    <p class="text-muted mb-0">Cole aqui uma avaliação do Google para gerar respostas personalizadas</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" id="reviewForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="reviewer_name" name="reviewer_name" placeholder="Nome do cliente" required>
+                                    <label for="reviewer_name">
+                                        <i class="bi bi-person me-1"></i>
+                                        Nome do Cliente
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-star me-1"></i>
+                                    Classificação
+                                </label>
+                                <div class="star-rating" id="starRating">
+                                    <span class="star" data-rating="1">★</span>
+                                    <span class="star" data-rating="2">★</span>
+                                    <span class="star" data-rating="3">★</span>
+                                    <span class="star" data-rating="4">★</span>
+                                    <span class="star" data-rating="5">★</span>
+                                </div>
+                                <input type="hidden" id="rating" name="rating" value="5" required>
+                                <small class="text-muted">Clique nas estrelas para definir a classificação</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                <textarea class="form-control" id="text" name="text" placeholder="Texto da avaliação" required style="min-height: 150px;"></textarea>
+                                <label for="text">
+                                    <i class="bi bi-chat-square-text me-1"></i>
+                                    Texto da Avaliação
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                Cole aqui o texto completo da avaliação do Google. Quanto mais detalhada, melhor será a sugestão de resposta.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-md-2">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Adicionar Avaliação
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card mt-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        Dicas para melhores resultados
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Nome do cliente:</strong> Use o nome real quando disponível para respostas mais personalizadas</li>
+                        <li><strong>Classificação:</strong> Defina corretamente as estrelas para gerar respostas apropriadas</li>
+                        <li><strong>Texto completo:</strong> Cole o texto completo da avaliação para análises mais precisas</li>
+                        <li><strong>Contexto:</strong> Inclua detalhes específicos mencionados pelo cliente</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const stars = document.querySelectorAll('.star');
+  const ratingInput = document.getElementById('rating');
+
+  function setRating(rating) {
+    ratingInput.value = rating;
+    updateStars(rating);
+  }
+
+  function updateStars(rating) {
+    stars.forEach((star) => {
+      const starValue = parseInt(star.getAttribute('data-rating'));
+      if (starValue <= rating) {
+        star.classList.add('active');
+        star.style.color = '#ffc107';
+      } else {
+        star.classList.remove('active');
+        star.style.color = '#ddd';
+      }
+    });
+  }
+
+  stars.forEach((star) => {
+    star.addEventListener('click', function() {
+      const rating = parseInt(this.getAttribute('data-rating'));
+      setRating(rating);
+    });
+
+    star.addEventListener('mouseover', function() {
+      const hoverRating = parseInt(this.getAttribute('data-rating'));
+      stars.forEach((s) => {
+        const sValue = parseInt(s.getAttribute('data-rating'));
+        if (sValue <= hoverRating) {
+          s.style.color = '#ffc107';
+        } else {
+          s.style.color = '#ddd';
+        }
+      });
+    });
+
+    star.addEventListener('mouseout', function() {
+      const currentRating = parseInt(ratingInput.value);
+      updateStars(currentRating);
+    });
+  });
+
+  // Inicializar com valor padrão (5 estrelas)
+  setRating(parseInt(ratingInput.value));
+});
+
+// Validação de formulário
+document.getElementById('reviewForm').addEventListener('submit', function(e) {
+  const reviewerName = document.getElementById('reviewer_name').value.trim();
+  const reviewText = document.getElementById('text').value.trim();
+  const rating = document.getElementById('rating').value;
+
+  if (!reviewerName) {
+    e.preventDefault();
+    alert('Por favor, digite o nome do cliente.');
+    document.getElementById('reviewer_name').focus();
+    return;
+  }
+
+  if (!reviewText) {
+    e.preventDefault();
+    alert('Por favor, digite o texto da avaliação.');
+    document.getElementById('text').focus();
+    return;
+  }
+
+  if (!rating || rating < 1 || rating > 5) {
+    e.preventDefault();
+    alert('Por favor, selecione uma classificação de 1 a 5 estrelas.');
+    return;
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+flask
+google-auth
+google-auth-oauthlib
+google-api-python-client
+openai
+requests
+python-dotenv
+flask_sqlalchemy
+flask-login
+
