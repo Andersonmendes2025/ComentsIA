@@ -277,8 +277,7 @@ def oauth2callback():
     # Cria o fluxo de autorização usando o arquivo de credenciais
     flow = build_flow(state=state, redirect_uri=url_for('oauth2callback', _external=True))
 
-    flow.redirect_uri = url_for('oauth2callback', _external=True)
-
+   
     # Processa a resposta de autorização
     authorization_response = request.url
     flow.fetch_token(authorization_response=authorization_response)
