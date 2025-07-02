@@ -11,6 +11,8 @@ from models import db, Review, UserSettings
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from flask import session
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
 
