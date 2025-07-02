@@ -130,9 +130,11 @@ def authorize():
 
     # Gera a URL de autorização
     authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
+    access_type='offline',
+    include_granted_scopes='true',
+    redirect_uri=url_for('oauth2callback', _external=True)
     )
+
 
     # Armazena o estado na sessão
     flask.session['state'] = state
@@ -317,7 +319,8 @@ def build_flow(state=None, redirect_uri=None):
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [redirect_uri or "http://localhost:5000/oauth2callback"]
+            "redirect_uris": [redirect_uri] if redirect_uri else ["http://localhost:5000/oauth2callback"]
+
         }
     }
     return google_auth_oauthlib.flow.Flow.from_client_config(
