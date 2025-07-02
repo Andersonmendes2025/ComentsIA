@@ -126,22 +126,15 @@ def index():
 
 @app.route('/authorize')
 def authorize():
-    """Inicia o fluxo de autorização OAuth."""
-    # Cria o fluxo de autorização dinamicamente com as variáveis de ambiente
-    flow = build_flow(redirect_uri=url_for('oauth2callback', _external=True))
+    redirect_uri = url_for('oauth2callback', _external=True)
+    flow = build_flow(redirect_uri=redirect_uri)
 
-    # Gera a URL de autorização
     authorization_url, state = flow.authorization_url(
-    access_type='offline',
-    include_granted_scopes='true'
+        access_type='offline',
+        include_granted_scopes='true'
     )
 
-
-
-    # Armazena o estado na sessão
     flask.session['state'] = state
-
-    # Redireciona para a URL de autorização
     return flask.redirect(authorization_url)
 
 @app.route('/delete_review', methods=['POST'])
@@ -321,15 +314,17 @@ def build_flow(state=None, redirect_uri=None):
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [redirect_uri] if redirect_uri else ["http://localhost:5000/oauth2callback"]
-
+            "redirect_uris": [redirect_uri or "http://localhost:5000/oauth2callback"]
         }
     }
+
     return google_auth_oauthlib.flow.Flow.from_client_config(
         client_config,
         scopes=SCOPES,
-        state=state
+        state=state,
+        redirect_uri=redirect_uri or "http://localhost:5000/oauth2callback"
     )
+
 
 
 def credentials_to_dict(credentials):
