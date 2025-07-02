@@ -256,41 +256,6 @@ Instruções:
         return jsonify({'success': False, 'error': f'Erro na API OpenAI: {str(e)}'})
 from googleapiclient.discovery import build
 
-def get_user_info(credentials):
-    """
-    Recupera as informações do usuário logado no Google usando a People API.
-    Utiliza exclusivamente o e-mail como ID de usuário.
-    Lança exceção se o e-mail não estiver presente.
-    """
-    try:
-        # Inicializa a People API
-        people_service = build('people', 'v1', credentials=credentials)
-
-        # Solicita nome, e-mail e foto
-        profile = people_service.people().get(
-            resourceName='people/me',
-            personFields='names,emailAddresses,photos'
-        ).execute()
-
-        # Verifica se há e-mail disponível
-        email_addresses = profile.get('emailAddresses')
-        if not email_addresses or not email_addresses[0].get('value'):
-            raise ValueError("Não foi possível obter o e-mail do usuário.")
-
-        user_email = email_addresses[0]['value']
-
-        # Monta as informações do usuário com e-mail como ID
-        user_info = {
-            'id': user_email,
-            'email': user_email,
-            'name': profile.get('names', [{}])[0].get('displayName', ''),
-            'photo': profile.get('photos', [{}])[0].get('url', '')
-        }
-
-        return user_info
-
-    except Exception as e:
-        raise RuntimeError(f"Erro ao obter informações do usuário: {e}")
 def credentials_to_dict(credentials):
     """Converte o objeto de credenciais para um dicionário serializável."""
     return {
