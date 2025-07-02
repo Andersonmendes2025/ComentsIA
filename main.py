@@ -126,8 +126,7 @@ def index():
 def authorize():
     """Inicia o fluxo de autorização OAuth."""
     # Cria o fluxo de autorização usando o arquivo de credenciais
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, scopes=SCOPES)
+    fflow = build_flow(redirect_uri=url_for('oauth2callback', _external=True))
 
     # Define o URI de redirecionamento
     flow.redirect_uri = url_for('oauth2callback', _external=True)
@@ -313,8 +312,8 @@ def oauth2callback():
     state = session['state']
 
     # Cria o fluxo de autorização usando o arquivo de credenciais
-    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
+    flow = build_flow(state=state, redirect_uri=url_for('oauth2callback', _external=True))
+
     flow.redirect_uri = url_for('oauth2callback', _external=True)
 
     # Processa a resposta de autorização
@@ -348,6 +347,22 @@ def oauth2callback():
             save_user_settings(user_id, default_settings)
 
     return redirect(url_for('reviews'))
+def build_flow(state=None, redirect_uri=None):
+    client_config = {
+        "web": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": [redirect_uri or "http://localhost:5000/oauth2callback"]
+        }
+    }
+    return google_auth_oauthlib.flow.Flow.from_client_config(
+        client_config,
+        scopes=SCOPES,
+        state=state
+    )
 
 
 def credentials_to_dict(credentials):
