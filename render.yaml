@@ -1,17 +1,15 @@
 services:
   - type: web
-    name: comentsia-app
-    runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn main:app"
+    name: comentsia
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn main:app
     envVars:
-      - key: FLASK_ENV
-        value: production
       - key: OPENAI_API_KEY
-        sync: false
+        fromEnv: OPENAI_API_KEY
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        fromEnv: GOOGLE_CLIENT_ID
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
+        fromEnv: GOOGLE_CLIENT_SECRET
       - key: FLASK_SECRET_KEY
-        sync: false
+        fromEnv: FLASK_SECRET_KEY
