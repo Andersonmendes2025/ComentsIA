@@ -125,23 +125,21 @@ def index():
 @app.route('/authorize')
 def authorize():
     """Inicia o fluxo de autorização OAuth."""
-    # Cria o fluxo de autorização usando o arquivo de credenciais
-    fflow = build_flow(redirect_uri=url_for('oauth2callback', _external=True))
-
-    # Define o URI de redirecionamento
-    flow.redirect_uri = url_for('oauth2callback', _external=True)
+    # Cria o fluxo de autorização dinamicamente com as variáveis de ambiente
+    flow = build_flow(redirect_uri=url_for('oauth2callback', _external=True))
 
     # Gera a URL de autorização
     authorization_url, state = flow.authorization_url(
         access_type='offline',
-        include_granted_scopes='true')
+        include_granted_scopes='true'
+    )
 
-    # Armazena o estado para verificação posterior
+    # Armazena o estado na sessão
     flask.session['state'] = state
 
     # Redireciona para a URL de autorização
     return flask.redirect(authorization_url)
-     # Deleta avaliações 
+
 @app.route('/delete_review', methods=['POST'])
 def delete_review():
     """Exclui uma avaliação do banco de dados."""
