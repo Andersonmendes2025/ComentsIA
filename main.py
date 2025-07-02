@@ -33,7 +33,7 @@ client = OpenAI(
 
 
 # Configuração do OAuth do Google
-CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(__file__), 'client_secrets.json')
+CLIENT_SECRETS_FILE = '/etc/secrets/client_secrets.json'
 SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
