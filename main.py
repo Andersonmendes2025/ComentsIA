@@ -133,9 +133,9 @@ def authorize():
     # Gera a URL de autorização
     authorization_url, state = flow.authorization_url(
     access_type='offline',
-    include_granted_scopes='true',
-    redirect_uri=url_for('oauth2callback', _external=True)
+    include_granted_scopes='true'
     )
+
 
 
     # Armazena o estado na sessão
