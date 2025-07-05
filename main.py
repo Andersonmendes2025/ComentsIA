@@ -12,6 +12,9 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from flask import session
 import logging
+from auto_reply_setup import auto_reply_bp
+app.register_blueprint(auto_reply_bp)
+
 logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
@@ -21,9 +24,13 @@ load_dotenv()
 app = Flask(__name__)
 # Caminho do diretório base
 basedir = os.path.abspath(os.path.dirname(__file__))
-# Configuração do SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'db.sqlite3')
+# Configuração do banco de dados (Render ou local)
+db_url = os.getenv("DATABASE_URL", "")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 # Chave secreta vinda do .env
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 db.init_app(app)
@@ -410,10 +417,10 @@ def reviews():
 
 @app.route('/add_review', methods=['GET', 'POST'])
 def add_review():
-    """Adiciona uma nova avaliação ao banco de dados."""
+    """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática."""
     if 'credentials' not in session:
         return redirect(url_for('authorize'))
-
+    
     user_info = session.get('user_info', {})
     user_id = user_info.get('id')
 
@@ -422,22 +429,83 @@ def add_review():
             flash('Erro ao identificar usuário. Por favor, faça login novamente.', 'danger')
             return redirect(url_for('logout'))
 
-        # Cria nova avaliação diretamente no banco de dados
+        # Aceita dados de formulário (manual) ou envio automático (via bot)
+        reviewer_name = request.form.get('reviewer_name') or request.json.get('reviewer_name', 'Cliente Anônimo')
+        rating = int(request.form.get('rating') or request.json.get('rating', 5))
+        text = request.form.get('text') or request.json.get('text', '')
+        data = datetime.now().strftime('%d/%m/%Y')
+
+        # Verifica duplicata
+        existente = Review.query.filter_by(user_id=user_id, reviewer_name=reviewer_name, text=text).first()
+        if existente:
+            msg = 'Avaliação já existente. Ignorada.'
+            print("⚠️", msg)
+            if request.is_json:
+                return jsonify({'success': True, 'message': msg})
+            else:
+                flash(msg, 'info')
+                return redirect(url_for('reviews'))
+
+        # Gera resposta com IA
+        settings = get_user_settings(user_id)
+        tone_instruction = "Use linguagem formal e respeitosa."
+
+        prompt = f"""
+Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
+
+Avaliação recebida:
+- Nome do cliente: {reviewer_name}
+- Nota: {rating} estrelas
+- Texto: "{text}"
+
+Instruções:
+- Comece com: "{settings['default_greeting']} {reviewer_name},"
+- Use palavras mais umanas possiveis, seja natural na escrita e no vocabulario 
+- Comente os pontos mencionados, usando palavras diferentes
+- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
+- Se a nota for de 4 ou 5, agradeça e convide para retornar
+- Finalize com: "{settings['default_closing']}"
+- Inclua as informações de contato: "{settings['contact_info']}"
+- Assine como: "{settings['business_name']}"
+- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
+"""
+
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            resposta_gerada = completion.choices[0].message.content.strip()
+        except Exception as e:
+            print("❌ Erro ao gerar resposta automática:", e)
+            resposta_gerada = ''
+
+        # Salva avaliação com resposta
         new_review = Review(
             user_id=user_id,
-            reviewer_name=request.form.get('reviewer_name', 'Cliente Anônimo'),
-            rating=int(request.form.get('rating', 5)),
-            text=request.form.get('text', ''),
-            date=datetime.now().strftime('%d/%m/%Y'),
-            reply='',
-            replied=False
+            reviewer_name=reviewer_name,
+            rating=rating,
+            text=text,
+            date=data,
+            reply=resposta_gerada,
+            replied=bool(resposta_gerada)
         )
 
         db.session.add(new_review)
         db.session.commit()
 
-        flash('Avaliação adicionada com sucesso!', 'success')
-        return redirect(url_for('reviews'))
+        print("✅ Avaliação salva com resposta automática.")
+
+        if request.is_json:
+            return jsonify({'success': True})
+        else:
+            flash('Avaliação adicionada com sucesso!', 'success')
+            return redirect(url_for('reviews'))
 
     return render_template('add_review.html', user=user_info, now=datetime.now())
 
@@ -637,6 +705,8 @@ def apply_template():
         'success': True,
         'formatted_reply': formatted_reply
     })
+from scheduler import agendar_robos
+agendar_robos()
 
 if __name__ == '__main__':
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'

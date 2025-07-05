@@ -2,6 +2,15 @@
 {% block content %}
 <div class="container mt-4">
   <h2 class="mb-4">Avaliações Recebidas</h2>
+
+  <!-- Botão de Ativação do Robô -->
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
+      <i class="bi bi-robot me-1"></i>
+      Ativar Respostas Automáticas
+    </a>
+  </div>
+
   {% if reviews %}
     {% for review in reviews %}
       <div class="card mb-3">
@@ -16,6 +25,7 @@
               <p>{{ review.reply }}</p>
             </div>
           {% endif %}
+
 
           <div class="form-group mt-2">
             <label for="tone-{{ review.id }}">Tom da resposta:</label>
