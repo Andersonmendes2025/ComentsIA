@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração do Robô - Respostas Automáticas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-3">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h2 class="mb-1">
+            <i class="bi bi-robot me-2"></i>
+            Ativar Respostas Automáticas
+          </h2>
+          <p class="text-muted mb-0">
+            Configure o robô que acessa sua conta do Google Business, copia as avaliações e responde automaticamente com inteligência artificial.
+          </p>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h5 class="mb-3">Como funciona?</h5>
+          <ul class="list-unstyled">
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Você faz login com sua conta do Google Business manualmente.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> O robô captura as avaliações mais recentes da sua empresa.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> A IA do ComentsIA gera respostas personalizadas para cada avaliação.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> As respostas são publicadas automaticamente no Google.</li>
+          </ul>
+
+          <div class="alert alert-warning mt-4">
+            <strong>Atenção:</strong> Por motivos de segurança, o login é feito manualmente no navegador. Nenhuma senha é armazenada.
+          </div>
+
+                    <div class="d-grid gap-2 mt-4">
+            <a href="{{ url_for('auto_reply.start_auto_bot') }}" class="btn btn-primary btn-lg">
+              <i class="bi bi-rocket-takeoff me-2"></i>
+              Iniciar e Ativar Robô Agora
+            </a>
+            <a href="{{ url_for('auto_reply.run_bot_now') }}" class="btn btn-outline-success btn-lg">
+              <i class="bi bi-play-circle me-2"></i>
+              Rodar Robô Agora Manualmente
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted small mt-3">
+        Você poderá desativar o robô a qualquer momento nas configurações.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

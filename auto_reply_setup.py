@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash
 from datetime import datetime
-from selenium_script import iniciar_bot_google
+from selenium_script import iniciar_bot_google, executar_robo_com_google_login
 
 auto_reply_bp = Blueprint('auto_reply', __name__)
 
@@ -12,10 +12,11 @@ def auto_reply_setup():
 
     user_info = session.get('user_info', {})
     return render_template(
-        'templatesauto_reply_setup.html',
+        'auto_reply_setup.html',
         user=user_info,
         now=datetime.now()
     )
+
 @auto_reply_bp.route('/start_auto_bot')
 def start_auto_bot():
     if 'credentials' not in session:
@@ -23,12 +24,16 @@ def start_auto_bot():
         return redirect(url_for('authorize'))
 
     user_info = session.get('user_info', {})
+    email = user_info.get('email')
 
-    # Inicia o Selenium
-    iniciar_bot_google(user_info)
+    try:
+        executar_robo_com_google_login(email)
+        flash('Robô foi iniciado com sucesso!', 'success')
+    except Exception as e:
+        flash(f'Erro ao iniciar o robô: {str(e)}', 'danger')
 
-    flash('Robô iniciado! Aguarde a janela abrir para login manual no Google.', 'success')
     return redirect(url_for('auto_reply.auto_reply_setup'))
+
 @auto_reply_bp.route('/run_bot_now')
 def run_bot_now():
     if 'credentials' not in session:
