@@ -8,7 +8,7 @@ from selenium.webdriver.common.by import By
 def iniciar_bot_google(user_info=None):
     # Instala automaticamente o ChromeDriver
     chromedriver_autoinstaller.install()
-
+    
     # Configurações do navegador
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
@@ -74,3 +74,6 @@ def iniciar_bot_google(user_info=None):
 
     print("✅ Fim da execução do robô.")
     return driver
+def executar_robo_com_google_login(email):
+    print(f"🔄 Iniciando robô com login automático para o e-mail: {email}")
+    return iniciar_bot_google({'id': email})
