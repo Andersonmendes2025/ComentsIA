@@ -12,8 +12,7 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from flask import session
 import logging
-from auto_reply_setup import auto_reply_bp
-app.register_blueprint(auto_reply_bp)
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -34,6 +33,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Chave secreta vinda do .env
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 db.init_app(app)
+ 
+from auto_reply_setup import auto_reply_bp
+app.register_blueprint(auto_reply_bp)
 
 # Configuração da API OpenAI
 client = OpenAI(
