@@ -12,7 +12,7 @@ def auto_reply_setup():
 
     user_info = session.get('user_info', {})
     return render_template(
-        'auto_reply_setup.html',
+        'templatesauto_reply_setup.html',
         user=user_info,
         now=datetime.now()
     )
