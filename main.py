@@ -710,10 +710,12 @@ def apply_template():
 from scheduler import agendar_robos
 agendar_robos()
 
+# Garante que as tabelas sejam criadas no Render também
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-    with app.app_context():
-        db.create_all()
     print("🚀 Servidor Flask rodando em http://127.0.0.1:8000")
     app.run(host='127.0.0.1', port=8000, debug=True)
 
