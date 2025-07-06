@@ -423,24 +423,13 @@ def add_review():
     if 'credentials' not in session:
         return redirect(url_for('authorize'))
     
-    user_info = session.get('user_info')
-    user_id = None
+    user_info = session.get('user_info', {})
+    user_id = user_info.get('id')
 
-    if user_info:
-        user_id = user_info.get('id')
-
-    # 🔒 Se não tiver sessão, tenta pegar user_id enviado via requisição (usado pelo robô)
-    if not user_id:
-        user_id = request.form.get('user_id') or (request.json and request.json.get('user_id'))
-
-    # Se mesmo assim não tiver user_id, aborta
-    if not user_id:
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'user_id ausente'}), 400
-        else:
+    if request.method == 'POST':
+        if not user_id:
             flash('Erro ao identificar usuário. Por favor, faça login novamente.', 'danger')
             return redirect(url_for('logout'))
-
 
         # Aceita dados de formulário (manual) ou envio automático (via bot)
         reviewer_name = request.form.get('reviewer_name') or request.json.get('reviewer_name', 'Cliente Anônimo')

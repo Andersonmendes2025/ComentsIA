@@ -32,7 +32,7 @@ def start_auto_bot():
     except Exception as e:
         flash(f'Erro ao iniciar o robô: {str(e)}', 'danger')
 
-    return redirect(url_for('auto_reply.auto_reply_setup'))
+    return render_template('auto_reply_setup.html', user=user_info, now=datetime.now())
 
 @auto_reply_bp.route('/run_bot_now')
 def run_bot_now():
@@ -41,7 +41,10 @@ def run_bot_now():
         return redirect(url_for('authorize'))
 
     user_info = session.get('user_info', {})
-    iniciar_bot_google(user_info)
+    try:
+        iniciar_bot_google(user_info=user_info)
+        flash('✅ Robô iniciado manualmente. A janela foi aberta para varredura.', 'success')
+    except Exception as e:
+        flash(f'Erro ao iniciar manualmente: {str(e)}', 'danger')
 
-    flash('✅ Robô iniciado manualmente. A janela foi aberta para varredura.', 'success')
-    return redirect(url_for('auto_reply.auto_reply_setup'))
+    return render_template('auto_reply_setup.html', user=user_info, now=datetime.now())
