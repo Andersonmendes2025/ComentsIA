@@ -204,7 +204,18 @@ def terms():
     user_name = user_info.get('name', 'Usuário')
     user_email = user_info.get('email', 'Email não informado')
 
-    return render_template('terms.html', user_name=user_name, user_email=user_email)
+    # Dados da empresa (seriam passados do banco de dados ou informações da sessão)
+    company_name = user_info.get('business_name', 'Nome da Empresa Não Informado')
+    company_email = user_info.get('business_email', 'E-mail Não Informado')
+
+    current_date = datetime.now().strftime('%d/%m/%Y')  # Data de última atualização
+
+    return render_template('terms.html', 
+                           user_name=user_name, 
+                           user_email=user_email,
+                           company_name=company_name,
+                           company_email=company_email,
+                           current_date=current_date)
 
 @app.route('/authorize')
 def authorize():
