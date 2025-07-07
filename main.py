@@ -132,6 +132,43 @@ def index():
         reviews=user_reviews
     )
 
+@app.route('/first-login', methods=['GET', 'POST'])
+def first_login():
+    if 'credentials' not in flask.session:
+        return redirect(url_for('authorize'))
+
+    user_info = flask.session.get('user_info', {})
+    user_id = user_info.get('id')
+
+    if request.method == 'POST':
+        # Obtendo os dados do formulário
+        company_name = request.form.get('company_name')
+        contact_info = request.form.get('contact_info')
+        terms_accepted = request.form.get('terms_accepted')
+
+        # Verificando se os termos foram aceitos
+        if not terms_accepted:
+            flash("Você precisa aceitar os termos e condições para continuar.", "warning")
+            return redirect(url_for('first_login'))
+
+        # Salve as configurações do usuário no banco de dados
+        settings_data = {
+            'business_name': company_name,
+            'default_greeting': 'Olá,',
+            'default_closing': 'Agradecemos seu feedback!',
+            'contact_info': contact_info
+        }
+        save_user_settings(user_id, settings_data)
+
+        # Marque que o cadastro foi concluído
+        session['first_login_done'] = True
+
+        return redirect(url_for('index'))  # Redireciona para a página principal
+
+    return render_template('first_login.html')
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
 
 @app.route('/authorize')
 def authorize():
