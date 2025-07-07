@@ -217,6 +217,7 @@ def terms():
                            company_email=company_email,
                            current_date=current_date)
 
+
 @app.route('/authorize')
 def authorize():
     redirect_uri = url_for('oauth2callback', _external=True)
