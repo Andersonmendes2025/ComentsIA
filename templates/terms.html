@@ -1,17 +1,88 @@
-<h2>Termos e Condições</h2>
-<p>Bem-vindo ao nosso site! Antes de usar nossos serviços, leia atentamente os termos e condições a seguir.</p>
+{% extends "base.html" %}
 
-<h3>1. Aceitação dos Termos</h3>
-<p>Ao acessar este site, você concorda em cumprir os termos e condições aqui descritos. Se você não concordar, não deve utilizar nossos serviços.</p>
+{% block title %}Termos e Condições{% endblock %}
 
-<h3>2. Uso do Serviço</h3>
-<p>O serviço está disponível para usuários que aceitam as condições descritas neste documento e nas leis aplicáveis.</p>
+{% block extra_head %}
+<style>
+    .terms-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
 
-<h3>3. Política de Privacidade (LGPD)</h3>
-<p>Os dados pessoais dos usuários serão coletados e tratados de acordo com a Lei Geral de Proteção de Dados (LGPD). Leia nossa <a href="/privacy-policy">Política de Privacidade</a> para mais detalhes.</p>
+    .terms-header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
 
-<h3>4. Modificação dos Termos</h3>
-<p>Podemos atualizar esses termos a qualquer momento. O uso contínuo do serviço após tais modificações implica a aceitação dos novos termos.</p>
+    .terms-header h2 {
+        font-size: 2rem;
+        font-weight: bold;
+    }
 
-<h3>5. Aceitação</h3>
-<p>Ao preencher o formulário, você concorda com os termos e condições acima descritos.</p>
+    .terms-header p {
+        color: #6c757d;
+        font-size: 1rem;
+    }
+
+    .terms-content {
+        margin-bottom: 20px;
+    }
+
+    .terms-content h3 {
+        color: #007bff;
+        font-size: 1.2rem;
+        margin-top: 20px;
+    }
+
+    .terms-content p {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .btn-accept {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 4px;
+        width: 100%;
+        cursor: pointer;
+    }
+
+    .btn-accept:hover {
+        background-color: #0056b3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container terms-container">
+    <div class="terms-header">
+        <h2>Termos e Condições</h2>
+        <p>Leia atentamente os termos e condições antes de usar nossos serviços.</p>
+    </div>
+
+    <div class="terms-content">
+        <h3>1. Aceitação dos Termos</h3>
+        <p>Ao acessar este site, você concorda em cumprir os termos e condições descritos aqui. Se você não concordar, não deve utilizar nossos serviços.</p>
+
+        <h3>2. Uso do Serviço</h3>
+        <p>O serviço está disponível para usuários que aceitam as condições descritas neste documento e nas leis aplicáveis. O uso contínuo do serviço após a aceitação implica em concordância com esses termos.</p>
+
+        <h3>3. Política de Privacidade (LGPD)</h3>
+        <p>Os dados pessoais dos usuários serão coletados e tratados de acordo com a Lei Geral de Proteção de Dados (LGPD). Leia nossa <a href="/privacy-policy" style="color: #007bff;">Política de Privacidade</a> para mais detalhes.</p>
+
+        <h3>4. Modificação dos Termos</h3>
+        <p>Podemos atualizar esses termos a qualquer momento. O uso contínuo do serviço após tais modificações implica na aceitação dos novos termos.</p>
+
+        <h3>5. Aceitação</h3>
+        <p>Ao preencher o formulário de cadastro, você concorda com os termos e condições descritos acima.</p>
+    </div>
+
+    <form method="POST">
+        <button type="submit" class="btn-accept">Aceitar e Continuar</button>
+    </form>
+</div>
+{% endblock %}
