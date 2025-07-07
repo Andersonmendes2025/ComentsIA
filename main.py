@@ -115,12 +115,12 @@ def index():
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
 
-    # Verificar as configurações do usuário
+    # Buscar configurações do usuário
     user_settings = get_user_settings(user_id)
     
-    # Se as configurações obrigatórias não forem preenchidas ou os termos não forem aceitos, redireciona para a página de configurações
+    # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
     if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
-        return redirect(url_for('settings'))
+        return redirect(url_for('settings'))  # Redireciona para a página de configurações
 
     user_reviews = get_user_reviews(user_id)
     total_reviews = len(user_reviews)

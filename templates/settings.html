@@ -4,16 +4,31 @@
 
 {% block extra_head %}
 <style>
-.settings-card {
-    border-left: 4px solid #007bff;
-}
-.preview-card {
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
-}
-.form-floating textarea {
-    min-height: 100px;
-}
+    .settings-card {
+        border-left: 4px solid #007bff;
+    }
+    .preview-card {
+        background-color: #f8f9fa;
+        border: 2px dashed #dee2e6;
+    }
+    .form-floating textarea {
+        min-height: 100px;
+    }
+    .terms-conditions {
+        margin-top: 20px;
+        padding: 10px;
+        background-color: #f1f1f1;
+        border-radius: 5px;
+        border: 1px solid #007bff;
+        font-size: 1rem;
+    }
+    .terms-conditions a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    .terms-conditions a:hover {
+        text-decoration: underline;
+    }
 </style>
 {% endblock %}
 
@@ -76,14 +91,11 @@
                                 </div>
 
                                 <!-- Aceitação dos Termos e Condições -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
+                                <div class="terms-conditions">
+                                    <label for="terms_accepted">
                                         <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" required>
-                                        <label for="terms_accepted">
-                                            <i class="bi bi-check-circle me-1"></i>
-                                            Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
-                                        </label>
-                                    </div>
+                                        Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
+                                    </label>
                                 </div>
 
                                 <!-- Saudação e Encerramento Padrão -->
