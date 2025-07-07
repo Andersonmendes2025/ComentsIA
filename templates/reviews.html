@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Avaliações Recebidas</h2>
+
+  <!-- Botão de Ativação do Robô -->
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
+      <i class="bi bi-robot me-1"></i>
+      Ativar Respostas Automáticas
+    </a>
+  </div>
+
+  {% if reviews %}
+    {% for review in reviews %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Nome: {{ review.reviewer_name }}</h5>
+          <h6 class="card-subtitle mb-2 text-muted">Nota: {{ review.rating }} - Data: {{ review.date }}</h6>
+          <p class="card-text" id="review-text-{{ review.id }}">{{ review.text }}</p>
+
+          {% if review.replied %}
+            <div class="alert alert-success mt-2">
+              <strong>Resposta enviada:</strong>
+              <p>{{ review.reply }}</p>
+            </div>
+          {% endif %}
+
+
+          <div class="form-group mt-2">
+            <label for="tone-{{ review.id }}">Tom da resposta:</label>
+            <select class="form-control" id="tone-{{ review.id }}">
+              <option value="profissional">Profissional</option>
+              <option value="amigavel">Amigável</option>
+              <option value="empatico">Empático</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary mt-2"
+                  onclick="generateReply({{ review.id }}, {{ review.rating }}, '{{ review.reviewer_name }}')">
+            Gerar sugestão
+          </button>
+
+          <p id="loading-{{ review.id }}" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
+          <p id="suggestion-{{ review.id }}" class="mt-2" style="display: none;"></p>
+
+          <div id="actions-{{ review.id }}" class="mt-2" style="display: none;">
+            <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
+          </div>
+
+          {% if review.replied %}
+            <button class="btn btn-warning btn-sm mt-2" onclick="deleteReply({{ review.id }})">Excluir resposta</button>
+          {% endif %}
+          <button class="btn btn-danger btn-sm mt-2" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>Nenhuma avaliação disponível.</p>
+  {% endif %}
+</div>
+
+<script>
+  function generateReply(id, rating, reviewerName) {
+    const text = document.getElementById('review-text-' + id).innerText;
+    const tone = document.getElementById('tone-' + id).value;
+    const loading = document.getElementById('loading-' + id);
+    const suggestion = document.getElementById('suggestion-' + id);
+    const actions = document.getElementById('actions-' + id);
+
+    loading.style.display = 'block';
+    suggestion.style.display = 'none';
+    actions.style.display = 'none';
+
+    fetch('/suggest_reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        review_text: text,
+        star_rating: rating,
+        reviewer_name: reviewerName,
+        tone: tone
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      loading.style.display = 'none';
+      if (data.success) {
+        suggestion.innerText = data.suggested_reply;
+        suggestion.style.display = 'block';
+        actions.style.display = 'block';
+      } else {
+        suggestion.innerText = 'Erro: ' + data.error;
+        suggestion.style.display = 'block';
+      }
+    });
+  }
+
+  function saveReply(id) {
+    const replyText = document.getElementById('suggestion-' + id).innerText;
+    fetch('/save_reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id: id, reply_text: replyText })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Resposta salva com sucesso!');
+        location.reload();
+      } else {
+        alert('Erro: ' + data.error);
+      }
+    });
+  }
+
+  function deleteReply(id) {
+    if (!confirm('Tem certeza que deseja excluir a resposta?')) return;
+    fetch('/delete_reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id: id })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Resposta excluída com sucesso!');
+        location.reload();
+      } else {
+        alert('Erro: ' + data.error);
+      }
+    });
+  }
+
+  function deleteReview(id) {
+    if (!confirm('Tem certeza que deseja excluir a avaliação?')) return;
+    fetch('/delete_review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id: id })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Avaliação excluída com sucesso!');
+        location.reload();
+      } else {
+        alert('Erro: ' + data.error);
+      }
+    });
+  }
+</script>
+{% endblock %}

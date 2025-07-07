@@ -1,0 +1,123 @@
+/* Estilos personalizados para o aplicativo de respostas a avaliações */
+
+body {
+    background-color: #f8f9fa;
+}
+
+.navbar-brand i {
+    margin-right: 8px;
+}
+
+.review-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+.review-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.star-rating {
+    color: #FFC107;
+    font-size: 1.1rem;
+}
+
+.review-date {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.review-text {
+    margin: 15px 0;
+    line-height: 1.5;
+}
+
+.reply-area {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 0 0 8px 8px;
+}
+
+.nav-item .active {
+    font-weight: bold;
+}
+
+.loading-spinner {
+    display: none;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+/* Estilos para o dashboard */
+.display-4 {
+    font-weight: 600;
+}
+
+/* Estilos para os filtros de avaliações */
+.filter-btn.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+/* Estilos para o formulário de configurações */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Estilos para a prévia de resposta */
+#preview-greeting, #preview-closing {
+    font-weight: 500;
+}
+
+#preview-body {
+    margin: 15px 0;
+}
+
+#preview-contact {
+    font-style: italic;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: 1.1rem;
+    }
+    
+    .display-4 {
+        font-size: 2rem;
+    }
+}

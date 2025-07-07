@@ -1,0 +1,169 @@
+/* ===== VARIÁVEIS ===== */
+:root {
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --info-color: #60a5fa;
+  --light-color: #f9fafb;
+  --dark-color: #111827;
+  --success-color: #22c55e;
+  --warning-color: #facc15;
+  --danger-color: #ef4444;
+  --border-radius: 0.75rem;
+  --box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  --box-shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.15);
+  --transition: all 0.3s ease;
+}
+
+/* ===== FONTE ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--light-color);
+  color: var(--dark-color);
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* ===== HERO ICON COM ANIMAÇÃO ===== */
+.hero-icon {
+  animation: float 4s ease-in-out infinite;
+  color: var(--primary-color);
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ===== BOTÕES ===== */
+.btn {
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  transition: var(--transition);
+  box-shadow: var(--box-shadow);
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--box-shadow-hover);
+}
+.btn:active {
+  transform: translateY(0);
+}
+
+/* ===== CARDS ===== */
+.card {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  transition: var(--transition);
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--box-shadow-hover);
+}
+
+/* CORES DE CARDS DE MÉTRICA */
+.card.bg-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+}
+.card.bg-success {
+  background: linear-gradient(135deg, var(--success-color), #16a34a);
+}
+.card.bg-warning {
+  background: linear-gradient(135deg, var(--warning-color), #eab308);
+}
+.card.bg-info {
+  background: linear-gradient(135deg, var(--info-color), #3b82f6);
+}
+
+/* ===== LINKS ===== */
+a, .nav-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover, .nav-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* ===== ANIMAÇÃO DE APARECER SUAVE ===== */
+.container {
+  animation: fadeIn 0.7s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== AJUSTES DE TEXTO ===== */
+.display-4 {
+  font-weight: 700;
+}
+.lead {
+  font-size: 1.125rem;
+  color: #6b7280;
+}
+
+/* ===== BOTÃO TEMA ESCURO FIXO ===== */
+.theme-toggle {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 1.25rem;
+  cursor: pointer;
+  box-shadow: var(--box-shadow);
+  z-index: 1000;
+}
+.theme-toggle:hover {
+  background: var(--primary-hover);
+}
+
+/* ===== RESPONSIVIDADE LEVE ===== */
+@media (max-width: 768px) {
+  .display-4 {
+    font-size: 2rem;
+  }
+  .lead {
+    font-size: 1rem;
+  }
+}
+/* Ajustes para modo escuro */
+body.dark {
+  background-color: #1e1e2f;
+  color: #e4e4e4;
+}
+
+body.dark .text-muted,
+body.dark .lead,
+body.dark .card-text {
+  color: #c0c0c0 !important;
+}
+
+body.dark .card,
+body.dark .navbar,
+body.dark .dropdown-menu {
+  background-color: #2c2c3a;
+  color: #e4e4e4;
+}
+
+body.dark .btn,
+body.dark .navbar .nav-link,
+body.dark .dropdown-item {
+  color: #e4e4e4;
+}
+
+body.dark .dropdown-item:hover {
+  background-color: #3c3c4a;
+}
+
+body.dark .navbar .navbar-brand span,
+body.dark .navbar .nav-link.active {
+  color: #ffffff;
+}

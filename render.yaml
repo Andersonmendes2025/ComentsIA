@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: comentsia
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn main:app
+    envVars:
+      - key: OPENAI_API_KEY
+        fromEnv: OPENAI_API_KEY
+      - key: GOOGLE_CLIENT_ID
+        fromEnv: GOOGLE_CLIENT_ID
+      - key: GOOGLE_CLIENT_SECRET
+        fromEnv: GOOGLE_CLIENT_SECRET
+      - key: FLASK_SECRET_KEY
+        fromEnv: FLASK_SECRET_KEY
