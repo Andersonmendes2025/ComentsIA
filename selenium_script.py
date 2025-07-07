@@ -74,6 +74,7 @@ def iniciar_bot_google(user_info=None, modo_teste=False):
 
     print("✅ Fim da execução do robô.")
     return driver
+executar_robo_com_google_login = iniciar_bot_google
 
 
 # Se quiser testar direto rodando python selenium_script.py
