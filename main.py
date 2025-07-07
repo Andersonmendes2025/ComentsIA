@@ -12,6 +12,8 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from flask import session
 import logging
+from datetime import datetime
+current_date = datetime.now().strftime('%d/%m/%Y')
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -180,9 +182,29 @@ def first_login():
 
     return render_template('first_login.html')
 
-@app.route('/terms')
+@app.route('/terms', methods=['GET', 'POST'])
 def terms():
-    return render_template('terms.html')
+    """Exibe os Termos e Condições e processa a aceitação do usuário."""
+    if request.method == 'POST':
+        # Verifica se o usuário aceitou os Termos e Condições
+        terms_accepted = request.form.get('terms_accepted')
+        
+        if not terms_accepted:
+            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
+            return redirect(url_for('terms'))  # Se não aceitar, volta para a página de termos
+        
+        # Quando o usuário aceitar os termos, marque na sessão que foi aceito
+        session['terms_accepted'] = True
+
+        # Redireciona para as configurações ou para o próximo passo
+        return redirect(url_for('settings'))  # Redireciona para configurações, onde o usuário irá preencher os dados
+
+    # Dados do usuário
+    user_info = flask.session.get('user_info', {})
+    user_name = user_info.get('name', 'Usuário')
+    user_email = user_info.get('email', 'Email não informado')
+
+    return render_template('terms.html', user_name=user_name, user_email=user_email)
 
 @app.route('/authorize')
 def authorize():
@@ -717,17 +739,29 @@ def settings():
         return redirect(url_for('logout'))
     
     if request.method == 'POST':
+        # Coleta os dados do formulário
         settings_data = {
-            'business_name': request.form.get('business_name', ''),
+            'business_name': request.form.get('company_name', ''),
             'default_greeting': request.form.get('default_greeting', ''),
             'default_closing': request.form.get('default_closing', ''),
-            'contact_info': request.form.get('contact_info', '')
+            'contact_info': request.form.get('contact_info', ''),
+            'terms_accepted': request.form.get('terms_accepted')  # Verifica se os termos foram aceitos
         }
         
-        # Salvar configurações do usuário no banco de dados
+        # Verifica se os Termos e Condições foram aceitos
+        if not settings_data['terms_accepted']:
+            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
+            return redirect(url_for('settings'))
+        
+        # Salvar as configurações do usuário no banco de dados
         save_user_settings(user_id, settings_data)
+        
+        # Marca que o cadastro foi concluído
+        session['first_login_done'] = True  # Marcar que o usuário completou o cadastro
+        
         flash('Configurações salvas com sucesso!', 'success')
-    
+        return redirect(url_for('index'))  # Redireciona para a página principal
+
     # Obter configurações atuais do usuário do banco de dados
     current_settings = get_user_settings(user_id)
     
