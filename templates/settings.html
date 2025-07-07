@@ -1,200 +1,83 @@
-{% extends "base.html" %}
-
-{% block title %}Configurações - Gerenciador de Avaliações Google{% endblock %}
-
-{% block extra_head %}
-<style>
-.settings-card {
-    border-left: 4px solid #007bff;
-}
-.preview-card {
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
-}
-.form-floating textarea {
-    min-height: 100px;
-}
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="d-flex align-items-center mb-4">
-                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="mb-1">
-                        <i class="bi bi-gear me-2"></i>
-                        Configurações
-                    </h2>
-                    <p class="text-muted mb-0">Personalize suas respostas e preencha as informações da conta</p>
-                </div>
-            </div>
-
-            <div class="row">
-                <!-- Settings Form -->
-                <div class="col-lg-8 mb-4">
-                    <div class="card settings-card shadow-sm">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="bi bi-palette me-1"></i>
-                                Personalização de Respostas
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" id="settingsForm">
-                                <!-- Formulário de Conta -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="company_name" name="company_name" 
-                                               value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
-                                        <label for="company_name">
-                                            <i class="bi bi-building me-1"></i>
-                                            Nome da Empresa
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Nome da sua empresa ou negócio (obrigatório)
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="contact_info" name="contact_info" 
-                                               value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
-                                        <label for="contact_info">
-                                            <i class="bi bi-telephone me-1"></i>
-                                            Informações de Contato
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Suas informações de contato para incluir nas respostas (obrigatório)
-                                    </div>
-                                </div>
-
-                                <!-- Aceitação dos Termos -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" required {% if settings.business_name %} checked {% endif %}>
-                                        <label for="terms_accepted">
-                                            <i class="bi bi-check-circle me-1"></i>
-                                            Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Configurações de Personalização -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="default_greeting" name="default_greeting" 
-                                               value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
-                                        <label for="default_greeting">
-                                            <i class="bi bi-chat-heart me-1"></i>
-                                            Saudação Padrão
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Como você gostaria de iniciar suas respostas (ex: "Olá", "Prezado(a)", "Caro cliente")
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <textarea class="form-control" id="default_closing" name="default_closing" 
-                                                  placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
-                                        <label for="default_closing">
-                                            <i class="bi bi-chat-square-heart me-1"></i>
-                                            Encerramento Padrão
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Como você gostaria de encerrar suas respostas (ex: "Agradecemos seu feedback!", "Obrigado pela avaliação!")
-                                    </div>
-                                </div>
-
-                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                    <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetToDefaults()">
-                                        <i class="bi bi-arrow-clockwise me-1"></i>
-                                        Restaurar Padrões
-                                    </button>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="bi bi-check-circle me-1"></i>
-                                        Salvar Configurações
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Preview -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card preview-card shadow-sm">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="bi bi-eye me-1"></i>
-                                Prévia da Resposta
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div id="response-preview" class="p-3 bg-white rounded border">
-                                <div id="preview-greeting" class="fw-bold">{{ settings.default_greeting }}</div>
-                                <div class="my-3 text-muted fst-italic">
-                                    [Aqui aparecerá a resposta gerada pela IA]
-                                </div>
-                                <div id="preview-closing" class="mt-3">{{ settings.default_closing }}</div>
-                                <div id="preview-contact" class="mt-2 small text-muted">{{ settings.contact_info }}</div>
-                            </div>
-                            <small class="text-muted mt-2 d-block">
-                                Esta é uma prévia de como suas respostas aparecerão com as configurações atuais.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<form method="POST" id="settingsForm">
+    <!-- Nome da Empresa -->
+    <div class="mb-4">
+        <div class="form-floating">
+            <input type="text" class="form-control" id="company_name" name="company_name" 
+                   value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
+            <label for="company_name">
+                <i class="bi bi-building me-1"></i>
+                Nome da Empresa
+            </label>
+        </div>
+        <div class="form-text">
+            Nome da sua empresa ou negócio (obrigatório)
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block extra_scripts %}
-<script>
-// Atualiza a prévia em tempo real
-document.addEventListener('DOMContentLoaded', function() {
-    const greetingInput = document.getElementById('default_greeting');
-    const closingInput = document.getElementById('default_closing');
-    const contactInput = document.getElementById('contact_info');
-    
-    const previewGreeting = document.getElementById('preview-greeting');
-    const previewClosing = document.getElementById('preview-closing');
-    const previewContact = document.getElementById('preview-contact');
-    
-    function updatePreview() {
-        previewGreeting.textContent = greetingInput.value || 'Olá,';
-        previewClosing.textContent = closingInput.value || 'Agradecemos seu feedback!';
-        previewContact.textContent = contactInput.value || 'Entre em contato conosco';
-    }
-    
-    greetingInput.addEventListener('input', updatePreview);
-    closingInput.addEventListener('input', updatePreview);
-    contactInput.addEventListener('input', updatePreview);
-});
+    <!-- Informações de Contato -->
+    <div class="mb-4">
+        <div class="form-floating">
+            <input type="text" class="form-control" id="contact_info" name="contact_info" 
+                   value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
+            <label for="contact_info">
+                <i class="bi bi-telephone me-1"></i>
+                Informações de Contato
+            </label>
+        </div>
+        <div class="form-text">
+            Suas informações de contato para incluir nas respostas (obrigatório)
+        </div>
+    </div>
 
-function resetToDefaults() {
-    if (confirm('Tem certeza que deseja restaurar as configurações padrão?')) {
-        document.getElementById('company_name').value = '';
-        document.getElementById('default_greeting').value = 'Olá,';
-        document.getElementById('default_closing').value = 'Agradecemos seu feedback!';
-        document.getElementById('contact_info').value = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-        
-        // Atualiza a prévia
-        document.getElementById('preview-greeting').textContent = 'Olá,';
-        document.getElementById('preview-closing').textContent = 'Agradecemos seu feedback!';
-        document.getElementById('preview-contact').textContent = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-    }
-}
-</script>
-{% endblock %}
+    <!-- Aceitação dos Termos e Condições -->
+    <div class="mb-4">
+        <div class="form-floating">
+            <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" required>
+            <label for="terms_accepted">
+                <i class="bi bi-check-circle me-1"></i>
+                Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
+            </label>
+        </div>
+    </div>
+
+    <!-- Saudação Padrão -->
+    <div class="mb-4">
+        <div class="form-floating">
+            <input type="text" class="form-control" id="default_greeting" name="default_greeting" 
+                   value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
+            <label for="default_greeting">
+                <i class="bi bi-chat-heart me-1"></i>
+                Saudação Padrão
+            </label>
+        </div>
+        <div class="form-text">
+            Como você gostaria de iniciar suas respostas (ex: "Olá", "Prezado(a)", "Caro cliente")
+        </div>
+    </div>
+
+    <!-- Encerramento Padrão -->
+    <div class="mb-4">
+        <div class="form-floating">
+            <textarea class="form-control" id="default_closing" name="default_closing" 
+                      placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
+            <label for="default_closing">
+                <i class="bi bi-chat-square-heart me-1"></i>
+                Encerramento Padrão
+            </label>
+        </div>
+        <div class="form-text">
+            Como você gostaria de encerrar suas respostas (ex: "Agradecemos seu feedback!", "Obrigado pela avaliação!")
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetToDefaults()">
+            <i class="bi bi-arrow-clockwise me-1"></i>
+            Restaurar Padrões
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle me-1"></i>
+            Salvar Configurações
+        </button>
+    </div>
+</form>

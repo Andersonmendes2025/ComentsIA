@@ -115,14 +115,19 @@ def index():
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
 
+    # Buscar configurações do usuário
+    user_settings = get_user_settings(user_id)
+    
+    # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
+    if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
+        return redirect(url_for('settings'))  # Redireciona para a página de configurações para preencher os dados
+
     # Buscar avaliações do usuário
     user_reviews = get_user_reviews(user_id)
     total_reviews = len(user_reviews)
     responded_reviews = sum(1 for review in user_reviews if review.replied)
     pending_reviews = total_reviews - responded_reviews
     avg_rating = round(sum(review.rating for review in user_reviews) / total_reviews, 1) if total_reviews else 0.0
-
-    user_reviews = get_user_reviews(user_id)
 
     return render_template(
         'index.html',
@@ -132,6 +137,7 @@ def index():
         reviews=user_reviews
     )
 
+
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
     if 'credentials' not in flask.session:
@@ -140,18 +146,25 @@ def first_login():
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
 
+    # Verifica se o usuário já preencheu as configurações
+    user_settings = get_user_settings(user_id)
+
+    # Se o usuário já tem as configurações, redireciona para a página principal
+    if user_settings['business_name'] and user_settings['contact_info'] and session.get('first_login_done'):
+        return redirect(url_for('index'))  # Usuário já completou o cadastro, vai para a página principal
+
+    # Se o método for POST, salva as configurações
     if request.method == 'POST':
-        # Obtendo os dados do formulário
         company_name = request.form.get('company_name')
         contact_info = request.form.get('contact_info')
         terms_accepted = request.form.get('terms_accepted')
 
-        # Verificando se os termos foram aceitos
+        # Verifica se os termos foram aceitos
         if not terms_accepted:
             flash("Você precisa aceitar os termos e condições para continuar.", "warning")
             return redirect(url_for('first_login'))
 
-        # Salve as configurações do usuário no banco de dados
+        # Salva as configurações do usuário no banco de dados
         settings_data = {
             'business_name': company_name,
             'default_greeting': 'Olá,',
@@ -163,9 +176,11 @@ def first_login():
         # Marque que o cadastro foi concluído
         session['first_login_done'] = True
 
+        flash("Configurações salvas com sucesso!", "success")
         return redirect(url_for('index'))  # Redireciona para a página principal
 
     return render_template('first_login.html')
+
 @app.route('/terms')
 def terms():
     return render_template('terms.html')
