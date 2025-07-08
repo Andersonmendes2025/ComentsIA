@@ -4,21 +4,21 @@
 
 {% block extra_head %}
 <style>
-.star-rating {
-    font-size: 2rem;
-    color: #ddd;
-    cursor: pointer;
-}
-.star-rating .star {
-    transition: color 0.2s;
-}
-.star-rating .star:hover,
-.star-rating .star.active {
-    color: #ffc107;
-}
-.form-floating textarea {
-    min-height: 120px;
-}
+    .star-rating {
+        font-size: 2rem;
+        color: #ddd;
+        cursor: pointer;
+    }
+    .star-rating .star {
+        transition: color 0.2s;
+    }
+    .star-rating .star:hover,
+    .star-rating .star.active {
+        color: #ffc107;
+    }
+    .form-floating textarea {
+        min-height: 120px;
+    }
 </style>
 {% endblock %}
 
@@ -82,127 +82,94 @@
                             </div>
                         </div>
 
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <!-- Botão de Sugerir Resposta -->
+                        <div class="card mt-4">
+                            <div class="card-body d-grid">
+                                <button type="button" id="suggestReplyButton" class="btn btn-outline-primary btn-lg">
+                                    <i class="bi bi-lightbulb me-2"></i> Sugerir Resposta
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Botão de Enviar Avaliação -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
                             <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-md-2">
-                                <i class="bi bi-x-circle me-1"></i>
-                                Cancelar
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Adicionar Avaliação
+                                <i class="bi bi-check-circle me-1"></i> Adicionar Avaliação
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Tips Card -->
-             <div class="card mt-4">
-              <div class="card-body d-grid">
-                <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary btn-lg">
-                  <i class="bi bi-robot me-2"></i>
-                  Ativar Respostas Automáticas
-                </a>
-              </div>
+<!-- Modal de Resposta Sugerida -->
+<div class="modal fade" id="suggestedReplyModal" tabindex="-1" aria-labelledby="suggestedReplyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="suggestedReplyModalLabel">Resposta Sugerida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="card mt-4 border-info">
-                <div class="card-header bg-info text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-lightbulb me-1"></i>
-                        Dicas para melhores resultados
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <ul class="mb-0">
-                        <li><strong>Nome do cliente:</strong> Use o nome real quando disponível para respostas mais personalizadas</li>
-                        <li><strong>Classificação:</strong> Defina corretamente as estrelas para gerar respostas apropriadas</li>
-                        <li><strong>Texto completo:</strong> Cole o texto completo da avaliação para análises mais precisas</li>
-                        <li><strong>Contexto:</strong> Inclua detalhes específicos mencionados pelo cliente</li>
-                    </ul>
-                </div>
+            <div class="modal-body">
+                <p><strong>Resposta sugerida:</strong></p>
+                <p id="suggestedReplyText">Carregando...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="acceptSuggestedReplyButton">Aceitar Resposta</button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const stars = document.querySelectorAll('.star');
-  const ratingInput = document.getElementById('rating');
+// Função para sugerir resposta
+document.getElementById("suggestReplyButton").addEventListener("click", function () {
+    const reviewText = document.getElementById('text').value;
+    const reviewerName = document.getElementById('reviewer_name').value;
+    const rating = document.getElementById('rating').value;
 
-  function setRating(rating) {
-    ratingInput.value = rating;
-    updateStars(rating);
-  }
+    if (!reviewText) {
+        alert('Por favor, insira o texto da avaliação para sugerir uma resposta.');
+        return;
+    }
 
-  function updateStars(rating) {
-    stars.forEach((star) => {
-      const starValue = parseInt(star.getAttribute('data-rating'));
-      if (starValue <= rating) {
-        star.classList.add('active');
-        star.style.color = '#ffc107';
-      } else {
-        star.classList.remove('active');
-        star.style.color = '#ddd';
-      }
-    });
-  }
-
-  stars.forEach((star) => {
-    star.addEventListener('click', function() {
-      const rating = parseInt(this.getAttribute('data-rating'));
-      setRating(rating);
-    });
-
-    star.addEventListener('mouseover', function() {
-      const hoverRating = parseInt(this.getAttribute('data-rating'));
-      stars.forEach((s) => {
-        const sValue = parseInt(s.getAttribute('data-rating'));
-        if (sValue <= hoverRating) {
-          s.style.color = '#ffc107';
+    // Enviar os dados para sugerir a resposta
+    fetch('/suggest_reply', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            review_text: reviewText,
+            reviewer_name: reviewerName,
+            star_rating: rating
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Exibir a resposta sugerida em um modal
+            document.getElementById('suggestedReplyText').textContent = data.suggested_reply;
+            new bootstrap.Modal(document.getElementById('suggestedReplyModal')).show();
         } else {
-          s.style.color = '#ddd';
+            alert('Erro ao sugerir resposta.');
         }
-      });
     });
-
-    star.addEventListener('mouseout', function() {
-      const currentRating = parseInt(ratingInput.value);
-      updateStars(currentRating);
-    });
-  });
-
-  // Inicializar com valor padrão (5 estrelas)
-  setRating(parseInt(ratingInput.value));
 });
 
-// Validação de formulário
-document.getElementById('reviewForm').addEventListener('submit', function(e) {
-  const reviewerName = document.getElementById('reviewer_name').value.trim();
-  const reviewText = document.getElementById('text').value.trim();
-  const rating = document.getElementById('rating').value;
-
-  if (!reviewerName) {
+// Submeter o formulário de avaliação
+document.getElementById('reviewForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    alert('Por favor, digite o nome do cliente.');
-    document.getElementById('reviewer_name').focus();
-    return;
-  }
-
-  if (!reviewText) {
-    e.preventDefault();
-    alert('Por favor, digite o texto da avaliação.');
-    document.getElementById('text').focus();
-    return;
-  }
-
-  if (!rating || rating < 1 || rating > 5) {
-    e.preventDefault();
-    alert('Por favor, selecione uma classificação de 1 a 5 estrelas.');
-    return;
-  }
+    alert('Avaliação enviada com sucesso!');
 });
 </script>
 {% endblock %}

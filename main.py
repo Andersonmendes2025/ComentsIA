@@ -58,8 +58,8 @@ API_VERSION = 'v4'
 
 # Funções auxiliares para trabalhar com o banco de dados
 def get_user_reviews(user_id):
-    """Obtém todas as avaliações de um usuário do banco de dados."""
-    return Review.query.filter_by(user_id=user_id).all()
+    """Obtém todas as avaliações de um usuário do banco de dados, ordenadas da mais recente para a mais antiga."""
+    return Review.query.filter_by(user_id=user_id).order_by(Review.date.desc()).all()
 
 def get_user_settings(user_id):
     """Obtém as configurações de um usuário do banco de dados."""
