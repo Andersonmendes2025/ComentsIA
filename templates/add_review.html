@@ -41,7 +41,7 @@
 
             <div class="card shadow-sm">
                 <div class="card-body p-4">
-                    <form method="POST" id="reviewForm">
+                    <form method="POST" id="reviewForm" onsubmit="event.preventDefault(); generateReply();">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <div class="form-floating">
@@ -195,33 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Inicializar com valor padrão (5 estrelas)
   setRating(parseInt(ratingInput.value));
-});
-
-// Validação de formulário
-document.getElementById('reviewForm').addEventListener('submit', function(e) {
-  const reviewerName = document.getElementById('reviewer_name').value.trim();
-  const reviewText = document.getElementById('text').value.trim();
-  const rating = document.getElementById('rating').value;
-
-  if (!reviewerName) {
-    e.preventDefault();
-    alert('Por favor, digite o nome do cliente.');
-    document.getElementById('reviewer_name').focus();
-    return;
-  }
-
-  if (!reviewText) {
-    e.preventDefault();
-    alert('Por favor, digite o texto da avaliação.');
-    document.getElementById('text').focus();
-    return;
-  }
-
-  if (!rating || rating < 1 || rating > 5) {
-    e.preventDefault();
-    alert('Por favor, selecione uma classificação de 1 a 5 estrelas.');
-    return;
-  }
 });
 
 // Funções para gerar e salvar respostas
