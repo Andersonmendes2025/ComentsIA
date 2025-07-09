@@ -25,7 +25,7 @@ from relatorio import RelatorioAvaliacoes
 from collections import Counter
 import numpy as np
 logging.basicConfig(level=logging.DEBUG)
-
+from collections import Counter
 load_dotenv()
 
 # Configuração do aplicativo Flask
@@ -68,8 +68,9 @@ from collections import Counter
 import numpy as np
 
 # Função para identificar palavras-chave nas avaliações
+from collections import Counter
+
 def analisar_pontos_mais_mencionados(comentarios):
-    # Verifica se a lista de comentários não está vazia ou nula
     if not comentarios:
         return []
 
@@ -81,7 +82,7 @@ def analisar_pontos_mais_mencionados(comentarios):
     contagem = {k: v for k, v in contagem.items() if k.lower() not in palavras_comuns}
     
     # Retorna as 5 palavras mais comuns
-    return contagem.most_common(5)
+    return contagem.most_common(5)  # Isso deve funcionar agora, pois 'contagem' é um Counter
 
 
 # Função para calcular a média das avaliações
