@@ -15,3 +15,4 @@ APScheduler
 matplotlib
 wordcloud
 fpdf2
+pandas==2.2.2
