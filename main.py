@@ -284,7 +284,7 @@ def gerar_relatorio():
 
         try:
             # Passando para o relatório
-            rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias, analises=analises)
+            rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
             buffer = io.BytesIO()
             rel.gerar_pdf(buffer)
             buffer.seek(0)

@@ -9,17 +9,20 @@ from datetime import datetime
 
 
 class RelatorioAvaliacoes:
-    def __init__(self, avaliacoes, media_atual=None, projecao_30_dias=None):
+    def __init__(self, avaliacoes, media_atual=None, projecao_30_dias=None, analises=None):
         """
-        Inicializa a classe com a lista de avaliações, média atual e projeção de 30 dias.
+        Inicializa a classe com a lista de avaliações, média atual, projeção de 30 dias e análises.
         
         :param avaliacoes: Lista de avaliações
         :param media_atual: Média atual das notas
         :param projecao_30_dias: Projeção para os próximos 30 dias
+        :param analises: Análises dos pontos mencionados nas avaliações
         """
         self.df = pd.DataFrame(avaliacoes)
         self.media_atual = media_atual
         self.projecao_30_dias = projecao_30_dias
+        self.analises = analises if analises else {}  # Inicializa com vazio caso não seja fornecido
+
 
     def gerar_graficos(self, output_dir):
         # Distribuição das notas
