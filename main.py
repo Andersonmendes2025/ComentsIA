@@ -166,9 +166,9 @@ def gerar_relatorio():
         data_inicio = None
 
     if data_inicio:
-        # AJUSTE: use o mesmo formato salvo no banco!
-        data_inicio_str = data_inicio.strftime('%Y-%m-%d')  # troque para '%d/%m/%Y' se for o caso
+        data_inicio_str = data_inicio.strftime('%d/%m/%Y')  # CERTO para seu banco!
         avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio_str)
+
 
     # Filtro de nota
     if nota != 'todas':
