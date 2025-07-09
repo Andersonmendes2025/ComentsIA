@@ -4,11 +4,22 @@ from fpdf import FPDF
 from wordcloud import WordCloud
 import tempfile
 import os
+import numpy as np
+from datetime import datetime
+
 
 class RelatorioAvaliacoes:
-    def __init__(self, avaliacoes):
-        # avaliacoes: lista de dicionários. Cada dict: {'data', 'nota', 'texto', 'respondida', 'resposta', 'tags', ...}
+    def __init__(self, avaliacoes, media_atual=None, projecao_30_dias=None):
+        """
+        Inicializa a classe com a lista de avaliações, média atual e projeção de 30 dias.
+        
+        :param avaliacoes: Lista de avaliações
+        :param media_atual: Média atual das notas
+        :param projecao_30_dias: Projeção para os próximos 30 dias
+        """
         self.df = pd.DataFrame(avaliacoes)
+        self.media_atual = media_atual
+        self.projecao_30_dias = projecao_30_dias
 
     def gerar_graficos(self, output_dir):
         # Distribuição das notas
@@ -67,6 +78,8 @@ class RelatorioAvaliacoes:
             pdf.cell(0, 8, f"Total de respostas: {total_respostas}", ln=True)
             pdf.cell(0, 8, f"Taxa de resposta: {taxa_resposta:.1f}%", ln=True)
             pdf.cell(0, 8, f"Média de nota: {media_nota:.2f}", ln=True)
+            pdf.cell(0, 8, f"Média Atual: {self.media_atual:.2f}", ln=True)  # Exibe a média atual
+            pdf.cell(0, 8, f"Projeção de nota para os próximos 30 dias: {self.projecao_30_dias:.2f}", ln=True)  # Exibe a projeção
             pdf.ln(5)
 
             # Gráfico distribuição das notas
@@ -113,5 +126,9 @@ if __name__ == "__main__":
         {'data': '2024-06-05', 'nota': 2, 'texto': 'Demorou demais.', 'respondida': 0, 'tags': 'atraso'},
         # ... adicione suas avaliações aqui
     ]
-    rel = RelatorioAvaliacoes(avaliacoes)
+    
+    media_atual = 4.2  # Exemplo de média
+    projecao_30_dias = 4.4  # Exemplo de projeção para os próximos 30 dias
+    
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual, projecao_30_dias)
     rel.gerar_pdf("relatorio_avaliacoes.pdf")
