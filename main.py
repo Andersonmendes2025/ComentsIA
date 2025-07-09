@@ -197,6 +197,9 @@ def gerar_relatorio():
     print(f"Usuário autenticado: {user_info}")
     
     user_id = user_info.get('id')
+    if not user_id:
+        print("Usuário não encontrado na sessão.")
+        return redirect(url_for('authorize'))  # Redireciona se o usuário não tiver ID na sessão
 
     # Buscar configurações do usuário
     user_settings = get_user_settings(user_id)
@@ -206,6 +209,8 @@ def gerar_relatorio():
     if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
         flash("Por favor, preencha suas informações de empresa nas configurações antes de gerar o relatório.", "warning")
         return redirect(url_for('settings'))  # Redireciona para a página de configurações
+
+    # Restante do código para gerar o relatório...
 
     # Processamento do formulário
     if request.method == 'POST':
