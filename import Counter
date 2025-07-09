@@ -1,0 +1,22 @@
+[1mdiff --git a/main.py b/main.py[m
+[1mindex a69b635..5abd833 100644[m
+[1m--- a/main.py[m
+[1m+++ b/main.py[m
+[36m@@ -70,6 +70,8 @@[m [mimport numpy as np[m
+ # Função para identificar palavras-chave nas avaliações[m
+ from collections import Counter[m
+ [m
+[32m+[m[32mfrom collections import Counter[m
+[32m+[m
+ def analisar_pontos_mais_mencionados(comentarios):[m
+     if not comentarios:[m
+         return [][m
+[36m@@ -82,7 +84,7 @@[m [mdef analisar_pontos_mais_mencionados(comentarios):[m
+     contagem = {k: v for k, v in contagem.items() if k.lower() not in palavras_comuns}[m
+     [m
+     # Retorna as 5 palavras mais comuns[m
+[31m-    return contagem.most_common(5)  # Isso deve funcionar agora, pois 'contagem' é um Counter[m
+[32m+[m[32m    return contagem.most_common(5)  # 'contagem' agora é um Counter e tem o método most_common[m
+ [m
+ [m
+ # Função para calcular a média das avaliações[m
