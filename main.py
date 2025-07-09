@@ -303,7 +303,7 @@ def suggest_reply():
     # Instruções para o tom da resposta
     tone_instructions = {
         'profissional': 'Use linguagem formal e respeitosa.',
-        'amigavel': 'Use uma linguagem calorosa e amigável.',
+        'amigavel': 'Use uma linguagem calorosa,sutilmente informal e amigável.',
         'empatico': 'Demonstre empatia e compreensão genuína.',
         'entusiasmado': 'Use uma linguagem animada e positiva.',
         'formal': 'Use uma linguagem formal e estruturada.'
@@ -329,6 +329,7 @@ Instruções:
 - Finalize com: "{settings['default_closing']}"
 - Inclua as informações de contato: "{settings['contact_info']}"
 - Assine como: "{settings['business_name']}"
+- Nao precisa citar todos os postos que o clinete disse e se citar use palavras diferentes
 - A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
 """
 
@@ -553,6 +554,7 @@ Instruções:
 - Finalize com: "{settings['default_closing']}"
 - Inclua as informações de contato: "{settings['contact_info']}"
 - Assine como: "{settings['business_name']}"
+- Nao precisa citar todos os postos que o clinete disse e se citar use palavras diferentes
 - A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
 """
 
@@ -711,9 +713,10 @@ Tarefas:
 Avaliações:
 {resumo}
 
-Responda apenas os seguintes campos: 
+Responda apenas os seguintes campos:
+ Nao cite todos os comentarios, apenas os mais importantes e com palavras diferentes ou mais profissionais do que foram usadas no comentario. 
  Sem caracteres especiais, um texto de facil compreenção mas completo.
-- analise_geral (com destaque para pontos negativos e positivos e gral de importancia de 0 a 10 para ações de melhoria )
+ Escolhe os tres pontos principais e diga o primeiro segundo e terceiro em grau de importancia na interveçao
 """
 
     try:

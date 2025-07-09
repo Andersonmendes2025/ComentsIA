@@ -210,12 +210,14 @@ function generateReply() {
     actions.style.display = 'none';
 
     fetch('/suggest_reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            review_text: text,
-            tone: tone
-        })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        review_text: text,
+        star_rating: rating,
+        reviewer_name: reviewerName,
+        tone: tone
+      })
     })
     .then(response => response.json())
     .then(data => {
@@ -231,22 +233,22 @@ function generateReply() {
     });
 }
 
-function saveReply() {
-    const replyText = document.getElementById('suggestion').innerText;
+function saveReply(id) {
+    const replyText = document.getElementById('suggestion-' + id).innerText;
     fetch('/save_reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reply_text: replyText })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_id: id, reply_text: replyText })
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            alert('Resposta salva com sucesso!');
-            location.reload();
-        } else {
-            alert('Erro: ' + data.error);
-        }
+      if (data.success) {
+        alert('Resposta salva com sucesso!');
+        location.reload();
+      } else {
+        alert('Erro: ' + data.error);
+      }
     });
-}
+  }
 </script>
 {% endblock %}
