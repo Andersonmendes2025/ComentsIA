@@ -165,10 +165,10 @@ def gerar_relatorio():
     else:
         data_inicio = None
 
-    #  if data_inicio:
+    if data_inicio:
         # AJUSTE: use o mesmo formato salvo no banco!
-        # data_inicio_str = data_inicio.strftime('%Y-%m-%d')  # troque para '%d/%m/%Y' se for o caso
-       #  avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio_str)
+        data_inicio_str = data_inicio.strftime('%Y-%m-%d')  # troque para '%d/%m/%Y' se for o caso
+        avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio_str)
 
     # Filtro de nota
     if nota != 'todas':
@@ -199,9 +199,14 @@ def gerar_relatorio():
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
 
-for av in Review.query.all():
-    print(">>", av.date, type(av.date))
-    
+@app.route('/debug_datas')
+def debug_datas():
+    results = []
+    for av in Review.query.all():
+        print(">>", av.date, type(av.date))
+        results.append(f"{av.date} ({type(av.date)})")
+    return "<br>".join(results)
+
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
     if 'credentials' not in flask.session:
