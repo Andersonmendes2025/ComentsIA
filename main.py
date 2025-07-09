@@ -220,23 +220,11 @@ def gerar_relatorio():
 
     # Calculando a média
     media_atual = calcular_media(notas)
-    
-    # Criando as análises com base nas estrelas
-    comentarios = {1: [], 2: [], 3: [], 4: [], 5: []}
-    for av in avaliacoes:
-        comentarios[av['nota']].append(av['texto'])
 
-    analises = {}
-    for i in range(1, 6):
-        analises[i] = {
-            'quantidade': len(comentarios[i]),
-            'comentarios': comentarios[i]  # Para enviar as avaliações agrupadas
-        }
+    # Criando o relatório
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual)
 
     try:
-        # Criando o relatório
-        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, analises=analises)
-
         # Criando o relatório em memória
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)  # Chamando o método 'gerar_pdf' corretamente

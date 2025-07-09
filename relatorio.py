@@ -92,77 +92,56 @@ class RelatorioAvaliacoes:
     # Função para analisar os pontos positivos e negativos
 def gerar_pdf(self, output_path):
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Gerar gráficos e salvar
-        nota_grafico, evolucao_grafico, wordcloud_path = self.gerar_graficos(tmpdir)
+        print("Gerando gráfico...")
+        grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
+        print("Gráfico gerado:", grafico_media_path)
 
-        # Criando o PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
         pdf.ln(5)
 
-        # Visão geral das avaliações
         total_avaliacoes = len(self.df)
-        total_respostas = self.df['respondida'].sum()
-        taxa_resposta = (total_respostas / total_avaliacoes * 100) if total_avaliacoes > 0 else 0
         media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
 
+        print("Adicionando dados ao PDF...")
         pdf.set_font("Arial", '', 12)
-        pdf.cell(0, 10, f"Período analisado: {self.df['data'].min().strftime('%d/%m/%Y')} até {self.df['data'].max().strftime('%d/%m/%Y')}", ln=True)
-        pdf.cell(0, 8, f"Total de avaliações: {total_avaliacoes}", ln=True)
-        pdf.cell(0, 8, f"Total de respostas: {total_respostas}", ln=True)
-        pdf.cell(0, 8, f"Taxa de resposta: {taxa_resposta:.1f}%", ln=True)
-        pdf.cell(0, 8, f"Média de nota: {media_nota:.2f}", ln=True)
-        pdf.cell(0, 8, f"Média Atual: {self.media_atual:.2f}", ln=True)  # Exibe a média atual
-        pdf.cell(0, 8, f"Projeção de nota para os próximos 30 dias: {self.projecao_30_dias:.2f}", ln=True)  # Exibe a projeção
+        pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
+        pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
         pdf.ln(5)
 
-        # Adicionando gráficos
-        pdf.cell(0, 8, "Distribuição das Notas:", ln=True)
-        pdf.image(nota_grafico, w=100)
+        # Gráfico de média histórica
+        print("Adicionando gráfico ao PDF...")
+        pdf.cell(0, 8, "Evolução da Média de Notas:", ln=True)
+        pdf.image(grafico_media_path, w=100)
         pdf.ln(5)
 
-        pdf.cell(0, 8, "Evolução da Nota Média:", ln=True)
-        pdf.image(evolucao_grafico, w=100)
-        pdf.ln(5)
+        # Análise gerada pela IA
+        prompt = f""" Você é uma analista de satisfação do cliente. Com base nas avaliações abaixo, escreva um relatório analítico levando em consideração as estrelas e os comentários, mas sem citar diretamente os comentários. Não repita as informações dos comentários, apenas forneça uma análise geral. Para cada quantidade de estrelas (1 a 5), escreva um tópico descrevendo a percepção geral das avaliações com base nas avaliações que deram essa quantidade de estrelas. 
+        Avaliações: {self.df[['nota', 'texto']].to_dict(orient='records')} """
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
+                          {"role": "user", "content": prompt}]
+            )
 
-        pdf.cell(0, 8, "Principais Palavras das Avaliações:", ln=True)
-        pdf.image(wordcloud_path, w=100)
-        pdf.ln(5)
+            analise_gerada = completion.choices[0].message.content.strip()
 
-        # Analisando os pontos positivos e negativos
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Pontos Positivos", ln=True)
-        pdf.set_font("Arial", '', 11)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
+            pdf.set_font("Arial", '', 11)
+            pdf.multi_cell(0, 7, analise_gerada)
 
-        # Verificar e preencher os pontos positivos
-        if self.analises.get(5):  # Verifica se há pontos positivos
-            for ponto in self.analises.get(5, {}).get('comentarios', []):
-                pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
-        else:
-            pdf.multi_cell(0, 6, "- Nenhum ponto positivo identificado", ln=True)
-        pdf.ln(5)
+        except Exception as e:
+            print(f"Erro ao gerar análise com IA: {str(e)}")
+            pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
 
-        # Adicionando a análise dos pontos negativos
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Pontos Negativos", ln=True)
-        pdf.set_font("Arial", '', 11)
-
-        if self.analises.get(1):  # Verifica se há pontos negativos
-            for ponto in self.analises.get(1, {}).get('comentarios', []):
-                pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
-        else:
-            pdf.multi_cell(0, 6, "- Nenhum ponto negativo identificado", ln=True)
-        pdf.ln(5)
-
-        # Conclusão
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, "Conclusão e Recomendações", ln=True)
-        pdf.set_font("Arial", '', 11)
-        pdf.multi_cell(0, 7, "Aqui entra uma análise automatizada e profissional sobre tendências, pontos de melhoria e pontos fortes, baseada nos dados do período.")
-        
         pdf.output(output_path)
+        print("PDF gerado com sucesso:", output_path)
+
 
 
 # Exemplo de uso:
