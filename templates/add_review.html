@@ -82,6 +82,26 @@
                             </div>
                         </div>
 
+                        <div class="form-group mt-2">
+                            <label for="tone">Tom da resposta:</label>
+                            <select class="form-control" id="tone">
+                                <option value="profissional">Profissional</option>
+                                <option value="amigavel">Amigável</option>
+                                <option value="empatico">Empático</option>
+                            </select>
+                        </div>
+
+                        <button type="button" class="btn btn-primary mt-2" onclick="generateReply()">
+                            Gerar sugestão
+                        </button>
+
+                        <p id="loading" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
+                        <p id="suggestion" class="mt-2" style="display: none;"></p>
+
+                        <div id="actions" class="mt-2" style="display: none;">
+                            <button class="btn btn-success btn-sm" onclick="saveReply()">Responder</button>
+                        </div>
+
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-md-2">
                                 <i class="bi bi-x-circle me-1"></i>
@@ -204,5 +224,57 @@ document.getElementById('reviewForm').addEventListener('submit', function(e) {
     return;
   }
 });
+
+// Funções para gerar e salvar respostas
+function generateReply() {
+    const text = document.getElementById('text').value;
+    const tone = document.getElementById('tone').value;
+    const loading = document.getElementById('loading');
+    const suggestion = document.getElementById('suggestion');
+    const actions = document.getElementById('actions');
+
+    loading.style.display = 'block';
+    suggestion.style.display = 'none';
+    actions.style.display = 'none';
+
+    fetch('/suggest_reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            review_text: text,
+            tone: tone
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        loading.style.display = 'none';
+        if (data.success) {
+            suggestion.innerText = data.suggested_reply;
+            suggestion.style.display = 'block';
+            actions.style.display = 'block';
+        } else {
+            suggestion.innerText = 'Erro: ' + data.error;
+            suggestion.style.display = 'block';
+        }
+    });
+}
+
+function saveReply() {
+    const replyText = document.getElementById('suggestion').innerText;
+    fetch('/save_reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply_text: replyText })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Resposta salva com sucesso!');
+            location.reload();
+        } else {
+            alert('Erro: ' + data.error);
+        }
+    });
+}
 </script>
 {% endblock %}
