@@ -19,7 +19,8 @@ import pandas as pd
 from flask import send_file
 current_date = datetime.now().strftime('%d/%m/%Y')
 from sqlalchemy import func
-
+import numpy as np
+from datetime import timedelta
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -148,14 +149,12 @@ def gerar_relatorio():
     if request.method == 'GET':
         return render_template('relatorio_filtros.html')
 
-    # --- Recebendo filtros do formulário ---
     periodo = request.form.get('periodo', '90dias')
     nota = request.form.get('nota', 'todas')
     respondida = request.form.get('respondida', 'todas')
 
     avaliacoes_query = Review.query
 
-    # Filtro de período
     hoje = datetime.now().date()
     if periodo == '90dias':
         data_inicio = hoje - pd.Timedelta(days=90)
@@ -172,31 +171,45 @@ def gerar_relatorio():
             func.to_date(Review.date, 'DD/MM/YYYY') >= func.to_date(data_inicio_str, 'DD/MM/YYYY')
         )
 
-
-    # Filtro de nota
     if nota != 'todas':
         avaliacoes_query = avaliacoes_query.filter(Review.rating == int(nota))
-
-    # Filtro de respondidas
     if respondida == 'sim':
         avaliacoes_query = avaliacoes_query.filter(Review.replied == True)
     elif respondida == 'nao':
         avaliacoes_query = avaliacoes_query.filter(Review.replied == False)
 
     avaliacoes = []
+    notas = []
+    datas = []
+
     for av in avaliacoes_query.all():
-        nota = int(getattr(av, 'rating', 0) or 0)  # Garante int, mesmo se rating não existir ou for None
+        nota_atual = int(getattr(av, 'rating', 0) or 0)
         avaliacoes.append({
             'data': av.date,
-            'nota': nota,
+            'nota': nota_atual,
             'texto': av.text or "",
             'respondida': 1 if av.replied else 0,
             'tags': getattr(av, 'tags', "") or ""
         })
-    print("AVALIACOES:", avaliacoes)
+        notas.append(nota_atual)
+        datas.append(datetime.strptime(av.date, '%d/%m/%Y'))
 
+    media_atual = round(sum(notas) / len(notas), 2) if notas else 0.0
+    
+    if datas and len(datas) > 1:
+        primeira_data = min(datas)
+        x = np.array([(d - primeira_data).days for d in datas]).reshape(-1, 1)
+        y = np.array(notas)
+        coef = np.polyfit(x.flatten(), y, 1)
+        ultimo_dia = max(x)[0]
+        projecao_dia = ultimo_dia + 30
+        projecao_30_dias = coef[0] * projecao_dia + coef[1]
+        projecao_30_dias = max(0, min(5, projecao_30_dias))
+    else:
+        projecao_30_dias = media_atual  # fallback se não houver dados suficientes para projeção
 
-    rel = RelatorioAvaliacoes(avaliacoes)
+    # Passando para o relatório
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
     buffer = io.BytesIO()
     rel.gerar_pdf(buffer)
     buffer.seek(0)
