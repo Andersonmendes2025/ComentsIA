@@ -201,6 +201,8 @@ document.addEventListener('DOMContentLoaded', function() {
 function generateReply() {
     const text = document.getElementById('text').value;
     const tone = document.getElementById('tone').value;
+    const reviewerName = document.getElementById('reviewer_name').value || 'Cliente';
+    const rating = parseInt(document.getElementById('rating').value) || 5;
     const loading = document.getElementById('loading');
     const suggestion = document.getElementById('suggestion');
     const actions = document.getElementById('actions');
