@@ -18,6 +18,7 @@ import io
 import pandas as pd
 from flask import send_file
 current_date = datetime.now().strftime('%d/%m/%Y')
+from sqlalchemy import func
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -166,8 +167,10 @@ def gerar_relatorio():
         data_inicio = None
 
     if data_inicio:
-        data_inicio_str = data_inicio.strftime('%d/%m/%Y')  # CERTO para seu banco!
-        avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio_str)
+        data_inicio_str = data_inicio.strftime('%d/%m/%Y')
+        avaliacoes_query = avaliacoes_query.filter(
+            func.to_date(Review.date, 'DD/MM/YYYY') >= func.to_date(data_inicio_str, 'DD/MM/YYYY')
+        )
 
 
     # Filtro de nota
