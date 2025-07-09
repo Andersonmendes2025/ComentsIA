@@ -116,73 +116,81 @@ class RelatorioAvaliacoes:
             pdf.multi_cell(0, 7, "Aqui entra uma análise automatizada e profissional sobre tendências, pontos de melhoria e pontos fortes, baseada nos dados do período.")
 
             pdf.output(output_path)
-    def gerar_pdf(self, output_path):
-    # Cria gráficos em temp files
-        with tempfile.TemporaryDirectory() as tmpdir:
-            nota_grafico, evolucao_grafico, wordcloud_path = self.gerar_graficos(tmpdir)
+    # Função para analisar os pontos positivos e negativos
+def gerar_pdf(self, output_path):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Gerar gráficos e salvar
+        nota_grafico, evolucao_grafico, wordcloud_path = self.gerar_graficos(tmpdir)
 
-            pdf = FPDF()
-            pdf.add_page()
+        # Criando o PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
+        pdf.ln(5)
 
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
-            pdf.ln(5)
+        # Visão geral das avaliações
+        total_avaliacoes = len(self.df)
+        total_respostas = self.df['respondida'].sum()
+        taxa_resposta = (total_respostas / total_avaliacoes * 100) if total_avaliacoes > 0 else 0
+        media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
 
-            # Visão Geral
-            total_avaliacoes = len(self.df)
-            total_respostas = self.df['respondida'].sum()
-            taxa_resposta = (total_respostas / total_avaliacoes * 100) if total_avaliacoes > 0 else 0
-            media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 10, f"Período analisado: {self.df['data'].min().strftime('%d/%m/%Y')} até {self.df['data'].max().strftime('%d/%m/%Y')}", ln=True)
+        pdf.cell(0, 8, f"Total de avaliações: {total_avaliacoes}", ln=True)
+        pdf.cell(0, 8, f"Total de respostas: {total_respostas}", ln=True)
+        pdf.cell(0, 8, f"Taxa de resposta: {taxa_resposta:.1f}%", ln=True)
+        pdf.cell(0, 8, f"Média de nota: {media_nota:.2f}", ln=True)
+        pdf.cell(0, 8, f"Média Atual: {self.media_atual:.2f}", ln=True)  # Exibe a média atual
+        pdf.cell(0, 8, f"Projeção de nota para os próximos 30 dias: {self.projecao_30_dias:.2f}", ln=True)  # Exibe a projeção
+        pdf.ln(5)
 
-            pdf.set_font("Arial", '', 12)
-            pdf.cell(0, 10, f"Período analisado: {self.df['data'].min().strftime('%d/%m/%Y')} até {self.df['data'].max().strftime('%d/%m/%Y')}", ln=True)
-            pdf.cell(0, 8, f"Total de avaliações: {total_avaliacoes}", ln=True)
-            pdf.cell(0, 8, f"Total de respostas: {total_respostas}", ln=True)
-            pdf.cell(0, 8, f"Taxa de resposta: {taxa_resposta:.1f}%", ln=True)
-            pdf.cell(0, 8, f"Média de nota: {media_nota:.2f}", ln=True)
-            pdf.cell(0, 8, f"Média Atual: {self.media_atual:.2f}", ln=True)  # Exibe a média atual
-            pdf.cell(0, 8, f"Projeção de nota para os próximos 30 dias: {self.projecao_30_dias:.2f}", ln=True)  # Exibe a projeção
-            pdf.ln(5)
+        # Adicionando gráficos
+        pdf.cell(0, 8, "Distribuição das Notas:", ln=True)
+        pdf.image(nota_grafico, w=100)
+        pdf.ln(5)
 
-            # Gráfico distribuição das notas
-            pdf.cell(0, 8, "Distribuição das Notas:", ln=True)
-            pdf.image(nota_grafico, w=100)
-            pdf.ln(5)
+        pdf.cell(0, 8, "Evolução da Nota Média:", ln=True)
+        pdf.image(evolucao_grafico, w=100)
+        pdf.ln(5)
 
-            # Gráfico evolução da nota
-            pdf.cell(0, 8, "Evolução da Nota Média:", ln=True)
-            pdf.image(evolucao_grafico, w=100)
-            pdf.ln(5)
+        pdf.cell(0, 8, "Principais Palavras das Avaliações:", ln=True)
+        pdf.image(wordcloud_path, w=100)
+        pdf.ln(5)
 
-            # Wordcloud
-            pdf.cell(0, 8, "Principais Palavras das Avaliações:", ln=True)
-            pdf.image(wordcloud_path, w=100)
-            pdf.ln(5)
+        # Analisando os pontos positivos e negativos
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Pontos Positivos", ln=True)
+        pdf.set_font("Arial", '', 11)
 
-            # Análise de pontos positivos e negativos
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Pontos Positivos", ln=True)
-            pdf.set_font("Arial", '', 11)
-            if self.analises:  # Verifica se a análise foi feita
-                for ponto in self.analises.get(5, {}).get('comentarios', []):
-                    pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
-            pdf.ln(5)
+        # Verificar e preencher os pontos positivos
+        if self.analises.get(5):  # Verifica se há pontos positivos
+            for ponto in self.analises.get(5, {}).get('comentarios', []):
+                pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
+        else:
+            pdf.multi_cell(0, 6, "- Nenhum ponto positivo identificado", ln=True)
+        pdf.ln(5)
 
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Pontos Negativos", ln=True)
-            pdf.set_font("Arial", '', 11)
-            if self.analises:  # Verifica se a análise foi feita
-                for ponto in self.analises.get(1, {}).get('comentarios', []):
-                    pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
-            pdf.ln(5)
+        # Adicionando a análise dos pontos negativos
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Pontos Negativos", ln=True)
+        pdf.set_font("Arial", '', 11)
 
-            # Conclusão
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Conclusão e Recomendações", ln=True)
-            pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 7, "Aqui entra uma análise automatizada e profissional sobre tendências, pontos de melhoria e pontos fortes, baseada nos dados do período.")
-            
-            pdf.output(output_path)
+        if self.analises.get(1):  # Verifica se há pontos negativos
+            for ponto in self.analises.get(1, {}).get('comentarios', []):
+                pdf.multi_cell(0, 6, f"- {ponto[0]} ({ponto[1]} menções)", ln=True)
+        else:
+            pdf.multi_cell(0, 6, "- Nenhum ponto negativo identificado", ln=True)
+        pdf.ln(5)
+
+        # Conclusão
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, "Conclusão e Recomendações", ln=True)
+        pdf.set_font("Arial", '', 11)
+        pdf.multi_cell(0, 7, "Aqui entra uma análise automatizada e profissional sobre tendências, pontos de melhoria e pontos fortes, baseada nos dados do período.")
+        
+        pdf.output(output_path)
+
 
 # Exemplo de uso:
 if __name__ == "__main__":

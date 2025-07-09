@@ -22,7 +22,8 @@ from sqlalchemy import func
 import numpy as np
 from datetime import timedelta
 from relatorio import RelatorioAvaliacoes
-
+from collections import Counter
+import numpy as np
 logging.basicConfig(level=logging.DEBUG)
 
 load_dotenv()
@@ -63,6 +64,38 @@ SCOPES = [
 API_SERVICE_NAME = 'mybusiness'
 API_VERSION = 'v4'
 
+from collections import Counter
+import numpy as np
+
+# Função para identificar palavras-chave nas avaliações
+def analisar_pontos_mais_mencionados(comentarios):
+    palavras = " ".join(comentarios).split()
+    contagem = Counter(palavras)
+    
+    # Remover palavras comuns e irrelevantes (como artigos e preposições)
+    palavras_comuns = {"a", "o", "de", "e", "que", "para", "em", "com", "na", "no"}
+    contagem = {k: v for k, v in contagem.items() if k.lower() not in palavras_comuns}
+    
+    # Retorna as 5 palavras mais comuns
+    return contagem.most_common(5)
+
+# Função para calcular a média das avaliações
+def calcular_media(avaliacoes):
+    return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
+
+# Função para calcular a projeção de nota para os próximos 30 dias
+def calcular_projecao(notas, datas):
+    if datas and len(datas) > 1:
+        primeira_data = min(datas)
+        x = np.array([(d - primeira_data).days for d in datas]).reshape(-1, 1)
+        y = np.array(notas)
+        coef = np.polyfit(x.flatten(), y, 1)
+        ultimo_dia = max(x)[0]
+        projecao_dia = ultimo_dia + 30
+        projecao_30_dias = coef[0] * projecao_dia + coef[1]
+        return max(0, min(5, projecao_30_dias))  # Limitando a projeção entre 0 e 5
+    return calcular_media(notas)  # fallback se não houver dados suficientes para projeção
+ 
 # Funções auxiliares para trabalhar com o banco de dados
 def get_user_reviews(user_id):
     """Obtém todas as avaliações de um usuário do banco de dados, ordenadas da mais recente para a mais antiga."""
@@ -148,6 +181,10 @@ def index():
 
 @app.route('/relatorio', methods=['GET', 'POST'])
 def gerar_relatorio():
+    if 'credentials' not in flask.session:
+        flash("Você precisa estar logado para gerar o relatório.", "warning")
+        return redirect(url_for('authorize'))  # Redireciona para a autenticação se o usuário não estiver logado
+
     if request.method == 'GET':
         return render_template('relatorio_filtros.html')
 
@@ -155,10 +192,19 @@ def gerar_relatorio():
     nota = request.form.get('nota', 'todas')
     respondida = request.form.get('respondida', 'todas')
 
+    user_info = flask.session.get('user_info', {})
+    user_id = user_info.get('id')
+
+    # Verificar configurações do usuário
+    user_settings = get_user_settings(user_id)
+    if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
+        flash("Por favor, preencha suas informações de empresa nas configurações antes de gerar o relatório.", "warning")
+        return redirect(url_for('settings'))
+
+    # Filtrando as avaliações conforme os critérios
     avaliacoes_query = Review.query
     hoje = datetime.now().date()
 
-    # Filtrando por período
     if periodo == '90dias':
         data_inicio = hoje - pd.Timedelta(days=90)
     elif periodo == '6meses':
@@ -200,10 +246,11 @@ def gerar_relatorio():
         notas.append(nota_atual)
         datas.append(datetime.strptime(av.date, '%d/%m/%Y'))
 
+    # Calculando a média e a projeção de 30 dias
     media_atual = calcular_media(notas)
     projecao_30_dias = calcular_projecao(notas, datas)
 
-    # Análise de pontos mencionados nas avaliações
+    # Analisando os pontos mencionados nas avaliações
     analises = {}
     for i in range(1, 6):
         analises[i] = {
@@ -211,19 +258,16 @@ def gerar_relatorio():
             'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
         }
 
-    # Passando para o relatório
-    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
-    buffer = io.BytesIO()
-    rel.gerar_pdf(buffer)
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
-
-def debug_datas():
-    results = []
-    for av in Review.query.all():
-        print(">>", av.date, type(av.date))
-        results.append(f"{av.date} ({type(av.date)})")
-    return "<br>".join(results)
+    try:
+        # Passando para o relatório
+        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
+        buffer = io.BytesIO()
+        rel.gerar_pdf(buffer)
+        buffer.seek(0)
+        return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
+    except Exception as e:
+        flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
+        return redirect(url_for('index'))  # Redireciona para a página principal em caso de erro
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
