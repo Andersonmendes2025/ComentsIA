@@ -182,13 +182,16 @@ def gerar_relatorio():
 
     avaliacoes = []
     for av in avaliacoes_query.all():
+        nota = int(getattr(av, 'rating', 0) or 0)  # Garante int, mesmo se rating não existir ou for None
         avaliacoes.append({
-            'data': av.date,  # se av.date já é string, use direto
-            'nota': av.rating,
-            'texto': av.text,
+            'data': av.date,
+            'nota': nota,
+            'texto': av.text or "",
             'respondida': 1 if av.replied else 0,
-            'tags': av.tags if hasattr(av, 'tags') else ""
+            'tags': getattr(av, 'tags', "") or ""
         })
+    print("AVALIACOES:", avaliacoes)
+
 
     rel = RelatorioAvaliacoes(avaliacoes)
     buffer = io.BytesIO()
