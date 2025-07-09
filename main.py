@@ -190,7 +190,7 @@ def gerar_relatorio():
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
         return redirect(url_for('authorize'))  # Redireciona para a autenticação se o usuário não estiver logado
-    
+
     # Verifica se a sessão tem as credenciais
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
@@ -213,15 +213,15 @@ def gerar_relatorio():
             'respondida': 1 if av.replied else 0,
             'tags': getattr(av, 'tags', "") or ""
         })
-    
+
+    # Calculando as notas e datas para o gráfico
     notas = [av['nota'] for av in avaliacoes]
     datas = [datetime.strptime(av['data'], '%d/%m/%Y') for av in avaliacoes]
 
-    # Calculando a média e a projeção de 30 dias
+    # Calculando a média
     media_atual = calcular_media(notas)
-    projecao_30_dias = calcular_projecao(notas, datas)
-
-    # Criando as análises
+    
+    # Criando as análises com base nas estrelas
     comentarios = {1: [], 2: [], 3: [], 4: [], 5: []}
     for av in avaliacoes:
         comentarios[av['nota']].append(av['texto'])
@@ -230,21 +230,21 @@ def gerar_relatorio():
     for i in range(1, 6):
         analises[i] = {
             'quantidade': len(comentarios[i]),
-            'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
+            'comentarios': comentarios[i]  # Para enviar as avaliações agrupadas
         }
 
     try:
-        # Passando para o relatório
-        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias, analises=analises)
-        
+        # Criando o relatório
+        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, analises=analises)
+
         # Criando o relatório em memória
         buffer = io.BytesIO()
-        rel.gerar_pdf(buffer)  # Aqui estamos chamando o método 'gerar_pdf' corretamente
+        rel.gerar_pdf(buffer)  # Chamando o método 'gerar_pdf' corretamente
         buffer.seek(0)  # Certifique-se de que o ponteiro está no início do buffer
 
         # Retorna o arquivo PDF como download
         return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
-    
+
     except Exception as e:
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))  # Redireciona para a página principal em caso de erro
