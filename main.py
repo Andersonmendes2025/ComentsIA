@@ -69,8 +69,12 @@ import numpy as np
 
 # Função para identificar palavras-chave nas avaliações
 def analisar_pontos_mais_mencionados(comentarios):
-    palavras = " ".join(comentarios).split()
-    contagem = Counter(palavras)
+    # Verifica se a lista de comentários não está vazia ou nula
+    if not comentarios:
+        return []
+
+    palavras = " ".join(comentarios).split()  # Junta os comentários em uma única string e separa por espaços
+    contagem = Counter(palavras)  # Conta a frequência de cada palavra
     
     # Remover palavras comuns e irrelevantes (como artigos e preposições)
     palavras_comuns = {"a", "o", "de", "e", "que", "para", "em", "com", "na", "no"}
@@ -78,6 +82,7 @@ def analisar_pontos_mais_mencionados(comentarios):
     
     # Retorna as 5 palavras mais comuns
     return contagem.most_common(5)
+
 
 # Função para calcular a média das avaliações
 def calcular_media(avaliacoes):
@@ -253,14 +258,19 @@ def gerar_relatorio():
     # Analisando os pontos mencionados nas avaliações
     analises = {}
     for i in range(1, 6):
-        analises[i] = {
-            'quantidade': len(comentarios[i]),
-            'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
-        }
-
+        if comentarios[i]:  # Verifica se há comentários para esse rating
+            analises[i] = {
+                'quantidade': len(comentarios[i]),
+                'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
+            }
+        else:
+            analises[i] = {
+                'quantidade': 0,
+                'comentarios': []  # Retorna uma lista vazia se não houver comentários
+            }
     try:
         # Passando para o relatório
-        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
+        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias, analises=analises)
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
