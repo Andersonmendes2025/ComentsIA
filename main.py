@@ -70,6 +70,8 @@ import numpy as np
 # Função para identificar palavras-chave nas avaliações
 from collections import Counter
 
+from collections import Counter
+
 def analisar_pontos_mais_mencionados(comentarios):
     if not comentarios:
         return []
@@ -82,7 +84,7 @@ def analisar_pontos_mais_mencionados(comentarios):
     contagem = {k: v for k, v in contagem.items() if k.lower() not in palavras_comuns}
     
     # Retorna as 5 palavras mais comuns
-    return contagem.most_common(5)  # Isso deve funcionar agora, pois 'contagem' é um Counter
+    return contagem.most_common(5)  # 'contagem' agora é um Counter e tem o método most_common
 
 
 # Função para calcular a média das avaliações
