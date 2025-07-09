@@ -239,9 +239,10 @@ def gerar_relatorio():
         
         # Criando o relatório em memória
         buffer = io.BytesIO()
-        rel.gerar_pdf(buffer)
-        buffer.seek(0)
+        rel.gerar_pdf(buffer)  # Aqui estamos chamando o método 'gerar_pdf' corretamente
+        buffer.seek(0)  # Certifique-se de que o ponteiro está no início do buffer
 
+        # Retorna o arquivo PDF como download
         return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
     
     except Exception as e:
