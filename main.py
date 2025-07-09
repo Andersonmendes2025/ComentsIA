@@ -189,112 +189,65 @@ def gerar_relatorio():
     # Verificar se o usuário está autenticado
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
-        print("Usuário não autenticado, redirecionando para o login...")
         return redirect(url_for('authorize'))  # Redireciona para a autenticação se o usuário não estiver logado
     
     # Verifica se a sessão tem as credenciais
     user_info = flask.session.get('user_info', {})
-    print(f"Usuário autenticado: {user_info}")
-    
     user_id = user_info.get('id')
-    if not user_id:
-        print("Usuário não encontrado na sessão.")
-        return redirect(url_for('authorize'))  # Redireciona se o usuário não tiver ID na sessão
 
     # Buscar configurações do usuário
     user_settings = get_user_settings(user_id)
-    print(f"Configurações do usuário: {user_settings}")
 
     # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
     if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
-        flash("Por favor, preencha suas informações de empresa nas configurações antes de gerar o relatório.", "warning")
         return redirect(url_for('settings'))  # Redireciona para a página de configurações
 
-    # Restante do código para gerar o relatório...
+    # Armazenando as avaliações
+    avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
+    avaliacoes = []
+    for av in avaliacoes_query:
+        avaliacoes.append({
+            'data': av.date,
+            'nota': av.rating,
+            'texto': av.text or "",
+            'respondida': 1 if av.replied else 0,
+            'tags': getattr(av, 'tags', "") or ""
+        })
+    
+    notas = [av['nota'] for av in avaliacoes]
+    datas = [datetime.strptime(av['data'], '%d/%m/%Y') for av in avaliacoes]
 
-    # Processamento do formulário
-    if request.method == 'POST':
-        periodo = request.form.get('periodo', '90dias')
-        nota = request.form.get('nota', 'todas')
-        respondida = request.form.get('respondida', 'todas')
+    # Calculando a média e a projeção de 30 dias
+    media_atual = calcular_media(notas)
+    projecao_30_dias = calcular_projecao(notas, datas)
 
-        # Query para buscar as avaliações
-        avaliacoes_query = Review.query
-        hoje = datetime.now().date()
+    # Criando as análises
+    comentarios = {1: [], 2: [], 3: [], 4: [], 5: []}
+    for av in avaliacoes:
+        comentarios[av['nota']].append(av['texto'])
 
-        # Filtrando as avaliações conforme os critérios
-        if periodo == '90dias':
-            data_inicio = hoje - pd.Timedelta(days=90)
-        elif periodo == '6meses':
-            data_inicio = hoje - pd.Timedelta(days=180)
-        elif periodo == '1ano':
-            data_inicio = hoje - pd.Timedelta(days=365)
-        else:
-            data_inicio = None
+    analises = {}
+    for i in range(1, 6):
+        analises[i] = {
+            'quantidade': len(comentarios[i]),
+            'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
+        }
 
-        if data_inicio:
-            data_inicio_str = data_inicio.strftime('%d/%m/%Y')
-            avaliacoes_query = avaliacoes_query.filter(
-                func.to_date(Review.date, 'DD/MM/YYYY') >= func.to_date(data_inicio_str, 'DD/MM/YYYY')
-            )
+    try:
+        # Passando para o relatório
+        rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias, analises=analises)
+        
+        # Criando o relatório em memória
+        buffer = io.BytesIO()
+        rel.gerar_pdf(buffer)
+        buffer.seek(0)
 
-        if nota != 'todas':
-            avaliacoes_query = avaliacoes_query.filter(Review.rating == int(nota))
-        if respondida == 'sim':
-            avaliacoes_query = avaliacoes_query.filter(Review.replied == True)
-        elif respondida == 'nao':
-            avaliacoes_query = avaliacoes_query.filter(Review.replied == False)
+        return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
+    
+    except Exception as e:
+        flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
+        return redirect(url_for('index'))  # Redireciona para a página principal em caso de erro
 
-        # Armazenando as avaliações
-        avaliacoes = []
-        notas = []
-        datas = []
-        comentarios = {1: [], 2: [], 3: [], 4: [], 5: []}
-
-        for av in avaliacoes_query.all():
-            nota_atual = int(getattr(av, 'rating', 0) or 0)
-            comentarios[nota_atual].append(av.text or "")
-            avaliacoes.append({
-                'data': av.date,
-                'nota': nota_atual,
-                'texto': av.text or "",
-                'respondida': 1 if av.replied else 0,
-                'tags': getattr(av, 'tags', "") or ""
-            })
-            notas.append(nota_atual)
-            datas.append(datetime.strptime(av.date, '%d/%m/%Y'))
-
-        # Calculando a média e a projeção de 30 dias
-        media_atual = calcular_media(notas)
-        projecao_30_dias = calcular_projecao(notas, datas)
-
-        # Analisando os pontos mencionados nas avaliações
-        analises = {}
-        for i in range(1, 6):
-            if comentarios[i]:  # Verifica se há comentários para esse rating
-                analises[i] = {
-                    'quantidade': len(comentarios[i]),
-                    'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
-                }
-            else:
-                analises[i] = {
-                    'quantidade': 0,
-                    'comentarios': []  # Retorna uma lista vazia se não houver comentários
-                }
-
-        try:
-            # Passando para o relatório
-            rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
-            buffer = io.BytesIO()
-            rel.gerar_pdf(buffer)
-            buffer.seek(0)
-            return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
-        except Exception as e:
-            flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
-            print(f"Erro ao gerar relatório: {str(e)}")
-            return redirect(url_for('index'))  # Redireciona para a página principal em caso de erro
-
-    return render_template('relatorio_filtros.html')
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
