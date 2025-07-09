@@ -12,4 +12,6 @@ psycopg2-binary
 selenium
 chromedriver-autoinstaller
 APScheduler
-pandas matplotlib wordcloud fpdf2
+matplotlib
+wordcloud
+fpdf2
