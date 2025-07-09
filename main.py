@@ -152,7 +152,6 @@ def gerar_relatorio():
     nota = request.form.get('nota', 'todas')
     respondida = request.form.get('respondida', 'todas')
 
-    # --- Pegando avaliações do banco ---
     avaliacoes_query = Review.query
 
     # Filtro de período
@@ -167,7 +166,9 @@ def gerar_relatorio():
         data_inicio = None
 
     if data_inicio:
-        avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio)
+        # AJUSTE: use o mesmo formato salvo no banco!
+        data_inicio_str = data_inicio.strftime('%Y-%m-%d')  # troque para '%d/%m/%Y' se for o caso
+        avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio_str)
 
     # Filtro de nota
     if nota != 'todas':
@@ -182,7 +183,7 @@ def gerar_relatorio():
     avaliacoes = []
     for av in avaliacoes_query.all():
         avaliacoes.append({
-            'data': av.date.strftime('%Y-%m-%d'),
+            'data': av.date,  # se av.date já é string, use direto
             'nota': av.rating,
             'texto': av.text,
             'respondida': 1 if av.replied else 0,
