@@ -21,6 +21,7 @@ current_date = datetime.now().strftime('%d/%m/%Y')
 from sqlalchemy import func
 import numpy as np
 from datetime import timedelta
+from relatorio import RelatorioAvaliacoes
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -107,6 +108,7 @@ def save_user_settings(user_id, settings_data):
         db.session.add(new_settings)
     
     db.session.commit()
+
 @app.context_processor
 def inject_user():
     logged_in = 'credentials' in session
@@ -154,8 +156,9 @@ def gerar_relatorio():
     respondida = request.form.get('respondida', 'todas')
 
     avaliacoes_query = Review.query
-
     hoje = datetime.now().date()
+
+    # Filtrando por período
     if periodo == '90dias':
         data_inicio = hoje - pd.Timedelta(days=90)
     elif periodo == '6meses':
@@ -178,12 +181,15 @@ def gerar_relatorio():
     elif respondida == 'nao':
         avaliacoes_query = avaliacoes_query.filter(Review.replied == False)
 
+    # Armazenando as avaliações
     avaliacoes = []
     notas = []
     datas = []
+    comentarios = {1: [], 2: [], 3: [], 4: [], 5: []}
 
     for av in avaliacoes_query.all():
         nota_atual = int(getattr(av, 'rating', 0) or 0)
+        comentarios[nota_atual].append(av.text or "")
         avaliacoes.append({
             'data': av.date,
             'nota': nota_atual,
@@ -194,19 +200,16 @@ def gerar_relatorio():
         notas.append(nota_atual)
         datas.append(datetime.strptime(av.date, '%d/%m/%Y'))
 
-    media_atual = round(sum(notas) / len(notas), 2) if notas else 0.0
-    
-    if datas and len(datas) > 1:
-        primeira_data = min(datas)
-        x = np.array([(d - primeira_data).days for d in datas]).reshape(-1, 1)
-        y = np.array(notas)
-        coef = np.polyfit(x.flatten(), y, 1)
-        ultimo_dia = max(x)[0]
-        projecao_dia = ultimo_dia + 30
-        projecao_30_dias = coef[0] * projecao_dia + coef[1]
-        projecao_30_dias = max(0, min(5, projecao_30_dias))
-    else:
-        projecao_30_dias = media_atual  # fallback se não houver dados suficientes para projeção
+    media_atual = calcular_media(notas)
+    projecao_30_dias = calcular_projecao(notas, datas)
+
+    # Análise de pontos mencionados nas avaliações
+    analises = {}
+    for i in range(1, 6):
+        analises[i] = {
+            'quantidade': len(comentarios[i]),
+            'comentarios': analisar_pontos_mais_mencionados(comentarios[i])
+        }
 
     # Passando para o relatório
     rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, projecao_30_dias=projecao_30_dias)
@@ -215,7 +218,6 @@ def gerar_relatorio():
     buffer.seek(0)
     return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
 
-@app.route('/debug_datas')
 def debug_datas():
     results = []
     for av in Review.query.all():
