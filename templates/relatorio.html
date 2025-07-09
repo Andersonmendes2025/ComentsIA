@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios de Avaliações - ComentsIA{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-3">
+    <i class="bi bi-file-earmark-bar-graph me-2"></i> Relatórios de Avaliações
+  </h2>
+  <p class="text-muted mb-4">
+    Gere relatórios completos das suas avaliações, com gráficos, análise profissional e resumo dos principais pontos positivos e negativos.
+  </p>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow-sm p-4 mb-4">
+        <form method="post">
+          <div class="row">
+            <div class="col-md-4">
+              <label class="form-label"><i class="bi bi-calendar me-1"></i>Período:</label>
+              <select name="periodo" class="form-control mb-2">
+                <option value="90dias">Últimos 90 dias</option>
+                <option value="6meses">Últimos 6 meses</option>
+                <option value="1ano">Último 1 ano</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label"><i class="bi bi-star me-1"></i>Nota:</label>
+              <select name="nota" class="form-control mb-2">
+                <option value="todas">Todas</option>
+                <option value="1">1 estrela</option>
+                <option value="2">2 estrelas</option>
+                <option value="3">3 estrelas</option>
+                <option value="4">4 estrelas</option>
+                <option value="5">5 estrelas</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label"><i class="bi bi-chat-left-quote me-1"></i>Respondida:</label>
+              <select name="respondida" class="form-control mb-2">
+                <option value="todas">Todas</option>
+                <option value="sim">Somente respondidas</option>
+                <option value="nao">Somente não respondidas</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary mt-3">
+              <i class="bi bi-file-earmark-arrow-down me-1"></i>
+              Gerar PDF
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-lg-4 d-none d-lg-block">
+      <div class="card shadow-sm mb-4 p-3 text-center">
+        <h6 class="mb-3"><i class="bi bi-lightbulb me-1"></i>Como funciona?</h6>
+        <ul class="list-unstyled small text-start mb-3">
+          <li>• Escolha o período, nota e respondidas.</li>
+          <li>• Clique em <b>Gerar PDF</b> para baixar seu relatório completo.</li>
+          <li>• O relatório inclui gráficos, análise e principais elogios/críticas.</li>
+        </ul>
+        <img src="{{ url_for('static', filename='exemplo_relatorio.png') }}" alt="Exemplo Gráfico" class="img-fluid rounded shadow" style="max-width:230px;">
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-4 shadow-sm">
+    <div class="card-body">
+      <h6 class="mb-2"><i class="bi bi-clock-history me-1"></i>Histórico de relatórios</h6>
+      <p class="text-muted mb-0">Em breve você poderá visualizar e baixar relatórios gerados anteriormente.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

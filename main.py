@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 from flask import session
 import logging
 from datetime import datetime
+from relatorio import RelatorioAvaliacoes
+import io
+import pandas as pd
+from flask import send_file
 current_date = datetime.now().strftime('%d/%m/%Y')
 
 
@@ -138,6 +142,58 @@ def index():
         reviews=user_reviews
     )
 
+@app.route('/relatorio', methods=['GET', 'POST'])
+def gerar_relatorio():
+    if request.method == 'GET':
+        return render_template('relatorio_filtros.html')
+
+    # --- Recebendo filtros do formulário ---
+    periodo = request.form.get('periodo', '90dias')
+    nota = request.form.get('nota', 'todas')
+    respondida = request.form.get('respondida', 'todas')
+
+    # --- Pegando avaliações do banco ---
+    avaliacoes_query = Review.query
+
+    # Filtro de período
+    hoje = datetime.now().date()
+    if periodo == '90dias':
+        data_inicio = hoje - pd.Timedelta(days=90)
+    elif periodo == '6meses':
+        data_inicio = hoje - pd.Timedelta(days=180)
+    elif periodo == '1ano':
+        data_inicio = hoje - pd.Timedelta(days=365)
+    else:
+        data_inicio = None
+
+    if data_inicio:
+        avaliacoes_query = avaliacoes_query.filter(Review.date >= data_inicio)
+
+    # Filtro de nota
+    if nota != 'todas':
+        avaliacoes_query = avaliacoes_query.filter(Review.rating == int(nota))
+
+    # Filtro de respondidas
+    if respondida == 'sim':
+        avaliacoes_query = avaliacoes_query.filter(Review.replied == True)
+    elif respondida == 'nao':
+        avaliacoes_query = avaliacoes_query.filter(Review.replied == False)
+
+    avaliacoes = []
+    for av in avaliacoes_query.all():
+        avaliacoes.append({
+            'data': av.date.strftime('%Y-%m-%d'),
+            'nota': av.rating,
+            'texto': av.text,
+            'respondida': 1 if av.replied else 0,
+            'tags': av.tags if hasattr(av, 'tags') else ""
+        })
+
+    rel = RelatorioAvaliacoes(avaliacoes)
+    buffer = io.BytesIO()
+    rel.gerar_pdf(buffer)
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():

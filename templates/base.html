@@ -42,6 +42,12 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
           </li>
+          <!-- MENU RELATÓRIOS -->
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('gerar_relatorio') }}">
+              <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('settings') }}"><i class="bi bi-gear me-1"></i> Configurações</a>
           </li>
@@ -53,7 +59,7 @@
           </button>
 
           {% if logged_in %}
-                    <div class="dropdown">
+          <div class="dropdown">
             <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
               <span class="small fw-semibold">{{ user.name }}</span>
             </a>
@@ -63,7 +69,6 @@
               <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Sair</a></li>
             </ul>
           </div>
-
           {% else %}
           <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
           {% endif %}
