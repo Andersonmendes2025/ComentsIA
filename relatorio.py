@@ -6,6 +6,7 @@ import tempfile
 import os
 import numpy as np
 from datetime import datetime
+from openai import OpenAI
 
 class RelatorioAvaliacoes:
     def __init__(self, avaliacoes, media_atual=None, analises=None):
