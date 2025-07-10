@@ -37,45 +37,63 @@ class RelatorioAvaliacoes:
 
         return grafico_path
 
+    # Função para analisar os pontos positivos e negativos
     def gerar_pdf(self, output_path):
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Gerar gráficos
+            print("Gerando gráfico...")
             grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
+            print("Gráfico gerado:", grafico_media_path)
 
-            # Criando o PDF
             pdf = FPDF()
             pdf.add_page()
-
-            # Cabeçalho
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
             pdf.ln(5)
 
-            # Visão geral
             total_avaliacoes = len(self.df)
             media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
 
+            print("Adicionando dados ao PDF...")
             pdf.set_font("Arial", '', 12)
             pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
             pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
             pdf.ln(5)
 
             # Gráfico de média histórica
+            print("Adicionando gráfico ao PDF...")
             pdf.cell(0, 8, "Evolução da Média de Notas:", ln=True)
             pdf.image(grafico_media_path, w=100)
             pdf.ln(5)
 
             # Análise gerada pela IA
-            prompt = f""" Você é uma analista de satisfação do cliente. Com base nas avaliações abaixo, escreva um relatório analítico levando em consideração as estrelas e os comentários, mas sem citar diretamente os comentários. Não repita as informações dos comentários, apenas forneça uma análise geral. Para cada quantidade de estrelas (1 a 5), escreva um tópico descrevendo a percepção geral das avaliações com base nas avaliações que deram essa quantidade de estrelas. 
-            
-            Avaliações: {self.df[['nota', 'texto']].to_dict(orient='records')} """
+            prompt = f"""
+    Você é um analista sênior de satisfação do cliente. Gere um relatório analítico detalhado para a diretoria da empresa "{self.settings['business_name']}" com base nas avaliações recebidas, considerando a nota (de 1 a 5 estrelas) e o texto de cada avaliação.
+
+    Instruções:
+    - Utilize análise de sentimentos, NPS, polaridade, recorrência de temas e frequência dos principais tópicos.
+    - Não cite comentários nem frases exatas dos clientes. Traga apenas conclusões e tendências observadas.
+    - Organize o relatório em seções, com linguagem formal e foco em tomada de decisão:
+        1. Resumo Executivo: panorama geral da satisfação, tendências e principais conclusões.
+        2. Análise Quantitativa: distribuição das notas, proporção de avaliações positivas, neutras e negativas, principais temas e palavras recorrentes.
+        3. Análise por Estrela: para cada nota de 1 a 5, descreva o perfil e os sentimentos predominantes dos clientes, pontos mais mencionados, nível de insatisfação/satisfação, e se possível sugestões de resposta ou ação para cada faixa.
+        4. Pontos Críticos (mínimo 3): identifique problemas recorrentes, falhas no atendimento, risco de reputação ou temas que merecem atenção especial.
+        5. Destaques Positivos (1 a 3): apresente forças reconhecidas e diferenciais competitivos.
+        6. Conclusão e Recomendações: sugestões práticas para o próximo trimestre, oportunidades de melhoria e estratégias para aumentar a satisfação.
+        7. Metodologia: explique brevemente que o relatório foi produzido por uma IA usando análise de sentimentos, classificação de temas e técnicas de linguagem natural, sem citar avaliações literais.
+
+    - Caso os comentários não sejam conclusivos, ressalte isso para a diretoria.
+    - O relatório deve ser claro, organizado, sem repetição de palavras ou frases, e com tamanho de 2 a 5 páginas.
+
+    DADOS DAS AVALIAÇÕES:
+    {self.df[['nota', 'texto']].to_dict(orient='records')}
+    """
 
             try:
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 completion = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
-                              {"role": "user", "content": prompt}]
+                            {"role": "user", "content": prompt}]
                 )
 
                 analise_gerada = completion.choices[0].message.content.strip()
@@ -84,64 +102,13 @@ class RelatorioAvaliacoes:
                 pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
                 pdf.set_font("Arial", '', 11)
                 pdf.multi_cell(0, 7, analise_gerada)
+
             except Exception as e:
+                print(f"Erro ao gerar análise com IA: {str(e)}")
                 pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
 
             pdf.output(output_path)
-
-
-    # Função para analisar os pontos positivos e negativos
-def gerar_pdf(self, output_path):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        print("Gerando gráfico...")
-        grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
-        print("Gráfico gerado:", grafico_media_path)
-
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
-        pdf.ln(5)
-
-        total_avaliacoes = len(self.df)
-        media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
-
-        print("Adicionando dados ao PDF...")
-        pdf.set_font("Arial", '', 12)
-        pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
-        pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
-        pdf.ln(5)
-
-        # Gráfico de média histórica
-        print("Adicionando gráfico ao PDF...")
-        pdf.cell(0, 8, "Evolução da Média de Notas:", ln=True)
-        pdf.image(grafico_media_path, w=100)
-        pdf.ln(5)
-
-        # Análise gerada pela IA
-        prompt = f""" Você é uma analista de satisfação do cliente. Com base nas avaliações abaixo, escreva um relatório analítico levando em consideração as estrelas e os comentários, mas sem citar diretamente os comentários. Não repita as informações dos comentários, apenas forneça uma análise geral. Para cada quantidade de estrelas (1 a 5), escreva um tópico descrevendo a percepção geral das avaliações com base nas avaliações que deram essa quantidade de estrelas. 
-        Avaliações: {self.df[['nota', 'texto']].to_dict(orient='records')} """
-        try:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
-                          {"role": "user", "content": prompt}]
-            )
-
-            analise_gerada = completion.choices[0].message.content.strip()
-
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
-            pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 7, analise_gerada)
-
-        except Exception as e:
-            print(f"Erro ao gerar análise com IA: {str(e)}")
-            pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
-
-        pdf.output(output_path)
-        print("PDF gerado com sucesso:", output_path)
+            print("PDF gerado com sucesso:", output_path)
 
 
 
