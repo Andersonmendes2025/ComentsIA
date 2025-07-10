@@ -189,23 +189,52 @@ def gerar_relatorio():
     # Verificar se o usuário está autenticado
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
-        return redirect(url_for('authorize'))  # Redireciona para a autenticação se o usuário não estiver logado
+        return redirect(url_for('authorize'))
 
-    # Verifica se a sessão tem as credenciais
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
-
-    # Buscar configurações do usuário
     user_settings = get_user_settings(user_id)
 
     # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
     if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
-        return redirect(url_for('settings'))  # Redireciona para a página de configurações
+        return redirect(url_for('settings'))
 
-    # Armazenando as avaliações
+    # ======== GET: renderiza a página com o formulário ========
+    if request.method == 'GET':
+        return render_template('relatorio.html')
+
+    # ======== POST: processa filtros e gera o PDF ========
+    # Lê filtros do formulário (usa valores padrão se não enviados)
+    periodo = request.form.get('periodo', '90dias')
+    nota = request.form.get('nota', 'todas')
+    respondida = request.form.get('respondida', 'todas')
+
     avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
     avaliacoes = []
+    agora = datetime.now()
     for av in avaliacoes_query:
+        # Filtro de nota
+        if nota != 'todas' and str(av.rating) != nota:
+            continue
+        # Filtro respondida
+        if respondida == 'sim' and not av.replied:
+            continue
+        if respondida == 'nao' and av.replied:
+            continue
+        # Filtro de período
+        try:
+            data_av = datetime.strptime(av.date, '%d/%m/%Y')
+        except Exception:
+            # Se a data não for string, tenta converter para string
+            data_av = av.date
+            if isinstance(data_av, str):
+                data_av = datetime.strptime(data_av, '%Y-%m-%d')
+        if periodo == '90dias' and (agora - data_av).days > 90:
+            continue
+        if periodo == '6meses' and (agora - data_av).days > 180:
+            continue
+        if periodo == '1ano' and (agora - data_av).days > 365:
+            continue
         avaliacoes.append({
             'data': av.date,
             'nota': av.rating,
@@ -214,29 +243,18 @@ def gerar_relatorio():
             'tags': getattr(av, 'tags', "") or ""
         })
 
-    # Calculando as notas e datas para o gráfico
     notas = [av['nota'] for av in avaliacoes]
-    datas = [datetime.strptime(av['data'], '%d/%m/%Y') for av in avaliacoes]
-
-    # Calculando a média
     media_atual = calcular_media(notas)
-
-    # Criando o relatório
     rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual)
 
     try:
-        # Criando o relatório em memória
         buffer = io.BytesIO()
-        rel.gerar_pdf(buffer)  # Chamando o método 'gerar_pdf' corretamente
-        buffer.seek(0)  # Certifique-se de que o ponteiro está no início do buffer
-
-        # Retorna o arquivo PDF como download
+        rel.gerar_pdf(buffer)
+        buffer.seek(0)
         return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
-
     except Exception as e:
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
-        return redirect(url_for('index'))  # Redireciona para a página principal em caso de erro
-
+        return redirect(url_for('index'))
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
