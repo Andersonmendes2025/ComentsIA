@@ -32,4 +32,3 @@ class RelatorioHistorico(db.Model):
     filtro_respondida = db.Column(db.String(50))
     nome_arquivo = db.Column(db.String(255))
     caminho_arquivo = db.Column(db.String(500))
-  # Se salvar o arquivo físico no servidor

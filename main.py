@@ -27,6 +27,8 @@ import numpy as np
 logging.basicConfig(level=logging.DEBUG)
 from collections import Counter
 from flask_migrate import upgrade
+from models import db, Review, UserSettings, RelatorioHistorico
+
 load_dotenv()
 
 # Configuração do aplicativo Flask
