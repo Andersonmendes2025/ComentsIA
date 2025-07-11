@@ -95,25 +95,25 @@
   }
 
   function saveReply(id) {
-    const replyText = document.getElementById('suggestion-' + id).innerText;
-    fetch('/save_reply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ review_id: id, reply_text: replyText })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showToast('Resposta salva com sucesso!');
-        location.reload();
-      } else {
-        showToast('Erro: ' + data.error, 'danger');
-      }
-    });
-  }
+  const replyText = document.getElementById('suggestion-' + id).innerText;
+  fetch('/save_reply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ review_id: id, reply_text: replyText })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Resposta salva com sucesso!');
+      location.reload();
+    } else {
+      showToast('Erro: ' + data.error, 'danger');
+    }
+  });
+}
 
-  function deleteReply(id) {
-    if (!confirm('Tem certeza que deseja excluir a resposta?')) return;
+function deleteReply(id) {
+  askConfirm('Tem certeza que deseja excluir a resposta?', function() {
     fetch('/delete_reply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -128,10 +128,11 @@
         showToast('Erro: ' + data.error, 'danger');
       }
     });
-  }
+  });
+}
 
   function deleteReview(id) {
-    if (!confirm('Tem certeza que deseja excluir a avaliação?')) return;
+  askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
     fetch('/delete_review', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -146,6 +147,5 @@
         showToast('Erro: ' + data.error, 'danger');
       }
     });
-  }
-</script>
-{% endblock %}
+  });
+}
