@@ -49,9 +49,6 @@
               <i class="bi bi-file-earmark-arrow-down me-1"></i>
               Gerar PDF
             </button>
-            <a href="{{ url_for('historico_relatorios') }}" class="btn btn-primary mt-3 ms-2">
-              <i class="bi bi-clock-history me-1"></i> Histórico
-            </a>
           </div>
         </form>
       </div>
@@ -66,6 +63,35 @@
         </ul>
         <img src="{{ url_for('static', filename='exemplo_relatorio.png') }}" alt="Exemplo Gráfico" class="img-fluid rounded shadow" style="max-width:230px;">
       </div>
+    </div>
+  </div>
+
+  <div class="card mt-4 shadow-sm">
+    <div class="card-body">
+      <h6 class="mb-2"><i class="bi bi-clock-history me-1"></i>Histórico de relatórios</h6>
+      {% if historicos and historicos|length > 0 %}
+      <ul class="list-group list-group-flush">
+        {% for h in historicos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ h.data_criacao.strftime('%d/%m/%Y %H:%M') if h.data_criacao else 'Data Desconhecida' }}</strong>
+            <small class="text-muted ms-2">
+              [{{ h.filtro_periodo or 'Período' }} | {{ h.filtro_nota or 'Nota' }} | {{ h.filtro_respondida or 'Respondida' }}]
+            </small>
+          </div>
+          {% if h.nome_arquivo %}
+          <a href="{{ url_for('download_relatorio', relatorio_id=h.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+            <i class="bi bi-download me-1"></i> Baixar
+          </a>
+          {% else %}
+          <span class="text-muted">Arquivo indisponível</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted mb-0">Nenhum relatório gerado ainda.</p>
+      {% endif %}
     </div>
   </div>
 </div>
