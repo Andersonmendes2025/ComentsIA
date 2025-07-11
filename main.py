@@ -254,6 +254,8 @@ def gerar_relatorio():
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
+        os.makedirs('relatorios', exist_ok=True)
+
         with open(caminho_arquivo, 'wb') as f:
             f.write(buffer.getvalue())
         historico = RelatorioHistorico(
