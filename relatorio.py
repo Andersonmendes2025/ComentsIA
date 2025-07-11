@@ -7,6 +7,23 @@ import os
 import numpy as np
 from datetime import datetime
 from openai import OpenAI
+import re
+
+import re
+
+def limpa_markdown(texto):
+    # Remove títulos tipo #, ##, ###
+    texto = re.sub(r'^\s*#+\s*', '', texto, flags=re.MULTILINE)
+    # Remove negritos **
+    texto = re.sub(r'\*\*([^*]+)\*\*', r'\1', texto)
+    # Remove bullets -, *, números seguidos de ponto
+    texto = re.sub(r'^[\-\*]\s+', '', texto, flags=re.MULTILINE)
+    texto = re.sub(r'^\d+\.\s+', '', texto, flags=re.MULTILINE)
+    # Remove linhas horizontais ---
+    texto = re.sub(r'^---+', '', texto, flags=re.MULTILINE)
+    # Remove excesso de espaços em branco
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    return texto.strip()
 
 class RelatorioAvaliacoes:
     def __init__(self, avaliacoes, media_atual=None, analises=None, settings=None):
@@ -86,18 +103,33 @@ class RelatorioAvaliacoes:
                 )
 
                 analise_gerada = completion.choices[0].message.content.strip()
-
+                analise_limpa = limpa_markdown(analise_gerada)
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
                 pdf.set_font("Arial", '', 11)
-                pdf.multi_cell(0, 7, analise_gerada)
-
+                pdf.multi_cell(0, 7, analise_limpa)
             except Exception as e:
                 print(f"Erro ao gerar análise com IA: {str(e)}")
                 pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
 
             pdf.output(output_path)
             print("PDF gerado com sucesso:", output_path)
+
+
+
+def limpa_markdown(texto):
+    # Remove títulos tipo #, ##, ###
+    texto = re.sub(r'^\s*#+\s*', '', texto, flags=re.MULTILINE)
+    # Remove negritos **
+    texto = re.sub(r'\*\*([^*]+)\*\*', r'\1', texto)
+    # Remove bullets -, *, números seguidos de ponto
+    texto = re.sub(r'^[\-\*]\s+', '', texto, flags=re.MULTILINE)
+    texto = re.sub(r'^\d+\.\s+', '', texto, flags=re.MULTILINE)
+    # Remove linhas horizontais ---
+    texto = re.sub(r'^---+', '', texto, flags=re.MULTILINE)
+    # Remove excesso de espaços em branco
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    return texto.strip()
 
 # Exemplo de uso:
 if __name__ == "__main__":
