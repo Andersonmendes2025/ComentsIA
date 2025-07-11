@@ -26,7 +26,6 @@
             </div>
           {% endif %}
 
-
           <div class="form-group mt-2">
             <label for="tone-{{ review.id }}">Tom da resposta:</label>
             <select class="form-control" id="tone-{{ review.id }}">
@@ -90,8 +89,7 @@
         suggestion.style.display = 'block';
         actions.style.display = 'block';
       } else {
-        suggestion.innerText = 'Erro: ' + data.error;
-        suggestion.style.display = 'block';
+        showToast('Erro: ' + data.error, 'danger');
       }
     });
   }
@@ -106,10 +104,10 @@
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        alert('Resposta salva com sucesso!');
+        showToast('Resposta salva com sucesso!');
         location.reload();
       } else {
-        alert('Erro: ' + data.error);
+        showToast('Erro: ' + data.error, 'danger');
       }
     });
   }
@@ -124,10 +122,10 @@
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        alert('Resposta excluída com sucesso!');
+        showToast('Resposta excluída com sucesso!');
         location.reload();
       } else {
-        alert('Erro: ' + data.error);
+        showToast('Erro: ' + data.error, 'danger');
       }
     });
   }
@@ -142,10 +140,10 @@
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        alert('Avaliação excluída com sucesso!');
+        showToast('Avaliação excluída com sucesso!');
         location.reload();
       } else {
-        alert('Erro: ' + data.error);
+        showToast('Erro: ' + data.error, 'danger');
       }
     });
   }
