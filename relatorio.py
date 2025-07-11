@@ -20,6 +20,7 @@ class RelatorioAvaliacoes:
         self.df = pd.DataFrame(avaliacoes)
         self.media_atual = media_atual
         self.analises = analises
+        self.settings = settings or {}
 
     def gerar_grafico_media_historica(self, output_dir):
         # Evolução da nota média ao longo do tempo
@@ -125,5 +126,5 @@ if __name__ == "__main__":
     media_atual = 4.2  # Exemplo de média
     projecao_30_dias = 4.4  # Exemplo de projeção para os próximos 30 dias
     
-    rel = RelatorioAvaliacoes(avaliacoes, media_atual, projecao_30_dias, analises)
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
     rel.gerar_pdf("relatorio_avaliacoes.pdf")
