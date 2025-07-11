@@ -114,7 +114,7 @@ class RelatorioAvaliacoes:
 
             pdf.output(output_path)
             print("PDF gerado com sucesso:", output_path)
-
+    
 
 
 def limpa_markdown(texto):
