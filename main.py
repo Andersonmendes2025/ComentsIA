@@ -966,15 +966,6 @@ def apply_template():
         'success': True,
         'formatted_reply': formatted_reply
     })
-with app.app_context():
-    try:
-        upgrade()
-        print("✔️ Migração do banco de dados aplicada automaticamente!")
-    except Exception as e:
-        print("❌ Erro ao rodar upgrade do banco:", e)
-        
-from scheduler import agendar_robos
-agendar_robos()
 
 # Garante que as tabelas sejam criadas no Render também
 with app.app_context():
