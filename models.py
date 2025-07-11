@@ -12,6 +12,7 @@ class Review(db.Model):
     date = db.Column(db.String(255))
     reply = db.Column(db.Text)
     replied = db.Column(db.Boolean, default=False)
+    terms_accepted = db.Column(db.Boolean, default=False)
 
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)

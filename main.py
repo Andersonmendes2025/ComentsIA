@@ -26,6 +26,7 @@ from collections import Counter
 import numpy as np
 logging.basicConfig(level=logging.DEBUG)
 from collections import Counter
+from flask_migrate import upgrade
 load_dotenv()
 
 # Configuração do aplicativo Flask
@@ -245,16 +246,58 @@ def gerar_relatorio():
 
     notas = [av['nota'] for av in avaliacoes]
     media_atual = calcular_media(notas)
-    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual)
-
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
+    
     try:
+        nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+        caminho_arquivo = os.path.join('relatorios', nome_arquivo)
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name='relatorio_avaliacoes.pdf', mimetype='application/pdf')
+        with open(caminho_arquivo, 'wb') as f:
+            f.write(buffer.getvalue())
+        historico = RelatorioHistorico(
+            user_id=user_id,
+            filtro_periodo=periodo,
+            filtro_nota=nota,
+            filtro_respondida=respondida,
+            nome_arquivo=nome_arquivo,
+            caminho_arquivo=caminho_arquivo
+              # ou path se salvar de fato
+        )
+        db.session.add(historico)
+        db.session.commit()
+
+        return send_file(buffer, as_attachment=True, download_name=nome_arquivo, mimetype='application/pdf')
     except Exception as e:
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
+    
+@app.route('/historico_relatorios')
+def historico_relatorios():
+    if 'credentials' not in flask.session:
+        return redirect(url_for('authorize'))
+
+    user_info = flask.session.get('user_info', {})
+    user_id = user_info.get('id')
+
+    historicos = RelatorioHistorico.query.filter_by(user_id=user_id).order_by(RelatorioHistorico.id.desc()).all()
+    return render_template('historico_relatorios.html', historicos=historicos)
+
+@app.route('/download_relatorio/<int:relatorio_id>')
+def download_relatorio(relatorio_id):
+    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
+    # Verifique se o usuário pode acessar este relatório, por segurança
+    user_info = session.get('user_info')
+    if not user_info or relatorio.user_id != user_info.get('id'):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('relatorio'))
+
+    if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
+        return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=relatorio.nome_arquivo)
+    else:
+        flash('Arquivo não encontrado.', 'warning')
+        return redirect(url_for('relatorio'))
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
@@ -923,6 +966,13 @@ def apply_template():
         'success': True,
         'formatted_reply': formatted_reply
     })
+with app.app_context():
+    try:
+        upgrade()
+        print("✔️ Migração do banco de dados aplicada automaticamente!")
+    except Exception as e:
+        print("❌ Erro ao rodar upgrade do banco:", e)
+        
 from scheduler import agendar_robos
 agendar_robos()
 
