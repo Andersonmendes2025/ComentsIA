@@ -49,7 +49,7 @@ class RelatorioAvaliacoes:
         return grafico_path
 
     # Função para analisar os pontos positivos e negativos
-    def gerar_pdf(self, output_path):
+    def gerar_pdf(self, output):
         with tempfile.TemporaryDirectory() as tmpdir:
             print("Gerando gráfico...")
             grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
