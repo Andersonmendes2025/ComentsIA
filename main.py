@@ -268,10 +268,15 @@ def gerar_relatorio():
         db.session.add(historico)
         db.session.commit()
 
+        print(">>> PDF sendo enviado para download:", nome_arquivo)
+
         return send_file(buffer, as_attachment=True, download_name=nome_arquivo, mimetype='application/pdf')
+    
     except Exception as e:
+        print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
+
     
 @app.route('/historico_relatorios')
 def historico_relatorios():
@@ -292,7 +297,7 @@ def download_relatorio(relatorio_id):
     if not user_info or relatorio.user_id != user_info.get('id'):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('relatorio'))
-
+    
     if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
         return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=relatorio.nome_arquivo)
     else:
