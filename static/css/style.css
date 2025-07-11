@@ -1,7 +1,7 @@
 /* ===== VARIÁVEIS ===== */
 :root {
-  --primary-color: #3b82f6;
-  --primary-hover: #2563eb;
+  --primary-color: #0057d8;
+  --primary-hover: #0046b3;
   --info-color: #60a5fa;
   --light-color: #f9fafb;
   --dark-color: #111827;
@@ -48,6 +48,16 @@ body {
 }
 .btn:active {
   transform: translateY(0);
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 /* ===== CARDS ===== */
@@ -134,46 +144,59 @@ a:hover, .nav-link:hover {
     font-size: 1rem;
   }
 }
-/* Ajustes para modo escuro */
+
+/* ===== MODO ESCURO ===== */
 body.dark {
   background-color: #1e1e2f;
   color: #e4e4e4;
 }
-
 body.dark .text-muted,
 body.dark .lead,
 body.dark .card-text {
   color: #c0c0c0 !important;
 }
-
 body.dark .card,
 body.dark .navbar,
 body.dark .dropdown-menu {
   background-color: #2c2c3a;
   color: #e4e4e4;
 }
-
 body.dark .btn,
 body.dark .navbar .nav-link,
 body.dark .dropdown-item {
   color: #e4e4e4;
 }
-
 body.dark .dropdown-item:hover {
   background-color: #3c3c4a;
 }
-
 body.dark .navbar .navbar-brand span,
 body.dark .navbar .nav-link.active {
   color: #ffffff;
 }
-/* Aplica a todos os links da navbar e ao botão de usuário */
+
+/* ===== NAVBAR ===== */
 .navbar .nav-link,
 .navbar .btn-link {
-  border-bottom: 2px solid transparent;  /* sublinhado invisível inicial */
-  transition: border-color 0.3s ease;    /* transição suave */
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.3s ease;
 }
 .navbar .nav-link:hover,
 .navbar .btn-link:hover {
-  border-bottom: 2px solid currentColor; /* sublinha na cor atual do texto */
+  border-bottom: 2px solid currentColor;
+}
+
+/* ===== TOAST MODERNO ===== */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1055;
+}
+.toast-success {
+  background-color: var(--success-color);
+  color: white;
+}
+.toast-error {
+  background-color: var(--danger-color);
+  color: white;
 }
