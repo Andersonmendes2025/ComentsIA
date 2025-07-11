@@ -4,42 +4,58 @@
 
 {% block content %}
 <div class="container py-5">
-  <div class="mb-4">
-    <h2 class="text-2xl font-semibold flex items-center gap-2">
-      <i class="bi bi-clock-history"></i> Histórico de Relatórios
-    </h2>
-    <p class="text-gray-500 mt-1">Acompanhe todos os relatórios gerados com filtros utilizados e datas.</p>
+  <div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="h4 mb-1 text-dark-emphasis dark:text-white">
+        <i class="bi bi-clock-history me-2"></i> Histórico de Relatórios
+      </h2>
+      <p class="text-muted dark:text-gray-300 mb-0">Acompanhe os relatórios que você gerou e baixe ou exclua conforme necessário.</p>
+    </div>
+    <a href="{{ url_for('gerar_relatorio') }}" class="btn btn-outline-primary">
+      <i class="bi bi-arrow-left me-1"></i> Voltar
+    </a>
   </div>
 
   {% if historicos and historicos|length > 0 %}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+  <div class="row row-cols-1 row-cols-md-2 g-4">
     {% for h in historicos %}
-    <div class="border rounded-xl shadow-sm p-4 bg-white flex flex-col justify-between">
-      <div>
-        <div class="text-sm text-gray-500 mb-1">
-          <i class="bi bi-calendar-event me-1"></i>
-          {{ h.data_criacao.strftime('%d/%m/%Y %H:%M') if h.data_criacao else 'Data desconhecida' }}
+    <div class="col">
+      <div class="card shadow-sm h-100 bg-white dark:bg-dark border-0">
+        <div class="card-body d-flex flex-column justify-content-between">
+          <div>
+            <div class="small text-muted dark:text-light mb-2">
+              <i class="bi bi-calendar-event me-1"></i>
+              {{ h.data_criacao.strftime('%d/%m/%Y %H:%M') if h.data_criacao else 'Data desconhecida' }}
+            </div>
+            <h6 class="mb-1 text-dark dark:text-white">Filtros:</h6>
+            <p class="mb-0 text-muted dark:text-light small">
+              {{ h.filtro_periodo or 'Período' }} | {{ h.filtro_nota or 'Nota' }} | {{ h.filtro_respondida or 'Respondida' }}
+            </p>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            {% if h.nome_arquivo %}
+            <a href="{{ url_for('download_relatorio', relatorio_id=h.id) }}" class="btn btn-sm btn-primary" target="_blank">
+              <i class="bi bi-download me-1"></i> Baixar
+            </a>
+            <form method="POST" action="{{ url_for('deletar_relatorio', relatorio_id=h.id) }}"
+                  onsubmit="return confirm('Tem certeza que deseja excluir este relatório?');">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+            {% else %}
+            <span class="text-muted small">Arquivo indisponível</span>
+            {% endif %}
+          </div>
         </div>
-        <div class="text-md font-medium text-gray-800 mb-2">
-          Filtros: <span class="text-sm font-normal">{{ h.filtro_periodo or 'Período' }} | {{ h.filtro_nota or 'Nota' }} | {{ h.filtro_respondida or 'Respondida' }}</span>
-        </div>
-      </div>
-      <div class="mt-3">
-        {% if h.nome_arquivo %}
-        <a href="{{ url_for('download_relatorio', relatorio_id=h.id) }}" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition" target="_blank">
-          <i class="bi bi-download me-1"></i> Baixar Relatório
-        </a>
-        {% else %}
-        <span class="text-sm text-gray-400">Arquivo indisponível</span>
-        {% endif %}
       </div>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <div class="text-center text-gray-500">
-    <i class="bi bi-folder-x text-4xl"></i>
-    <p class="mt-2">Nenhum relatório gerado ainda.</p>
+  <div class="text-center py-5 text-muted dark:text-light">
+    <i class="bi bi-folder-x fs-1 mb-3"></i>
+    <p>Nenhum relatório gerado até agora.</p>
   </div>
   {% endif %}
 </div>
