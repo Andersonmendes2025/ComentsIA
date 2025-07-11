@@ -312,6 +312,24 @@ def download_relatorio(relatorio_id):
     else:
         flash('Arquivo não encontrado.', 'warning')
         return redirect(url_for('relatorio'))
+@app.route('/deletar_relatorio/<int:relatorio_id>', methods=['POST'])
+def deletar_relatorio(relatorio_id):
+    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
+    user_info = session.get('user_info')
+    if not user_info or relatorio.user_id != user_info.get('id'):
+        flash('Acesso negado.', 'danger')
+        return redirect(url_for('historico_relatorios'))
+
+    # Apaga o arquivo físico se existir
+    if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
+        os.remove(relatorio.caminho_arquivo)
+
+    # Remove do banco
+    db.session.delete(relatorio)
+    db.session.commit()
+
+    flash('Relatório excluído com sucesso.', 'success')
+    return redirect(url_for('historico_relatorios'))
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():
