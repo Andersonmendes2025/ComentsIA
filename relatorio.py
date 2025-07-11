@@ -112,8 +112,13 @@ class RelatorioAvaliacoes:
                 print(f"Erro ao gerar análise com IA: {str(e)}")
                 pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
 
-            pdf.output(output_path)
-            print("PDF gerado com sucesso:", output_path)
+            if isinstance(output, str):
+                pdf.output(output)
+                print("PDF gerado com sucesso:", output)
+            else:
+            #Salva no buffer em memória (BytesIO)
+                pdf.output(output, 'F')
+                print("PDF gerado em buffer.")
     
 
 
