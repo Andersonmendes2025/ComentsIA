@@ -189,49 +189,47 @@ def index():
 
 @app.route('/relatorio', methods=['GET', 'POST'])
 def gerar_relatorio():
-    # Verificar se o usuário está autenticado
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
         return redirect(url_for('authorize'))
 
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
-    user_settings = get_user_settings(user_id)
+    print(f"[RELATÓRIO] user_id: {user_id}")
 
-    # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
+    user_settings = get_user_settings(user_id)
+    print(f"[RELATÓRIO] user_settings: {user_settings}")
+
     if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
         return redirect(url_for('settings'))
 
-    # ======== GET: renderiza a página com o formulário ========
     if request.method == 'GET':
         return render_template('relatorio.html')
 
-    # ======== POST: processa filtros e gera o PDF ========
-    # Lê filtros do formulário (usa valores padrão se não enviados)
     periodo = request.form.get('periodo', '90dias')
     nota = request.form.get('nota', 'todas')
     respondida = request.form.get('respondida', 'todas')
+    print(f"[RELATÓRIO] Filtros: periodo={periodo}, nota={nota}, respondida={respondida}")
 
     avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
+    print(f"[RELATÓRIO] Avaliações encontradas: {len(avaliacoes_query)}")
+
     avaliacoes = []
     agora = datetime.now()
     for av in avaliacoes_query:
-        # Filtro de nota
+        try:
+            data_av = datetime.strptime(av.date, '%d/%m/%Y')
+        except Exception:
+            data_av = av.date
+            if isinstance(data_av, str):
+                data_av = datetime.strptime(data_av, '%Y-%m-%d')
+
         if nota != 'todas' and str(av.rating) != nota:
             continue
-        # Filtro respondida
         if respondida == 'sim' and not av.replied:
             continue
         if respondida == 'nao' and av.replied:
             continue
-        # Filtro de período
-        try:
-            data_av = datetime.strptime(av.date, '%d/%m/%Y')
-        except Exception:
-            # Se a data não for string, tenta converter para string
-            data_av = av.date
-            if isinstance(data_av, str):
-                data_av = datetime.strptime(data_av, '%Y-%m-%d')
         if periodo == '90dias' and (agora - data_av).days > 90:
             continue
         if periodo == '6meses' and (agora - data_av).days > 180:
@@ -246,10 +244,12 @@ def gerar_relatorio():
             'tags': getattr(av, 'tags', "") or ""
         })
 
+    print(f"[RELATÓRIO] Avaliações após filtro: {len(avaliacoes)}")
+
     notas = [av['nota'] for av in avaliacoes]
     media_atual = calcular_media(notas)
     rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
-    
+
     try:
         nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         caminho_arquivo = os.path.join('relatorios', nome_arquivo)
@@ -260,6 +260,9 @@ def gerar_relatorio():
 
         with open(caminho_arquivo, 'wb') as f:
             f.write(buffer.getvalue())
+
+        print(f"[RELATÓRIO] Arquivo salvo em: {caminho_arquivo}")
+
         historico = RelatorioHistorico(
             user_id=user_id,
             filtro_periodo=periodo,
@@ -267,15 +270,14 @@ def gerar_relatorio():
             filtro_respondida=respondida,
             nome_arquivo=nome_arquivo,
             caminho_arquivo=caminho_arquivo
-              # ou path se salvar de fato
         )
         db.session.add(historico)
         db.session.commit()
+        print(f"[RELATÓRIO] Histórico salvo com ID: {historico.id}")
 
         print(">>> PDF sendo enviado para download:", nome_arquivo)
-
         return send_file(buffer, as_attachment=True, download_name=nome_arquivo, mimetype='application/pdf')
-    
+
     except Exception as e:
         print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
@@ -289,8 +291,11 @@ def historico_relatorios():
 
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
+    print(f"[HISTÓRICO] user_id: {user_id}")
 
     historicos = RelatorioHistorico.query.filter_by(user_id=user_id).order_by(RelatorioHistorico.id.desc()).all()
+    print(f"[HISTÓRICO] Registros encontrados: {len(historicos)}")
+
     return render_template('historico_relatorios.html', historicos=historicos)
 
 @app.route('/download_relatorio/<int:relatorio_id>')
