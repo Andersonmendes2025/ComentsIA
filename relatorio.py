@@ -9,14 +9,7 @@ from datetime import datetime
 from openai import OpenAI
 
 class RelatorioAvaliacoes:
-    def __init__(self, avaliacoes, media_atual=None, analises=None):
-        """
-        Inicializa a classe com a lista de avaliações e a análise das estrelas.
-        
-        :param avaliacoes: Lista de avaliações
-        :param media_atual: Média atual das notas
-        :param analises: Análises por estrelas
-        """
+    def __init__(self, avaliacoes, media_atual=None, analises=None, settings=None):
         self.df = pd.DataFrame(avaliacoes)
         self.media_atual = media_atual
         self.analises = analises
@@ -60,39 +53,34 @@ class RelatorioAvaliacoes:
             pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
             pdf.ln(5)
 
-            # Gráfico de média histórica
             print("Adicionando gráfico ao PDF...")
             pdf.cell(0, 8, "Evolução da Média de Notas:", ln=True)
             pdf.image(grafico_media_path, w=100)
             pdf.ln(5)
 
-            # Análise gerada pela IA
+            # Prompt customizável (pode trocar o texto conforme acima)
             prompt = f"""
-    Você é um analista sênior de satisfação do cliente. Gere um relatório analítico detalhado para a diretoria da empresa "{self.settings['business_name']}" com base nas avaliações recebidas, considerando a nota (de 1 a 5 estrelas) e o texto de cada avaliação.
+            Você é um analista sênior de satisfação do cliente. Gere um relatório analítico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando análise de sentimentos e métricas relevantes. Não cite diretamente comentários. Não repita palavras. Siga este roteiro:
 
-    Instruções:
-    - Utilize análise de sentimentos, NPS, polaridade, recorrência de temas e frequência dos principais tópicos.
-    - Não cite comentários nem frases exatas dos clientes. Traga apenas conclusões e tendências observadas.
-    - Organize o relatório em seções, com linguagem formal e foco em tomada de decisão:
-        1. Resumo Executivo: panorama geral da satisfação, tendências e principais conclusões.
-        2. Análise Quantitativa: distribuição das notas, proporção de avaliações positivas, neutras e negativas, principais temas e palavras recorrentes.
-        3. Análise por Estrela: para cada nota de 1 a 5, descreva o perfil e os sentimentos predominantes dos clientes, pontos mais mencionados, nível de insatisfação/satisfação, e se possível sugestões de resposta ou ação para cada faixa.
-        4. Pontos Críticos (mínimo 3): identifique problemas recorrentes, falhas no atendimento, risco de reputação ou temas que merecem atenção especial.
-        5. Destaques Positivos (1 a 3): apresente forças reconhecidas e diferenciais competitivos.
-        6. Conclusão e Recomendações: sugestões práticas para o próximo trimestre, oportunidades de melhoria e estratégias para aumentar a satisfação.
-        7. Metodologia: explique brevemente que o relatório foi produzido por uma IA usando análise de sentimentos, classificação de temas e técnicas de linguagem natural, sem citar avaliações literais.
+            1. Resumo Executivo: Panorama geral, tendências e insights mais importantes.
+            2. Análise Quantitativa: Distribuição das notas, % de avaliações positivas, neutras e negativas. Temas e palavras mais frequentes.
+            3. Análise por Estrela: Para cada nota de 1 a 5, explique o sentimento predominante, pontos principais e sugestões de resposta/ação.
+            4. Pontos Críticos (mínimo 3): Destaque os principais problemas ou riscos.
+            5. Destaques Positivos (1 a 3): Aponte pontos fortes e diferenciais competitivos.
+            6. Conclusão e Recomendações: Ações práticas para o próximo trimestre, oportunidades e estratégias para melhorar a satisfação.
+            7. Metodologia: Diga que foi usado IA com análise de sentimentos e linguagem natural, sem citar comentários literais.
 
-    - Caso os comentários não sejam conclusivos, ressalte isso para a diretoria.
-    - O relatório deve ser claro, organizado, sem repetição de palavras ou frases, e com tamanho de 2 a 5 páginas.
+            - Se os comentários forem inconclusivos, ressalte.
+            - O relatório deve ter de 2 a 5 páginas, claro, objetivo, sem repetição.
 
-    DADOS DAS AVALIAÇÕES:
-    {self.df[['nota', 'texto']].to_dict(orient='records')}
-    """
+            DADOS DAS AVALIAÇÕES:
+            {self.df[['nota', 'texto']].to_dict(orient='records')}
+            """
 
             try:
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 completion = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-4o",
                     messages=[{"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
                             {"role": "user", "content": prompt}]
                 )
@@ -110,8 +98,6 @@ class RelatorioAvaliacoes:
 
             pdf.output(output_path)
             print("PDF gerado com sucesso:", output_path)
-
-
 
 # Exemplo de uso:
 if __name__ == "__main__":
