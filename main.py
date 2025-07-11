@@ -412,7 +412,7 @@ def terms():
 @app.route('/authorize')
 def authorize():
     redirect_uri = url_for('oauth2callback', _external=True)
-    flow = build_flow(redirect_uri=redirect_uri)
+    flow = build_flow(state=session['state'],redirect_uri=redirect_uri)
 
     authorization_url, state = flow.authorization_url(
         access_type='offline',
@@ -600,7 +600,7 @@ def build_flow(state=None, redirect_uri=None):
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [redirect_uri or "http://localhost:5000/oauth2callback"]
+            "redirect_uris": [redirect_uri or "https://comentsia.com.br/oauth2callback"]
         }
     }
 
@@ -608,8 +608,9 @@ def build_flow(state=None, redirect_uri=None):
         client_config,
         scopes=SCOPES,
         state=state,
-        redirect_uri=redirect_uri or "http://localhost:5000/oauth2callback"
+        redirect_uri=redirect_uri or "https://comentsia.com.br/oauth2callback"
     )
+
 
 
 
