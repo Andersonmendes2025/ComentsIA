@@ -11,19 +11,27 @@ import re
 
 import re
 
+import unicodedata
+
 def limpa_markdown(texto):
-    # Remove títulos tipo #, ##, ###
+    # ... (seu código)
     texto = re.sub(r'^\s*#+\s*', '', texto, flags=re.MULTILINE)
-    # Remove negritos **
     texto = re.sub(r'\*\*([^*]+)\*\*', r'\1', texto)
-    # Remove bullets -, *, números seguidos de ponto
     texto = re.sub(r'^[\-\*]\s+', '', texto, flags=re.MULTILINE)
     texto = re.sub(r'^\d+\.\s+', '', texto, flags=re.MULTILINE)
-    # Remove linhas horizontais ---
     texto = re.sub(r'^---+', '', texto, flags=re.MULTILINE)
-    # Remove excesso de espaços em branco
     texto = re.sub(r'\n{3,}', '\n\n', texto)
+    # Substituir aspas curvas por aspas normais
+    texto = texto.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
+
+
+    # Remove ou substitui caracteres especiais por equivalente ASCII
+    # Exemplo: troca traço longo/diferente por traço simples
+    texto = texto.replace('–', '-').replace('—', '-')
+    # Remove outros caracteres fora do ASCII puro
+    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
     return texto.strip()
+
 
 class RelatorioAvaliacoes:
     def __init__(self, avaliacoes, media_atual=None, analises=None, settings=None):
