@@ -16,3 +16,4 @@ matplotlib
 wordcloud
 fpdf2
 pandas
+flask-migrate
