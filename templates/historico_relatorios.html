@@ -37,7 +37,7 @@
             <button
               type="button"
               class="btn btn-sm btn-primary"
-              onclick="baixarRelatorio({{ h.id }}, '{{ h.nome_arquivo|escapejs }}')"
+              onclick="baixarRelatorio({{ h.id }}, {{ h.nome_arquivo|tojson }})"
               title="Baixar relatório"
             >
               <i class="bi bi-download me-1"></i> Baixar

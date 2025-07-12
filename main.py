@@ -373,6 +373,9 @@ def first_login():
         return redirect(url_for('index'))  # Redireciona para a página principal
 
     return render_template('first_login.html')
+@app.route('/sitemap.xml')
+def sitemap():
+    return app.send_static_file('sitemap.xml')
 
 @app.route('/terms', methods=['GET', 'POST'])
 def terms():
