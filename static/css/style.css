@@ -200,3 +200,7 @@ body.dark .navbar .nav-link.active {
   background-color: var(--danger-color);
   color: white;
 }
+.toast-info {
+  background-color: var(--info-color, #60a5fa);
+  color: white;
+}
