@@ -34,6 +34,13 @@ load_dotenv()
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 app = Flask(__name__)
+
+app.config.update(
+    SESSION_COOKIE_SECURE=True,      # necessário se seu site usar HTTPS
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'    # 'Lax' geralmente funciona bem para OAuth
+)
+
 # Caminho do diretório base
 basedir = os.path.abspath(os.path.dirname(__file__))
 # Configuração do banco de dados (Render ou local)
@@ -415,15 +422,16 @@ def terms():
 @app.route('/authorize')
 def authorize():
     redirect_uri = url_for('oauth2callback', _external=True)
-    flow = build_flow(state=session['state'],redirect_uri=redirect_uri)
+    flow = build_flow(redirect_uri=redirect_uri)  # não passe state aqui!
 
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true'
     )
 
-    flask.session['state'] = state
-    return flask.redirect(authorization_url)
+    session['state'] = state  # guarde o state aqui, após pegar o authorization_url
+    return redirect(authorization_url)
+
 
 @app.route('/delete_review', methods=['POST'])
 def delete_review():
@@ -556,32 +564,39 @@ def credentials_to_dict(credentials):
 
 @app.route('/oauth2callback')
 def oauth2callback():
-    """Callback para o fluxo de autorização OAuth."""
-    # Recupera o estado da sessão
-    state = session['state']
+    # Tenta recuperar o estado da sessão com segurança
+    state = session.get('state')
+    if not state:
+        flash('Sessão inválida. Por favor, inicie o login novamente.', 'danger')
+        return redirect(url_for('authorize'))
 
-    # Cria o fluxo de autorização usando o arquivo de credenciais
-    flow = build_flow(state=state, redirect_uri=url_for('oauth2callback', _external=True))
+    redirect_uri = url_for('oauth2callback', _external=True)
+    flow = build_flow(state=state, redirect_uri=redirect_uri)
 
-   
-    # Processa a resposta de autorização
-    authorization_response = request.url
-    flow.fetch_token(authorization_response=authorization_response)
+    try:
+        authorization_response = request.url
+        flow.fetch_token(authorization_response=authorization_response)
+    except Exception as e:
+        flash(f'Erro ao obter token: {e}', 'danger')
+        return redirect(url_for('authorize'))
 
-    # Armazena as credenciais na sessão
     credentials = flow.credentials
     session['credentials'] = credentials_to_dict(credentials)
 
-    # Obtém informações do usuário
-    user_info = get_user_info(credentials)
+    try:
+        user_info = get_user_info(credentials)
+    except Exception as e:
+        flash(f'Erro ao obter informações do usuário: {e}', 'danger')
+        return redirect(url_for('logout'))
+
     if not user_info.get('id'):
         flash('Erro: não foi possível identificar o usuário. Verifique as permissões concedidas.', 'danger')
         return redirect(url_for('logout'))
+
     session['user_info'] = user_info
     print("ID do usuário autenticado:", user_info['id'])
 
-
-    # Verifica se o usuário já tem configurações no banco, se não, cria configurações padrão
+    # Verifica se o usuário tem configurações; cria padrão se não
     user_id = user_info.get('id')
     if user_id:
         existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
@@ -595,6 +610,8 @@ def oauth2callback():
             save_user_settings(user_id, default_settings)
 
     return redirect(url_for('reviews'))
+
+
 def build_flow(state=None, redirect_uri=None):
     client_config = {
         "web": {
@@ -615,54 +632,45 @@ def build_flow(state=None, redirect_uri=None):
     )
 
 
-
-
 def credentials_to_dict(credentials):
-    """Converte o objeto de credenciais em um dicionário."""
-    return {'token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes}
+    """Converte o objeto de credenciais em um dicionário serializável para a sessão."""
+    return {
+        'token': credentials.token,
+        'refresh_token': credentials.refresh_token,
+        'token_uri': credentials.token_uri,
+        'client_id': credentials.client_id,
+        'client_secret': credentials.client_secret,
+        'scopes': credentials.scopes
+    }
 
-from googleapiclient.discovery import build
 
 def get_user_info(credentials):
     """
-    Recupera as informações do usuário logado no Google usando a People API.
-    Utiliza exclusivamente o e-mail como ID de usuário.
-    Lança exceção se o e-mail não estiver presente.
+    Obtém informações do usuário logado via Google People API.
+    Usa o e-mail como ID e retorna nome e foto.
+    Lança exceção se falhar.
     """
     try:
-        # Inicializa a People API
         people_service = build('people', 'v1', credentials=credentials)
-
-        # Solicita nome, e-mail e foto
         profile = people_service.people().get(
             resourceName='people/me',
             personFields='names,emailAddresses,photos'
         ).execute()
 
-        # Verifica se há e-mail disponível
         email_addresses = profile.get('emailAddresses')
         if not email_addresses or not email_addresses[0].get('value'):
             raise ValueError("Não foi possível obter o e-mail do usuário.")
 
         user_email = email_addresses[0]['value']
-
-        # Monta as informações do usuário com e-mail como ID
         user_info = {
             'id': user_email,
             'email': user_email,
             'name': profile.get('names', [{}])[0].get('displayName', ''),
             'photo': profile.get('photos', [{}])[0].get('url', '')
         }
-
         return user_info
 
     except Exception as e:
-        # Qualquer erro impede o login
         raise RuntimeError(f"Erro ao obter informações do usuário: {e}")
 
 @app.route('/logout')
