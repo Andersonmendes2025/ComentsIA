@@ -308,11 +308,12 @@ def historico_relatorios():
 
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
+    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
     print(f"ID: {relatorio.id}")
     print(f"Caminho do arquivo: {relatorio.caminho_arquivo}")
     print(f"Arquivo existe? {os.path.exists(relatorio.caminho_arquivo)}")
     print(f"Nome do arquivo: {relatorio.nome_arquivo}")
-    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
+
     # Verifique se o usuário pode acessar este relatório, por segurança
     user_info = session.get('user_info')
     if not user_info or relatorio.user_id != user_info.get('id'):
