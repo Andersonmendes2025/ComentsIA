@@ -20,6 +20,7 @@ from flask import send_file
 current_date = datetime.now().strftime('%d/%m/%Y')
 from sqlalchemy import func
 import numpy as np
+from flask import current_app as app
 from datetime import timedelta
 from relatorio import RelatorioAvaliacoes
 from collections import Counter
@@ -258,13 +259,13 @@ def gerar_relatorio():
     rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
 
     try:
+        relatorios_dir = os.path.join(app.root_path, 'static', 'relatorios')
+        os.makedirs(relatorios_dir, exist_ok=True)
         nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        caminho_arquivo = os.path.join('relatorios', nome_arquivo)
+        caminho_arquivo = os.path.join(relatorios_dir, nome_arquivo)
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
-        os.makedirs('relatorios', exist_ok=True)
-
         with open(caminho_arquivo, 'wb') as f:
             f.write(buffer.getvalue())
 
