@@ -325,7 +325,8 @@ def deletar_relatorio(relatorio_id):
     user_info = session.get('user_info')
     if not user_info or relatorio.user_id != user_info.get('id'):
         flash('Acesso negado.', 'danger')
-        return redirect(url_for('historico_relatorios'))
+        return redirect(url_for('gerar_relatorio'))
+
 
     # Apaga o arquivo físico se existir
     if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
