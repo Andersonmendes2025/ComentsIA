@@ -20,7 +20,6 @@ from flask import send_file
 current_date = datetime.now().strftime('%d/%m/%Y')
 from sqlalchemy import func
 import numpy as np
-from flask import current_app as app
 from datetime import timedelta
 from relatorio import RelatorioAvaliacoes
 from collections import Counter
@@ -259,13 +258,13 @@ def gerar_relatorio():
     rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
 
     try:
-        relatorios_dir = os.path.join(app.root_path, 'static', 'relatorios')
-        os.makedirs(relatorios_dir, exist_ok=True)
         nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        caminho_arquivo = os.path.join(relatorios_dir, nome_arquivo)
+        caminho_arquivo = os.path.join('relatorios', nome_arquivo)
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
+        os.makedirs('relatorios', exist_ok=True)
+
         with open(caminho_arquivo, 'wb') as f:
             f.write(buffer.getvalue())
 
@@ -309,24 +308,17 @@ def historico_relatorios():
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
-    print(f"ID: {relatorio.id}")
-    print(f"Caminho do arquivo: {relatorio.caminho_arquivo}")
-    print(f"Arquivo existe? {os.path.exists(relatorio.caminho_arquivo)}")
-    print(f"Nome do arquivo: {relatorio.nome_arquivo}")
-
     # Verifique se o usuário pode acessar este relatório, por segurança
     user_info = session.get('user_info')
     if not user_info or relatorio.user_id != user_info.get('id'):
         flash('Acesso negado.', 'danger')
-        return redirect(url_for('gerar_relatorio'))
+        return redirect(url_for('relatorio'))
     
     if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
         return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=relatorio.nome_arquivo)
     else:
         flash('Arquivo não encontrado.', 'warning')
-        return redirect(url_for('gerar_relatorio'))
-
-
+        return redirect(url_for('relatorio'))
 @app.route('/deletar_relatorio/<int:relatorio_id>', methods=['POST'])
 def deletar_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
