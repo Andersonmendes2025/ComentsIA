@@ -8,11 +8,8 @@ import numpy as np
 from datetime import datetime
 from openai import OpenAI
 import re
-
-import re
-
 import unicodedata
-
+import pytz
 def limpa_markdown(texto):
     # ... (seu código)
     texto = re.sub(r'^\s*#+\s*', '', texto, flags=re.MULTILINE)
@@ -58,6 +55,9 @@ class RelatorioAvaliacoes:
 
     # Função para analisar os pontos positivos e negativos
     def gerar_pdf(self, output):
+        print(f"[RELATÓRIO] Caminho salvo: {caminho_arquivo}")
+        print(f"[RELATÓRIO] Arquivo existe? {os.path.exists(caminho_arquivo)}")
+
         with tempfile.TemporaryDirectory() as tmpdir:
             print("Gerando gráfico...")
             grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
@@ -65,6 +65,8 @@ class RelatorioAvaliacoes:
 
             pdf = FPDF()
             pdf.add_page()
+            br_tz = pytz.timezone('America/Sao_Paulo')
+            data_br = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
             pdf.ln(5)
