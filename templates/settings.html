@@ -93,7 +93,11 @@
                                 <!-- Aceitação dos Termos e Condições -->
                                 <div class="terms-conditions">
                                     <label for="terms_accepted">
-                                        <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted" required>
+                                        <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted"
+                                          value="1"
+                                          {% if settings.terms_accepted %}checked{% endif %}
+                                          required>
+
                                         Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
                                     </label>
                                 </div>

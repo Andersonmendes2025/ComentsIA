@@ -125,7 +125,8 @@ def get_user_settings(user_id):
             'business_name': settings.business_name or '',
             'default_greeting': settings.default_greeting or 'Olá,',
             'default_closing': settings.default_closing or 'Agradecemos seu feedback!',
-            'contact_info': settings.contact_info or 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com'
+            'contact_info': settings.contact_info or 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
+            'terms_accepted': settings.terms_accepted
         }
     else:
         # Retorna configurações padrão se não existirem
@@ -133,7 +134,8 @@ def get_user_settings(user_id):
             'business_name': '',
             'default_greeting': 'Olá,',
             'default_closing': 'Agradecemos seu feedback!',
-            'contact_info': 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com'
+            'contact_info': 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
+            'terms_accepted': False
         }
 
 def save_user_settings(user_id, settings_data):
@@ -145,6 +147,7 @@ def save_user_settings(user_id, settings_data):
         existing.default_greeting = settings_data.get('default_greeting', 'Olá,')
         existing.default_closing = settings_data.get('default_closing', 'Agradecemos seu feedback!')
         existing.contact_info = settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com')
+        existing.terms_accepted = terms_accepted
     else:
         # Cria novas configurações
         new_settings = UserSettings(
@@ -153,6 +156,7 @@ def save_user_settings(user_id, settings_data):
             default_greeting=settings_data.get('default_greeting', 'Olá,'),
             default_closing=settings_data.get('default_closing', 'Agradecemos seu feedback!'),
             contact_info=settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com')
+            terms_accepted=terms_accepted
         )
         db.session.add(new_settings)
     
@@ -398,7 +402,8 @@ def first_login():
             'business_name': company_name,
             'default_greeting': 'Olá,',
             'default_closing': 'Agradecemos seu feedback!',
-            'contact_info': contact_info
+            'contact_info': contact_info,
+            'terms_accepted': True
         }
         save_user_settings(user_id, settings_data)
 
