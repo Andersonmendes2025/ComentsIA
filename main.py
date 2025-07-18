@@ -321,21 +321,6 @@ def historico_relatorios():
 
     return render_template('historico_relatorios.html', historicos=historicos)
 
-@app.route('/historico_relatorios')
-def historico_relatorios():
-    if 'credentials' not in flask.session:
-        return redirect(url_for('authorize'))
-
-    user_info = flask.session.get('user_info', {})
-    user_id = user_info.get('id')
-    print(f"[HISTÓRICO] user_id: {user_id}")
-
-    historicos = RelatorioHistorico.query.filter_by(user_id=user_id).order_by(RelatorioHistorico.id.desc()).all()
-    print(f"[HISTÓRICO] Registros encontrados: {len(historicos)}")
-
-    return render_template('historico_relatorios.html', historicos=historicos)
-
-
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
