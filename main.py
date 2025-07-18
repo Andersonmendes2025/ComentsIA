@@ -272,16 +272,11 @@ def gerar_relatorio():
 
     try:
         nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        caminho_arquivo = os.path.join('relatorios', nome_arquivo)
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
-        os.makedirs('relatorios', exist_ok=True)
+        pdf_bytes = buffer.getvalue()
 
-        with open(caminho_arquivo, 'wb') as f:
-            f.write(buffer.getvalue())
-
-        print(f"[RELATÓRIO] Arquivo salvo em: {caminho_arquivo}")
         br_tz = pytz.timezone('America/Sao_Paulo')
         data_criacao = datetime.now(br_tz)
 
@@ -291,15 +286,20 @@ def gerar_relatorio():
             filtro_nota=nota,
             filtro_respondida=respondida,
             nome_arquivo=nome_arquivo,
-            caminho_arquivo=caminho_arquivo,
-            data_criacao=data_criacao   
+            arquivo_pdf=pdf_bytes,  # <- aqui salva o PDF binário no Postgres!
+            data_criacao=data_criacao
         )
         db.session.add(historico)
         db.session.commit()
         print(f"[RELATÓRIO] Histórico salvo com ID: {historico.id}")
         print(">>> PDF sendo enviado para download:", nome_arquivo)
         buffer.seek(0)
-        return send_file(buffer, as_attachment=True, download_name=nome_arquivo, mimetype='application/pdf')
+        return send_file(
+            io.BytesIO(pdf_bytes), 
+            as_attachment=True, 
+            download_name=nome_arquivo, 
+            mimetype='application/pdf'
+        )
 
     except Exception as e:
         print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
@@ -321,6 +321,21 @@ def historico_relatorios():
 
     return render_template('historico_relatorios.html', historicos=historicos)
 
+@app.route('/historico_relatorios')
+def historico_relatorios():
+    if 'credentials' not in flask.session:
+        return redirect(url_for('authorize'))
+
+    user_info = flask.session.get('user_info', {})
+    user_id = user_info.get('id')
+    print(f"[HISTÓRICO] user_id: {user_id}")
+
+    historicos = RelatorioHistorico.query.filter_by(user_id=user_id).order_by(RelatorioHistorico.id.desc()).all()
+    print(f"[HISTÓRICO] Registros encontrados: {len(historicos)}")
+
+    return render_template('historico_relatorios.html', historicos=historicos)
+
+
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
@@ -329,26 +344,28 @@ def download_relatorio(relatorio_id):
         flash('Acesso negado.', 'danger')
         return redirect(url_for('historico_relatorios'))
 
-    if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
-        # Usa nome salvo no banco, senão pega o nome do arquivo do caminho
-        filename = getattr(relatorio, 'nome_arquivo', None) or os.path.basename(relatorio.caminho_arquivo)
-        return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=filename)
+    if relatorio.arquivo_pdf:
+        filename = getattr(relatorio, 'nome_arquivo', f'relatorio_{relatorio.id}.pdf')
+        return send_file(
+            io.BytesIO(relatorio.arquivo_pdf),
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
     else:
         flash('Arquivo não encontrado.', 'danger')
         return redirect(url_for('historico_relatorios'))
-    
+
+
 @app.route('/deletar_relatorio/<int:relatorio_id>', methods=['POST'])
 def deletar_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
     user_info = session.get('user_info')
     if not user_info or relatorio.user_id != user_info.get('id'):
         flash('Acesso negado.', 'danger')
-        return redirect(url_for('gerar_relatorio'))
+        return redirect(url_for('historico_relatorios'))
 
-
-    # Apaga o arquivo físico se existir
-    if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
-        os.remove(relatorio.caminho_arquivo)
+    # Como o arquivo está salvo no banco, não há arquivo físico para apagar.
 
     # Remove do banco
     db.session.delete(relatorio)
@@ -356,6 +373,7 @@ def deletar_relatorio(relatorio_id):
 
     flash('Relatório excluído com sucesso.', 'success')
     return redirect(url_for('historico_relatorios'))
+
 
 @app.route('/first-login', methods=['GET', 'POST'])
 def first_login():

@@ -129,7 +129,9 @@ class RelatorioAvaliacoes:
                 print("PDF gerado com sucesso:", output)
             else:
             #Salva no buffer em memória (BytesIO)
-                pdf.output(output, 'F')
+                pdf_bytes = pdf.output(dest='S').encode('latin1')
+                output.write(pdf_bytes)
+                output.seek(0)
                 print("PDF gerado em buffer.")
     
 
