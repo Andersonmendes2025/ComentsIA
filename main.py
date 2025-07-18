@@ -198,7 +198,7 @@ def index():
 def debug_historico():
     # Só permita acesso para o seu usuário
     user_info = session.get('user_info')
-    if not user_info or user_info.get('email') != 'seu_email@gmail.com':
+    if not user_info or user_info.get('email') != 'comentsia.2025@gmail.com':
         return "Acesso negado", 403
 
     historicos = RelatorioHistorico.query.all()
