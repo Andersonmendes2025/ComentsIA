@@ -155,7 +155,7 @@ def save_user_settings(user_id, settings_data):
             business_name=settings_data.get('business_name', ''),
             default_greeting=settings_data.get('default_greeting', 'Olá,'),
             default_closing=settings_data.get('default_closing', 'Agradecemos seu feedback!'),
-            contact_info=settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com')
+            contact_info=settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com'),
             terms_accepted=terms_accepted
         )
         db.session.add(new_settings)
