@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Quem Somos | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<style>
+    .quem-somos-container {
+        max-width: 900px;
+        margin: 40px auto 48px auto;
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 6px 32px rgba(0,0,0,0.08), 0 1.5px 3px rgba(0,0,0,0.02);
+        padding: 42px 28px 34px 28px;
+        text-align: center;
+    }
+    .quem-somos-logo {
+        max-width: 200px;
+        margin: 0 auto 24px auto;
+        display: block;
+        filter: drop-shadow(0 0 12px #e3e7fb);
+        /* Ajuste para sua logo: aumente ou diminua o max-width conforme necessário */
+    }
+    .quem-somos-titulo {
+        color: #007bff;
+        font-size: 2.3rem;
+        font-weight: bold;
+        margin-bottom: 22px;
+        margin-top: 6px;
+        letter-spacing: -1px;
+    }
+    .quem-somos-texto {
+        font-size: 1.18rem;
+        line-height: 1.7;
+        color: #222;
+        text-align: justify;
+        margin: 0 auto;
+        margin-bottom: 12px;
+    }
+    .quem-somos-lista {
+        margin: 20px auto 24px auto;
+        max-width: 700px;
+        text-align: left;
+    }
+    .quem-somos-lista li {
+        margin-bottom: 11px;
+        font-size: 1.08rem;
+    }
+    @media (max-width: 700px) {
+        .quem-somos-container { padding: 14px 3vw; }
+        .quem-somos-titulo { font-size: 1.18rem; }
+        .quem-somos-texto, .quem-somos-lista li { font-size: 1rem; }
+        .quem-somos-logo { max-width: 140px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="quem-somos-container">
+    <!-- LOGO GRANDE CENTRALIZADA -->
+    <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo ComentsIA" class="quem-somos-logo">
+
+    <div class="quem-somos-titulo">Quem Somos</div>
+    
+    <div class="quem-somos-texto">
+        A <b>ComentsIA</b> configura-se como uma plataforma tecnológica inovadora, concebida para o gerenciamento e a análise de avaliações digitais mediante o emprego de técnicas avançadas de inteligência artificial. Nosso objetivo primordial consiste em oferecer às organizações um instrumento preciso e eficiente para a interpretação e a resposta automática a feedbacks provenientes de plataformas digitais, notadamente o Google Meu Negócio, ferramenta essencial na contemporaneidade para a gestão da reputação corporativa.
+    </div>
+    <div class="quem-somos-texto">
+        Sabe-se, conforme evidenciado em estudos recentes, que mais de 90% dos consumidores consultam avaliações online como critério decisório para suas aquisições, sendo que a presença de feedbacks positivos correlaciona-se diretamente com um incremento de até 31% no volume de vendas. Assim, a gestão adequada e estratégica das avaliações não apenas potencializa a imagem institucional, mas constitui um vetor fundamental para o crescimento e a sustentabilidade dos negócios.
+    </div>
+    <div class="quem-somos-texto">
+        A ComentsIA incorpora funcionalidades que propiciam:
+    </div>
+    <ul class="quem-somos-lista">
+        <li>Monitoramento contínuo e centralizado das avaliações digitais, garantindo a captura tempestiva das opiniões dos consumidores;</li>
+        <li>Respostas automatizadas, fundamentadas em modelos de linguagem natural, que preservam a identidade corporativa e fomentam o engajamento qualificado;</li>
+        <li>Geração de relatórios analíticos detalhados, instrumentalizando a tomada de decisões estratégicas embasadas em dados quantitativos e qualitativos;</li>
+        <li>Integração segura e escalável, assegurando a conformidade com normas de privacidade e a robustez operacional.</li>
+    </ul>
+    <div class="quem-somos-texto">
+        Dessa forma, a plataforma não se limita à mera automatização, mas constitui-se como um agente propulsor da inteligência competitiva, proporcionando às empresas um diferencial significativo no contexto digital, por meio do aprimoramento da experiência do consumidor e da ampliação da confiança e fidelização da clientela.
+    </div>
+    <div class="quem-somos-texto" style="margin-bottom: 0;">
+        Em suma, a ComentsIA representa uma solução tecnocientífica capaz de articular tecnologia de ponta e estratégia empresarial, alavancando o desempenho comercial e consolidando a posição de seus usuários no mercado contemporâneo.
+    </div>
+</div>
+{% endblock %}

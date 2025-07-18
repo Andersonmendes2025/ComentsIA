@@ -215,6 +215,9 @@ def debug_historico():
 @app.route('/privacy-policy')
 def privacy_policy():
     return render_template('privacy-policy.html')
+@app.route("/quem-somos")
+def quem_somos():
+    return render_template("quem-somos.html")
 
 @app.route('/relatorio', methods=['GET', 'POST'])
 def gerar_relatorio():
