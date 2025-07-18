@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.DEBUG)
 from collections import Counter
 from flask_migrate import upgrade
 from models import db, Review, UserSettings, RelatorioHistorico
-
+from flask_migrate import Migrate
 load_dotenv()
 
 # Configuração do aplicativo Flask
@@ -1033,6 +1033,7 @@ def apply_template():
 # Garante que as tabelas sejam criadas no Render também
 with app.app_context():
     db.create_all()
+    migrate = Migrate(app, db)
 
 if __name__ == '__main__':
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
