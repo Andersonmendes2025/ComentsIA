@@ -140,6 +140,7 @@ def get_user_settings(user_id):
 
 def save_user_settings(user_id, settings_data):
     """Salva ou atualiza as configurações de um usuário no banco de dados."""
+    terms_accepted = bool(settings_data.get('terms_accepted'))
     existing = UserSettings.query.filter_by(user_id=user_id).first()
     if existing:
         # Atualiza configurações existentes
