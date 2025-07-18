@@ -212,6 +212,10 @@ def debug_historico():
         html += f"<li>ID: {h.id} | User: {h.user_id} | Nome: {h.nome_arquivo} | Data: {h.data_criacao}</li>"
     html += "</ul>"
     return html 
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy-policy.html')
+
 @app.route('/relatorio', methods=['GET', 'POST'])
 def gerar_relatorio():
     if 'credentials' not in flask.session:

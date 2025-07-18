@@ -90,16 +90,22 @@
                                     </div>
                                 </div>
 
-                                <!-- Aceitação dos Termos e Condições -->
+                                <!-- Aceitação dos Termos e Política de Privacidade -->
                                 <div class="terms-conditions">
-                                    <label for="terms_accepted">
+                                    <label for="terms_accepted" style="font-weight: normal;">
                                         <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted"
                                           value="1"
                                           {% if settings.terms_accepted %}checked{% endif %}
                                           required>
-
-                                        Eu aceito os <a href="{{ url_for('terms') }}">Termos e Condições</a>
+                                        Eu li e aceito integralmente os
+                                        <a href="{{ url_for('terms') }}" target="_blank">Termos de Uso</a>
+                                        e a
+                                        <a href="{{ url_for('privacy_policy') }}" target="_blank">Política de Privacidade</a>
+                                        do ComentsIA.
                                     </label>
+                                    <div class="form-text" style="margin-top: 0.5em;">
+                                        Ao marcar esta opção, você concorda com todas as regras de uso, proteção e tratamento de dados da plataforma, conforme LGPD, Marco Civil da Internet e diretrizes do Google.
+                                    </div>
                                 </div>
 
                                 <!-- Saudação e Encerramento Padrão -->
