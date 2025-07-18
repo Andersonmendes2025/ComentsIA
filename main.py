@@ -12,6 +12,7 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from flask import session
 import logging
+import pytz
 from datetime import datetime
 from relatorio import RelatorioAvaliacoes
 import io
@@ -269,6 +270,8 @@ def gerar_relatorio():
             f.write(buffer.getvalue())
 
         print(f"[RELATÓRIO] Arquivo salvo em: {caminho_arquivo}")
+        br_tz = pytz.timezone('America/Sao_Paulo')
+        data_criacao = datetime.now(br_tz)
 
         historico = RelatorioHistorico(
             user_id=user_id,
@@ -276,7 +279,8 @@ def gerar_relatorio():
             filtro_nota=nota,
             filtro_respondida=respondida,
             nome_arquivo=nome_arquivo,
-            caminho_arquivo=caminho_arquivo
+            caminho_arquivo=caminho_arquivo,
+            data_criacao=data_criacao   
         )
         db.session.add(historico)
         db.session.commit()
