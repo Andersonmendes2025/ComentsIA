@@ -306,7 +306,6 @@ def gerar_relatorio():
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
 
-    
 @app.route('/historico_relatorios')
 def historico_relatorios():
     if 'credentials' not in flask.session:
@@ -316,10 +315,18 @@ def historico_relatorios():
     user_id = user_info.get('id')
     print(f"[HISTÓRICO] user_id: {user_id}")
 
+    brt = pytz.timezone('America/Sao_Paulo')
     historicos = RelatorioHistorico.query.filter_by(user_id=user_id).order_by(RelatorioHistorico.id.desc()).all()
     print(f"[HISTÓRICO] Registros encontrados: {len(historicos)}")
 
+    # Adiciona atributos temporários para exibição no template
+    for rel in historicos:
+        rel.data_criacao_local = rel.data_criacao.astimezone(brt).strftime('%d/%m/%Y')  # só data, sem hora
+        rel.numero = rel.id  # para mostrar o número/id do relatório
+        print(f"[DEBUG] Relatório {rel.numero} criado em {rel.data_criacao.astimezone(brt)}")  # data completa no log
+
     return render_template('historico_relatorios.html', historicos=historicos)
+
 
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
