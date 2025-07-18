@@ -194,7 +194,19 @@ def index():
         now=datetime.now(),
         reviews=user_reviews
     )
+@app.route('/debug_historico')
+def debug_historico():
+    # Só permita acesso para o seu usuário
+    user_info = session.get('user_info')
+    if not user_info or user_info.get('email') != 'seu_email@gmail.com':
+        return "Acesso negado", 403
 
+    historicos = RelatorioHistorico.query.all()
+    html = "<h2>Relatórios no banco:</h2><ul>"
+    for h in historicos:
+        html += f"<li>ID: {h.id} | User: {h.user_id} | Nome: {h.nome_arquivo} | Data: {h.data_criacao}</li>"
+    html += "</ul>"
+    return html 
 @app.route('/relatorio', methods=['GET', 'POST'])
 def gerar_relatorio():
     if 'credentials' not in flask.session:
@@ -285,8 +297,8 @@ def gerar_relatorio():
         db.session.add(historico)
         db.session.commit()
         print(f"[RELATÓRIO] Histórico salvo com ID: {historico.id}")
-
         print(">>> PDF sendo enviado para download:", nome_arquivo)
+        buffer.seek(0)
         return send_file(buffer, as_attachment=True, download_name=nome_arquivo, mimetype='application/pdf')
 
     except Exception as e:
