@@ -308,17 +308,19 @@ def historico_relatorios():
 @app.route('/download_relatorio/<int:relatorio_id>')
 def download_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
-    # Verifique se o usuário pode acessar este relatório, por segurança
     user_info = session.get('user_info')
     if not user_info or relatorio.user_id != user_info.get('id'):
         flash('Acesso negado.', 'danger')
-        return redirect(url_for('relatorio'))
-    
+        return redirect(url_for('historico_relatorios'))
+
     if relatorio.caminho_arquivo and os.path.exists(relatorio.caminho_arquivo):
-        return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=relatorio.nome_arquivo)
+        # Usa nome salvo no banco, senão pega o nome do arquivo do caminho
+        filename = getattr(relatorio, 'nome_arquivo', None) or os.path.basename(relatorio.caminho_arquivo)
+        return send_file(relatorio.caminho_arquivo, as_attachment=True, download_name=filename)
     else:
-        flash('Arquivo não encontrado.', 'warning')
-        return redirect(url_for('relatorio'))
+        flash('Arquivo não encontrado.', 'danger')
+        return redirect(url_for('historico_relatorios'))
+    
 @app.route('/deletar_relatorio/<int:relatorio_id>', methods=['POST'])
 def deletar_relatorio(relatorio_id):
     relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
