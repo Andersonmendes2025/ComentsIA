@@ -1,89 +1,72 @@
-{% extends "base.html" %}
+<div class="terms-content">
+    <h3>1. Aceitação dos Termos</h3>
+    <p>
+        Ao criar uma conta, acessar ou utilizar o ComentsIA, você expressamente concorda com estes Termos e Condições, a Política de Privacidade, as Diretrizes do Google e demais normas aplicáveis, conforme previsto na legislação brasileira, incluindo a Lei Geral de Proteção de Dados (LGPD) e o Marco Civil da Internet.<br>
+        Caso não concorde com algum termo aqui disposto, <strong>não utilize os serviços da plataforma</strong>.
+    </p>
 
-{% block title %}Termos e Condições{% endblock %}
+    <h3>2. Descrição do Serviço</h3>
+    <p>
+        O ComentsIA é uma plataforma online que utiliza inteligência artificial para auxiliar empresas a gerenciar, analisar e responder automaticamente avaliações do Google Meu Negócio, fornecendo relatórios, análises e sugestões de resposta baseadas em dados coletados via integração autorizada com as APIs do Google.<br>
+        O serviço está disponível exclusivamente para usuários que aceitarem integralmente estes termos e fornecerem as informações obrigatórias de cadastro.
+    </p>
 
-{% block extra_head %}
-<style>
-    .terms-container {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-    }
+    <h3>3. Obrigações e Responsabilidades do Usuário</h3>
+    <ul>
+        <li><b>Veracidade das Informações:</b> O usuário compromete-se a fornecer informações verídicas, completas e atualizadas em seu cadastro.</li>
+        <li><b>Consentimento de Dados:</b> O usuário autoriza o ComentsIA a coletar, armazenar e processar dados de avaliações recebidas em suas contas Google autorizadas.</li>
+        <li><b>Uso Adequado:</b> É proibido utilizar a plataforma para fins ilícitos, fraudulentos, ofensivos ou que violem direitos de terceiros, normas legais, ou as Diretrizes do Google para conteúdo gerado por IA (<a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">Google Content Policy</a>).</li>
+        <li><b>Confidencialidade:</b> O usuário é responsável por manter a confidencialidade das credenciais de acesso à sua conta.</li>
+    </ul>
 
-    .terms-header {
-        text-align: center;
-        margin-bottom: 20px;
-    }
+    <h3>4. Tratamento de Dados e Privacidade (LGPD)</h3>
+    <p>
+        O ComentsIA adota todas as medidas técnicas e administrativas para proteger os dados pessoais dos usuários, em conformidade com a <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">Lei Geral de Proteção de Dados Pessoais - LGPD (Lei nº 13.709/2018)</a>.<br>
+        Os dados coletados são utilizados exclusivamente para oferecer e aprimorar os serviços, sendo compartilhados apenas mediante consentimento expresso ou por determinação legal.<br>
+        O tratamento de dados é fundamentado no consentimento do usuário e na necessidade de execução do serviço contratado (LGPD Art. 7º, I e V).<br>
+        O usuário pode solicitar, a qualquer tempo, acesso, correção, portabilidade ou exclusão dos seus dados pessoais, conforme previsto nos Artigos 18 a 20 da LGPD.
+    </p>
 
-    .terms-header h2 {
-        font-size: 2rem;
-        font-weight: bold;
-    }
+    <h3>5. Uso das APIs do Google e Diretrizes</h3>
+    <p>
+        O ComentsIA realiza integrações apenas com contas autorizadas pelo próprio usuário, em total conformidade com as <a href="https://developers.google.com/terms" target="_blank">Diretrizes de Dados do Google</a> e políticas de privacidade das APIs Google.<br>
+        O usuário também deve respeitar os Termos de Uso e Políticas do Google.<br>
+        O ComentsIA <b>não realiza coleta ou uso indevido de informações sensíveis, privadas ou de terceiros sem autorização.</b>
+    </p>
 
-    .terms-header p {
-        color: #6c757d;
-        font-size: 1rem;
-    }
+    <h3>6. Direitos Autorais e Propriedade Intelectual</h3>
+    <p>
+        Todos os conteúdos, relatórios, algoritmos, códigos, layouts e marcas do ComentsIA pertencem à plataforma e são protegidos pelas leis de propriedade intelectual.<br>
+        O usuário <b>não está autorizado</b> a reproduzir, copiar, distribuir, modificar, vender ou criar obras derivadas dos conteúdos e funcionalidades do ComentsIA sem autorização prévia e expressa.
+    </p>
 
-    .terms-content {
-        margin-bottom: 20px;
-    }
+    <h3>7. Limitação de Responsabilidade</h3>
+    <p>
+        O ComentsIA não garante disponibilidade ininterrupta do serviço e se exime de responsabilidades por danos decorrentes de falhas técnicas, indisponibilidade das APIs do Google ou eventos de força maior.<br>
+        O usuário reconhece que respostas e análises geradas por IA são sugestões e recomendações automáticas.<br>
+        <b>Futuramente, a plataforma poderá oferecer a funcionalidade de respostas 100% automáticas, mediante autorização expressa do usuário. Até lá, cabe ao usuário a decisão final sobre o envio ou publicação das respostas sugeridas pelo sistema.</b>
+    </p>
 
-    .terms-content h3 {
-        color: #007bff;
-        font-size: 1.2rem;
-        margin-top: 20px;
-    }
+    <h3>8. Modificações dos Termos</h3>
+    <p>
+        O ComentsIA pode alterar estes Termos e Condições a qualquer momento, mediante aviso prévio por e-mail, notificação na plataforma ou atualização neste endereço.<br>
+        O uso continuado dos serviços após alterações implica aceitação das novas condições.
+    </p>
 
-    .terms-content p {
-        font-size: 1rem;
-        line-height: 1.6;
-    }
+    <h3>9. Legislação e Foro</h3>
+    <p>
+        Estes Termos são regidos pelas leis brasileiras, em especial pela <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD</a>, pelo <a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a> e demais normas aplicáveis.<br>
+        Em caso de litígio, fica eleito o foro da comarca de domicílio do usuário, salvo disposição em contrário.
+    </p>
 
-    .btn-accept {
-        background-color: #007bff;
-        color: white;
-        padding: 10px 20px;
-        font-size: 1rem;
-        border: none;
-        border-radius: 4px;
-        width: 100%;
-        cursor: pointer;
-    }
-
-    .btn-accept:hover {
-        background-color: #0056b3;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container terms-container">
-    <div class="terms-header">
-        <h2>Termos e Condições</h2>
-        <p>Leia atentamente os termos e condições antes de usar nossos serviços, **{{ company_name }}** (e-mail: **{{ company_email }}**).</p>
-        <p>Última atualização: {{ current_date }}</p>
-    </div>
-
-    <div class="terms-content">
-        <h3>1. Aceitação dos Termos</h3>
-        <p>Ao acessar este site, você, **{{ user_name }}**, concorda em cumprir os termos e condições descritos aqui. Se você não concordar, não deve utilizar nossos serviços.</p>
-
-        <h3>2. Uso do Serviço</h3>
-        <p>O serviço está disponível para usuários que aceitam as condições descritas neste documento e nas leis aplicáveis. O uso contínuo do serviço após a aceitação implica em concordância com esses termos.</p>
-
-        <h3>3. Política de Privacidade (LGPD)</h3>
-        <p>Os dados pessoais dos usuários serão coletados e tratados de acordo com a Lei Geral de Proteção de Dados (LGPD). Leia nossa <a href="/privacy-policy" style="color: #007bff;">Política de Privacidade</a> para mais detalhes.</p>
-
-        <h3>4. Modificação dos Termos</h3>
-        <p>Podemos atualizar esses termos a qualquer momento. O uso contínuo do serviço após tais modificações implica na aceitação dos novos termos.</p>
-
-        <h3>5. Aceitação</h3>
-        <p>Ao preencher o formulário de cadastro, você, **{{ user_name }}**, concorda com os termos e condições descritos acima.</p>
-    </div>
-
-    <form method="POST">
-        <button type="submit" class="btn-accept">Aceitar e Continuar</button>
-    </form>
+    <h3>10. Referências Oficiais e Links Úteis</h3>
+    <ul>
+        <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD - Lei Geral de Proteção de Dados</a></li>
+        <li><a href="https://policies.google.com/" target="_blank">Política de Privacidade e Termos do Google</a></li>
+        <li><a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">Diretrizes de Conteúdo do Google Meu Negócio</a></li>
+        <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a></li>
+    </ul>
+    <p>
+        <b>Ao continuar utilizando a plataforma ComentsIA, você declara que leu, compreendeu e concorda com estes Termos e Condições, bem como com a Política de Privacidade, a LGPD, as Diretrizes do Google e o Marco Civil da Internet.</b>
+    </p>
 </div>
-{% endblock %}
