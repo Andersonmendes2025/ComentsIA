@@ -55,8 +55,6 @@ class RelatorioAvaliacoes:
 
     # Função para analisar os pontos positivos e negativos
     def gerar_pdf(self, output):
-        print(f"[RELATÓRIO] Caminho salvo: {caminho_arquivo}")
-        print(f"[RELATÓRIO] Arquivo existe? {os.path.exists(caminho_arquivo)}")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             print("Gerando gráfico...")
@@ -70,6 +68,10 @@ class RelatorioAvaliacoes:
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
             pdf.ln(5)
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(0, 10, f"Data de geração: {data_br}", ln=True)
+            pdf.ln(1)
+
 
             total_avaliacoes = len(self.df)
             media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
