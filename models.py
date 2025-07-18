@@ -1,7 +1,13 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import pytz
+from sqlalchemy import DateTime
 
 db = SQLAlchemy()
+
+def default_brt_now():
+    # Retorna o datetime atual já no timezone de São Paulo
+    return datetime.now(pytz.timezone('America/Sao_Paulo'))
 
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -26,7 +32,7 @@ class UserSettings(db.Model):
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False)
-    data_criacao = db.Column(db.DateTime(timezone=True), default=datetime.utcnow)
+    data_criacao = db.Column(db.DateTime(timezone=True), default=default_brt_now)
     filtro_periodo = db.Column(db.String(50))
     filtro_nota = db.Column(db.String(50))
     filtro_respondida = db.Column(db.String(50))
