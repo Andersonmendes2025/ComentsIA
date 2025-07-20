@@ -573,7 +573,6 @@ def suggest_reply():
 
     # Buscar configurações personalizadas do usuário do banco de dados
     settings = get_user_settings(user_id)
-
     # Instruções para o tom da resposta
     tone_instructions = {
         'profissional': 'Use linguagem formal e respeitosa.',
@@ -584,28 +583,34 @@ def suggest_reply():
     }
 
     tone_instruction = tone_instructions.get(tone, tone_instructions['profissional'])
-
+    manager = settings.get('manager_name', '').strip()
+    business = settings.get('business_name', '').strip()
+    if manager:
+        assinatura = f"{business}\n{manager}"
+    else:
+        assinatura = business
     # Prompt para a IA
     prompt = f"""
-Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
+    Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
 
-Avaliação recebida:
-- Nome do cliente: {reviewer_name}
-- Nota: {star_rating} estrelas
-- Texto: "{review_text}"
+    Avaliação recebida:
+    - Nome do cliente: {reviewer_name}
+    - Nota: {star_rating} estrelas
+    - Texto: "{review_text}"
 
-Instruções:
-- Comece com: "{settings['default_greeting']} {reviewer_name},"
-- Siga este tom: {tone_instruction}
-- Comente os pontos mencionados, usando palavras diferentes
-- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
-- Se a nota for de 4 ou 5, agradeça e convide para retornar
-- Finalize com: "{settings['default_closing']}"
-- Inclua as informações de contato: "{settings['contact_info']}"
-- Assine como: "{settings['business_name']}"
-- Nao precisa citar todos os postos que o clinete disse e se citar use palavras diferentes
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
-"""
+    Instruções:
+    - Comece com: "{settings['default_greeting']} {reviewer_name},"
+    - Siga este tom: {tone_instruction}
+    - Comente os pontos mencionados, usando palavras diferentes
+    - Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
+    - Se a nota for de 4 ou 5, agradeça e convide para retornar
+    - Finalize com: "{settings['default_closing']}"
+    - Inclua as informações de contato: "{settings['contact_info']}"
+    - Assine ao final exatamente assim, cada item em uma linha:
+    {assinatura} Não use cargos, não use "Atenciosamente", apenas os nomes.
+    - Nao precisa citar todos os pontos que o cliente disse e se citar use palavras diferentes
+    - A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
+    """
 
     try:
         completion = client.chat.completions.create(
@@ -815,7 +820,12 @@ def add_review():
         # Gera resposta com IA
         settings = get_user_settings(user_id)
         tone_instruction = "Use linguagem formal e respeitosa."
-
+        manager = settings.get('manager_name', '').strip()
+        business = settings.get('business_name', '').strip()
+        if manager:
+            assinatura = f"{business}\n{manager}"
+        else:
+            assinatura = business
         prompt = f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
 
@@ -832,8 +842,9 @@ Instruções:
 - Se a nota for de 4 ou 5, agradeça e convide para retornar
 - Finalize com: "{settings['default_closing']}"
 - Inclua as informações de contato: "{settings['contact_info']}"
-- Assine como: "{settings['business_name']}"
-- Nao precisa citar todos os postos que o clinete disse e se citar use palavras diferentes
+- Assine ao final exatamente assim, cada item em uma linha:
+    {assinatura} Não use cargos, não use "Atenciosamente", apenas os nomes.
+- Não precisa citar todos os pontos que o cliente disse e se citar use palavras diferentes
 - A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
 """
 
