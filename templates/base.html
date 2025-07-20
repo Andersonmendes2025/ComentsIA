@@ -145,14 +145,29 @@
               <span class="small fw-semibold">{{ user.name }}</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-              <li><a class="dropdown-item" href="{{ url_for('settings') }}">Configurações</a></li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('settings') }}">
+                  <i class="bi bi-gear"></i> Configurações
+                </a>
+              </li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Sair</a></li>
+              <li>
+                <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
+                  <i class="bi bi-trash"></i> Apagar minha conta
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('logout') }}">
+                  <i class="bi bi-box-arrow-right"></i> Sair
+                </a>
+              </li>
             </ul>
           </div>
           {% else %}
           <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
           {% endif %}
+
         </div>
       </div>
     </div>
@@ -257,11 +272,32 @@
       toastMsg.innerHTML = mensagem;
       toast.show();
     }
+    
+function deleteAccount() {
+  askConfirm(
+    'Tem certeza que deseja <b>APAGAR SUA CONTA</b>?<br><span class="text-danger">Todos os seus dados serão apagados e essa ação é <b>irreversível</b>!</span>',
+    function() {
+      fetch('/delete_account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Conta apagada com sucesso!', 'success');
+          setTimeout(() => { window.location = '/'; }, 2000);
+        } else {
+          showToast('Erro ao apagar conta: ' + data.error, 'danger');
+        }
+      });
+    }
+  );
+}
 
     // Modal de confirmação
     let confirmAction = null;
     function askConfirm(message, callback) {
-      document.getElementById('confirmModalBody').innerText = message;
+      document.getElementById('confirmModalBody').innerHTML = message;
       confirmAction = callback;
       var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
       modal.show();

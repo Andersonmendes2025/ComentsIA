@@ -318,6 +318,25 @@ def gerar_relatorio():
         print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
+@app.route('/delete_account', methods=['POST'])
+def delete_account():
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'error': 'Você precisa estar logado.'})
+
+    user_info = session.get('user_info')
+    user_id = user_info.get('id')
+
+    # Apaga todos os dados do usuário nas tabelas principais
+    Review.query.filter_by(user_id=user_id).delete()
+    UserSettings.query.filter_by(user_id=user_id).delete()
+    RelatorioHistorico.query.filter_by(user_id=user_id).delete()
+    # Se você tiver mais tabelas relacionadas, repita aqui!
+
+    db.session.commit()
+
+    # Limpa a sessão e faz logout
+    session.clear()
+    return jsonify({'success': True})
 
 @app.route('/historico_relatorios')
 def historico_relatorios():
