@@ -44,25 +44,23 @@ class RelatorioAvaliacoes:
         plt.close()
         return grafico_path
 
-    def gerar_pdf(self, output):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pdf = FPDF()
-            pdf.add_page()
-            y_logo_offset = 10
+def gerar_pdf(self, output):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pdf = FPDF()
+        pdf.add_page()
+        y_logo_offset = 10
 
-            # --- LOGO DA EMPRESA ---
+        # --- LOGO DA EMPRESA ---
         logo_bytes = self.settings.get('logo')
         if logo_bytes:
             try:
                 img = Image.open(io.BytesIO(logo_bytes))
-                # Salva o original em alta
                 logo_path = os.path.join(tmpdir, "logo_temp.png")
                 img.save(logo_path, "PNG")
-                # Define o tamanho máximo que pode aparecer no PDF (em mm)
-                max_width_mm = 60   # ajuste conforme seu layout
+                # Tamanho em mm
+                max_width_mm = 60
                 max_height_mm = 25
-                # Descobre proporção para encaixar
-                dpi = 96  # PNGs web normalmente 72-96dpi; FPDF padrão 72dpi
+                dpi = 96
                 px_to_mm = 25.4 / dpi
                 img_width_mm = img.width * px_to_mm
                 img_height_mm = img.height * px_to_mm
@@ -78,33 +76,31 @@ class RelatorioAvaliacoes:
         else:
             y_logo_offset = 20
 
+        # --- Cabeçalho e informações básicas ---
+        br_tz = pytz.timezone('America/Sao_Paulo')
+        data_br = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
+        pdf.set_y(y_logo_offset)
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
+        pdf.ln(5)
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 10, f"Data de geração: {data_br}", ln=True)
+        pdf.ln(1)
 
+        total_avaliacoes = len(self.df)
+        media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
+        if self.media_atual is not None:
+            pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
+        pdf.ln(5)
 
-            # --- Cabeçalho e informações básicas ---
-            br_tz = pytz.timezone('America/Sao_Paulo')
-            data_br = datetime.now(br_tz).strftime('%d/%m/%Y %H:%M')
-            pdf.set_y(y_logo_offset)
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, "Relatório de Avaliações", ln=True, align='C')
-            pdf.ln(5)
-            pdf.set_font("Arial", '', 10)
-            pdf.cell(0, 10, f"Data de geração: {data_br}", ln=True)
-            pdf.ln(1)
+        # Nome do gerente (influencia a IA)
+        manager_name = self.settings.get("manager_name")
+        manager_str = f'O gerente responsável é "{manager_name}".' if manager_name else ""
 
-            total_avaliacoes = len(self.df)
-            media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
-            pdf.set_font("Arial", '', 12)
-            pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
-            if self.media_atual is not None:
-                pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
-            pdf.ln(5)
-
-            # Nome do gerente (influencia a IA)
-            manager_name = self.settings.get("manager_name")
-            manager_str = f'O gerente responsável é "{manager_name}".' if manager_name else ""
-
-            # --- ANÁLISE DA IA ---
-            prompt = f"""
+        # --- ANÁLISE DA IA ---
+        prompt = f"""
 Você é um analista sênior de satisfação do cliente. Gere um relatório analítico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando análise de sentimentos e métricas relevantes. Não cite diretamente comentários. Não repita palavras.
 {manager_str}
 
@@ -143,61 +139,61 @@ Siga exatamente esse roteiro, mantendo os títulos dos tópicos conforme o exemp
 
 DADOS DAS AVALIAÇÕES:
 {self.df[['nota', 'texto']].to_dict(orient='records')}
-            """
+        """
 
-            try:
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                completion = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                analise_gerada = completion.choices[0].message.content.strip()
-                analise_limpa = limpa_markdown(analise_gerada)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
-                pdf.set_font("Arial", '', 11)
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Você é um assistente especializado em análise de satisfação do cliente."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            analise_gerada = completion.choices[0].message.content.strip()
+            analise_limpa = limpa_markdown(analise_gerada)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
+            pdf.set_font("Arial", '', 11)
 
-                # --- Insere gráfico depois do RESUMO EXECUTIVO ---
-                partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
-                if len(partes) == 2:
-                    pdf.multi_cell(0, 7, partes[0].strip())
-                    pdf.ln(4)
-                    grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
-                    largura_grafico = pdf.w - 2*pdf.l_margin - 2
-                    pdf.set_font("Arial", '', 12)
-                    pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
-                    pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
-                    pdf.ln(8)
-                    pdf.set_font("Arial", '', 11)
-                    pdf.multi_cell(0, 7, "ANÁLISE QUANTITATIVA" + partes[1].strip())
-                else:
-                    # Sempre tente colocar o gráfico depois do RESUMO EXECUTIVO, caso a divisão não funcione
-                    pdf.multi_cell(0, 7, analise_limpa)
-                    pdf.ln(4)
-                    grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
-                    largura_grafico = pdf.w - 2*pdf.l_margin - 2
-                    pdf.set_font("Arial", '', 12)
-                    pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
-                    pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
-                    pdf.ln(8)
-
-
-            except Exception as e:
-                print(f"Erro ao gerar análise com IA: {str(e)}")
-                pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
-            if manager_name:
+            # --- Insere gráfico depois do RESUMO EXECUTIVO ---
+            partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
+            if len(partes) == 2:
+                pdf.multi_cell(0, 7, partes[0].strip())
+                pdf.ln(4)
+                grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
+                largura_grafico = pdf.w - 2*pdf.l_margin - 2
+                pdf.set_font("Arial", '', 12)
+                pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
+                pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
                 pdf.ln(8)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
-            if isinstance(output, str):
-                pdf.output(output)
-                print("PDF gerado com sucesso:", output)
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 7, "ANÁLISE QUANTITATIVA" + partes[1].strip())
             else:
-                pdf_bytes = pdf.output(dest='S')
-                output.write(pdf_bytes)
-                output.seek(0)
-                print("PDF gerado em buffer.")
-            
+                # Sempre tente colocar o gráfico depois do RESUMO EXECUTIVO, caso a divisão não funcione
+                pdf.multi_cell(0, 7, analise_limpa)
+                pdf.ln(4)
+                grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
+                largura_grafico = pdf.w - 2*pdf.l_margin - 2
+                pdf.set_font("Arial", '', 12)
+                pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
+                pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
+                pdf.ln(8)
+
+        except Exception as e:
+            print(f"Erro ao gerar análise com IA: {str(e)}")
+            pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
+
+        if manager_name:
+            pdf.ln(8)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
+
+        if isinstance(output, str):
+            pdf.output(output)
+            print("PDF gerado com sucesso:", output)
+        else:
+            pdf_bytes = pdf.output(dest='S')
+            output.write(pdf_bytes)
+            output.seek(0)
+            print("PDF gerado em buffer.")
