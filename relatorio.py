@@ -189,7 +189,10 @@ DADOS DAS AVALIAÇÕES:
             except Exception as e:
                 print(f"Erro ao gerar análise com IA: {str(e)}")
                 pdf.multi_cell(0, 7, f"Erro ao gerar análise com IA: {str(e)}")
-
+            if manager_name:
+                pdf.ln(8)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
             if isinstance(output, str):
                 pdf.output(output)
                 print("PDF gerado com sucesso:", output)
@@ -198,7 +201,4 @@ DADOS DAS AVALIAÇÕES:
                 output.write(pdf_bytes)
                 output.seek(0)
                 print("PDF gerado em buffer.")
-            if manager_name:
-                pdf.ln(8)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
+            
