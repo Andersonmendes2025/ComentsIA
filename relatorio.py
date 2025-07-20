@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 import tempfile
 import os
-import numpy as np
 from datetime import datetime
 from openai import OpenAI
 import re
@@ -34,20 +33,19 @@ class RelatorioAvaliacoes:
     def gerar_grafico_media_historica(self, output_dir):
         self.df['data'] = pd.to_datetime(self.df['data'])
         notas_por_mes = self.df.groupby(self.df['data'].dt.to_period('M'))['nota'].mean()
-        plt.figure(figsize=(9, 4))  # Mais largo e mais alto
+        plt.figure(figsize=(9, 4))  # Gráfico largo
         notas_por_mes.plot(kind='line', marker='o', color='#28a745')
         plt.title('Evolução da Nota Média por Mês')
         plt.xlabel('Mês')
         plt.ylabel('Nota Média')
         plt.tight_layout()
         grafico_path = os.path.join(output_dir, "evolucao_medio.png")
-        plt.savefig(grafico_path, dpi=130)  # DPI maior para qualidade boa
+        plt.savefig(grafico_path, dpi=140)
         plt.close()
         return grafico_path
 
     def gerar_pdf(self, output):
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Prepara PDF
             pdf = FPDF()
             pdf.add_page()
             y_logo_offset = 10
@@ -58,12 +56,12 @@ class RelatorioAvaliacoes:
                 try:
                     img = Image.open(io.BytesIO(logo_bytes))
                     logo_path = os.path.join(tmpdir, "logo_temp.png")
-                    max_width = 140
-                    max_height = 60
+                    # Tamanho reduzido, boa qualidade
+                    max_width = 90
+                    max_height = 35
                     img.thumbnail((max_width, max_height))
                     img.save(logo_path, "PNG")
                     img_width, img_height = img.size
-                    page_width = pdf.w - 2 * pdf.l_margin
                     x_pos = (pdf.w - img_width) / 2
                     pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=img_width, h=img_height)
                     y_logo_offset += img_height + 7
@@ -88,12 +86,18 @@ class RelatorioAvaliacoes:
             media_nota = self.df['nota'].mean() if total_avaliacoes > 0 else 0
             pdf.set_font("Arial", '', 12)
             pdf.cell(0, 10, f"Média de nota: {media_nota:.2f}", ln=True)
-            pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
+            if self.media_atual is not None:
+                pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
             pdf.ln(5)
+
+            # Nome do gerente (influencia a IA)
+            manager_name = self.settings.get("manager_name")
+            manager_str = f'O gerente responsável é "{manager_name}".' if manager_name else ""
 
             # --- ANÁLISE DA IA ---
             prompt = f"""
 Você é um analista sênior de satisfação do cliente. Gere um relatório analítico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando análise de sentimentos e métricas relevantes. Não cite diretamente comentários. Não repita palavras.
+{manager_str}
 
 Estruture o relatório com tópicos bem destacados, assim:
 
@@ -147,24 +151,22 @@ DADOS DAS AVALIAÇÕES:
                 pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
                 pdf.set_font("Arial", '', 11)
 
-                # === Divide para inserir o gráfico após RESUMO EXECUTIVO ===
+                # --- Insere gráfico depois do RESUMO EXECUTIVO ---
                 if "ANÁLISE QUANTITATIVA" in analise_limpa:
                     partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
-                    # Parte 0: Resumo Executivo e o que vier antes
                     pdf.multi_cell(0, 7, partes[0].strip())
                     pdf.ln(4)
-                    # Gráfico GRANDE após Resumo Executivo
+                    # Gráfico grande na largura da folha
                     grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
                     largura_grafico = pdf.w - 2*pdf.l_margin - 2
                     pdf.set_font("Arial", '', 12)
                     pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
                     pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
                     pdf.ln(8)
-                    # Continua a partir da Análise Quantitativa
+                    # Continua do ANÁLISE QUANTITATIVA pra frente
                     pdf.set_font("Arial", '', 11)
                     pdf.multi_cell(0, 7, "ANÁLISE QUANTITATIVA" + partes[1].strip())
                 else:
-                    # fallback
                     pdf.multi_cell(0, 7, analise_limpa)
 
             except Exception as e:
@@ -179,24 +181,3 @@ DADOS DAS AVALIAÇÕES:
                 output.write(pdf_bytes)
                 output.seek(0)
                 print("PDF gerado em buffer.")
-
-# --- Exemplo de uso/teste ---
-if __name__ == "__main__":
-    avaliacoes = [
-        {'data': '2024-06-01', 'nota': 5, 'texto': 'Excelente atendimento!', 'respondida': 1, 'tags': 'atendimento'},
-        {'data': '2024-06-02', 'nota': 4, 'texto': 'Muito bom, mas pode melhorar.', 'respondida': 1, 'tags': 'preço'},
-        {'data': '2024-06-05', 'nota': 2, 'texto': 'Demorou demais.', 'respondida': 0, 'tags': 'atraso'},
-    ]
-
-    # Exemplo de user_settings com logo (leia os bytes de um arquivo PNG/JPG real se for testar no PC)
-    with open("logo_da_empresa.png", "rb") as f:
-        logo_bytes = f.read()
-
-    user_settings = {
-        "business_name": "Padaria do João",
-        "logo": logo_bytes,
-    }
-    media_atual = 4.2
-
-    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
-    rel.gerar_pdf("relatorio_avaliacoes.pdf")
