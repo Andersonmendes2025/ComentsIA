@@ -54,7 +54,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Chave secreta vinda do .env
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 db.init_app(app)
- 
+migrate = Migrate(app, db)
+
 from auto_reply_setup import auto_reply_bp
 app.register_blueprint(auto_reply_bp)
 
@@ -1054,12 +1055,13 @@ def apply_template():
     })
 
 # Garante que as tabelas sejam criadas no Render também
-with app.app_context():
-    db.create_all()
-    migrate = Migrate(app, db)
-
 if __name__ == '__main__':
+    with app.app_context():
+        from flask_migrate import upgrade
+        upgrade()  # <-- Isso aplica as migrações pendentes no banco de dados online
+
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     print("🚀 Servidor Flask rodando em http://127.0.0.1:8000")
     app.run(host='127.0.0.1', port=8000, debug=True)
+
 
