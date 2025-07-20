@@ -60,7 +60,7 @@
                             </h5>
                         </div>
                         <div class="card-body">
-                            <form method="POST" id="settingsForm">
+                            <form method="POST" enctype="multipart/form-data" id="settingsForm">
                                 <!-- Formulário de Conta -->
                                 <div class="mb-4">
                                     <div class="form-floating">
@@ -75,7 +75,17 @@
                                         Nome da sua empresa ou negócio (obrigatório)
                                     </div>
                                 </div>
-
+                                <!-- Nome do gerente -->
+                                <div class="mb-4">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="manager_name" name="manager_name"
+                                        value="{{ settings.manager_name or '' }}" placeholder="Nome do gerente">
+                                    <label for="manager_name"><i class="bi bi-person-badge me-1"></i> Nome do Gerente</label>
+                                </div>
+                                <div class="form-text">
+                                    Nome do responsável pela empresa. Usado nas respostas e relatórios.
+                                </div>
+                                </div>
                                 <div class="mb-4">
                                     <div class="form-floating">
                                         <input type="text" class="form-control" id="contact_info" name="contact_info" 
@@ -107,8 +117,26 @@
                                         Ao marcar esta opção, você concorda com todas as regras de uso, proteção e tratamento de dados da plataforma, conforme LGPD, Marco Civil da Internet e diretrizes do Google.
                                     </div>
                                 </div>
+                                <!-- Logo da empresa -->
+                                <div class="mb-4">
+                                <label class="form-label" for="logo">
+                                    <i class="bi bi-image me-1"></i> Logo da Empresa (PNG ou JPG, até 500KB)
+                                </label>
+                                <input type="file" class="form-control" id="logo" name="logo" accept="image/png, image/jpeg">
+                                <div class="mt-2">
+                                    <strong>Logo atual:</strong><br>
+                                    <img
+                                    id="logo-preview-img"
+                                    src="{% if settings.logo %}data:image/png;base64,{{ settings.logo|b64encode }}{% endif %}"
+                                    alt="Logo da empresa"
+                                    style="max-height: 80px; border-radius: 8px; border: 1px solid #eee; box-shadow: 0 1px 6px #0001; {% if not settings.logo %}display: none;{% endif %}">
+                                </div>
+                                <div class="form-text">
+                                    Apenas PNG ou JPG. Tamanho máximo: 500KB.
+                                </div>
+                                </div>
 
-                                <!-- Saudação e Encerramento Padrão -->
+                                                                <!-- Saudação e Encerramento Padrão -->
                                 <div class="mb-4">
                                     <div class="form-floating">
                                         <input type="text" class="form-control" id="default_greeting" name="default_greeting" 
@@ -204,5 +232,17 @@ function resetToDefaults() {
         document.getElementById('preview-contact').textContent = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
     }
 }
+document.getElementById('logo').addEventListener('change', function(evt) {
+    const [file] = evt.target.files;
+    const img = document.getElementById('logo-preview-img');
+    if (file) {
+        img.src = URL.createObjectURL(file);
+        img.style.display = "inline";
+    } else {
+        img.src = "";
+        img.style.display = "none";
+    }
+});
+
 </script>
 {% endblock %}

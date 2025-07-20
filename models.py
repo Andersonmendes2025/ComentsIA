@@ -28,6 +28,8 @@ class UserSettings(db.Model):
     default_closing = db.Column(db.String(255))
     contact_info = db.Column(db.String(255))
     terms_accepted = db.Column(db.Boolean, default=False)
+    logo = db.Column(db.LargeBinary)
+    manager_name = db.Column(db.String(255))
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)

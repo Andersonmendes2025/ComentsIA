@@ -31,6 +31,8 @@ from flask_migrate import upgrade
 from models import db, Review, UserSettings, RelatorioHistorico
 from flask_migrate import Migrate
 load_dotenv()
+import base64
+from markupsafe import Markup
 
 # Configuração do aplicativo Flask
 # Inicializar o Flask
@@ -127,7 +129,9 @@ def get_user_settings(user_id):
             'default_greeting': settings.default_greeting or 'Olá,',
             'default_closing': settings.default_closing or 'Agradecemos seu feedback!',
             'contact_info': settings.contact_info or 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
-            'terms_accepted': settings.terms_accepted
+            'terms_accepted': settings.terms_accepted if settings else False,
+            'logo': settings.logo if settings else None,
+            'manager_name': settings.manager_name or ''if settings else None,
         }
     else:
         # Retorna configurações padrão se não existirem
@@ -136,33 +140,38 @@ def get_user_settings(user_id):
             'default_greeting': 'Olá,',
             'default_closing': 'Agradecemos seu feedback!',
             'contact_info': 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
-            'terms_accepted': False
+            'terms_accepted': False,
+            'logo': None,
+            'manager_name': ''
         }
 
 def save_user_settings(user_id, settings_data):
-    """Salva ou atualiza as configurações de um usuário no banco de dados."""
     terms_accepted = bool(settings_data.get('terms_accepted'))
     existing = UserSettings.query.filter_by(user_id=user_id).first()
     if existing:
-        # Atualiza configurações existentes
         existing.business_name = settings_data.get('business_name', '')
         existing.default_greeting = settings_data.get('default_greeting', 'Olá,')
         existing.default_closing = settings_data.get('default_closing', 'Agradecemos seu feedback!')
-        existing.contact_info = settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com')
+        existing.contact_info = settings_data.get('contact_info', 'Entre em contato...')
         existing.terms_accepted = terms_accepted
+        existing.manager_name = settings_data.get('manager_name', '')
+        # Só atualiza logo se veio nova
+        if settings_data.get('logo'):
+            existing.logo = settings_data['logo']
     else:
-        # Cria novas configurações
         new_settings = UserSettings(
             user_id=user_id,
             business_name=settings_data.get('business_name', ''),
             default_greeting=settings_data.get('default_greeting', 'Olá,'),
             default_closing=settings_data.get('default_closing', 'Agradecemos seu feedback!'),
-            contact_info=settings_data.get('contact_info', 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com'),
-            terms_accepted=terms_accepted
+            contact_info=settings_data.get('contact_info', ''),
+            terms_accepted=terms_accepted,
+            logo=settings_data.get('logo'),
+            manager_name=settings_data.get('manager_name', '')
         )
         db.session.add(new_settings)
-    
     db.session.commit()
+
 
 @app.context_processor
 def inject_user():
@@ -623,7 +632,11 @@ def credentials_to_dict(credentials):
         'scopes': credentials.scopes
     }
 
-
+@app.template_filter('b64encode')
+def b64encode_filter(data):
+    if data:
+        return Markup(base64.b64encode(data).decode('utf-8'))
+    return ''
 @app.route('/oauth2callback')
 def oauth2callback():
     # Tenta recuperar o estado da sessão com segurança
@@ -1025,27 +1038,58 @@ def settings():
             'default_greeting': request.form.get('default_greeting', ''),
             'default_closing': request.form.get('default_closing', ''),
             'contact_info': request.form.get('contact_info', ''),
-            'terms_accepted': request.form.get('terms_accepted')  # Verifica se os termos foram aceitos
+            'terms_accepted': request.form.get('terms_accepted'),
+            'manager_name': request.form.get('manager_name', ''),  # NOVO campo do gerente
         }
+        
+        # Logo (imagem)
+        ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+        MAX_LOGO_SIZE = 500 * 1024  # 500 KB
+
+        def allowed_file(filename):
+            return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+        logo_file = request.files.get('logo')
+        logo_bytes = None
+        if logo_file and logo_file.filename:
+            # Valida extensão
+            if not allowed_file(logo_file.filename):
+                flash('Formato de imagem não suportado. Só PNG e JPG!', 'danger')
+                return redirect(url_for('settings'))
+            # Valida tamanho
+            logo_file.seek(0, 2)
+            file_size = logo_file.tell()
+            logo_file.seek(0)
+            if file_size > MAX_LOGO_SIZE:
+                flash('Logo muito grande! Limite: 500KB.', 'danger')
+                return redirect(url_for('settings'))
+            logo_bytes = logo_file.read()
+        settings_data['logo'] = logo_bytes  # Salva no dict, pode ser None se não tiver upload novo
         
         # Verifica se os Termos e Condições foram aceitos
         if not settings_data['terms_accepted']:
             flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for('settings'))
-        
+
         # Salvar as configurações do usuário no banco de dados
         save_user_settings(user_id, settings_data)
         
-        # Marca que o cadastro foi concluído
-        session['first_login_done'] = True  # Marcar que o usuário completou o cadastro
-        
+        session['first_login_done'] = True
         flash('Configurações salvas com sucesso!', 'success')
-        return redirect(url_for('index'))  # Redireciona para a página principal
+        return redirect(url_for('index'))
 
-    # Obter configurações atuais do usuário do banco de dados
     current_settings = get_user_settings(user_id)
-    
     return render_template('settings.html', settings=current_settings, user=user_info, now=datetime.now())
+import base64
+
+@app.route('/logo')
+def logo():
+    user_id = ... # obtenha do login/session
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if settings and settings.logo:
+        ext = 'png'  # ou verifique o tipo
+        return f'data:image/{ext};base64,' + base64.b64encode(settings.logo).decode()
+    return ""
 
 @app.route('/apply_template', methods=['POST'])
 def apply_template():
