@@ -55,21 +55,31 @@ class RelatorioAvaliacoes:
             if logo_bytes:
                 try:
                     img = Image.open(io.BytesIO(logo_bytes))
+                    max_width = 200
+                    max_height = 60
+                    # Redimensiona mantendo proporção e não estica se já for menor
+                    img_ratio = img.width / img.height
+                    max_ratio = max_width / max_height
+                    if img_ratio > max_ratio:
+                        # Mais larga que o padrão, limita pela largura
+                        new_width = max_width
+                        new_height = int(max_width / img_ratio)
+                    else:
+                        # Mais alta que o padrão, limita pela altura
+                        new_height = max_height
+                        new_width = int(max_height * img_ratio)
+                    img = img.resize((new_width, new_height), Image.LANCZOS)
                     logo_path = os.path.join(tmpdir, "logo_temp.png")
-                    # Tamanho reduzido, boa qualidade
-                    max_width = 90
-                    max_height = 35
-                    img.thumbnail((max_width, max_height))
                     img.save(logo_path, "PNG")
-                    img_width, img_height = img.size
-                    x_pos = (pdf.w - img_width) / 2
-                    pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=img_width, h=img_height)
-                    y_logo_offset += img_height + 7
+                    x_pos = (pdf.w - new_width) / 2
+                    pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=new_width, h=new_height)
+                    y_logo_offset += new_height + 7
                 except Exception as e:
                     print("Erro ao processar logo:", e)
                     y_logo_offset = 20
             else:
                 y_logo_offset = 20
+
 
             # --- Cabeçalho e informações básicas ---
             br_tz = pytz.timezone('America/Sao_Paulo')
@@ -152,22 +162,29 @@ DADOS DAS AVALIAÇÕES:
                 pdf.set_font("Arial", '', 11)
 
                 # --- Insere gráfico depois do RESUMO EXECUTIVO ---
-                if "ANÁLISE QUANTITATIVA" in analise_limpa:
-                    partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
+                partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
+                if len(partes) == 2:
                     pdf.multi_cell(0, 7, partes[0].strip())
                     pdf.ln(4)
-                    # Gráfico grande na largura da folha
                     grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
                     largura_grafico = pdf.w - 2*pdf.l_margin - 2
                     pdf.set_font("Arial", '', 12)
                     pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
                     pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
                     pdf.ln(8)
-                    # Continua do ANÁLISE QUANTITATIVA pra frente
                     pdf.set_font("Arial", '', 11)
                     pdf.multi_cell(0, 7, "ANÁLISE QUANTITATIVA" + partes[1].strip())
                 else:
+                    # Sempre tente colocar o gráfico depois do RESUMO EXECUTIVO, caso a divisão não funcione
                     pdf.multi_cell(0, 7, analise_limpa)
+                    pdf.ln(4)
+                    grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
+                    largura_grafico = pdf.w - 2*pdf.l_margin - 2
+                    pdf.set_font("Arial", '', 12)
+                    pdf.cell(0, 10, "Evolução da Nota Média por Mês:", ln=True)
+                    pdf.image(grafico_media_path, x=pdf.l_margin+1, w=largura_grafico)
+                    pdf.ln(8)
+
 
             except Exception as e:
                 print(f"Erro ao gerar análise com IA: {str(e)}")
@@ -181,3 +198,7 @@ DADOS DAS AVALIAÇÕES:
                 output.write(pdf_bytes)
                 output.seek(0)
                 print("PDF gerado em buffer.")
+            if manager_name:
+                pdf.ln(8)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
