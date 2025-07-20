@@ -187,7 +187,8 @@ class RelatorioAvaliacoes:
             if manager_name:
                 pdf.ln(8)
                 pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, f"Responsável pela área: {manager_name}", ln=True)
+                pdf.cell(0, 10, f"{self.settings['business_name']}", ln=True)
+                pdf.cell(0, 10, f"{manager_name}", ln=True)
 
             if isinstance(output, str):
                 pdf.output(output)
