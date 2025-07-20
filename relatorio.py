@@ -51,34 +51,33 @@ class RelatorioAvaliacoes:
             y_logo_offset = 10
 
             # --- LOGO DA EMPRESA ---
-            logo_bytes = self.settings.get('logo')
-            if logo_bytes:
-                try:
-                    img = Image.open(io.BytesIO(logo_bytes))
-                    max_width = 200
-                    max_height = 60
-                    # Redimensiona mantendo proporção e não estica se já for menor
-                    img_ratio = img.width / img.height
-                    max_ratio = max_width / max_height
-                    if img_ratio > max_ratio:
-                        # Mais larga que o padrão, limita pela largura
-                        new_width = max_width
-                        new_height = int(max_width / img_ratio)
-                    else:
-                        # Mais alta que o padrão, limita pela altura
-                        new_height = max_height
-                        new_width = int(max_height * img_ratio)
-                    img = img.resize((new_width, new_height), Image.LANCZOS)
-                    logo_path = os.path.join(tmpdir, "logo_temp.png")
-                    img.save(logo_path, "PNG")
-                    x_pos = (pdf.w - new_width) / 2
-                    pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=new_width, h=new_height)
-                    y_logo_offset += new_height + 7
-                except Exception as e:
-                    print("Erro ao processar logo:", e)
-                    y_logo_offset = 20
-            else:
+        logo_bytes = self.settings.get('logo')
+        if logo_bytes:
+            try:
+                img = Image.open(io.BytesIO(logo_bytes))
+                # Salva o original em alta
+                logo_path = os.path.join(tmpdir, "logo_temp.png")
+                img.save(logo_path, "PNG")
+                # Define o tamanho máximo que pode aparecer no PDF (em mm)
+                max_width_mm = 60   # ajuste conforme seu layout
+                max_height_mm = 25
+                # Descobre proporção para encaixar
+                dpi = 96  # PNGs web normalmente 72-96dpi; FPDF padrão 72dpi
+                px_to_mm = 25.4 / dpi
+                img_width_mm = img.width * px_to_mm
+                img_height_mm = img.height * px_to_mm
+                ratio = min(max_width_mm / img_width_mm, max_height_mm / img_height_mm, 1)
+                w = img_width_mm * ratio
+                h = img_height_mm * ratio
+                x_pos = (pdf.w - w) / 2
+                pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=w, h=h)
+                y_logo_offset += h + 7
+            except Exception as e:
+                print("Erro ao processar logo:", e)
                 y_logo_offset = 20
+        else:
+            y_logo_offset = 20
+
 
 
             # --- Cabeçalho e informações básicas ---
