@@ -33,7 +33,7 @@ from flask_migrate import Migrate
 load_dotenv()
 import base64
 from markupsafe import Markup
-
+from functools import wraps
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 app = Flask(__name__)
@@ -102,6 +102,22 @@ def analisar_pontos_mais_mencionados(comentarios):
 def calcular_media(avaliacoes):
     return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
 
+# Função para confirmar aceitaçao dos termos
+def require_terms_accepted(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_info = session.get('user_info')
+        if not user_info:
+            return redirect(url_for('authorize'))
+        user_id = user_info.get('id')
+        settings = get_user_settings(user_id)
+        if not settings.get('terms_accepted', False):
+            flash("Você precisa aceitar os Termos e Condições para acessar esta funcionalidade.", "warning")
+            return redirect(url_for('terms'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 # Função para calcular a projeção de nota para os próximos 30 dias
 def calcular_projecao(notas, datas):
     if datas and len(datas) > 1:
@@ -146,7 +162,10 @@ def get_user_settings(user_id):
         }
 
 def save_user_settings(user_id, settings_data):
-    terms_accepted = bool(settings_data.get('terms_accepted'))
+    # Converter checkbox/string em booleano de verdade:
+    terms_accepted_raw = settings_data.get('terms_accepted')
+    terms_accepted = terms_accepted_raw in [True, 'on', 'true', 'True', 1, '1']
+
     existing = UserSettings.query.filter_by(user_id=user_id).first()
     if existing:
         existing.business_name = settings_data.get('business_name', '')
@@ -171,6 +190,7 @@ def save_user_settings(user_id, settings_data):
         )
         db.session.add(new_settings)
     db.session.commit()
+
 
 
 @app.context_processor
@@ -230,6 +250,7 @@ def quem_somos():
     return render_template("quem-somos.html")
 
 @app.route('/relatorio', methods=['GET', 'POST'])
+@require_terms_accepted
 def gerar_relatorio():
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
@@ -328,6 +349,7 @@ def gerar_relatorio():
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
 @app.route('/delete_account', methods=['POST'])
+@require_terms_accepted
 def delete_account():
     if 'credentials' not in session:
         return jsonify({'success': False, 'error': 'Você precisa estar logado.'})
@@ -348,6 +370,7 @@ def delete_account():
     return jsonify({'success': True})
 
 @app.route('/historico_relatorios')
+@require_terms_accepted
 def historico_relatorios():
     if 'credentials' not in flask.session:
         return redirect(url_for('authorize'))
@@ -457,20 +480,21 @@ def sitemap():
 
 @app.route('/terms', methods=['GET', 'POST'])
 def terms():
-    """Exibe os Termos e Condições e processa a aceitação do usuário."""
     if request.method == 'POST':
-        # Verifica se o usuário aceitou os Termos e Condições
+        user_info = flask.session.get('user_info', {})
+        user_id = user_info.get('id')
         terms_accepted = request.form.get('terms_accepted')
-        
         if not terms_accepted:
             flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
-            return redirect(url_for('terms'))  # Se não aceitar, volta para a página de termos
-        
-        # Quando o usuário aceitar os termos, marque na sessão que foi aceito
+            return redirect(url_for('terms'))
+        # Salva no banco
+        settings_data = get_user_settings(user_id)
+        settings_data['terms_accepted'] = True
+        save_user_settings(user_id, settings_data)
+        # Atualiza a sessão
         session['terms_accepted'] = True
-
-        # Redireciona para as configurações ou para o próximo passo
-        return redirect(url_for('settings'))  # Redireciona para configurações, onde o usuário irá preencher os dados
+        return redirect(url_for('settings'))
+    ...
 
     # Dados do usuário
     user_info = flask.session.get('user_info', {})
@@ -763,6 +787,7 @@ def logout():
     return flask.redirect(url_for('index'))
 
 @app.route('/reviews')
+@require_terms_accepted
 def reviews():
     """Página de visualização e gerenciamento de avaliações."""
     if 'credentials' not in session:
@@ -787,6 +812,7 @@ def reviews():
     return render_template('reviews.html', reviews=user_reviews, user=user_info, now=datetime.now())
 
 @app.route('/add_review', methods=['GET', 'POST'])
+@require_terms_accepted
 def add_review():
     """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática."""
     if 'credentials' not in session:
@@ -918,6 +944,7 @@ def save_reply():
     return jsonify({'success': True})
 
 @app.route('/dashboard')
+@require_terms_accepted
 def dashboard():
     """Página de dashboard com análise de avaliações."""
     if 'credentials' not in flask.session:
@@ -1050,7 +1077,7 @@ def settings():
             'default_closing': request.form.get('default_closing', ''),
             'contact_info': request.form.get('contact_info', ''),
             'terms_accepted': request.form.get('terms_accepted'),
-            'manager_name': request.form.get('manager_name', ''),  # NOVO campo do gerente
+            'manager_name': request.form.get('manager_name', ''),
         }
         
         # Logo (imagem)
@@ -1085,6 +1112,7 @@ def settings():
         # Salvar as configurações do usuário no banco de dados
         save_user_settings(user_id, settings_data)
         
+        session['terms_accepted'] = True  # <-- Só aqui!
         session['first_login_done'] = True
         flash('Configurações salvas com sucesso!', 'success')
         return redirect(url_for('index'))
