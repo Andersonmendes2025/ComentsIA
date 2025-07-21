@@ -100,7 +100,11 @@ def analisar_pontos_mais_mencionados(comentarios):
     # Retorna as 5 palavras mais comuns
     return Counter(contagem).most_common(5)  # Certifique-se de que contagem é um Counter antes de usar most_common
 
-ADMIN_EMAILS = ["anderson.mendesdossantos011@gmail.com, comentsia.2025@gmail.com"]
+ADMIN_EMAILS = [
+    "anderson.mendesdossantos011@gmail.com",
+    "comentsia.2025@gmail.com"
+]
+
 # Função para calcular a média das avaliações
 def calcular_media(avaliacoes):
     return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
