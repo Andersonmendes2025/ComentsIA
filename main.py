@@ -35,6 +35,7 @@ from flask import session, redirect, url_for, flash
 import base64
 from markupsafe import Markup
 from functools import wraps
+from email_utils import montar_email_conta_apagada
 from email_utils import montar_email_boas_vindas, enviar_email
 # Configuração do aplicativo Flask
 # Inicializar o Flask
