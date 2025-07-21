@@ -1145,6 +1145,7 @@ Responda apenas os seguintes campos:
         return jsonify({'success': False, 'error': f'Erro na análise com IA: {str(e)}'})
 
 @app.route('/settings', methods=['GET', 'POST'])
+@app.route('/settings', methods=['GET', 'POST'])
 def settings():
     """Configurações do aplicativo."""
     if 'credentials' not in flask.session:
@@ -1178,11 +1179,9 @@ def settings():
         logo_file = request.files.get('logo')
         logo_bytes = None
         if logo_file and logo_file.filename:
-            # Valida extensão
             if not allowed_file(logo_file.filename):
                 flash('Formato de imagem não suportado. Só PNG e JPG!', 'danger')
                 return redirect(url_for('settings'))
-            # Valida tamanho
             logo_file.seek(0, 2)
             file_size = logo_file.tell()
             logo_file.seek(0)
@@ -1190,35 +1189,44 @@ def settings():
                 flash('Logo muito grande! Limite: 500KB.', 'danger')
                 return redirect(url_for('settings'))
             logo_bytes = logo_file.read()
-        settings_data['logo'] = logo_bytes  # Salva no dict, pode ser None se não tiver upload novo
+        settings_data['logo'] = logo_bytes
         
-        # Verifica se os Termos e Condições foram aceitos
         if not settings_data['terms_accepted']:
             flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for('settings'))
 
-        # Salvar as configurações do usuário no banco de dados
+        # Salva as configurações
         save_user_settings(user_id, settings_data)
-        nome_do_usuario = (
-        settings_data.get('manager_name')
-        or settings_data.get('business_name')
-        or user_info.get('name')
-        or 'Usuário'
-        )
-        html = montar_email_boas_vindas(nome_do_usuario)
-        email_destino = user_info.get('email')  # do Google
-        enviar_email(
-            destinatario=email_destino,
-            assunto='Seja bem-vindo ao ComentsIA! 🚀',
-            corpo_html=html
-        )
+
+        # Envia o e-mail de boas-vindas apenas se ainda não foi enviado
+        existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
+        if existing_settings and not existing_settings.email_boas_vindas_enviado:
+            nome_do_usuario = (
+                existing_settings.manager_name
+                or existing_settings.business_name
+                or user_info.get('name')
+                or 'Usuário'
+            )
+            html = montar_email_boas_vindas(nome_do_usuario)
+            email_destino = user_info.get('email')
+            try:
+                enviar_email(
+                    destinatario=email_destino,
+                    assunto='Seja bem-vindo ao ComentsIA! 🚀',
+                    corpo_html=html
+                )
+                existing_settings.email_boas_vindas_enviado = True
+                db.session.commit()
+            except Exception as e:
+                print(f"Erro ao enviar e-mail de boas-vindas: {e}")
+
         session['terms_accepted'] = True  
         flash('Configurações salvas com sucesso!', 'success')
         return redirect(url_for('index'))
     
     current_settings = get_user_settings(user_id)
     return render_template('settings.html', settings=current_settings, user=user_info, now=datetime.now())
-import base64
+
 
 @app.route('/logo')
 def logo():
