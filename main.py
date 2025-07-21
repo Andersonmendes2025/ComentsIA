@@ -100,7 +100,7 @@ def analisar_pontos_mais_mencionados(comentarios):
     # Retorna as 5 palavras mais comuns
     return Counter(contagem).most_common(5)  # Certifique-se de que contagem é um Counter antes de usar most_common
 
-
+ADMIN_EMAILS = ["anderson.mendesdossantos011@gmail.com, comentsia.2025@gmail.com"]
 # Função para calcular a média das avaliações
 def calcular_media(avaliacoes):
     return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
@@ -281,6 +281,12 @@ def index():
         now=datetime.now(),
         reviews=user_reviews
     )
+@app.context_processor
+def inject_admin_flag():
+    user_info = session.get('user_info')
+    is_admin = user_info and user_info.get('email') in ADMIN_EMAILS
+    return dict(is_admin=is_admin)
+
 @app.route('/debug_historico')
 def debug_historico():
     # Só permita acesso para o seu usuário
@@ -297,6 +303,52 @@ def debug_historico():
 @app.route('/privacy-policy')
 def privacy_policy():
     return render_template('privacy-policy.html')
+@app.route('/admin')
+def admin_dashboard():
+    user_info = session.get('user_info')
+    if not user_info or user_info.get('email') not in ADMIN_EMAILS:
+        flash("Acesso restrito ao administrador.", "danger")
+        return redirect(url_for('index'))
+
+    total_usuarios = UserSettings.query.count()
+    total_avaliacoes = Review.query.count()
+    total_respostas = Review.query.filter(Review.reply != '').count()
+    total_relatorios = RelatorioHistorico.query.count()
+
+    # Para o gráfico: Novos usuários por mês
+    usuarios_por_mes = []
+    if hasattr(UserSettings, 'created_at'):
+        usuarios_query = db.session.query(
+            db.func.date_trunc('month', UserSettings.created_at).label('mes'),
+            db.func.count(UserSettings.id)
+        ).group_by('mes').order_by('mes').all()
+        # Transforma os dados para listas
+        meses = [mes.strftime('%m/%Y') for mes, _ in usuarios_query]
+        qtds = [qtd for _, qtd in usuarios_query]
+        usuarios_por_mes = {"meses": meses, "qtds": qtds}
+    else:
+        usuarios_por_mes = {"meses": [], "qtds": []}
+
+    top_empresas = db.session.query(
+        UserSettings.business_name,
+        db.func.count(Review.id)
+    ).join(Review, UserSettings.user_id == Review.user_id) \
+     .group_by(UserSettings.business_name) \
+     .order_by(db.func.count(Review.id).desc()) \
+     .limit(5).all()
+
+    return render_template(
+        'admin_dashboard.html',
+        total_usuarios=total_usuarios,
+        total_avaliacoes=total_avaliacoes,
+        total_respostas=total_respostas,
+        total_relatorios=total_relatorios,
+        top_empresas=top_empresas,
+        usuarios_por_mes=usuarios_por_mes,
+        now=datetime.now()
+    )
+
+
 @app.route("/quem-somos")
 def quem_somos():
     return render_template("quem-somos.html")

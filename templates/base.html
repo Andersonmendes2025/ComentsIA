@@ -2,14 +2,13 @@
 <html lang="pt-BR">
 <head>
   <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-QN1FEB1YJT"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-QN1FEB1YJT');
-</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QN1FEB1YJT"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-QN1FEB1YJT');
+  </script>
   <meta charset="UTF-8" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,84 +22,20 @@
 
   {% block extra_head %}{% endblock %}
   <style>
-  .footer-comentsia {
-      background: #f8f9fb;
-      border-top: 2px solid #e4e8f2;
-      margin-top: 50px;
-      padding-top: 22px;
-      padding-bottom: 14px;
-      font-size: 1.05rem;
-      color: #444;
-      letter-spacing: 0;
-      box-shadow: 0 -2px 20px rgba(0,0,0,0.03);
-  }
-  .footer-content {
-      max-width: 980px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-  }
-  .footer-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 7px;
-  }
-  .footer-logo {
-      width: 40px;
-      border-radius: 9px;
-      box-shadow: 0 0 10px #e3e7fb;
-  }
-  .footer-secure {
-      font-size: 1.01rem;
-      color: #129d47;
-      font-weight: 500;
-      margin-left: 5px;
-      letter-spacing: 0;
-  }
-  .footer-links {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 3px;
-      flex-wrap: wrap;
-      justify-content: center;
-  }
-  .footer-links a {
-      color: #222;
-      text-decoration: none;
-      transition: color 0.18s;
-  }
-  .footer-links a:hover {
-      color: #007bff;
-      text-decoration: underline;
-  }
-  .footer-links i {
-      margin-right: 5px;
-  }
-  .footer-pags {
-      margin-bottom: 3px;
-  }
-  .footer-pags a {
-      color: #006fd8;
-      text-decoration: none;
-      font-weight: 500;
-      margin: 0 3px;
-      transition: color 0.18s;
-  }
-  .footer-pags a:hover {
-      color: #007bff;
-      text-decoration: underline;
-  }
-  .footer-dot {
-      color: #b1b7c6;
-      margin: 0 6px;
-  }
-  .footer-copy {
-      font-size: 0.98rem;
-      color: #888;
-      margin-top: 4px;
-  }
+  .footer-comentsia { background: #f8f9fb; border-top: 2px solid #e4e8f2; margin-top: 50px; padding-top: 22px; padding-bottom: 14px; font-size: 1.05rem; color: #444; letter-spacing: 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.03);}
+  .footer-content { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;}
+  .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 7px;}
+  .footer-logo { width: 40px; border-radius: 9px; box-shadow: 0 0 10px #e3e7fb;}
+  .footer-secure { font-size: 1.01rem; color: #129d47; font-weight: 500; margin-left: 5px; letter-spacing: 0;}
+  .footer-links { display: flex; gap: 20px; margin-bottom: 3px; flex-wrap: wrap; justify-content: center;}
+  .footer-links a { color: #222; text-decoration: none; transition: color 0.18s;}
+  .footer-links a:hover { color: #007bff; text-decoration: underline;}
+  .footer-links i { margin-right: 5px;}
+  .footer-pags { margin-bottom: 3px;}
+  .footer-pags a { color: #006fd8; text-decoration: none; font-weight: 500; margin: 0 3px; transition: color 0.18s;}
+  .footer-pags a:hover { color: #007bff; text-decoration: underline;}
+  .footer-dot { color: #b1b7c6; margin: 0 6px;}
+  .footer-copy { font-size: 0.98rem; color: #888; margin-top: 4px;}
   @media (max-width: 640px) {
       .footer-content { padding: 0 2vw; }
       .footer-brand { flex-direction: column; gap: 2px; }
@@ -110,7 +45,6 @@
   }
   </style>
 </head>
-
 <body>
 
   <!-- Navbar -->
@@ -120,11 +54,9 @@
         <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo" width="32" height="32">
         <span class="fw-semibold text-primary">ComentsIA</span>
       </a>
-
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
         <span class="navbar-toggler-icon"></span>
       </button>
-
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item">
@@ -144,6 +76,13 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('settings') }}"><i class="bi bi-gear me-1"></i> Configurações</a>
           </li>
+          {% if is_admin %}
+          <li class="nav-item">
+            <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}">
+              <i class="bi bi-shield-lock-fill me-1"></i> Admin
+            </a>
+          </li>
+          {% endif %}
         </ul>
         <div class="d-flex align-items-center">
           <button class="btn btn-sm theme-toggle me-2" onclick="toggleTheme()" title="Alternar tema">
@@ -177,7 +116,6 @@
           {% else %}
           <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
           {% endif %}
-
         </div>
       </div>
     </div>
@@ -190,49 +128,49 @@
 
   <!-- Rodapé institucional -->
   <footer class="footer-comentsia">
-      <div class="footer-content">
-          <div class="footer-brand">
-              <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">
-              <div class="footer-secure">
-                  <i class="bi bi-lock-fill" style="color:#10b981; font-size: 1.08em; vertical-align: -2px;"></i>
-                  <span>Site seguro &mdash; HTTPS ativo</span>
-              </div>
-          </div>
-          <div class="footer-links">
-              <a href="mailto:contato@comentsia.com.br" title="E-mail institucional">
-                  <i class="bi bi-envelope"></i> contato@comentsia.com.br
-              </a>
-              <a href="mailto:suporte@comentsia.com.br" title="Suporte">
-                  <i class="bi bi-life-preserver"></i> suporte@comentsia.com.br
-              </a>
-              <a href="https://instagram.com/comentsia" target="_blank" title="Instagram">
-                  <i class="bi bi-instagram"></i> @comentsia
-              </a>
-          </div>
-          <div class="footer-pags">
-              <a href="{{ url_for('quem_somos') }}">Quem Somos</a>
-              <span class="footer-dot">&middot;</span>
-              <a href="{{ url_for('terms') }}">Termos de Uso</a>
-              <span class="footer-dot">&middot;</span>
-              <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>
-          </div>
-          <div class="footer-copy">
-              &copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.
-          </div>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">
+        <div class="footer-secure">
+          <i class="bi bi-lock-fill" style="color:#10b981; font-size: 1.08em; vertical-align: -2px;"></i>
+          <span>Site seguro &mdash; HTTPS ativo</span>
+        </div>
       </div>
+      <div class="footer-links">
+        <a href="mailto:contato@comentsia.com.br" title="E-mail institucional">
+          <i class="bi bi-envelope"></i> contato@comentsia.com.br
+        </a>
+        <a href="mailto:suporte@comentsia.com.br" title="Suporte">
+          <i class="bi bi-life-preserver"></i> suporte@comentsia.com.br
+        </a>
+        <a href="https://instagram.com/comentsia" target="_blank" title="Instagram">
+          <i class="bi bi-instagram"></i> @comentsia
+        </a>
+      </div>
+      <div class="footer-pags">
+        <a href="{{ url_for('quem_somos') }}">Quem Somos</a>
+        <span class="footer-dot">&middot;</span>
+        <a href="{{ url_for('terms') }}">Termos de Uso</a>
+        <span class="footer-dot">&middot;</span>
+        <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>
+      </div>
+      <div class="footer-copy">
+        &copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.
+      </div>
+    </div>
   </footer>
 
   <!-- Toast container fixo -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999">
-  <div id="toast-alert" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex align-items-center">
-      <div class="toast-body d-flex align-items-center" id="toast-message">
-        Mensagem
+    <div id="toast-alert" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex align-items-center">
+        <div class="toast-body d-flex align-items-center" id="toast-message">
+          Mensagem
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
       </div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
     </div>
   </div>
-</div>
 
   <!-- Modal de Confirmação Bootstrap -->
   <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
@@ -255,7 +193,6 @@
 
   <!-- Scripts Bootstrap e suas funções -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
     // Tema claro/escuro
     const savedTheme = localStorage.getItem('theme');
@@ -264,13 +201,11 @@
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     }
-
     // Toast moderno
     function showToast(mensagem, tipo = 'success') {
       const toast = new bootstrap.Toast(document.getElementById('toast-alert'));
       const toastEl = document.getElementById('toast-alert');
       const toastMsg = document.getElementById('toast-message');
-
       toastEl.classList.remove('bg-success', 'bg-danger', 'toast-info');
       if (tipo === 'info') {
         toastEl.classList.add('toast-info');
@@ -282,28 +217,26 @@
       toastMsg.innerHTML = mensagem;
       toast.show();
     }
-    
-function deleteAccount() {
-  askConfirm(
-    'Tem certeza que deseja <b>APAGAR SUA CONTA</b>?<br><span class="text-danger">Todos os seus dados serão apagados e essa ação é <b>irreversível</b>!</span>',
-    function() {
-      fetch('/delete_account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          showToast('Conta apagada com sucesso!', 'success');
-          setTimeout(() => { window.location = '/'; }, 2000);
-        } else {
-          showToast('Erro ao apagar conta: ' + data.error, 'danger');
+    function deleteAccount() {
+      askConfirm(
+        'Tem certeza que deseja <b>APAGAR SUA CONTA</b>?<br><span class="text-danger">Todos os seus dados serão apagados e essa ação é <b>irreversível</b>!</span>',
+        function() {
+          fetch('/delete_account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              showToast('Conta apagada com sucesso!', 'success');
+              setTimeout(() => { window.location = '/'; }, 2000);
+            } else {
+              showToast('Erro ao apagar conta: ' + data.error, 'danger');
+            }
+          });
         }
-      });
+      );
     }
-  );
-}
-
     // Modal de confirmação
     let confirmAction = null;
     function askConfirm(message, callback) {
@@ -319,7 +252,6 @@ function deleteAccount() {
       modal.hide();
     };
   </script>
-
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

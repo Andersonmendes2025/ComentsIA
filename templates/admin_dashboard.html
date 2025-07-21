@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin - ComentsIA{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h2 class="h4 mb-4"><i class="bi bi-shield-lock-fill text-danger"></i> Dashboard Admin</h2>
+  <div class="row mb-4">
+    <div class="col-md-3 mb-3">
+      <div class="card shadow rounded-4">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold">{{ total_usuarios }}</div>
+          <div class="text-muted">Usuários cadastrados</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card shadow rounded-4">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold">{{ total_avaliacoes }}</div>
+          <div class="text-muted">Avaliações salvas</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card shadow rounded-4">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold">{{ total_respostas }}</div>
+          <div class="text-muted">Respostas geradas</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card shadow rounded-4">
+        <div class="card-body text-center">
+          <div class="fs-2 fw-bold">{{ total_relatorios }}</div>
+          <div class="text-muted">Relatórios gerados</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h4 class="mb-3">Top Empresas Mais Ativas</h4>
+  <ul class="list-group mb-4">
+    {% for empresa, qtd in top_empresas %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        {{ empresa or "Sem nome" }}
+        <span class="badge bg-primary rounded-pill">{{ qtd }}</span>
+      </li>
+    {% else %}
+      <li class="list-group-item">Nenhuma empresa encontrada.</li>
+    {% endfor %}
+  </ul>
+
+  {% if usuarios_por_mes["meses"] %}
+    <h4 class="mb-3">Novos Usuários por Mês</h4>
+    <div class="mb-4">
+      <canvas id="usuariosPorMesChart" height="110"></canvas>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const meses = {{ usuarios_por_mes["meses"] | tojson }};
+  const qtds = {{ usuarios_por_mes["qtds"] | tojson }};
+  if (meses.length > 0) {
+    const ctx = document.getElementById('usuariosPorMesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: meses,
+        datasets: [{
+          label: 'Novos usuários',
+          data: qtds,
+          borderWidth: 2,
+          backgroundColor: 'rgba(0,123,255,0.6)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

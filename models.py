@@ -30,6 +30,7 @@ class UserSettings(db.Model):
     terms_accepted = db.Column(db.Boolean, default=False)
     logo = db.Column(db.LargeBinary)
     manager_name = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
