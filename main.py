@@ -112,12 +112,13 @@ def require_terms_accepted(f):
             return redirect(url_for('authorize'))
         user_id = user_info.get('id')
         settings = get_user_settings(user_id)
-        # Verifica se TODOS os campos obrigatórios do cadastro estão completos
+        # Se faltar algum campo obrigatório, manda para settings
         if not (settings.get('business_name') and settings.get('contact_info') and settings.get('terms_accepted', False)):
             flash("Complete seu cadastro inicial e aceite os Termos e Condições para acessar esta funcionalidade.", "warning")
-            return redirect(url_for('first_login'))
+            return redirect(url_for('settings'))
         return f(*args, **kwargs)
     return decorated_function
+
 
 
 # Função para calcular a projeção de nota para os próximos 30 dias
