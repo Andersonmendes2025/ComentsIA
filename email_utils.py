@@ -4,7 +4,7 @@ from flask import url_for, current_app
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
+import os
 def montar_email_boas_vindas(nome_do_usuario):
     # Precisa de app context para url_for funcionar!
     logo_url = url_for('static', filename='logo-symbol.png', _external=True)
