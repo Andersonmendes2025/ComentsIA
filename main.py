@@ -403,22 +403,43 @@ def gerar_relatorio():
 @require_terms_accepted
 def delete_account():
     if 'credentials' not in session:
+        print("⚠️ Sessão não encontrada. Usuário não está logado.")
         return jsonify({'success': False, 'error': 'Você precisa estar logado.'})
 
     user_info = session.get('user_info')
     user_id = user_info.get('id')
+    nome_do_usuario = user_info.get('name') or user_info.get('email') or 'Usuário'
+    email_destino = user_info.get('email')
+
+    print(f"🗑️ Excluindo conta: {nome_do_usuario} <{email_destino}> (ID: {user_id})")
+
+    # Tenta enviar o e-mail ANTES de apagar a sessão
+    try:
+        if email_destino:
+            html = montar_email_conta_apagada(nome_do_usuario)
+            print("✉️ Chamando enviar_email...")
+            enviar_email(
+                destinatario=email_destino,
+                assunto='Sua conta no ComentsIA foi excluída',
+                corpo_html=html
+            )
+            print("✅ E-mail de exclusão enviado!")
+        else:
+            print("❌ Nenhum e-mail de destino encontrado para enviar a mensagem de exclusão.")
+    except Exception as e:
+        print(f"❌ Erro ao enviar e-mail de exclusão: {e}")
 
     # Apaga todos os dados do usuário nas tabelas principais
     Review.query.filter_by(user_id=user_id).delete()
     UserSettings.query.filter_by(user_id=user_id).delete()
     RelatorioHistorico.query.filter_by(user_id=user_id).delete()
-    # Se você tiver mais tabelas relacionadas, repita aqui!
-
     db.session.commit()
 
     # Limpa a sessão e faz logout
     session.clear()
+    print("🚮 Sessão e dados do usuário apagados com sucesso!")
     return jsonify({'success': True})
+
 
 @app.route('/historico_relatorios')
 @require_terms_accepted

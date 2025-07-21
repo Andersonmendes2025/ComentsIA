@@ -5,6 +5,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+from flask import url_for
 def montar_email_boas_vindas(nome_do_usuario):
     # Precisa de app context para url_for funcionar!
     logo_url = url_for('static', filename='logo-symbol.png', _external=True)
@@ -58,3 +59,17 @@ def enviar_email(destinatario, assunto, corpo_html):
         server.login(remetente, senha)
         server.sendmail(remetente, destinatario, msg.as_string())
 
+def montar_email_conta_apagada(nome_do_usuario):
+    logo_url = url_for('static', filename='logo-symbol.png', _external=True)
+    return f"""
+    <div style='text-align: center; margin-bottom: 24px;'>
+        <img src='{logo_url}' alt='ComentsIA' style='height: 60px; margin: 16px auto;'>
+    </div>
+    <p>Olá {nome_do_usuario},</p>
+    <p>Confirmamos a exclusão da sua conta e de todos os dados associados à plataforma <strong>ComentsIA</strong>. Respeitamos sua decisão e garantimos que nenhuma informação pessoal ou empresarial permanece armazenada em nossos servidores.</p>
+    <p>Gostaríamos de entender melhor o que motivou sua saída. Seu feedback é essencial para melhorarmos continuamente nossos serviços. Caso queira compartilhar o motivo ou alguma sugestão, basta responder a este e-mail.</p>
+    <p>Se, em algum momento, decidir retornar, estaremos prontos para recebê-lo(a) de volta. Nosso compromisso é tornar a gestão de avaliações do seu negócio mais fácil e eficiente, com a qualidade e o cuidado que você merece.</p>
+    <p>Em caso de dúvida ou se precisar de qualquer suporte, nossa equipe está à disposição.</p>
+    <p style='margin-top: 28px; font-weight: bold;'>Obrigado por confiar no ComentsIA.<br>
+    Equipe ComentsIA</p>
+    """
