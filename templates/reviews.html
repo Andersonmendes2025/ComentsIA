@@ -3,17 +3,50 @@
 <div class="container mt-4">
   <h2 class="mb-4">Avaliações Recebidas</h2>
 
-  <!-- Botão de Ativação do Robô -->
-  <div class="d-flex justify-content-end mb-3">
+  <!-- Botão e filtros -->
+  <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
     <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
       <i class="bi bi-robot me-1"></i>
       Ativar Respostas Automáticas
     </a>
+
+    <div class="d-flex flex-wrap align-items-end gap-3">
+      <div>
+        <label for="filtro-respondida" class="form-label mb-1">Responder:</label>
+        <select id="filtro-respondida" class="form-select form-select-sm">
+          <option value="todas">Todas</option>
+          <option value="sim">Respondidas</option>
+          <option value="nao">Não Respondidas</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="filtro-nota" class="form-label mb-1">Nota:</label>
+        <select id="filtro-nota" class="form-select form-select-sm">
+          <option value="todas">Todas</option>
+          <option value="5">5 estrelas</option>
+          <option value="4">4 estrelas</option>
+          <option value="3">3 estrelas</option>
+          <option value="2">2 estrelas</option>
+          <option value="1">1 estrela</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="filtro-texto" class="form-label mb-1">Buscar:</label>
+        <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
+      </div>
+    </div>
   </div>
 
   {% if reviews %}
     {% for review in reviews %}
-      <div class="card mb-3">
+      <div class="card mb-3 review-card"
+           data-respondida="{{ 'sim' if review.replied else 'nao' }}"
+           data-nome="{{ review.reviewer_name|lower }}"
+           data-texto="{{ review.text|lower }}"
+           data-nota="{{ review.rating }}">
+
         <div class="card-body">
           <h5 class="card-title">Nome: {{ review.reviewer_name }}</h5>
           <h6 class="card-subtitle mb-2 text-muted">Nota: {{ review.rating }} - Data: {{ review.date }}</h6>
@@ -74,94 +107,38 @@
 </div>
 
 <script>
-function generateReply(id, rating, reviewerName) {
-  const text = document.getElementById('review-text-' + id).innerText;
-  const tone = document.getElementById('tone-' + id).value;
-  const loading = document.getElementById('loading-' + id);
-  const suggestion = document.getElementById('suggestion-' + id);
-  const actions = document.getElementById('actions-' + id);
+document.addEventListener('DOMContentLoaded', function () {
+  const cards = document.querySelectorAll('.review-card');
+  const filtroRespondida = document.getElementById('filtro-respondida');
+  const filtroNota = document.getElementById('filtro-nota');
+  const filtroTexto = document.getElementById('filtro-texto');
 
-  loading.style.display = 'block';
-  suggestion.style.display = 'none';
-  actions.style.display = 'none';
+  function filtrar() {
+    const valorRespondida = filtroRespondida.value;
+    const valorNota = filtroNota.value;
+    const textoBusca = filtroTexto.value.toLowerCase();
 
-  fetch('/suggest_reply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      review_text: text,
-      star_rating: rating,
-      reviewer_name: reviewerName,
-      tone: tone
-    })
-  })
-  .then(response => response.json())
-  .then(data => {
-    loading.style.display = 'none';
-    if (data.success) {
-      suggestion.innerText = data.suggested_reply;
-      suggestion.style.display = 'block';
-      actions.style.display = 'block';
-    } else {
-      showToast('Erro: ' + data.error, 'danger');
-    }
-  });
-}
+    cards.forEach(card => {
+      const respondida = card.dataset.respondida;
+      const nome = card.dataset.nome;
+      const texto = card.dataset.texto;
+      const nota = card.dataset.nota;
 
-function saveReply(id) {
-  const replyText = document.getElementById('suggestion-' + id).innerText;
-  fetch('/save_reply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ review_id: id, reply_text: replyText })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      showToast('Resposta salva com sucesso!');
-      location.reload();
-    } else {
-      showToast('Erro: ' + data.error, 'danger');
-    }
-  });
-}
+      const combinaRespondida = valorRespondida === 'todas' || valorRespondida === respondida;
+      const combinaNota = valorNota === 'todas' || valorNota === nota;
+      const combinaTexto = nome.includes(textoBusca) || texto.includes(textoBusca);
 
-function deleteReply(id) {
-  askConfirm('Tem certeza que deseja excluir a resposta?', function() {
-    fetch('/delete_reply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ review_id: id })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showToast('Resposta excluída com sucesso!');
-        location.reload();
+      if (combinaRespondida && combinaNota && combinaTexto) {
+        card.style.display = '';
       } else {
-        showToast('Erro: ' + data.error, 'danger');
+        card.style.display = 'none';
       }
     });
-  });
-}
+  }
 
-function deleteReview(id) {
-  askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
-    fetch('/delete_review', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ review_id: id })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        showToast('Avaliação excluída com sucesso!');
-        location.reload();
-      } else {
-        showToast('Erro: ' + data.error, 'danger');
-      }
-    });
-  });
-}
+  filtroRespondida.addEventListener('change', filtrar);
+  filtroNota.addEventListener('change', filtrar);
+  filtroTexto.addEventListener('input', filtrar);
+});
 </script>
 {% endblock %}
