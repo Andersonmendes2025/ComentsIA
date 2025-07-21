@@ -22,6 +22,7 @@ current_date = datetime.now().strftime('%d/%m/%Y')
 from sqlalchemy import func
 import numpy as np
 from datetime import timedelta
+from sqlalchemy import Date
 from relatorio import RelatorioAvaliacoes
 from collections import Counter
 import numpy as np
@@ -918,7 +919,7 @@ def add_review():
         reviewer_name = request.form.get('reviewer_name') or request.json.get('reviewer_name', 'Cliente Anônimo')
         rating = int(request.form.get('rating') or request.json.get('rating', 5))
         text = request.form.get('text') or request.json.get('text', '')
-        data = datetime.now().strftime('%d/%m/%Y')
+        data = datetime.now().date()
 
         # Verifica duplicata
         existente = Review.query.filter_by(user_id=user_id, reviewer_name=reviewer_name, text=text).first()
