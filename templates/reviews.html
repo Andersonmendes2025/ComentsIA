@@ -35,29 +35,35 @@
             </select>
           </div>
 
-          <button class="btn btn-primary mt-2"
-                  onclick="generateReply({{ review.id }}, {{ review.rating }}, '{{ review.reviewer_name }}')">
-            Gerar sugestão
-          </button>
+          <div class="d-flex flex-wrap gap-2 mt-3">
+            <button class="btn btn-primary btn-sm flex-fill" style="min-width: 160px;"
+                    onclick="generateReply({{ review.id }}, {{ review.rating }}, '{{ review.reviewer_name }}')">
+              Gerar sugestão
+            </button>
+
+            {% if review.replied %}
+              <button class="btn btn-warning btn-sm flex-fill" style="min-width: 160px;"
+                      onclick="deleteReply({{ review.id }})">
+                Excluir resposta
+              </button>
+            {% endif %}
+
+            <button class="btn btn-danger btn-sm flex-fill" style="min-width: 160px;"
+                    onclick="deleteReview({{ review.id }})">
+              Excluir avaliação
+            </button>
+
+            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm flex-fill text-nowrap"
+               style="min-width: 160px;">
+              + Adicionar Avaliação
+            </a>
+          </div>
 
           <p id="loading-{{ review.id }}" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
           <p id="suggestion-{{ review.id }}" class="mt-2" style="display: none;"></p>
 
           <div id="actions-{{ review.id }}" class="mt-2" style="display: none;">
             <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
-          </div>
-
-          {% if review.replied %}
-            <button class="btn btn-warning btn-sm mt-2 me-2" onclick="deleteReply({{ review.id }})">Excluir resposta</button>
-          {% endif %}
-            <div class="row mt-2 gx-2">
-              <div class="col-6 col-md-4 col-lg-3">
-                <button class="btn btn-danger btn-sm py-2 w-100" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
-              </div>
-              <div class="col-6 col-md-4 col-lg-3">
-                <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm py-2 w-100">+ Adicionar Avaliação</a>
-              </div>
-            </div>
           </div>
         </div>
       </div>
