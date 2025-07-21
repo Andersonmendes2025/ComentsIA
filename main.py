@@ -31,6 +31,7 @@ from flask_migrate import upgrade
 from models import db, Review, UserSettings, RelatorioHistorico
 from flask_migrate import Migrate
 load_dotenv()
+from flask import session, redirect, url_for, flash
 import base64
 from markupsafe import Markup
 from functools import wraps
@@ -111,9 +112,10 @@ def require_terms_accepted(f):
             return redirect(url_for('authorize'))
         user_id = user_info.get('id')
         settings = get_user_settings(user_id)
-        if not settings.get('terms_accepted', False):
-            flash("Você precisa aceitar os Termos e Condições para acessar esta funcionalidade.", "warning")
-            return redirect(url_for('terms'))
+        # Verifica se TODOS os campos obrigatórios do cadastro estão completos
+        if not (settings.get('business_name') and settings.get('contact_info') and settings.get('terms_accepted', False)):
+            flash("Complete seu cadastro inicial e aceite os Termos e Condições para acessar esta funcionalidade.", "warning")
+            return redirect(url_for('first_login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -439,25 +441,25 @@ def first_login():
     user_info = flask.session.get('user_info', {})
     user_id = user_info.get('id')
 
-    # Verifica se o usuário já preencheu as configurações
+    # Pega configurações do usuário
     user_settings = get_user_settings(user_id)
 
-    # Se o usuário já tem as configurações, redireciona para a página principal
-    if user_settings['business_name'] and user_settings['contact_info'] and session.get('first_login_done'):
-        return redirect(url_for('index'))  # Usuário já completou o cadastro, vai para a página principal
+    # Já completou tudo? Vai pro app.
+    if (user_settings['business_name'] and
+        user_settings['contact_info'] and
+        user_settings.get('terms_accepted')):
+        return redirect(url_for('index'))
 
-    # Se o método for POST, salva as configurações
     if request.method == 'POST':
         company_name = request.form.get('company_name')
         contact_info = request.form.get('contact_info')
         terms_accepted = request.form.get('terms_accepted')
 
-        # Verifica se os termos foram aceitos
-        if not terms_accepted:
-            flash("Você precisa aceitar os termos e condições para continuar.", "warning")
+        if not (company_name and contact_info and terms_accepted):
+            flash("Preencha todos os campos obrigatórios e aceite os termos.", "warning")
             return redirect(url_for('first_login'))
 
-        # Salva as configurações do usuário no banco de dados
+        # Salva tudo no banco, inclusive o aceite
         settings_data = {
             'business_name': company_name,
             'default_greeting': 'Olá,',
@@ -466,14 +468,12 @@ def first_login():
             'terms_accepted': True
         }
         save_user_settings(user_id, settings_data)
-
-        # Marque que o cadastro foi concluído
         session['first_login_done'] = True
-
         flash("Configurações salvas com sucesso!", "success")
-        return redirect(url_for('index'))  # Redireciona para a página principal
+        return redirect(url_for('index'))
 
-    return render_template('first_login.html')
+    return render_template('first_login.html', user_info=user_info)
+
 @app.route('/sitemap.xml')
 def sitemap():
     return app.send_static_file('sitemap.xml')
