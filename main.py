@@ -35,6 +35,7 @@ from flask import session, redirect, url_for, flash
 import base64
 from markupsafe import Markup
 from functools import wraps
+from email_utils import montar_email_boas_vindas, enviar_email
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 app = Flask(__name__)
@@ -193,6 +194,53 @@ def save_user_settings(user_id, settings_data):
         )
         db.session.add(new_settings)
     db.session.commit()
+from flask import url_for
+
+def montar_email_boas_vindas(nome_do_usuario):
+    logo_url = url_for('static', filename='logo-symbol.png', _external=True)
+    termos_url = url_for('terms', _external=True)
+    privacidade_url = url_for('privacy_policy', _external=True)
+    return f"""
+    <div style='text-align: center; margin-bottom: 24px;'>
+        <img src='{logo_url}' alt='ComentsIA' style='height: 60px; margin: 16px auto;'>
+    </div>
+
+    <p>Olá {nome_do_usuario},</p>
+
+    <p>É um prazer ter você conosco no <strong>ComentsIA</strong>!</p>
+
+    <p>Parabéns por dar o primeiro passo para revolucionar a gestão das avaliações da sua empresa. Nosso aplicativo foi criado para simplificar sua rotina e valorizar ainda mais a reputação do seu negócio no Google.</p>
+
+    <p>O ComentsIA utiliza Inteligência Artificial para automatizar, sugerir e agilizar as respostas às avaliações recebidas no seu perfil do Google Business. Assim, você responde clientes de forma profissional, cordial e personalizada — ganhando tempo e fortalecendo a imagem da sua marca.</p>
+
+    <p><strong>Benefícios exclusivos do ComentsIA:</strong></p>
+    <ul>
+        <li>Respostas automáticas ou personalizadas com IA em segundos.</li>
+        <li>Análises e relatórios inteligentes sobre o que os clientes estão dizendo.</li>
+        <li>Centralização de todas as avaliações em um só lugar.</li>
+        <li>Facilidade para personalizar saudações, assinaturas e contato.</li>
+        <li>Maior engajamento e satisfação dos seus clientes!</li>
+    </ul>
+
+    <p>
+    Antes de continuar, lembre-se de conferir nossos
+    <a href='{termos_url}'>Termos de Uso</a> e
+    <a href='{privacidade_url}'>Política de Privacidade</a>,
+    que explicam de forma clara como protegemos seus dados e como funciona o uso do app:
+    </p>
+
+    <ul>
+        <li><a href='{termos_url}'>Termos de Uso</a></li>
+        <li><a href='{privacidade_url}'>Política de Privacidade</a></li>
+    </ul>
+
+    <p>Conte com a gente para potencializar ainda mais seu relacionamento com clientes e a reputação da sua empresa.</p>
+
+    <p>Se tiver qualquer dúvida, basta responder este e-mail ou acessar o painel de ajuda do ComentsIA.</p>
+
+    <p style='margin-top: 28px; font-weight: bold;'>Seja muito bem-vindo!<br>
+    Equipe ComentsIA</p>
+    """
 
 
 
@@ -433,47 +481,6 @@ def deletar_relatorio(relatorio_id):
     flash('Relatório excluído com sucesso.', 'success')
     return redirect(url_for('historico_relatorios'))
 
-
-@app.route('/first-login', methods=['GET', 'POST'])
-def first_login():
-    if 'credentials' not in flask.session:
-        return redirect(url_for('authorize'))
-
-    user_info = flask.session.get('user_info', {})
-    user_id = user_info.get('id')
-
-    # Pega configurações do usuário
-    user_settings = get_user_settings(user_id)
-
-    # Já completou tudo? Vai pro app.
-    if (user_settings['business_name'] and
-        user_settings['contact_info'] and
-        user_settings.get('terms_accepted')):
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        company_name = request.form.get('company_name')
-        contact_info = request.form.get('contact_info')
-        terms_accepted = request.form.get('terms_accepted')
-
-        if not (company_name and contact_info and terms_accepted):
-            flash("Preencha todos os campos obrigatórios e aceite os termos.", "warning")
-            return redirect(url_for('first_login'))
-
-        # Salva tudo no banco, inclusive o aceite
-        settings_data = {
-            'business_name': company_name,
-            'default_greeting': 'Olá,',
-            'default_closing': 'Agradecemos seu feedback!',
-            'contact_info': contact_info,
-            'terms_accepted': True
-        }
-        save_user_settings(user_id, settings_data)
-        session['first_login_done'] = True
-        flash("Configurações salvas com sucesso!", "success")
-        return redirect(url_for('index'))
-
-    return render_template('first_login.html', user_info=user_info)
 
 @app.route('/sitemap.xml')
 def sitemap():
@@ -1112,12 +1119,24 @@ def settings():
 
         # Salvar as configurações do usuário no banco de dados
         save_user_settings(user_id, settings_data)
-        
+        nome_do_usuario = (
+        settings_data.get('manager_name')
+        or settings_data.get('business_name')
+        or user_info.get('name')
+        or 'Usuário'
+        )
+        html = montar_email_boas_vindas(nome_do_usuario)
+        email_destino = user_info.get('email')  # do Google
+        enviar_email(
+            destinatario=email_destino,
+            assunto='Seja bem-vindo ao ComentsIA! 🚀',
+            corpo_html=html
+        )
         session['terms_accepted'] = True  # <-- Só aqui!
         session['first_login_done'] = True
         flash('Configurações salvas com sucesso!', 'success')
         return redirect(url_for('index'))
-
+    
     current_settings = get_user_settings(user_id)
     return render_template('settings.html', settings=current_settings, user=user_info, now=datetime.now())
 import base64
