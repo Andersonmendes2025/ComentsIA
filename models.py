@@ -31,7 +31,8 @@ class UserSettings(db.Model):
     logo = db.Column(db.LargeBinary)
     manager_name = db.Column(db.String(255))
     created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
-
+    email_boas_vindas_enviado = db.Column(db.Boolean, default=False)
+    
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False)

@@ -269,8 +269,8 @@ def index():
     user_settings = get_user_settings(user_id)
     
     # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
-    if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
-        return redirect(url_for('settings'))  # Redireciona para a página de configurações
+    if not user_settings['business_name'] or not user_settings['contact_info'] or not user_settings['terms_accepted']:
+        return redirect(url_for('settings'))
 
     user_reviews = get_user_reviews(user_id)
     total_reviews = len(user_reviews)
@@ -371,7 +371,7 @@ def gerar_relatorio():
     user_settings = get_user_settings(user_id)
     print(f"[RELATÓRIO] user_settings: {user_settings}")
 
-    if not user_settings['business_name'] or not user_settings['contact_info'] or not session.get('first_login_done'):
+    if not user_settings['business_name'] or not user_settings['contact_info'] or not user_settings['terms_accepted']:
         return redirect(url_for('settings'))
 
     if request.method == 'GET':
@@ -471,6 +471,7 @@ def delete_account():
     print(f"🗑️ Excluindo conta: {nome_do_usuario} <{email_destino}> (ID: {user_id})")
 
     # Tenta enviar o e-mail ANTES de apagar a sessão
+    # Tenta enviar o e-mail ANTES de apagar a sessão
     try:
         if email_destino:
             html = montar_email_conta_apagada(nome_do_usuario)
@@ -485,6 +486,7 @@ def delete_account():
             print("❌ Nenhum e-mail de destino encontrado para enviar a mensagem de exclusão.")
     except Exception as e:
         print(f"❌ Erro ao enviar e-mail de exclusão: {e}")
+
 
     # Apaga todos os dados do usuário nas tabelas principais
     Review.query.filter_by(user_id=user_id).delete()
@@ -1210,8 +1212,7 @@ def settings():
             assunto='Seja bem-vindo ao ComentsIA! 🚀',
             corpo_html=html
         )
-        session['terms_accepted'] = True  # <-- Só aqui!
-        session['first_login_done'] = True
+        session['terms_accepted'] = True  
         flash('Configurações salvas com sucesso!', 'success')
         return redirect(url_for('index'))
     
