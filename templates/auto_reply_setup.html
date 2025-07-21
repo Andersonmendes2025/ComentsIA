@@ -23,33 +23,38 @@
 
       <div class="card shadow-sm">
         <div class="card-body p-4">
-          <h5 class="mb-3">Como funciona?</h5>
-          <ul class="list-unstyled">
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Você faz login com sua conta do Google Business manualmente.</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> O robô captura as avaliações mais recentes da sua empresa.</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> A IA do ComentsIA gera respostas personalizadas para cada avaliação.</li>
-            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> As respostas são publicadas automaticamente no Google.</li>
-          </ul>
-
-          <div class="alert alert-warning mt-4">
-            <strong>Atenção:</strong> Por motivos de segurança, o login é feito manualmente no navegador. Nenhuma senha é armazenada.
+          <div class="alert alert-warning">
+            <strong>🚧 Em breve:</strong> o robô de respostas automáticas ainda <strong>não está disponível para uso</strong>.
+            Estamos finalizando os testes para garantir segurança e estabilidade. Fique atento às atualizações!
           </div>
 
-                    <div class="d-grid gap-2 mt-4">
-            <a href="{{ url_for('auto_reply.start_auto_bot') }}" class="btn btn-primary btn-lg">
+          <h5 class="mb-3">Como funcionará?</h5>
+          <ul class="list-unstyled">
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> Você fará login com sua conta do Google Business manualmente.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> O robô capturará as avaliações mais recentes da sua empresa.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> A IA do ComentsIA gerará respostas personalizadas para cada avaliação.</li>
+            <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i> As respostas serão publicadas automaticamente no Google.</li>
+          </ul>
+
+          <div class="alert alert-info mt-4">
+            <strong>Importante:</strong> Por motivos de segurança, o login será feito manualmente no navegador. Nenhuma senha será armazenada.
+          </div>
+
+          <div class="d-grid gap-2 mt-4">
+            <button class="btn btn-secondary btn-lg" disabled>
               <i class="bi bi-rocket-takeoff me-2"></i>
-              Iniciar e Ativar Robô Agora
-            </a>
-            <a href="{{ url_for('auto_reply.run_bot_now') }}" class="btn btn-outline-success btn-lg">
+              Iniciar e Ativar Robô Agora (Indisponível)
+            </button>
+            <button class="btn btn-outline-secondary btn-lg" disabled>
               <i class="bi bi-play-circle me-2"></i>
-              Rodar Robô Agora Manualmente
-            </a>
+              Rodar Robô Manualmente (Indisponível)
+            </button>
           </div>
         </div>
       </div>
 
       <div class="text-muted small mt-3">
-        Você poderá desativar o robô a qualquer momento nas configurações.
+        Em breve, você poderá ativar e desativar o robô diretamente por aqui.
       </div>
     </div>
   </div>

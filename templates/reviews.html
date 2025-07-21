@@ -48,9 +48,12 @@
           </div>
 
           {% if review.replied %}
-            <button class="btn btn-warning btn-sm mt-2" onclick="deleteReply({{ review.id }})">Excluir resposta</button>
+            <button class="btn btn-warning btn-sm mt-2 me-2" onclick="deleteReply({{ review.id }})">Excluir resposta</button>
           {% endif %}
-          <button class="btn btn-danger btn-sm mt-2" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
+          <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-danger btn-sm" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
+            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm">+ Adicionar Avaliação</a>
+          </div>
         </div>
       </div>
     {% endfor %}
@@ -60,41 +63,41 @@
 </div>
 
 <script>
-  function generateReply(id, rating, reviewerName) {
-    const text = document.getElementById('review-text-' + id).innerText;
-    const tone = document.getElementById('tone-' + id).value;
-    const loading = document.getElementById('loading-' + id);
-    const suggestion = document.getElementById('suggestion-' + id);
-    const actions = document.getElementById('actions-' + id);
+function generateReply(id, rating, reviewerName) {
+  const text = document.getElementById('review-text-' + id).innerText;
+  const tone = document.getElementById('tone-' + id).value;
+  const loading = document.getElementById('loading-' + id);
+  const suggestion = document.getElementById('suggestion-' + id);
+  const actions = document.getElementById('actions-' + id);
 
-    loading.style.display = 'block';
-    suggestion.style.display = 'none';
-    actions.style.display = 'none';
+  loading.style.display = 'block';
+  suggestion.style.display = 'none';
+  actions.style.display = 'none';
 
-    fetch('/suggest_reply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        review_text: text,
-        star_rating: rating,
-        reviewer_name: reviewerName,
-        tone: tone
-      })
+  fetch('/suggest_reply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      review_text: text,
+      star_rating: rating,
+      reviewer_name: reviewerName,
+      tone: tone
     })
-    .then(response => response.json())
-    .then(data => {
-      loading.style.display = 'none';
-      if (data.success) {
-        suggestion.innerText = data.suggested_reply;
-        suggestion.style.display = 'block';
-        actions.style.display = 'block';
-      } else {
-        showToast('Erro: ' + data.error, 'danger');
-      }
-    });
-  }
+  })
+  .then(response => response.json())
+  .then(data => {
+    loading.style.display = 'none';
+    if (data.success) {
+      suggestion.innerText = data.suggested_reply;
+      suggestion.style.display = 'block';
+      actions.style.display = 'block';
+    } else {
+      showToast('Erro: ' + data.error, 'danger');
+    }
+  });
+}
 
-  function saveReply(id) {
+function saveReply(id) {
   const replyText = document.getElementById('suggestion-' + id).innerText;
   fetch('/save_reply', {
     method: 'POST',
@@ -131,7 +134,7 @@ function deleteReply(id) {
   });
 }
 
-  function deleteReview(id) {
+function deleteReview(id) {
   askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
     fetch('/delete_review', {
       method: 'POST',
