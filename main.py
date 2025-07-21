@@ -319,19 +319,20 @@ def admin_dashboard():
     total_respostas = Review.query.filter(Review.reply != '').count()
     total_relatorios = RelatorioHistorico.query.count()
 
-    # Para o gráfico: Novos usuários por mês
-    usuarios_por_mes = []
-    if hasattr(UserSettings, 'created_at'):
-        usuarios_query = db.session.query(
+    # Consulta corrigida: só pega usuários com created_at preenchido
+    usuarios_query = (
+        db.session.query(
             db.func.date_trunc('month', UserSettings.created_at).label('mes'),
             db.func.count(UserSettings.id)
-        ).group_by('mes').order_by('mes').all()
-        # Transforma os dados para listas
-        meses = [mes.strftime('%m/%Y') for mes, _ in usuarios_query]
-        qtds = [qtd for _, qtd in usuarios_query]
-        usuarios_por_mes = {"meses": meses, "qtds": qtds}
-    else:
-        usuarios_por_mes = {"meses": [], "qtds": []}
+        )
+        .filter(UserSettings.created_at != None)  # <-- ESSA LINHA É A NOVIDADE
+        .group_by('mes')
+        .order_by('mes')
+        .all()
+    )
+    meses = [mes.strftime('%m/%Y') for mes, _ in usuarios_query]
+    qtds = [qtd for _, qtd in usuarios_query]
+    usuarios_por_mes = {"meses": meses, "qtds": qtds}
 
     top_empresas = db.session.query(
         UserSettings.business_name,
@@ -351,7 +352,6 @@ def admin_dashboard():
         usuarios_por_mes=usuarios_por_mes,
         now=datetime.now()
     )
-
 
 @app.route("/quem-somos")
 def quem_somos():
