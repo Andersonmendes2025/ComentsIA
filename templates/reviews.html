@@ -50,9 +50,14 @@
           {% if review.replied %}
             <button class="btn btn-warning btn-sm mt-2 me-2" onclick="deleteReply({{ review.id }})">Excluir resposta</button>
           {% endif %}
-          <div class="d-flex gap-2 mt-2">
-            <button class="btn btn-danger btn-sm" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
-            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm">+ Adicionar Avaliação</a>
+            <div class="row mt-2 gx-2">
+              <div class="col-6 col-md-4 col-lg-3">
+                <button class="btn btn-danger btn-sm py-2 w-100" onclick="deleteReview({{ review.id }})">Excluir avaliação</button>
+              </div>
+              <div class="col-6 col-md-4 col-lg-3">
+                <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm py-2 w-100">+ Adicionar Avaliação</a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
