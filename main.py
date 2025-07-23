@@ -38,6 +38,7 @@ from markupsafe import Markup
 from functools import wraps
 from email_utils import montar_email_conta_apagada
 from email_utils import montar_email_boas_vindas, enviar_email
+from models import RespostaEspecialUso
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 app = Flask(__name__)
@@ -126,7 +127,26 @@ def require_terms_accepted(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def get_data_hoje_brt():
+    """Retorna a data atual no fuso de São Paulo (sem hora)."""
+    return datetime.now(pytz.timezone("America/Sao_Paulo")).date()
 
+def usuario_pode_usar_resposta_especial(user_id):
+    hoje = get_data_hoje_brt()
+    uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
+    return not uso or uso.quantidade_usos < 2
+
+def registrar_uso_resposta_especial(user_id):
+    hoje = get_data_hoje_brt()
+    uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
+
+    if not uso:
+        uso = RespostaEspecialUso(user_id=user_id, data_uso=hoje, quantidade_usos=1)
+        db.session.add(uso)
+    else:
+        uso.quantidade_usos += 1
+
+    db.session.commit()
 
 # Função para calcular a projeção de nota para os próximos 30 dias
 def calcular_projecao(notas, datas):
@@ -389,13 +409,8 @@ def gerar_relatorio():
     avaliacoes = []
     agora = datetime.now()
     for av in avaliacoes_query:
-        try:
-            data_av = datetime.strptime(av.date, '%d/%m/%Y')
-        except Exception:
-            data_av = av.date
-            if isinstance(data_av, str):
-                data_av = datetime.strptime(data_av, '%Y-%m-%d')
-
+        data_av = av.date
+        
         if nota != 'todas' and str(av.rating) != nota:
             continue
         if respondida == 'sim' and not av.replied:
@@ -906,7 +921,7 @@ def add_review():
     """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática."""
     if 'credentials' not in session:
         return redirect(url_for('authorize'))
-    
+
     user_info = session.get('user_info', {})
     user_id = user_info.get('id')
 
@@ -915,11 +930,18 @@ def add_review():
             flash('Erro ao identificar usuário. Por favor, faça login novamente.', 'danger')
             return redirect(url_for('logout'))
 
-        # Aceita dados de formulário (manual) ou envio automático (via bot)
+        hiper_compreensiva = request.form.get('hiper_compreensiva') == 'on'
+        consideracoes = request.form.get('consideracoes', '').strip()  # <-- NOVO
+
+        if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
+            flash('Você já usou as 2 respostas hiper compreensivas permitidas hoje.', 'warning')
+            return redirect(url_for('add_review'))
+
         reviewer_name = request.form.get('reviewer_name') or request.json.get('reviewer_name', 'Cliente Anônimo')
         rating = int(request.form.get('rating') or request.json.get('rating', 5))
         text = request.form.get('text') or request.json.get('text', '')
-        data = datetime.now().date()
+        data = datetime.now(pytz.timezone("America/Sao_Paulo"))
+
 
         # Verifica duplicata
         existente = Review.query.filter_by(user_id=user_id, reviewer_name=reviewer_name, text=text).first()
@@ -932,15 +954,12 @@ def add_review():
                 flash(msg, 'info')
                 return redirect(url_for('reviews'))
 
-        # Gera resposta com IA
         settings = get_user_settings(user_id)
-        tone_instruction = "Use linguagem formal e respeitosa."
         manager = settings.get('manager_name', '').strip()
         business = settings.get('business_name', '').strip()
-        if manager:
-            assinatura = f"{business}\n{manager}"
-        else:
-            assinatura = business
+        assinatura = f"{business}\n{manager}" if manager else business
+
+        # Prompt base
         prompt = f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
 
@@ -948,24 +967,31 @@ Avaliação recebida:
 - Nome do cliente: {reviewer_name}
 - Nota: {rating} estrelas
 - Texto: "{text}"
+"""
 
+        # Se houver considerações, inclua no prompt
+        if consideracoes:
+            prompt += f'\nContexto adicional da empresa: "{consideracoes}"\n'
+
+        prompt += f"""
 Instruções:
 - Comece com: "{settings['default_greeting']} {reviewer_name},"
-- Use palavras mais umanas possiveis, seja natural na escrita e no vocabulario 
-- Comente os pontos mencionados, usando palavras diferentes
-- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
-- Se a nota for de 4 ou 5, agradeça e convide para retornar
+- Use palavras mais humanas possíveis, seja natural na escrita e no vocabulário.
+- Comente os pontos mencionados, usando palavras diferentes.
+- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução.
+- Se a nota for de 4 ou 5, agradeça e convide para retornar.
 - Finalize com: "{settings['default_closing']}"
 - Inclua as informações de contato: "{settings['contact_info']}"
 - Assine ao final exatamente assim, cada item em uma linha:
-    {assinatura} Não use cargos, não use "Atenciosamente", apenas os nomes.
-- Não precisa citar todos os pontos que o cliente disse e se citar use palavras diferentes
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
+{assinatura}
+- Não use cargos, não use "Atenciosamente", apenas os nomes.
+- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas.
 """
 
+        if hiper_compreensiva:
+            registrar_uso_resposta_especial(user_id)
+            prompt += "\n\nGere uma resposta mais longa, empática e detalhada. Use de 10 a 15 frases. Mostre escuta ativa, reconhecimento das críticas e profissionalismo elevado. Responda cuidadosamente aos principais pontos levantados pelo cliente, mesmo que indiretamente." 
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -1001,6 +1027,7 @@ Instruções:
             return redirect(url_for('reviews'))
 
     return render_template('add_review.html', user=user_info, now=datetime.now())
+
 
 
 @app.route('/save_reply', methods=['POST'])
@@ -1160,6 +1187,7 @@ def settings():
         return redirect(url_for('logout'))
     
     if request.method == 'POST':
+        
         # Coleta os dados do formulário
         settings_data = {
             'business_name': request.form.get('company_name', ''),

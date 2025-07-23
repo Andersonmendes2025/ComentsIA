@@ -3,6 +3,7 @@ from datetime import datetime
 import pytz
 from sqlalchemy import DateTime
 
+
 db = SQLAlchemy()
 
 def default_brt_now():
@@ -15,7 +16,7 @@ class Review(db.Model):
     reviewer_name = db.Column(db.String(255))
     rating = db.Column(db.Integer)
     text = db.Column(db.Text)
-    date = db.Column(db.String(255))
+    date = db.Column(DateTime(timezone=True), default=default_brt_now)
     reply = db.Column(db.Text)
     replied = db.Column(db.Boolean, default=False)
     terms_accepted = db.Column(db.Boolean, default=False)
@@ -50,3 +51,10 @@ class LegalDocument(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)  # Ex: 'terms', 'privacy'
     content = db.Column(db.Text, nullable=False)
     updated_at = db.Column(db.DateTime(timezone=True), default=default_brt_now, onupdate=default_brt_now)
+
+class RespostaEspecialUso(db.Model):
+    __tablename__ = 'resposta_especial_uso'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), nullable=False)
+    data_uso = db.Column(db.Date, nullable=False)
+    quantidade_usos = db.Column(db.Integer, default=1)
