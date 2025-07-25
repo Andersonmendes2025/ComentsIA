@@ -91,7 +91,7 @@
                             </div>
                         </div>
 
-                        <!-- Seletor de tom + hiper compreensiva -->
+                        <!-- Seletor de tom -->
                         <div class="form-group mt-4">
                             <label for="tone">Tom da resposta:</label>
                             <select class="form-control mb-2" id="tone" name="tone">
@@ -200,13 +200,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Função AJAX para gerar sugestão
+// Função AJAX para gerar sugestão (sem hiper_compreensiva)
 function generateReply() {
     const nome = document.getElementById('reviewer_name').value;
-    const nota = document.getElementById('rating').value;
+    const nota = parseInt(document.getElementById('rating').value) || 5;
     const texto = document.getElementById('text').value;
     const tom = document.getElementById('tone').value;
-    const hiper = document.getElementById('hiper_compreensiva').checked;
     const consideracoes = document.getElementById('consideracoes').value;
 
     if (!texto) {
@@ -224,20 +223,24 @@ function generateReply() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+            review_text: texto,
+            star_rating: nota,
             reviewer_name: nome,
-            rating: nota,
-            text: texto,
             tone: tom,
-            hiper_compreensiva: hiper,
             consideracoes: consideracoes
         })
     })
     .then(response => response.json())
     .then(data => {
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('suggestion').style.display = 'block';
-        document.getElementById('suggestion').innerText = data.suggested_reply || "Nenhuma sugestão foi gerada.";
-        document.getElementById('actions').style.display = 'block';
+        if (data.success) {
+            document.getElementById('suggestion').innerText = data.suggested_reply || "Nenhuma sugestão foi gerada.";
+            document.getElementById('suggestion').style.display = 'block';
+            document.getElementById('actions').style.display = 'block';
+        } else {
+            document.getElementById('suggestion').innerText = "Erro: " + data.error;
+            document.getElementById('suggestion').style.display = 'block';
+        }
     })
     .catch(error => {
         document.getElementById('loading').style.display = 'none';
