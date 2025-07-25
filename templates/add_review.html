@@ -236,7 +236,7 @@ function generateReply() {
     .then(data => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('suggestion').style.display = 'block';
-        document.getElementById('suggestion').innerText = data.reply;
+        document.getElementById('suggestion').innerText = data.suggested_reply || "Nenhuma sugestão foi gerada.";
         document.getElementById('actions').style.display = 'block';
     })
     .catch(error => {
