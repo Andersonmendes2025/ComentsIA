@@ -124,7 +124,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-primary me-2" onclick="generateReply()">
+                            <button type="button" class="btn btn-outline-primary me-2" id="gerarSugestaoBtn">
                                 <i class="bi bi-robot me-1"></i>
                                 Gerar sugestão
                             </button>
@@ -150,29 +150,105 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Simular valores (substitua por variáveis dinâmicas do backend se quiser)
-  const usosRestantesHiper = {{ usos_restantes_hiper | default(2) }};
-  const usosRestantesConsideracoes = {{ usos_restantes_consideracoes | default(2) }};
+    // ======== Controle de uso dos limites (hiper/compreensiva/considerações) ========
+    const usosRestantesHiper = {{ usos_restantes_hiper | default(2) }};
+    const usosRestantesConsideracoes = {{ usos_restantes_consideracoes | default(2) }};
 
-  document.getElementById('limite-hiper').innerText = usosRestantesHiper + '/2 restantes';
-  document.getElementById('limite-consideracoes').innerText = usosRestantesConsideracoes + '/2 restantes';
+    document.getElementById('limite-hiper').innerText = usosRestantesHiper + '/2 restantes';
+    document.getElementById('limite-consideracoes').innerText = usosRestantesConsideracoes + '/2 restantes';
 
-  if (usosRestantesHiper <= 0) {
-    document.getElementById('hiper_compreensiva').disabled = true;
-    document.getElementById('limite-hiper').classList.replace('bg-secondary', 'bg-danger');
-    document.getElementById('limite-hiper').innerText = 'Limite atingido';
-  }
+    if (usosRestantesHiper <= 0) {
+        document.getElementById('hiper_compreensiva').disabled = true;
+        document.getElementById('limite-hiper').classList.replace('bg-secondary', 'bg-danger');
+        document.getElementById('limite-hiper').innerText = 'Limite atingido';
+    }
 
-  if (usosRestantesConsideracoes <= 0) {
-    document.getElementById('toggleConsideracoes').disabled = true;
-    document.getElementById('limite-consideracoes').classList.replace('bg-secondary', 'bg-danger');
-    document.getElementById('limite-consideracoes').innerText = 'Limite atingido';
-  }
+    if (usosRestantesConsideracoes <= 0) {
+        document.getElementById('toggleConsideracoes').disabled = true;
+        document.getElementById('limite-consideracoes').classList.replace('bg-secondary', 'bg-danger');
+        document.getElementById('limite-consideracoes').innerText = 'Limite atingido';
+    }
 
-  document.getElementById('toggleConsideracoes').addEventListener('click', function() {
-    const bloco = document.getElementById('bloco-consideracoes');
-    bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
-  });
+    document.getElementById('toggleConsideracoes').addEventListener('click', function() {
+        const bloco = document.getElementById('bloco-consideracoes');
+        bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
+    });
+
+    // ======== Script para seleção das estrelas =========
+    // Inicia com o valor do input hidden (ex: 5 estrelas marcadas por padrão)
+    let initialRating = parseInt(document.getElementById('rating').value || 5);
+    const stars = document.querySelectorAll('.star-rating .star');
+    for (let i = 0; i < initialRating; i++) {
+        stars[i].classList.add('active');
+    }
+
+    stars.forEach(function(star, idx) {
+        star.addEventListener('click', function() {
+            const rating = this.getAttribute('data-rating');
+            document.getElementById('rating').value = rating;
+
+            stars.forEach(function(s) { s.classList.remove('active'); });
+            for (let i = 0; i < rating; i++) {
+                stars[i].classList.add('active');
+            }
+        });
+    });
+
+    // ======== Botão de gerar sugestão =========
+    document.getElementById('gerarSugestaoBtn').addEventListener('click', function() {
+        generateReply();
+    });
 });
+
+// Função AJAX para gerar sugestão
+function generateReply() {
+    const nome = document.getElementById('reviewer_name').value;
+    const nota = document.getElementById('rating').value;
+    const texto = document.getElementById('text').value;
+    const tom = document.getElementById('tone').value;
+    const hiper = document.getElementById('hiper_compreensiva').checked;
+    const consideracoes = document.getElementById('consideracoes').value;
+
+    if (!texto) {
+        alert("Por favor, insira o texto da avaliação.");
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('suggestion').style.display = 'none';
+    document.getElementById('actions').style.display = 'none';
+
+    fetch('/suggest_reply', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            reviewer_name: nome,
+            rating: nota,
+            text: texto,
+            tone: tom,
+            hiper_compreensiva: hiper,
+            consideracoes: consideracoes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('suggestion').style.display = 'block';
+        document.getElementById('suggestion').innerText = data.reply;
+        document.getElementById('actions').style.display = 'block';
+    })
+    .catch(error => {
+        document.getElementById('loading').style.display = 'none';
+        alert('Erro ao gerar sugestão.');
+        console.error(error);
+    });
+}
+
+// Função de exemplo para o botão "Responder"
+function saveReply() {
+    alert("Função 'Salvar resposta' ainda não implementada.");
+}
 </script>
 {% endblock %}
