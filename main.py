@@ -766,7 +766,17 @@ def credentials_to_dict(credentials):
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
-
+@app.route('/get_hiper_count')
+def get_hiper_count():
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'error': 'Não autenticado.'})
+    user_info = session.get('user_info', {})
+    user_id = user_info.get('id')
+    usos_hoje = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=get_data_hoje_brt()).first()
+    usos_restantes_hiper = 2 - (usos_hoje.quantidade_usos if usos_hoje else 0)
+    if usos_restantes_hiper < 0:
+        usos_restantes_hiper = 0
+    return jsonify({'success': True, 'usos_restantes_hiper': usos_restantes_hiper})
 @app.template_filter('b64encode')
 def b64encode_filter(data):
     if data:

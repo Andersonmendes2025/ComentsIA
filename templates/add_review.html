@@ -35,21 +35,30 @@
 #hiper-counter-row {
     margin-top: -8px;
     margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
 }
 .toast-hiper {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    min-width: 280px;
+    top: 24px;
+    right: 24px;
+    min-width: 290px;
     z-index: 9999;
-    background: #333;
+    background: #313844;
     color: #fff;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 14px 18px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.13);
-    opacity: 0.95;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.17);
+    opacity: 0.97;
     font-size: 1rem;
     display: none;
+    transition: opacity 0.3s;
+}
+select:disabled {
+    background: #ececec !important;
+    color: #b7b7b7 !important;
+    cursor: not-allowed;
 }
 </style>
 {% endblock %}
@@ -125,7 +134,7 @@
                             </div>
                             <div id="hiper-counter-row">
                                 <span class="badge bg-secondary badge-limite" id="limite-hiper">2/2 restantes</span>
-                                <span class="text-muted ms-2" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
+                                <span class="text-muted" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
                             </div>
                         </div>
 
@@ -172,30 +181,39 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ========== Hiper Contador ===========
+    // ========== Hiper Contador =============
     function atualizaContadorHiper() {
         fetch('/get_hiper_count')
         .then(response => response.json())
         .then(data => {
             const badge = document.getElementById('limite-hiper');
+            const hiperCheck = document.getElementById('hiper_compreensiva');
+            const gerarBtn = document.getElementById('gerarSugestaoBtn');
+            const toneSelect = document.getElementById('tone');
+
             if (data.success) {
-                badge.innerText = data.usos_restantes_hiper + '/2 restantes';
-                badge.classList.remove('bg-danger');
-                badge.classList.add('bg-secondary');
-                document.getElementById('hiper_compreensiva').disabled = false;
                 if (data.usos_restantes_hiper <= 0) {
                     badge.innerText = 'Limite atingido';
                     badge.classList.remove('bg-secondary');
                     badge.classList.add('bg-danger');
-                    document.getElementById('hiper_compreensiva').checked = false;
-                    document.getElementById('hiper_compreensiva').disabled = true;
+                    hiperCheck.checked = false;
+                    hiperCheck.disabled = true;
+                    gerarBtn.disabled = false;
+                    gerarBtn.classList.remove('btn-secondary');
+                    gerarBtn.classList.add('btn-outline-primary');
+                    toneSelect.disabled = false;
+                } else {
+                    badge.innerText = data.usos_restantes_hiper + '/2 restantes';
+                    badge.classList.remove('bg-danger');
+                    badge.classList.add('bg-secondary');
+                    hiperCheck.disabled = false;
                 }
             }
         });
     }
     atualizaContadorHiper();
 
-    // ========== Botão Gerar Sugestão =============
+    // ========== Toast/Aviso Hiper ===========
     function mostrarToastHiper() {
         const toast = document.getElementById('toastHiperAviso');
         toast.style.display = 'block';
@@ -203,34 +221,44 @@ document.addEventListener('DOMContentLoaded', function() {
             toast.style.display = 'none';
         }, 3000);
     }
-    document.getElementById('hiper_compreensiva').addEventListener('change', function() {
-        const gerarBtn = document.getElementById('gerarSugestaoBtn');
-        if (this.checked) {
+
+    // ========== Bloqueio visual e campos ===========
+    const hiperCheck = document.getElementById('hiper_compreensiva');
+    const gerarBtn = document.getElementById('gerarSugestaoBtn');
+    const toneSelect = document.getElementById('tone');
+
+    function atualizaBloqueiosHiper() {
+        if (hiperCheck.checked && !hiperCheck.disabled) {
+            gerarBtn.disabled = true;
             gerarBtn.classList.remove('btn-outline-primary');
             gerarBtn.classList.add('btn-secondary');
+            gerarBtn.style.cursor = 'not-allowed';
+            toneSelect.disabled = true;
         } else {
+            gerarBtn.disabled = false;
             gerarBtn.classList.remove('btn-secondary');
             gerarBtn.classList.add('btn-outline-primary');
+            gerarBtn.style.cursor = '';
+            toneSelect.disabled = false;
         }
-    });
-    // Sempre aplica cor correta ao abrir
-    if (document.getElementById('hiper_compreensiva').checked) {
-        document.getElementById('gerarSugestaoBtn').classList.remove('btn-outline-primary');
-        document.getElementById('gerarSugestaoBtn').classList.add('btn-secondary');
     }
+    hiperCheck.addEventListener('change', atualizaBloqueiosHiper);
+    atualizaBloqueiosHiper();
 
-    // Ao clicar no botão, exibe o toast se for hiper
-    document.getElementById('gerarSugestaoBtn').addEventListener('click', function(e) {
-        if (document.getElementById('hiper_compreensiva').checked) {
+    // Ao clicar no botão, exibe toast se for hiper
+    gerarBtn.addEventListener('click', function(e) {
+        if (hiperCheck.checked && !hiperCheck.disabled) {
             mostrarToastHiper();
             return;
         }
-        generateReply();
+        if (!gerarBtn.disabled) {
+            generateReply();
+        }
     });
 
     // Badge atualizado após submit (caso use a hiper)
     document.getElementById('reviewForm').addEventListener('submit', function() {
-        setTimeout(atualizaContadorHiper, 1500);
+        setTimeout(atualizaContadorHiper, 1600);
     });
 
     // Mostrar considerações
