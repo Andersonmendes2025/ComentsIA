@@ -137,7 +137,7 @@
                         <p id="loading" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
                         <p id="suggestion" class="mt-2" style="display: none;"></p>
                         <div id="actions" class="mt-2" style="display: none;">
-                            <button class="btn btn-success btn-sm" onclick="saveReply()">Responder</button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="submitReviewForm()">Responder</button>
                         </div>
                     </form>
                 </div>
@@ -249,9 +249,9 @@ function generateReply() {
     });
 }
 
-// Função de exemplo para o botão "Responder"
-function saveReply() {
-    alert("Função 'Salvar resposta' ainda não implementada.");
+// Nova função para o botão "Responder"
+function submitReviewForm() {
+    document.getElementById('reviewForm').submit();
 }
 </script>
 {% endblock %}
