@@ -26,6 +26,8 @@
 .badge-limite {
     font-size: 0.9rem;
     margin-left: 0.5rem;
+    margin-top: 2.5px; /* Alinha verticalmente com o checkbox */
+    vertical-align: middle;
 }
 #hiper-info-row {
     display: flex;
@@ -33,7 +35,7 @@
     gap: 1rem;
 }
 #hiper-counter-row {
-    margin-top: 1.3rem;
+    margin-top: 0;
     margin-bottom: 0.6rem;
     display: flex;
     align-items: center;
@@ -131,6 +133,8 @@ select:disabled {
                                 <label class="form-check-label mb-0" for="hiper_compreensiva">
                                     <strong>Usar resposta hiper compreensiva</strong>
                                 </label>
+                                <span class="badge bg-secondary badge-limite" id="limite-hiper">2/2 restantes</span>
+                                <span class="text-muted" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
                             </div>
                         </div>
 
@@ -140,12 +144,6 @@ select:disabled {
                                 <i class="bi bi-info-circle me-1"></i>
                                 Adicionar considerações para a IA
                             </button>
-                        </div>
-
-                        <!-- Agora o contador fica aqui embaixo -->
-                        <div id="hiper-counter-row">
-                            <span class="badge bg-secondary badge-limite" id="limite-hiper">2/2 restantes</span>
-                            <span class="text-muted" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
                         </div>
 
                         <div id="bloco-consideracoes" class="toggle-section">
