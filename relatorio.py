@@ -36,7 +36,6 @@ class RelatorioAvaliacoes:
 
         # Cria uma coluna formatada para exibir datas no relatório
         self.df['data_local'] = self.df['data'].dt.strftime('%d/%m/%Y %H:%M')
-
         notas_por_mes = self.df.groupby(self.df['data'].dt.to_period('M'))['nota'].mean()
         plt.figure(figsize=(9, 4))  # Gráfico largo
         notas_por_mes.plot(kind='line', marker='o', color='#28a745')
@@ -62,7 +61,6 @@ class RelatorioAvaliacoes:
                     img = Image.open(io.BytesIO(logo_bytes))
                     logo_path = os.path.join(tmpdir, "logo_temp.png")
                     img.save(logo_path, "PNG")
-                    # Tamanho em mm
                     max_width_mm = 60
                     max_height_mm = 25
                     dpi = 96
@@ -100,7 +98,9 @@ class RelatorioAvaliacoes:
                 pdf.cell(0, 10, f"Média Atual: {self.media_atual:.2f}", ln=True)
             pdf.ln(5)
 
-            # Nome do gerente (influencia a IA)
+            # Opcional: formatar a data de cada avaliação no DataFrame (para uso posterior, se quiser)
+            self.df['data_local'] = pd.to_datetime(self.df['data']).dt.tz_convert('America/Sao_Paulo').dt.strftime('%d/%m/%Y %H:%M')
+
             manager_name = self.settings.get("manager_name")
             manager_str = f'O gerente responsável é "{manager_name}".' if manager_name else ""
 
@@ -161,7 +161,6 @@ class RelatorioAvaliacoes:
                 pdf.cell(0, 10, "Análise da IA sobre as Avaliações", ln=True)
                 pdf.set_font("Arial", '', 11)
 
-                # --- Insere gráfico depois do RESUMO EXECUTIVO ---
                 partes = analise_limpa.split("ANÁLISE QUANTITATIVA", 1)
                 if len(partes) == 2:
                     pdf.multi_cell(0, 7, partes[0].strip())
@@ -175,7 +174,6 @@ class RelatorioAvaliacoes:
                     pdf.set_font("Arial", '', 11)
                     pdf.multi_cell(0, 7, "ANÁLISE QUANTITATIVA" + partes[1].strip())
                 else:
-                    # Sempre tente colocar o gráfico depois do RESUMO EXECUTIVO, caso a divisão não funcione
                     pdf.multi_cell(0, 7, analise_limpa)
                     pdf.ln(4)
                     grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
