@@ -1,192 +1,73 @@
-{% extends "base.html" %}
-
-{% block title %}Adicionar Avaliação - Gerenciador de Avaliações Google{% endblock %}
-
-{% block extra_head %}
-<style>
-.star-rating {
-    font-size: 2rem;
-    color: #ddd;
-    cursor: pointer;
-}
-.star-rating .star {
-    transition: color 0.2s;
-}
-.star-rating .star:hover,
-.star-rating .star.active {
-    color: #ffc107;
-}
-.form-floating textarea {
-    min-height: 120px;
-}
-.toggle-section {
-    display: none;
-    margin-top: 1rem;
-}
-.toggle-button.collapsed + .toggle-section {
-    display: none;
-}
-.toggle-button:not(.collapsed) + .toggle-section {
-    display: block;
-}
-.badge-limite {
-    font-size: 0.9rem;
-    margin-left: 0.5rem;
-}
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="d-flex align-items-center mb-4">
-                <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="mb-1">
-                        <i class="bi bi-plus-circle me-2"></i>
-                        Adicionar Nova Avaliação
-                    </h2>
-                    <p class="text-muted mb-0">Cole aqui uma avaliação do Google para gerar respostas personalizadas</p>
-                </div>
-            </div>
-
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <form method="POST" id="reviewForm">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="reviewer_name" name="reviewer_name" placeholder="Nome do cliente" required>
-                                    <label for="reviewer_name">
-                                        <i class="bi bi-person me-1"></i>
-                                        Nome do Cliente
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">
-                                    <i class="bi bi-star me-1"></i>
-                                    Classificação
-                                </label>
-                                <div class="star-rating" id="starRating">
-                                    {% for i in range(1,6) %}
-                                    <span class="star" data-rating="{{ i }}">&#9733;</span>
-                                    {% endfor %}
-                                </div>
-                                <input type="hidden" id="rating" name="rating" value="5" required>
-                                <small class="text-muted">Clique nas estrelas para definir a classificação</small>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                <textarea class="form-control" id="text" name="text" placeholder="Texto da avaliação" required style="min-height: 150px;"></textarea>
-                                <label for="text">
-                                    <i class="bi bi-chat-square-text me-1"></i>
-                                    Texto da Avaliação
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Seletor de tom -->
-                        <div class="form-group mt-4">
-                            <label for="tone">Tom da resposta:</label>
-                            <select class="form-control mb-2" id="tone" name="tone">
-                                <option value="profissional">Profissional</option>
-                                <option value="amigavel">Amigável</option>
-                                <option value="empatico">Empático</option>
-                            </select>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="on" id="hiper_compreensiva" name="hiper_compreensiva" onchange="atualizaUso('hiper')">
-                                <label class="form-check-label" for="hiper_compreensiva">
-                                    <strong>Usar resposta hiper compreensiva</strong>
-                                </label>
-                                <span class="badge bg-secondary badge-limite" id="limite-hiper"></span>
-                            </div>
-                        </div>
-
-                        <!-- Botão para mostrar consideracoes -->
-                        <div class="mt-4">
-                            <button type="button" class="btn btn-outline-info btn-sm" id="toggleConsideracoes">
-                                <i class="bi bi-info-circle me-1"></i>
-                                Adicionar considerações para a IA
-                            </button>
-                            <span class="badge bg-secondary badge-limite" id="limite-consideracoes"></span>
-                        </div>
-
-                        <div id="bloco-consideracoes" class="toggle-section">
-                            <textarea class="form-control mt-3" name="consideracoes" id="consideracoes" rows="3" placeholder="Ex: contexto, observações ou justificativas para a IA"></textarea>
-                            <div class="form-text">Essas informações não serão salvas no sistema.</div>
-                        </div>
-
-                        <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-primary me-2" id="gerarSugestaoBtn">
-                                <i class="bi bi-robot me-1"></i>
-                                Gerar sugestão
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>
-                                Adicionar Avaliação
-                            </button>
-                        </div>
-
-                        <p id="loading" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
-                        <p id="suggestion" class="mt-2" style="display: none;"></p>
-                        <div id="actions" class="mt-2" style="display: none;">
-                            <button type="button" class="btn btn-success btn-sm" onclick="submitReviewForm()">Responder</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ======== Controle de uso dos limites (hiper/compreensiva/considerações) ========
-    const usosRestantesHiper = {{ usos_restantes_hiper | default(2) }};
-    const usosRestantesConsideracoes = {{ usos_restantes_consideracoes | default(2) }};
+    // Função para consultar o contador hiper em tempo real
+    function atualizaContadorHiper() {
+        fetch('/get_hiper_count')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('limite-hiper');
+            if (data.success) {
+                badge.innerText = data.usos_restantes_hiper + '/2 restantes';
+                badge.classList.remove('bg-danger');
+                badge.classList.add('bg-secondary');
+                document.getElementById('hiper_compreensiva').disabled = false;
 
-    document.getElementById('limite-hiper').innerText = usosRestantesHiper + '/2 restantes';
-    document.getElementById('limite-consideracoes').innerText = usosRestantesConsideracoes + '/2 restantes';
-
-    if (usosRestantesHiper <= 0) {
-        document.getElementById('hiper_compreensiva').disabled = true;
-        document.getElementById('limite-hiper').classList.replace('bg-secondary', 'bg-danger');
-        document.getElementById('limite-hiper').innerText = 'Limite atingido';
+                if (data.usos_restantes_hiper <= 0) {
+                    badge.innerText = 'Limite atingido';
+                    badge.classList.remove('bg-secondary');
+                    badge.classList.add('bg-danger');
+                    document.getElementById('hiper_compreensiva').checked = false;
+                    document.getElementById('hiper_compreensiva').disabled = true;
+                }
+            }
+        });
     }
 
-    if (usosRestantesConsideracoes <= 0) {
-        document.getElementById('toggleConsideracoes').disabled = true;
-        document.getElementById('limite-consideracoes').classList.replace('bg-secondary', 'bg-danger');
-        document.getElementById('limite-consideracoes').innerText = 'Limite atingido';
+    atualizaContadorHiper(); // Chama ao abrir
+
+    // Se o usuário marcar/desmarcar, ajusta a interface do botão de sugestão
+    document.getElementById('hiper_compreensiva').addEventListener('change', function() {
+        const gerarBtn = document.getElementById('gerarSugestaoBtn');
+        if (this.checked) {
+            gerarBtn.disabled = true;
+            gerarBtn.title = "Não é possível gerar sugestão com resposta hiper compreensiva. Use o botão 'Adicionar Avaliação'.";
+        } else {
+            gerarBtn.disabled = false;
+            gerarBtn.title = "";
+        }
+    });
+
+    // Garante o estado correto do botão ao carregar (caso o checkbox venha marcado por erro)
+    if (document.getElementById('hiper_compreensiva').checked) {
+        document.getElementById('gerarSugestaoBtn').disabled = true;
     }
 
+    // Ao submeter o formulário (resposta hiper), atualiza badge depois de salvar!
+    document.getElementById('reviewForm').addEventListener('submit', function() {
+        setTimeout(atualizaContadorHiper, 1500); // Aguarda commit no backend
+    });
+
+    // Restante do seu JS...
+    // (mantém seleção de estrelas, mostrar considerações, etc)
+    // ... Cole todo o seu JS padrão aqui, abaixo desse bloco!
+    
+    // Botão para mostrar considerações
     document.getElementById('toggleConsideracoes').addEventListener('click', function() {
         const bloco = document.getElementById('bloco-consideracoes');
         bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
     });
 
-    // ======== Script para seleção das estrelas =========
-    // Inicia com o valor do input hidden (ex: 5 estrelas marcadas por padrão)
+    // Estrelas (mantém igual ao seu original)
     let initialRating = parseInt(document.getElementById('rating').value || 5);
     const stars = document.querySelectorAll('.star-rating .star');
     for (let i = 0; i < initialRating; i++) {
         stars[i].classList.add('active');
     }
-
     stars.forEach(function(star, idx) {
         star.addEventListener('click', function() {
             const rating = this.getAttribute('data-rating');
             document.getElementById('rating').value = rating;
-
             stars.forEach(function(s) { s.classList.remove('active'); });
             for (let i = 0; i < rating; i++) {
                 stars[i].classList.add('active');
@@ -194,14 +75,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ======== Botão de gerar sugestão =========
+    // Botão de gerar sugestão
     document.getElementById('gerarSugestaoBtn').addEventListener('click', function() {
         generateReply();
     });
 });
 
-// Função AJAX para gerar sugestão (sem hiper_compreensiva)
+// AJAX para gerar sugestão (não envia se for hiper!)
 function generateReply() {
+    if (document.getElementById('hiper_compreensiva').checked) {
+        alert('Só é possível usar a resposta hiper compreensiva pelo botão "Adicionar Avaliação".');
+        return;
+    }
     const nome = document.getElementById('reviewer_name').value;
     const nota = parseInt(document.getElementById('rating').value) || 5;
     const texto = document.getElementById('text').value;
