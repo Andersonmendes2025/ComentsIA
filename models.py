@@ -58,3 +58,10 @@ class RespostaEspecialUso(db.Model):
     user_id = db.Column(db.String(255), nullable=False)
     data_uso = db.Column(db.Date, nullable=False)
     quantidade_usos = db.Column(db.Integer, default=1)
+
+class ConsideracoesUso(db.Model):
+    __tablename__ = 'consideracoes_uso'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), nullable=False)
+    data_uso = db.Column(db.Date, nullable=False)
+    quantidade_usos = db.Column(db.Integer, default=1)

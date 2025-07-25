@@ -782,6 +782,32 @@ def b64encode_filter(data):
     if data:
         return Markup(base64.b64encode(data).decode('utf-8'))
     return ''
+def usuario_pode_usar_consideracoes(user_id):
+    hoje = get_data_hoje_brt()  # Usa a mesma função de data
+    uso = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
+    return not uso or uso.quantidade_usos < 2
+
+def registrar_uso_consideracoes(user_id):
+    hoje = get_data_hoje_brt()
+    uso = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
+    if not uso:
+        uso = ConsideracoesUso(user_id=user_id, data_uso=hoje, quantidade_usos=1)
+        db.session.add(uso)
+    else:
+        uso.quantidade_usos += 1
+    db.session.commit()
+@app.route('/get_consideracoes_count')
+def get_consideracoes_count():
+    if 'credentials' not in session:
+        return jsonify({'success': False, 'error': 'Não autenticado.'})
+    user_info = session.get('user_info', {})
+    user_id = user_info.get('id')
+    usos_hoje = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=get_data_hoje_brt()).first()
+    usos_restantes_consideracoes = 2 - (usos_hoje.quantidade_usos if usos_hoje else 0)
+    if usos_restantes_consideracoes < 0:
+        usos_restantes_consideracoes = 0
+    return jsonify({'success': True, 'usos_restantes_consideracoes': usos_restantes_consideracoes})
+
 @app.route('/oauth2callback')
 def oauth2callback():
     # Tenta recuperar o estado da sessão com segurança
@@ -983,7 +1009,8 @@ Avaliação recebida:
 
         # Se houver considerações, inclua no prompt
         if consideracoes:
-            prompt += f'\nContexto adicional da empresa: "{consideracoes}"\n'
+            prompt += f'\nIMPORTANTE: O usuário forneceu as seguintes considerações para personalizar a resposta. Use essas informações com prioridade:\n"{consideracoes}"\n'
+            registrar_uso_consideracoes(user_id)
 
         prompt += f"""
 Instruções:

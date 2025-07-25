@@ -34,7 +34,7 @@
     align-items: center;
     gap: 1rem;
 }
-#hiper-counter-row {
+#hiper-counter-row, #consideracoes-counter-row {
     margin-top: 0;
     margin-bottom: 0.6rem;
     display: flex;
@@ -137,13 +137,16 @@ select:disabled {
                                 <span class="text-muted" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
                             </div>
                         </div>
+                        <div id="hiper-counter-row"></div>
 
                         <!-- Botão para mostrar considerações -->
-                        <div class="mt-4">
+                        <div class="mt-4 d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-outline-info btn-sm" id="toggleConsideracoes">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Adicionar considerações para a IA
                             </button>
+                            <span class="badge bg-secondary badge-limite" id="limite-consideracoes">2/2 restantes</span>
+                            <span class="text-muted" style="font-size:0.93em;">Máximo de 2 considerações por dia</span>
                         </div>
 
                         <div id="bloco-consideracoes" class="toggle-section">
@@ -181,16 +184,13 @@ select:disabled {
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ========== Hiper Contador ============= 
+    // ======== Hiper Contador ===========
     function atualizaContadorHiper() {
         fetch('/get_hiper_count')
         .then(response => response.json())
         .then(data => {
             const badge = document.getElementById('limite-hiper');
             const hiperCheck = document.getElementById('hiper_compreensiva');
-            const gerarBtn = document.getElementById('gerarSugestaoBtn');
-            const toneSelect = document.getElementById('tone');
-
             if (data.success) {
                 if (data.usos_restantes_hiper <= 0) {
                     badge.innerText = 'Limite atingido';
@@ -198,10 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     badge.classList.add('bg-danger');
                     hiperCheck.checked = false;
                     hiperCheck.disabled = true;
-                    gerarBtn.disabled = false;
-                    gerarBtn.classList.remove('btn-secondary');
-                    gerarBtn.classList.add('btn-outline-primary');
-                    toneSelect.disabled = false;
                 } else {
                     badge.innerText = data.usos_restantes_hiper + '/2 restantes';
                     badge.classList.remove('bg-danger');
@@ -213,7 +209,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     atualizaContadorHiper();
 
-    // ========== Toast/Aviso Hiper ===========
+    // ======== Considerações Contador ===========
+    function atualizaContadorConsideracoes() {
+        fetch('/get_consideracoes_count')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('limite-consideracoes');
+            const toggleBtn = document.getElementById('toggleConsideracoes');
+            if (data.success) {
+                if (data.usos_restantes_consideracoes <= 0) {
+                    badge.innerText = 'Limite atingido';
+                    badge.classList.remove('bg-secondary');
+                    badge.classList.add('bg-danger');
+                    toggleBtn.disabled = true;
+                } else {
+                    badge.innerText = data.usos_restantes_consideracoes + '/2 restantes';
+                    badge.classList.remove('bg-danger');
+                    badge.classList.add('bg-secondary');
+                    toggleBtn.disabled = false;
+                }
+            }
+        });
+    }
+    atualizaContadorConsideracoes();
+
+    // ======== Toast/Aviso Hiper ===========
     function mostrarToastHiper() {
         const toast = document.getElementById('toastHiperAviso');
         toast.style.display = 'block';
@@ -222,28 +242,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 
-    // ========== Bloqueio visual e campos ===========
+    // ======== Bloqueio Visual ===========
     const hiperCheck = document.getElementById('hiper_compreensiva');
     const gerarBtn = document.getElementById('gerarSugestaoBtn');
     const toneSelect = document.getElementById('tone');
+    const toggleConsideracoes = document.getElementById('toggleConsideracoes');
+    let consideracoesAtivas = false;
 
-    function atualizaBloqueiosHiper() {
-        if (hiperCheck.checked && !hiperCheck.disabled) {
+    function atualizaBloqueios() {
+        consideracoesAtivas = document.getElementById('bloco-consideracoes').style.display === 'block';
+        if ((hiperCheck.checked && !hiperCheck.disabled) || (consideracoesAtivas && !toggleConsideracoes.disabled)) {
             gerarBtn.disabled = true;
             gerarBtn.classList.remove('btn-outline-primary');
             gerarBtn.classList.add('btn-secondary');
             gerarBtn.style.cursor = 'not-allowed';
-            toneSelect.disabled = true;
         } else {
             gerarBtn.disabled = false;
             gerarBtn.classList.remove('btn-secondary');
             gerarBtn.classList.add('btn-outline-primary');
             gerarBtn.style.cursor = '';
-            toneSelect.disabled = false;
         }
+        toneSelect.disabled = hiperCheck.checked && !hiperCheck.disabled; // só desativa o tom para hiper
     }
-    hiperCheck.addEventListener('change', atualizaBloqueiosHiper);
-    atualizaBloqueiosHiper();
+    hiperCheck.addEventListener('change', atualizaBloqueios);
+
+    // Considerações toggle + bloqueio
+    toggleConsideracoes.addEventListener('click', function() {
+        const bloco = document.getElementById('bloco-consideracoes');
+        bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
+        atualizaBloqueios();
+    });
+
+    // Atualiza bloqueios e contadores após submit
+    document.getElementById('reviewForm').addEventListener('submit', function() {
+        setTimeout(() => {
+            atualizaContadorHiper();
+            atualizaContadorConsideracoes();
+        }, 1600);
+    });
+    atualizaBloqueios();
 
     // Ao clicar no botão, exibe toast se for hiper
     gerarBtn.addEventListener('click', function(e) {
@@ -254,17 +291,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!gerarBtn.disabled) {
             generateReply();
         }
-    });
-
-    // Badge atualizado após submit (caso use a hiper)
-    document.getElementById('reviewForm').addEventListener('submit', function() {
-        setTimeout(atualizaContadorHiper, 1600);
-    });
-
-    // Mostrar considerações
-    document.getElementById('toggleConsideracoes').addEventListener('click', function() {
-        const bloco = document.getElementById('bloco-consideracoes');
-        bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
     });
 
     // Estrelas
