@@ -87,6 +87,8 @@ from collections import Counter
 import numpy as np
 
 # Função para identificar palavras-chave nas avaliações
+def agora_brt():
+    return datetime.now(pytz.timezone("America/Sao_Paulo"))
 
 def analisar_pontos_mais_mencionados(comentarios):
     if not comentarios:
@@ -407,7 +409,7 @@ def gerar_relatorio():
     print(f"[RELATÓRIO] Avaliações encontradas: {len(avaliacoes_query)}")
 
     avaliacoes = []
-    agora = datetime.now()
+    agora = agora_brt()
     for av in avaliacoes_query:
         data_av = av.date
         
