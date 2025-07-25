@@ -767,6 +767,13 @@ def credentials_to_dict(credentials):
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
+@app.template_filter('formatar_data_brt')
+def formatar_data_brt(data):
+    if data:
+        fuso = pytz.timezone('America/Sao_Paulo')
+        return data.astimezone(fuso).strftime('%d/%m/%Y às %H:%M')
+    return ''
+
 @app.route('/get_hiper_count')
 def get_hiper_count():
     if 'credentials' not in session:

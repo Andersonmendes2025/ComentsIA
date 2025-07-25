@@ -45,13 +45,21 @@
            data-nota="{{ review.rating }}">
         <div class="card-body">
           <h5 class="card-title">Nome: {{ review.reviewer_name }}</h5>
-          <h6 class="card-subtitle mb-2 text-muted">Nota: {{ review.rating }} - Data: {{ review.date }}</h6>
+          <h6 class="card-subtitle mb-2 text-muted">
+            Nota: {{ review.rating }} - Data: {{ review.date | formatar_data_brt }}
+          </h6>
           <p class="card-text" id="review-text-{{ review.id }}">{{ review.text }}</p>
 
           {% if review.replied %}
-            <div class="alert alert-success mt-2">
-              <strong>Resposta enviada:</strong>
-              <p>{{ review.reply }}</p>
+            <!-- RESPOSTA SALVA -->
+            <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <i class="bi bi-check-circle text-primary" style="font-size: 1.2rem"></i>
+                <span class="fw-bold">Resposta enviada</span>
+              </div>
+              <div style="white-space: pre-line;" class="ms-4">
+                {{ review.reply | safe }}
+              </div>
             </div>
           {% endif %}
 
@@ -86,9 +94,18 @@
           </div>
 
           <p id="loading-{{ review.id }}" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
-          <p id="suggestion-{{ review.id }}" class="mt-2" style="display: none;"></p>
-          <div id="actions-{{ review.id }}" class="mt-2" style="display: none;">
-            <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
+          <!-- SUGESTÃO GERADA -->
+          <div id="suggestion-block-{{ review.id }}" style="display:none;">
+            <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
+              <div class="d-flex align-items-center mb-2 gap-2">
+                <i class="bi bi-magic text-primary" style="font-size: 1.2rem"></i>
+                <span class="fw-bold">Sugestão de resposta</span>
+              </div>
+              <div id="suggestion-{{ review.id }}" style="white-space: pre-line;" class="ms-4"></div>
+              <div id="actions-{{ review.id }}" class="mt-2">
+                <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -139,12 +156,12 @@ function generateReply(id, rating, reviewerName) {
   const text = document.getElementById('review-text-' + id).innerText;
   const tone = document.getElementById('tone-' + id).value;
   const loading = document.getElementById('loading-' + id);
+  const suggestionBlock = document.getElementById('suggestion-block-' + id);
   const suggestion = document.getElementById('suggestion-' + id);
   const actions = document.getElementById('actions-' + id);
 
   loading.style.display = 'block';
-  suggestion.style.display = 'none';
-  actions.style.display = 'none';
+  suggestionBlock.style.display = 'none';
 
   fetch('/suggest_reply', {
     method: 'POST',
@@ -161,7 +178,7 @@ function generateReply(id, rating, reviewerName) {
     loading.style.display = 'none';
     if (data.success) {
       suggestion.innerText = data.suggested_reply;
-      suggestion.style.display = 'block';
+      suggestionBlock.style.display = 'block';
       actions.style.display = 'block';
     } else {
       showToast('Erro: ' + data.error, 'danger');
