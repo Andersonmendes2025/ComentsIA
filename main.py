@@ -39,6 +39,7 @@ from functools import wraps
 from email_utils import montar_email_conta_apagada
 from email_utils import montar_email_boas_vindas, enviar_email
 from models import RespostaEspecialUso
+from models import ConsideracoesUso
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 app = Flask(__name__)
