@@ -31,7 +31,12 @@ class RelatorioAvaliacoes:
         self.settings = settings or {}
 
     def gerar_grafico_media_historica(self, output_dir):
-        self.df['data'] = pd.to_datetime(self.df['data'])
+        # Converte a coluna 'data' com segurança, tratando valores inválidos e timezone
+        self.df['data'] = pd.to_datetime(self.df['data'], errors='coerce', utc=True).dt.tz_convert('America/Sao_Paulo')
+
+        # Cria uma coluna formatada para exibir datas no relatório
+        self.df['data_local'] = self.df['data'].dt.strftime('%d/%m/%Y %H:%M')
+
         notas_por_mes = self.df.groupby(self.df['data'].dt.to_period('M'))['nota'].mean()
         plt.figure(figsize=(9, 4))  # Gráfico largo
         notas_por_mes.plot(kind='line', marker='o', color='#28a745')
