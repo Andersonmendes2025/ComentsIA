@@ -17,11 +17,29 @@
 .analysis-card {
     border-left: 4px solid #007bff;
 }
-.positive-point {
-    color: #28a745;
+.positive-point { color: #28a745; }
+.negative-point { color: #dc3545; }
+/* BLOQUEIO DE RECURSO */
+.premium-locked {
+    opacity: 0.55;
+    pointer-events: none;
+    filter: grayscale(1);
+    background: #f4f6fa !important;
 }
-.negative-point {
-    color: #dc3545;
+.lock-overlay {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.13rem;
+    font-weight: 500;
+    color: #566079;
+    background: rgba(244,246,250,0.88);
+    border-radius: 0 0 12px 12px;
+    text-align: center;
 }
 </style>
 {% endblock %}
@@ -37,10 +55,18 @@
             <p class="text-muted mb-0">Análise completa das suas avaliações e feedback dos clientes</p>
         </div>
         <div>
-            <button class="btn btn-outline-primary me-2" onclick="analyzeReviews()">
-                <i class="bi bi-robot me-1"></i>
-                Analisar com IA
-            </button>
+            {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
+                <button class="btn btn-primary me-2" onclick="analyzeReviews()">
+                    <i class="bi bi-robot me-1"></i>
+                    Analisar com IA
+                </button>
+            {% else %}
+                <button class="btn btn-secondary me-2" disabled style="cursor:not-allowed;">
+                    <i class="bi bi-robot me-1"></i>
+                    Analisar com IA
+                </button>
+                <span class="text-muted small d-block mt-1 ms-2">Disponível apenas no <b>PRO</b> ou <b>BUSINESS</b></span>
+            {% endif %}
             <a href="{{ url_for('add_review') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>
                 Adicionar Avaliação
@@ -105,9 +131,9 @@
     </div>
 
     <div class="row">
-        <!-- Chart Section -->
+        <!-- Chart Section (Bloqueio visual se não for PRO ou BUSINESS) -->
         <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="bi bi-bar-chart me-1"></i>
@@ -117,6 +143,13 @@
                 <div class="card-body">
                     <div class="chart-container">
                         <canvas id="ratingsChart"></canvas>
+                        {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
+                        <div class="lock-overlay">
+                            <i class="bi bi-lock-fill fs-2 mb-2"></i>
+                            <div>Gráfico disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
+                            <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -164,10 +197,10 @@
         </div>
     </div>
 
-    <!-- AI Analysis Section -->
+    <!-- AI Analysis Section (Bloqueio visual se não for PRO ou BUSINESS) -->
     <div class="row">
         <div class="col-12">
-            <div class="card analysis-card shadow-sm">
+            <div class="card analysis-card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="bi bi-robot me-1"></i>
@@ -210,6 +243,13 @@
                         <h6 class="text-muted mt-2">Análise com IA</h6>
                         <p class="text-muted">Clique no botão "Analisar com IA" para obter insights sobre suas avaliações</p>
                     </div>
+                    {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
+                    <div class="lock-overlay">
+                        <i class="bi bi-lock-fill fs-2 mb-2"></i>
+                        <div>Funcionalidade disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
+                        <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

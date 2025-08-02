@@ -137,7 +137,7 @@
                                 </div>
                                 </div>
 
-                                                                <!-- Saudação e Encerramento Padrão -->
+                                <!-- Saudação e Encerramento Padrão -->
                                 <div class="mb-4">
                                     <div class="form-floating">
                                         <input type="text" class="form-control" id="default_greeting" name="default_greeting" 
@@ -245,5 +245,57 @@ document.getElementById('logo').addEventListener('change', function(evt) {
     }
 });
 
+// --- Toast persistente ao salvar configurações ---
+function showPersistentToast(message, type = 'info') {
+  const toastId = 'toast-' + Math.floor(Math.random() * 1000000);
+  const colorClass = type === 'success' ? 'bg-success' :
+                     type === 'danger'  ? 'bg-danger'  :
+                     type === 'warning' ? 'bg-warning' : 'bg-info';
+  const toast = document.createElement('div');
+  toast.className = `toast align-items-center text-white ${colorClass} border-0 show`;
+  toast.id = toastId;
+  toast.setAttribute('role', 'alert');
+  toast.setAttribute('aria-live', 'assertive');
+  toast.setAttribute('aria-atomic', 'true');
+  toast.style.position = 'fixed';
+  toast.style.top = '24px';
+  toast.style.right = '24px';
+  toast.style.zIndex = 9999;
+  toast.innerHTML = `
+    <div class="d-flex align-items-center">
+      <div class="toast-body">${message}</div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  return toastId;
+}
+function removePersistentToast(toastId) {
+  const toast = document.getElementById(toastId);
+  if (toast) toast.remove();
+}
+
+document.getElementById('settingsForm').onsubmit = async function(e) {
+  e.preventDefault();
+  const toastId = showPersistentToast(
+    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Salvando configurações...',
+    'info'
+  );
+  const formData = new FormData(this);
+  try {
+    const response = await fetch(this.action || window.location.pathname, {
+      method: 'POST',
+      body: formData,
+    });
+    if (response.redirected) {
+      window.location.href = response.url;
+    } else {
+      removePersistentToast(toastId);
+      showToast('Erro ao salvar configurações.', 'danger');
+    }
+  } catch (err) {
+    removePersistentToast(toastId);
+    showToast('Erro ao conectar ao servidor.', 'danger');
+  }
+};
 </script>
 {% endblock %}

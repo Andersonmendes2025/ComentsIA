@@ -1,11 +1,13 @@
-# email_utils.py
-
-from flask import url_for, current_app
+from flask import url_for
+import smtplib
+from email.mime.text import MIMEText
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import os
-from flask import url_for
+from dotenv import load_dotenv
+load_dotenv()
+
 def montar_email_boas_vindas(nome_do_usuario):
     # Precisa de app context para url_for funcionar!
     logo_url = url_for('static', filename='logo-symbol.png', _external=True)
@@ -41,23 +43,33 @@ def montar_email_boas_vindas(nome_do_usuario):
     <p>Se tiver qualquer dúvida, basta responder este e-mail ou acessar o painel de ajuda do ComentsIA.</p>
     <p style='margin-top: 28px; font-weight: bold;'>Seja muito bem-vindo!<br>
     Equipe ComentsIA</p>
- """
-#Envia o Email
+    """
+
 def enviar_email(destinatario, assunto, corpo_html):
-    remetente = "comentsia.2025@gmail.com"
-    senha = os.getenv("EMAIL_SENHA")  # Use senha de app do Gmail
+    import os
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    import smtplib
+
+    remetente = "suporte@comentsia.com.br"
+    senha = os.getenv("EMAIL_SENHA")  # Pega do ambiente
+    smtp_host = smtp_host = "smtp.suite.uol"
+    smtp_port = 587
+
     msg = MIMEMultipart('alternative')
     msg['From'] = remetente
     msg['To'] = destinatario
     msg['Subject'] = assunto
-
-    # Anexa o corpo em HTML
     msg.attach(MIMEText(corpo_html, 'html'))
 
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.set_debuglevel(1)  # Ativa debug para ver tráfego SMTP no console
+        server.ehlo()
         server.starttls()
+        server.ehlo()
         server.login(remetente, senha)
         server.sendmail(remetente, destinatario, msg.as_string())
+
 
 def montar_email_conta_apagada(nome_do_usuario):
     logo_url = url_for('static', filename='logo-symbol.png', _external=True)

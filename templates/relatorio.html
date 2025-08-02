@@ -11,6 +11,43 @@
     Gere relatórios completos das suas avaliações, com gráficos, análise profissional e resumo dos principais pontos positivos e negativos.
   </p>
 
+  <!-- Informações do plano e uso mensal -->
+  <div id="plano-info" class="alert alert-info text-center mb-4">
+    Carregando informações do plano...
+  </div>
+
+  {% if user_plano == 'free' %}
+    <div class="py-3 px-4 mb-4 shadow-sm text-center"
+         style="background: linear-gradient(90deg,#fffbe7 80%,#fff5d1 100%); border-radius: 13px;">
+      <div>
+        <i class="bi bi-lock-fill fs-2 text-warning mb-2"></i>
+        <div class="fw-semibold mb-2" style="color:#6c5700">
+          O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
+        </div>
+        <a href="{{ url_for('planos') }}"
+           class="btn btn-sm btn-primary mt-2 shadow-sm"
+           style="border-radius: 8px; min-width:140px;">
+          Veja os planos
+        </a>
+      </div>
+    </div>
+  {% elif limite_relatorio_atingido %}
+    <div class="py-3 px-4 mb-4 shadow-sm text-center"
+         style="background: linear-gradient(90deg,#ffe7e7 80%,#ffdad1 100%); border-radius: 13px;">
+      <div>
+        <i class="bi bi-exclamation-triangle-fill fs-2 text-danger mb-2"></i>
+        <div class="fw-semibold mb-2" style="color:#7c3535">
+          Você atingiu o limite mensal de relatórios em PDF do seu plano.
+        </div>
+        <a href="{{ url_for('planos') }}"
+           class="btn btn-sm btn-primary mt-2 shadow-sm"
+           style="border-radius: 8px; min-width:140px;">
+          Faça upgrade
+        </a>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="row">
     <div class="col-lg-8">
       <div class="card shadow-sm p-4 mb-4">
@@ -45,7 +82,10 @@
             </div>
           </div>
           <div class="d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary mt-3">
+            <button type="submit"
+                    class="btn btn-primary mt-3"
+                    id="btn-gerar-pdf"
+                    {% if user_plano == 'free' or limite_relatorio_atingido %}disabled style="pointer-events:none; background:#a0a4ad; border-color:#a0a4ad;" title="Disponível apenas no PRO ou superior"{% endif %}>
               <i class="bi bi-file-earmark-arrow-down me-1"></i>
               Gerar PDF
             </button>
@@ -69,7 +109,29 @@
     </div>
   </div>
 </div>
+
 <script>
+  // Atualiza info do plano e uso mensal de relatórios PDF
+  function atualizarInfoPlano() {
+    fetch('/get_relatorios_count')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const planoNome = "{{ PLANOS[user_plano].nome }}";
+          const limite = {{ PLANOS[user_plano].relatorio_pdf_mes or 'null' }};
+          let texto = `Você está no plano <strong>${planoNome}</strong>. `;
+          if (limite) {
+            texto += `Relatórios PDF gerados este mês: <strong>${data.usados}</strong> / <strong>${limite}</strong>.`;
+          } else {
+            texto += 'Relatórios PDF mensais ilimitados.';
+          }
+          document.getElementById('plano-info').innerHTML = texto;
+        } else {
+          document.getElementById('plano-info').textContent = 'Erro ao carregar informações do plano.';
+        }
+      });
+  }
+
   function mostrarGerandoRelatorio() {
     showToast(
       '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Gerando relatório...',
@@ -80,38 +142,46 @@
     showToast('Relatório concluído!', 'success');
   }
 
-  // Agora é AJAX!
-  document.getElementById('form-relatorio').onsubmit = async function(e) {
-    e.preventDefault();
-    mostrarGerandoRelatorio();
+  document.addEventListener('DOMContentLoaded', function() {
+    atualizarInfoPlano();
 
-    const form = e.target;
-    const formData = new FormData(form);
+    // Só ativa AJAX se o botão não estiver desabilitado
+    const btnGerar = document.getElementById('btn-gerar-pdf');
+    const form = document.getElementById('form-relatorio');
+    if (!btnGerar.disabled) {
+      form.onsubmit = async function(e) {
+        e.preventDefault();
+        mostrarGerandoRelatorio();
 
-    try {
-      const response = await fetch(form.action || window.location.pathname, {
-        method: 'POST',
-        body: formData,
-      });
+        const formData = new FormData(form);
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "relatorio.pdf";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+        try {
+          const response = await fetch(form.action || window.location.pathname, {
+            method: 'POST',
+            body: formData,
+          });
 
-        mostrarRelatorioConcluido();
-      } else {
-        showToast('Erro ao gerar relatório.', 'danger');
+          if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "relatorio.pdf";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            mostrarRelatorioConcluido();
+            atualizarInfoPlano(); // Atualiza o contador após baixar
+          } else {
+            showToast('Erro ao gerar relatório.', 'danger');
+          }
+        } catch (err) {
+          showToast('Erro ao conectar ao servidor.', 'danger');
+        }
       }
-    } catch (err) {
-      showToast('Erro ao conectar ao servidor.', 'danger');
     }
-  }
+  });
 </script>
 {% endblock %}

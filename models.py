@@ -33,7 +33,12 @@ class UserSettings(db.Model):
     manager_name = db.Column(db.String(255))
     created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
     email_boas_vindas_enviado = db.Column(db.Boolean, default=False)
-    
+    plano = db.Column(db.String, default='free')
+    stripe_customer_id = db.Column(db.String)
+    stripe_subscription_id = db.Column(db.String)  
+    plano = db.Column(db.String(32), default='free')
+    plano_ate = db.Column(db.DateTime, nullable=True)
+
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False)

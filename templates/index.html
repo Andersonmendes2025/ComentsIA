@@ -1,128 +1,237 @@
 {% extends "base.html" %}
 
-{% block title %}Início - Gerenciador de Avaliações Google{% endblock %}
+{% block title %}Início - ComentsIA - Gerenciador de Avaliações Google{% endblock %}
 
 {% block content %}
-<div class="container">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <!-- Hero Section -->
-      <div class="text-center mb-5">
-        <div class="hero-icon mb-4">
-          <i class="bi bi-star-fill text-warning" style="font-size: 4rem;"></i>
-        </div>
-        <h1 class="display-4 fw-bold mb-3">Gerenciador de Avaliações Google</h1>
-        <p class="lead text-muted mb-4">
-          Gerencie suas avaliações do Google com inteligência artificial.
-          Crie respostas personalizadas e analise o feedback dos seus clientes.
-        </p>
-
-        {% if not logged_in %}
-        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-          <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-4 me-md-2">
-            <i class="bi bi-google me-2"></i>
-            Entrar com Google
-          </a>
-        </div>
-        {% else %}
-        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-          <a href="{{ url_for('reviews') }}" class="btn btn-primary btn-lg px-4 me-md-2">
-            <i class="bi bi-chat-square-text me-2"></i>
-            Ver Avaliações
-          </a>
-          <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-lg px-4">
-            <i class="bi bi-plus-circle me-2"></i>
-            Adicionar Avaliação
-          </a>
-        </div>
-        {% endif %}
-      </div>
-
-      <!-- Features Section -->
-      <div class="row g-4 mb-5">
-        <div class="col-md-4">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-              <div class="feature-icon mb-3">
-                <i class="bi bi-robot text-primary" style="font-size: 2.5rem;"></i>
-              </div>
-              <h5 class="card-title">IA Inteligente</h5>
-              <p class="card-text text-muted">
-                Gere respostas personalizadas para suas avaliações usando inteligência artificial avançada.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-              <div class="feature-icon mb-3">
-                <i class="bi bi-graph-up text-success" style="font-size: 2.5rem;"></i>
-              </div>
-              <h5 class="card-title">Dashboard Analítico</h5>
-              <p class="card-text text-muted">
-                Visualize estatísticas detalhadas e identifique pontos positivos e negativos.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body text-center p-4">
-              <div class="feature-icon mb-3">
-                <i class="bi bi-palette text-info" style="font-size: 2.5rem;"></i>
-              </div>
-              <h5 class="card-title">Personalização</h5>
-              <p class="card-text text-muted">
-                Configure saudações, tons de resposta e informações de contato personalizadas.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {% if logged_in %}
-      <!-- Quick Stats -->
-      <div class="row g-3 mb-4">
-        <div class="col-md-3">
-          <div class="card bg-primary text-white">
-            <div class="card-body text-center">
-              <i class="bi bi-chat-square-text mb-2" style="font-size: 2rem;"></i>
-              <h4 class="card-title mb-0">{{ reviews|length if reviews else 0 }}</h4>
-              <p class="card-text">Avaliações</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-success text-white">
-            <div class="card-body text-center">
-              <i class="bi bi-reply mb-2" style="font-size: 2rem;"></i>
-              <h4 class="card-title mb-0">{{ reviews|selectattr('replied')|list|length if reviews else 0 }}</h4>
-              <p class="card-text">Respondidas</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-warning text-white">
-            <div class="card-body text-center">
-              <i class="bi bi-star-fill mb-2" style="font-size: 2rem;"></i>
-              <h4 class="card-title mb-0">{{ "%.1f"|format(reviews|map(attribute='rating')|sum / reviews|length) if reviews else "0.0" }}</h4>
-              <p class="card-text">Média</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card bg-info text-white">
-            <div class="card-body text-center">
-              <i class="bi bi-clock mb-2" style="font-size: 2rem;"></i>
-              <h4 class="card-title mb-0">{{ reviews|rejectattr('replied')|list|length if reviews else 0 }}</h4>
-              <p class="card-text">Pendentes</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
+<div class="container py-5">
+  {% if not logged_in %}
+    <!-- HERO -->
+    <div class="text-center mb-5">
+      <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" style="width:140px;" class="mb-3">
+      <h1 class="display-5 fw-bold mb-3" style="color: #007bff;">
+        Transforme avaliações em crescimento com IA!
+      </h1>
+      <p class="lead text-muted mb-4">
+        Descubra o jeito moderno, fácil e inteligente de responder, analisar e se destacar no Google.
+      </p>
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-5 py-3 fs-4 shadow">
+        <i class="bi bi-google me-2"></i> Experimente grátis agora
+      </a>
     </div>
-  </div>
+
+    <!-- PASSO 1 -->
+    <div class="row align-items-center mb-5">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">1. Centralize todas as suas avaliações</h3>
+        <p>
+          Na ComentsIA, você cadastra manualmente todas as avaliações do Google, com nome do cliente, nota e comentário. Veja tudo cronologicamente, filtre, busque e nunca mais perca nenhuma interação.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Centralize avaliações" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 2 -->
+    <div class="row align-items-center mb-5 flex-md-row-reverse">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">2. Gere respostas automáticas e inteligentes com IA</h3>
+        <p>
+          Clique em <b>Gerar sugestão</b> e a IA cria respostas personalizadas e profissionais para você. Precisa de um texto ainda mais detalhado? Use o modo <b>Resposta hiper compreensiva</b> (exclusivo dos planos pagos).
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Gerar resposta IA" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 3 -->
+    <div class="row align-items-center mb-5">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">3. Personalize cada resposta</h3>
+        <p>
+          Escolha o tom (profissional, amigável, empático) e, se quiser, adicione considerações ou instruções específicas para a IA deixar tudo do seu jeito.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Personalização resposta" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 4 -->
+    <div class="row align-items-center mb-5 flex-md-row-reverse">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">4. Veja e edite todas as interações</h3>
+        <p>
+          Acompanhe respostas já enviadas, saiba o que está pendente, edite ou exclua avaliações e mantenha o histórico sempre acessível.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Histórico de respostas" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 5 -->
+    <div class="row align-items-center mb-5">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">5. Analise seus resultados com o Dashboard</h3>
+        <p>
+          Visualize o total de avaliações, respondidas, sua média, gráficos de notas, avaliações recentes e análise inteligente dos principais pontos positivos e negativos.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/dashboard.png') }}" alt="Dashboard ComentsIA" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 6 -->
+    <div class="row align-items-center mb-5 flex-md-row-reverse">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">6. Gere relatórios profissionais em PDF</h3>
+        <p>
+          Crie relatórios completos com gráficos, análise de elogios e críticas, prontos para apresentar à equipe, sócios ou parceiros.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/relatorios.png') }}" alt="Relatórios PDF" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 7 -->
+    <div class="row align-items-center mb-5">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">7. Configuração fácil e personalização da marca</h3>
+        <p>
+          No primeiro acesso, personalize com nome, gerente, contatos, logo e mensagens padrão. Tudo fica com a identidade da sua empresa.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/configuracao.png') }}" alt="Configuração personalizada" class="img-fluid rounded shadow">
+      </div>
+    </div>
+    <!-- PASSO 8 -->
+    <div class="row align-items-center mb-5 flex-md-row-reverse">
+      <div class="col-md-6">
+        <h3 class="fw-bold mb-3">8. Relatórios completos e suporte fácil</h3>
+        <p>
+          Todos os dados e relatórios ficam seguros na sua conta. E nosso suporte está sempre pronto para ajudar você.
+        </p>
+      </div>
+      <div class="col-md-6 text-center">
+        <img src="{{ url_for('static', filename='prints/relatorios.png') }}" alt="Suporte ComentsIA" class="img-fluid rounded shadow">
+      </div>
+    </div>
+
+    <div class="text-center mt-5">
+      <a href="{{ url_for('authorize') }}" class="btn btn-lg btn-primary px-5 py-3 fs-4 shadow">
+        <i class="bi bi-google me-2"></i> Experimente grátis agora
+      </a>
+      <p class="text-muted mt-3 mb-0">
+        Experimente agora a ComentsIA e leve seu atendimento para outro nível.
+      </p>
+    </div>
+  {% else %}
+    <!-- VERSÃO LOGADO (igual já estava) -->
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-5">
+          <div class="hero-icon mb-4">
+            <i class="bi bi-star-fill text-warning" style="font-size: 4rem;"></i>
+          </div>
+          <h1 class="display-4 fw-bold mb-3">Gerenciador de Avaliações Google</h1>
+          <p class="lead text-muted mb-4">
+            Gerencie suas avaliações do Google com inteligência artificial.
+            Crie respostas personalizadas e analise o feedback dos seus clientes.
+          </p>
+          <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <a href="{{ url_for('reviews') }}" class="btn btn-primary btn-lg px-4 me-md-2">
+              <i class="bi bi-chat-square-text me-2"></i>
+              Ver Avaliações
+            </a>
+            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-lg px-4">
+              <i class="bi bi-plus-circle me-2"></i>
+              Adicionar Avaliação
+            </a>
+          </div>
+        </div>
+        <!-- Features Section -->
+        <div class="row g-4 mb-5">
+          <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="bi bi-robot text-primary" style="font-size: 2.5rem;"></i>
+                </div>
+                <h5 class="card-title">IA Inteligente</h5>
+                <p class="card-text text-muted">
+                  Gere respostas personalizadas para suas avaliações usando inteligência artificial avançada.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="bi bi-graph-up text-success" style="font-size: 2.5rem;"></i>
+                </div>
+                <h5 class="card-title">Dashboard Analítico</h5>
+                <p class="card-text text-muted">
+                  Visualize estatísticas detalhadas e identifique pontos positivos e negativos.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body text-center p-4">
+                <div class="feature-icon mb-3">
+                  <i class="bi bi-palette text-info" style="font-size: 2.5rem;"></i>
+                </div>
+                <h5 class="card-title">Personalização</h5>
+                <p class="card-text text-muted">
+                  Configure saudações, tons de resposta e informações de contato personalizadas.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Quick Stats -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white">
+              <div class="card-body text-center">
+                <i class="bi bi-chat-square-text mb-2" style="font-size: 2rem;"></i>
+                <h4 class="card-title mb-0">{{ reviews|length if reviews else 0 }}</h4>
+                <p class="card-text">Avaliações</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white">
+              <div class="card-body text-center">
+                <i class="bi bi-reply mb-2" style="font-size: 2rem;"></i>
+                <h4 class="card-title mb-0">{{ reviews|selectattr('replied')|list|length if reviews else 0 }}</h4>
+                <p class="card-text">Respondidas</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-warning text-white">
+              <div class="card-body text-center">
+                <i class="bi bi-star-fill mb-2" style="font-size: 2rem;"></i>
+                <h4 class="card-title mb-0">{{ "%.1f"|format(reviews|map(attribute='rating')|sum / reviews|length) if reviews else "0.0" }}</h4>
+                <p class="card-text">Média</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-info text-white">
+              <div class="card-body text-center">
+                <i class="bi bi-clock mb-2" style="font-size: 2rem;"></i>
+                <h4 class="card-title mb-0">{{ reviews|rejectattr('replied')|list|length if reviews else 0 }}</h4>
+                <p class="card-text">Pendentes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

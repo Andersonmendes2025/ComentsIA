@@ -4,42 +4,19 @@
 
 {% block extra_head %}
 <style>
+/* ... [MANTENHA SEUS ESTILOS ORIGINAIS, IGUAL AO SEU EXEMPLO] ... */
 .star-rating {
     font-size: 2rem;
     color: #ddd;
     cursor: pointer;
+    user-select: none;
 }
 .star-rating .star {
     transition: color 0.2s;
+    color: #ddd;
 }
-.star-rating .star:hover,
 .star-rating .star.active {
     color: #ffc107;
-}
-.form-floating textarea {
-    min-height: 120px;
-}
-.toggle-section {
-    display: none;
-    margin-top: 1rem;
-}
-.badge-limite {
-    font-size: 0.9rem;
-    margin-left: 0.5rem;
-    margin-top: 2.5px; /* Alinha verticalmente com o checkbox */
-    vertical-align: middle;
-}
-#hiper-info-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-#hiper-counter-row, #consideracoes-counter-row {
-    margin-top: 0;
-    margin-bottom: 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
 }
 .toast-hiper {
     position: fixed;
@@ -57,11 +34,6 @@
     display: none;
     transition: opacity 0.3s;
 }
-select:disabled {
-    background: #ececec !important;
-    color: #b7b7b7 !important;
-    cursor: not-allowed;
-}
 </style>
 {% endblock %}
 
@@ -69,6 +41,18 @@ select:disabled {
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-lg-8">
+            {% if user_plano == 'free' %}
+            <div class="limite-msg">
+                <b>Atenção:</b> No plano gratuito, você pode adicionar até <b>20 avaliações/mês</b> e não tem acesso à resposta hiper compreensiva ou considerações para a IA.<br>
+                <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Conheça os planos</a>
+            </div>
+            {% elif user_plano == 'pro' %}
+            <div class="limite-msg">
+                <b>Limite do PRO:</b> Até <b>200 avaliações/mês</b>.<br>
+                Para uso ilimitado e API, faça upgrade para o <b>Business</b>.
+            </div>
+            {% endif %}
+
             <div class="d-flex align-items-center mb-4">
                 <a href="{{ url_for('reviews') }}" class="btn btn-outline-secondary me-3">
                     <i class="bi bi-arrow-left"></i>
@@ -84,7 +68,7 @@ select:disabled {
 
             <div class="card shadow-sm">
                 <div class="card-body p-4">
-                    <form method="POST" id="reviewForm">
+                    <form method="POST" id="reviewForm" autocomplete="off">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <div class="form-floating">
@@ -120,7 +104,7 @@ select:disabled {
                             </div>
                         </div>
 
-                        <!-- Seletor de tom e Hiper -->
+                        <!-- Bloco premium: hiper e considerações -->
                         <div class="form-group mt-4">
                             <label for="tone">Tom da resposta:</label>
                             <select class="form-control mb-2" id="tone" name="tone">
@@ -129,28 +113,51 @@ select:disabled {
                                 <option value="empatico">Empático</option>
                             </select>
                             <div id="hiper-info-row" class="mt-3">
-                                <input class="form-check-input" type="checkbox" value="on" id="hiper_compreensiva" name="hiper_compreensiva">
+                                <input class="form-check-input"
+                                    type="checkbox"
+                                    value="on"
+                                    id="hiper_compreensiva"
+                                    name="hiper_compreensiva"
+                                    {% if user_plano == 'free' %}disabled{% endif %}>
                                 <label class="form-check-label mb-0" for="hiper_compreensiva">
                                     <strong>Usar resposta hiper compreensiva</strong>
                                 </label>
-                                <span class="badge bg-secondary badge-limite" id="limite-hiper">2/2 restantes</span>
-                                <span class="text-muted" style="font-size:0.93em;">Máximo de 2 respostas hiper por dia</span>
+                                <span class="badge bg-secondary badge-limite" id="limite-hiper">
+                                    <span id="hiper-restante">...</span>
+                                </span>
+                                <span class="text-muted" style="font-size:0.93em;">
+                                    {% if user_plano == 'free' %}
+                                        Disponível apenas no PRO ou superior
+                                    {% else %}
+                                        Máximo de 2 respostas hiper por dia
+                                    {% endif %}
+                                </span>
                             </div>
                         </div>
                         <div id="hiper-counter-row"></div>
 
                         <!-- Botão para mostrar considerações -->
                         <div class="mt-4 d-flex align-items-center gap-2">
-                            <button type="button" class="btn btn-outline-info btn-sm" id="toggleConsideracoes">
+                            <button type="button" class="btn btn-outline-info btn-sm" id="toggleConsideracoes"
+                                {% if user_plano == 'free' %}disabled{% endif %}>
                                 <i class="bi bi-info-circle me-1"></i>
                                 Adicionar considerações para a IA
                             </button>
-                            <span class="badge bg-secondary badge-limite" id="limite-consideracoes">2/2 restantes</span>
-                            <span class="text-muted" style="font-size:0.93em;">Máximo de 2 considerações por dia</span>
+                            <span class="badge bg-secondary badge-limite" id="limite-consideracoes">
+                                <span id="consideracoes-restante">...</span>
+                            </span>
+                            <span class="text-muted" style="font-size:0.93em;">
+                                {% if user_plano == 'free' %}
+                                    Disponível apenas no PRO ou superior
+                                {% else %}
+                                    Máximo de 2 considerações por dia
+                                {% endif %}
+                            </span>
                         </div>
 
                         <div id="bloco-consideracoes" class="toggle-section">
-                            <textarea class="form-control mt-3" name="consideracoes" id="consideracoes" rows="3" placeholder="Ex: contexto, observações ou justificativas para a IA"></textarea>
+                            <textarea class="form-control mt-3" name="consideracoes" id="consideracoes" rows="3" placeholder="Ex: contexto, observações ou justificativas para a IA"
+                                {% if user_plano == 'free' %}disabled{% endif %}></textarea>
                             <div class="form-text">Essas informações não serão salvas no sistema.</div>
                         </div>
 
@@ -159,21 +166,27 @@ select:disabled {
                                 <i class="bi bi-robot me-1"></i>
                                 Gerar sugestão
                             </button>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary"
+                                id="adicionarAvaliacaoBtn"
+                                {% if user_plano == 'free' and avaliacoes_limitadas %}disabled title="Limite de avaliações atingido"{% endif %}>
                                 <i class="bi bi-check-circle me-1"></i>
                                 Adicionar Avaliação
                             </button>
                         </div>
 
+                        <!-- Loader e resultado -->
+                        <div id="gerando-hiper-msg" style="display:none;">
+                            <span class="loader-spin"></span>Salvando avaliação...
+                        </div>
                         <p id="loading" class="mt-2" style="display: none; color: #555;">Gerando resposta...</p>
                         <p id="suggestion" class="mt-2" style="display: none;"></p>
                         <div id="actions" class="mt-2" style="display: none;">
                             <button type="button" class="btn btn-success btn-sm" onclick="submitReviewForm()">Responder</button>
                         </div>
+                        <div class="toast-hiper" id="toastHiperAviso">
+                            Só é possível usar a resposta hiper compreensiva pelo botão "Adicionar Avaliação".
+                        </div>
                     </form>
-                    <div class="toast-hiper" id="toastHiperAviso">
-                        Só é possível usar a resposta hiper compreensiva pelo botão "Adicionar Avaliação".
-                    </div>
                 </div>
             </div>
         </div>
@@ -184,74 +197,93 @@ select:disabled {
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ======== Hiper Contador ===========
-    function atualizaContadorHiper() {
-        fetch('/get_hiper_count')
-        .then(response => response.json())
+    // Estrelas de avaliação
+    const starRating = document.getElementById('starRating');
+    const stars = starRating ? starRating.querySelectorAll('.star') : [];
+    const ratingInput = document.getElementById('rating');
+    function updateStars(rating) {
+        stars.forEach(function(star, idx) {
+            if (idx < rating) {
+                star.classList.add('active');
+            } else {
+                star.classList.remove('active');
+            }
+        });
+        if (ratingInput) ratingInput.value = rating;
+    }
+    // Inicializa com valor default (5 estrelas)
+    updateStars(parseInt(ratingInput.value || "5"));
+    stars.forEach(function(star, idx) {
+        star.addEventListener('click', function() {
+            updateStars(idx + 1);
+        });
+    });
+
+    // Esconde loader ao iniciar
+    document.getElementById('gerando-hiper-msg').style.display = 'none';
+
+    // BADGES dinâmicos hiper/considerações
+    function setBadge(elementId, usados, total) {
+        let el = document.getElementById(elementId);
+        if (el) {
+            if (total === null) {
+                el.textContent = `${usados}/∞ restantes`;
+            } else {
+                el.textContent = `${usados}/${total} restantes`;
+            }
+        }
+    }
+
+    // Busca limites do backend
+    fetch('/get_hiper_count')
+        .then(res => res.json())
         .then(data => {
-            const badge = document.getElementById('limite-hiper');
-            const hiperCheck = document.getElementById('hiper_compreensiva');
-            if (data.success) {
-                if (data.usos_restantes_hiper <= 0) {
-                    badge.innerText = 'Limite atingido';
-                    badge.classList.remove('bg-secondary');
-                    badge.classList.add('bg-danger');
-                    hiperCheck.checked = false;
-                    hiperCheck.disabled = true;
-                } else {
-                    badge.innerText = data.usos_restantes_hiper + '/2 restantes';
-                    badge.classList.remove('bg-danger');
-                    badge.classList.add('bg-secondary');
-                    hiperCheck.disabled = false;
-                }
+            let total = {{ PLANOS[user_plano]['hiper_dia'] if PLANOS[user_plano]['hiper_dia'] is not none else 'null' }};
+            setBadge('hiper-restante', data.usos_restantes_hiper ?? 0, total);
+        });
+
+    fetch('/get_consideracoes_count')
+        .then(res => res.json())
+        .then(data => {
+            let total = {{ PLANOS[user_plano]['consideracoes_dia'] if PLANOS[user_plano]['consideracoes_dia'] is not none else 'null' }};
+            setBadge('consideracoes-restante', data.usos_restantes_consideracoes ?? 0, total);
+        });
+
+    // Mostrar/esconder bloco considerações
+    const toggle = document.getElementById('toggleConsideracoes');
+    const blocoCons = document.getElementById('bloco-consideracoes');
+    if (toggle && blocoCons) {
+        toggle.addEventListener('click', function() {
+            if (blocoCons.style.display === 'block') {
+                blocoCons.style.display = 'none';
+            } else {
+                blocoCons.style.display = 'block';
+                document.getElementById('consideracoes').focus();
+            }
+            atualizaBloqueios();
+        });
+    }
+
+    // Loader animado ao enviar avaliação
+    const form = document.getElementById('reviewForm');
+    const btnAdicionar = document.getElementById('adicionarAvaliacaoBtn');
+    if(form && btnAdicionar) {
+        form.addEventListener('submit', function(e) {
+            if (!btnAdicionar.disabled) {
+                btnAdicionar.disabled = true;
+                document.getElementById('gerando-hiper-msg').style.display = 'block';
+                btnAdicionar.innerHTML = `<span class="loader-spin"></span>Salvando avaliação...`;
             }
         });
     }
-    atualizaContadorHiper();
 
-    // ======== Considerações Contador ===========
-    function atualizaContadorConsideracoes() {
-        fetch('/get_consideracoes_count')
-        .then(response => response.json())
-        .then(data => {
-            const badge = document.getElementById('limite-consideracoes');
-            const toggleBtn = document.getElementById('toggleConsideracoes');
-            if (data.success) {
-                if (data.usos_restantes_consideracoes <= 0) {
-                    badge.innerText = 'Limite atingido';
-                    badge.classList.remove('bg-secondary');
-                    badge.classList.add('bg-danger');
-                    toggleBtn.disabled = true;
-                } else {
-                    badge.innerText = data.usos_restantes_consideracoes + '/2 restantes';
-                    badge.classList.remove('bg-danger');
-                    badge.classList.add('bg-secondary');
-                    toggleBtn.disabled = false;
-                }
-            }
-        });
-    }
-    atualizaContadorConsideracoes();
-
-    // ======== Toast/Aviso Hiper ===========
-    function mostrarToastHiper() {
-        const toast = document.getElementById('toastHiperAviso');
-        toast.style.display = 'block';
-        setTimeout(() => {
-            toast.style.display = 'none';
-        }, 3000);
-    }
-
-    // ======== Bloqueio Visual ===========
+    // -------- BLOQUEIOS GERAR SUGESTÃO (hiper/considerações) ----------
     const hiperCheck = document.getElementById('hiper_compreensiva');
     const gerarBtn = document.getElementById('gerarSugestaoBtn');
-    const toneSelect = document.getElementById('tone');
-    const toggleConsideracoes = document.getElementById('toggleConsideracoes');
     let consideracoesAtivas = false;
-
     function atualizaBloqueios() {
-        consideracoesAtivas = document.getElementById('bloco-consideracoes').style.display === 'block';
-        if ((hiperCheck.checked && !hiperCheck.disabled) || (consideracoesAtivas && !toggleConsideracoes.disabled)) {
+        consideracoesAtivas = blocoCons && blocoCons.style.display === 'block';
+        if ((hiperCheck && hiperCheck.checked && !hiperCheck.disabled) || (consideracoesAtivas && !toggle.disabled)) {
             gerarBtn.disabled = true;
             gerarBtn.classList.remove('btn-outline-primary');
             gerarBtn.classList.add('btn-secondary');
@@ -262,29 +294,23 @@ document.addEventListener('DOMContentLoaded', function() {
             gerarBtn.classList.add('btn-outline-primary');
             gerarBtn.style.cursor = '';
         }
-        toneSelect.disabled = hiperCheck.checked && !hiperCheck.disabled; // só desativa o tom para hiper
     }
-    hiperCheck.addEventListener('change', atualizaBloqueios);
-
-    // Considerações toggle + bloqueio
-    toggleConsideracoes.addEventListener('click', function() {
-        const bloco = document.getElementById('bloco-consideracoes');
-        bloco.style.display = bloco.style.display === 'none' || bloco.style.display === '' ? 'block' : 'none';
-        atualizaBloqueios();
-    });
-
-    // Atualiza bloqueios e contadores após submit
-    document.getElementById('reviewForm').addEventListener('submit', function() {
-        setTimeout(() => {
-            atualizaContadorHiper();
-            atualizaContadorConsideracoes();
-        }, 1600);
-    });
+    if (hiperCheck) hiperCheck.addEventListener('change', atualizaBloqueios);
+    if (toggle) toggle.addEventListener('click', atualizaBloqueios);
     atualizaBloqueios();
 
-    // Ao clicar no botão, exibe toast se for hiper
+    // Toast para hiper
+    function mostrarToastHiper() {
+        const toast = document.getElementById('toastHiperAviso');
+        toast.style.display = 'block';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3000);
+    }
+
+    // Clique do botão gerar sugestão
     gerarBtn.addEventListener('click', function(e) {
-        if (hiperCheck.checked && !hiperCheck.disabled) {
+        if (hiperCheck && hiperCheck.checked && !hiperCheck.disabled) {
             mostrarToastHiper();
             return;
         }
@@ -293,22 +319,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Estrelas
-    let initialRating = parseInt(document.getElementById('rating').value || 5);
-    const stars = document.querySelectorAll('.star-rating .star');
-    for (let i = 0; i < initialRating; i++) {
-        stars[i].classList.add('active');
-    }
-    stars.forEach(function(star, idx) {
-        star.addEventListener('click', function() {
-            const rating = this.getAttribute('data-rating');
-            document.getElementById('rating').value = rating;
-            stars.forEach(function(s) { s.classList.remove('active'); });
-            for (let i = 0; i < rating; i++) {
-                stars[i].classList.add('active');
-            }
-        });
-    });
 });
 
 // AJAX para gerar sugestão
@@ -317,7 +327,8 @@ function generateReply() {
     const nota = parseInt(document.getElementById('rating').value) || 5;
     const texto = document.getElementById('text').value;
     const tom = document.getElementById('tone').value;
-    const consideracoes = document.getElementById('consideracoes').value;
+    const consideracoesEl = document.getElementById('consideracoes');
+    const consideracoes = consideracoesEl ? consideracoesEl.value : "";
 
     if (!texto) {
         alert("Por favor, insira o texto da avaliação.");

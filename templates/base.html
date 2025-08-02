@@ -59,22 +59,34 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <!-- Só mostra para logados -->
+          {% if logged_in %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('gerar_relatorio') }}">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios
+              </a>
+            </li>
+          {% endif %}
+          <!-- Planos sempre aparece -->
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('gerar_relatorio') }}">
-              <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios
+            <a class="nav-link" href="{{ url_for('planos') }}">
+              <i class="bi bi-card-list me-1"></i> Planos
             </a>
           </li>
+          <!-- Quem Somos sempre aparece -->
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('settings') }}"><i class="bi bi-gear me-1"></i> Configurações</a>
+            <a class="nav-link" href="{{ url_for('quem_somos') }}">
+              <i class="bi bi-people me-1"></i> Quem Somos
+            </a>
           </li>
           {% if is_admin %}
           <li class="nav-item">
@@ -217,10 +229,44 @@
       toastMsg.innerHTML = mensagem;
       toast.show();
     }
+
+    // Toast Persistente (para "Excluindo conta...", "Salvando...", etc)
+    function showPersistentToast(message, type = 'info') {
+      const toastId = 'toast-' + Math.floor(Math.random() * 1000000);
+      const colorClass = type === 'success' ? 'bg-success' :
+                         type === 'danger'  ? 'bg-danger'  :
+                         type === 'warning' ? 'bg-warning' : 'bg-info';
+      const toast = document.createElement('div');
+      toast.className = `toast align-items-center text-white ${colorClass} border-0 show`;
+      toast.id = toastId;
+      toast.setAttribute('role', 'alert');
+      toast.setAttribute('aria-live', 'assertive');
+      toast.setAttribute('aria-atomic', 'true');
+      toast.style.position = 'fixed';
+      toast.style.top = '24px';
+      toast.style.right = '24px';
+      toast.style.zIndex = 9999;
+      toast.innerHTML = `
+        <div class="d-flex align-items-center">
+          <div class="toast-body">${message}</div>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      return toastId;
+    }
+    function removePersistentToast(toastId) {
+      const toast = document.getElementById(toastId);
+      if (toast) toast.remove();
+    }
+
     function deleteAccount() {
       askConfirm(
         'Tem certeza que deseja <b>APAGAR SUA CONTA</b>?<br><span class="text-danger">Todos os seus dados serão apagados e essa ação é <b>irreversível</b>!</span>',
         function() {
+          const toastId = showPersistentToast(
+            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Excluindo conta...',
+            'danger'
+          );
           fetch('/delete_account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
@@ -228,15 +274,20 @@
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              showToast('Conta apagada com sucesso!', 'success');
-              setTimeout(() => { window.location = '/'; }, 2000);
+              window.location = '/';
             } else {
+              removePersistentToast(toastId);
               showToast('Erro ao apagar conta: ' + data.error, 'danger');
             }
+          })
+          .catch(() => {
+            removePersistentToast(toastId);
+            showToast('Erro ao conectar ao servidor.', 'danger');
           });
         }
       );
     }
+
     // Modal de confirmação
     let confirmAction = null;
     function askConfirm(message, callback) {

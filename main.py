@@ -39,11 +39,82 @@ from functools import wraps
 from email_utils import montar_email_conta_apagada
 from email_utils import montar_email_boas_vindas, enviar_email
 from models import RespostaEspecialUso
+from flask import request, flash
 from models import ConsideracoesUso
 # Configuração do aplicativo Flask
 # Inicializar o Flask
+
 app = Flask(__name__)
 
+
+# No início do arquivo, após as imports
+PLANOS = {
+    'free': {
+        'nome': 'Gratuito',
+        'preco': 0,
+        'avaliacoes_mes': 20,
+        'hiper_dia': 0,
+        'consideracoes_dia': 0,      # <-- Adicionado!
+        'relatorio_pdf_mes': 0,
+        'api': False,
+        'dashboard': 'simples',
+        'suporte': 'básico',
+        'marca_dagua': True,
+    },
+    'pro': {
+        'nome': 'Pro',
+        'preco': 19.99,
+        'avaliacoes_mes': 200,
+        'hiper_dia': 2,
+        'consideracoes_dia': 2,      # <-- Adicionado!
+        'relatorio_pdf_mes': 1,
+        'api': False,
+        'dashboard': 'completo',
+        'suporte': 'prioritário',
+        'marca_dagua': False,
+    },
+    'pro_anual': {
+        'nome': 'Pro Anual',
+        'preco': 199.00,  # Exemplo: 2 meses grátis (~16,58/mês)
+        'avaliacoes_mes': 200,
+        'hiper_dia': 2,
+        'consideracoes_dia': 2,      # <-- Adicionado!
+        'relatorio_pdf_mes': 1,
+        'api': False,
+        'dashboard': 'completo',
+        'suporte': 'prioritário',
+        'marca_dagua': False,
+        'anual': True,
+    },
+    'business': {
+        'nome': 'Business',
+        'preco': 34.99,
+        'avaliacoes_mes': None,
+        'hiper_dia': None,
+        'consideracoes_dia': None,   # <-- Adicionado!
+        'relatorio_pdf_mes': None,
+        'api': True,
+        'dashboard': 'avançado',
+        'suporte': 'vip',
+        'marca_dagua': False,
+    },
+    'business_anual': {
+        'nome': 'Business Anual',
+        'preco': 349.00,  # Exemplo: 2 meses grátis (~29,08/mês)
+        'avaliacoes_mes': None,
+        'hiper_dia': None,
+        'consideracoes_dia': None,   # <-- Adicionado!
+        'relatorio_pdf_mes': None,
+        'api': True,
+        'dashboard': 'avançado',
+        'suporte': 'vip',
+        'marca_dagua': False,
+        'anual': True,
+    }
+}
+
+
+  
 app.config.update(
     SESSION_COOKIE_SECURE=True,      # necessário se seu site usar HTTPS
     SESSION_COOKIE_HTTPONLY=True,
@@ -109,6 +180,15 @@ ADMIN_EMAILS = [
     "anderson.mendesdossantos011@gmail.com",
     "comentsia.2025@gmail.com"
 ]
+PLANO_EQUIVALENTES = {
+    'pro': ['pro', 'pro_anual'],
+    'business': ['business', 'business_anual']
+}
+def is_pro(user_id):
+    return get_user_plan(user_id) in PLANO_EQUIVALENTES['pro']
+
+def is_business(user_id):
+    return get_user_plan(user_id) in PLANO_EQUIVALENTES['business']
 
 # Função para calcular a média das avaliações
 def calcular_media(avaliacoes):
@@ -129,15 +209,46 @@ def require_terms_accepted(f):
             return redirect(url_for('settings'))
         return f(*args, **kwargs)
     return decorated_function
+def contar_avaliacoes_mes(user_id):
+    inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    count = Review.query.filter(
+        Review.user_id == user_id,
+        Review.date >= inicio_mes
+    ).count()
+    return count
 
+def contar_relatorios_mes(user_id):
+    inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    count = RelatorioHistorico.query.filter(
+        RelatorioHistorico.user_id == user_id,
+        RelatorioHistorico.data_criacao >= inicio_mes
+    ).count()
+    return count
 def get_data_hoje_brt():
     """Retorna a data atual no fuso de São Paulo (sem hora)."""
     return datetime.now(pytz.timezone("America/Sao_Paulo")).date()
 
 def usuario_pode_usar_resposta_especial(user_id):
     hoje = get_data_hoje_brt()
+    plano = get_user_plan(user_id)
+    hiper_limite = PLANOS[plano]['hiper_dia']
+    if hiper_limite is None:
+        return True  # Ilimitado no Business
     uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-    return not uso or uso.quantidade_usos < 2
+    return not uso or uso.quantidade_usos < hiper_limite
+
+
+def atingiu_limite_avaliacoes_mes(user_id):
+    plano = get_user_plan(user_id)
+    limite = PLANOS[plano]['avaliacoes_mes']
+    if not limite:  # None = ilimitado
+        return False
+    inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    avals_mes = Review.query.filter(
+        Review.user_id == user_id,
+        Review.date >= inicio_mes
+    ).count()
+    return avals_mes >= limite
 
 def registrar_uso_resposta_especial(user_id):
     hoje = get_data_hoje_brt()
@@ -150,6 +261,48 @@ def registrar_uso_resposta_especial(user_id):
         uso.quantidade_usos += 1
 
     db.session.commit()
+def get_user_plan(user_id):
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if settings and settings.plano in PLANOS:
+        return settings.plano
+    return 'free'
+
+
+def get_plan_limits(user_id):
+    plano = get_user_plan(user_id)
+    return PLANOS[plano]
+def plano_ativo(user_id):
+    """
+    Retorna True se o usuário possui um plano ativo (não expirado), False caso contrário.
+    O plano free é sempre considerado ativo.
+    """
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        return False
+    if settings.plano and settings.plano != 'free':
+        if settings.plano_ate is not None:
+            now = agora_brt()
+            plano_ate = settings.plano_ate
+            # Corrige se o plano_ate veio sem timezone
+            if plano_ate.tzinfo is None:
+                # Força o mesmo timezone de agora_brt()
+                plano_ate = plano_ate.replace(tzinfo=now.tzinfo)
+            return plano_ate >= now
+        else:
+            return False
+    return settings.plano == 'free'
+
+
+def require_plano_ativo(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user_info = session.get('user_info', {})
+        user_id = user_info.get('id')
+        if not plano_ativo(user_id):
+            flash("Seu plano venceu! Renove para continuar usando.", "warning")
+            return redirect(url_for('planos'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Função para calcular a projeção de nota para os próximos 30 dias
 def calcular_projecao(notas, datas):
@@ -271,15 +424,106 @@ def montar_email_boas_vindas(nome_do_usuario):
     Equipe ComentsIA</p>
     """
 
-
+@app.context_processor
+def inject_logged_user():
+    user_info = flask.session.get('user_info')
+    logged_in = 'credentials' in flask.session and user_info is not None
+    return dict(
+        logged_in=logged_in,
+        user=user_info if logged_in else None
+    )
 
 @app.context_processor
-def inject_user():
-    logged_in = 'credentials' in session
-    user = session.get('user_info') if logged_in else None
-    print(f"[inject_user] logged_in={logged_in} user={user}")
-    return dict(logged_in=logged_in, user=user)
+def inject_plan_helpers():
+    def is_pro_plan(user_plano):
+        return user_plano in ['pro', 'pro_anual']
+    def is_business_plan(user_plano):
+        return user_plano in ['business', 'business_anual']
+    return dict(is_pro_plan=is_pro_plan, is_business_plan=is_business_plan)
 
+
+@app.route('/planos', methods=['GET', 'POST'])
+def planos():
+    user_info = session.get('user_info', {})
+    user_id = user_info.get('id') if user_info else None
+
+    if request.method == 'POST':
+        if not user_id:
+            flash("Você precisa estar logado para alterar o plano.", "warning")
+            return redirect(url_for('authorize'))
+        
+        novo_plano = request.form.get('plano')
+        if novo_plano not in PLANOS:
+            flash("Plano inválido.", "danger")
+            return redirect(url_for('planos'))
+
+        settings = UserSettings.query.filter_by(user_id=user_id).first()
+        if not settings:
+            flash("Configurações do usuário não encontradas.", "danger")
+            return redirect(url_for('planos'))
+
+        if settings.plano == novo_plano:
+            flash(f"Você já está no plano {PLANOS[novo_plano]['nome']}.", "info")
+            return redirect(url_for('planos'))
+
+        settings.plano = novo_plano
+
+        # Sempre definir validade para planos pagos
+        if novo_plano != 'free':
+            dias_validade = 365 if novo_plano.endswith('_anual') else 30
+            settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
+        else:
+            settings.plano_ate = None
+
+        db.session.commit()
+
+
+        flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
+        # Redireciona para página inicial após troca de plano
+        return redirect(url_for('index'))
+
+    # GET
+    user_plano = get_user_plan(user_id) if user_id else 'free'
+    return render_template('planos.html', planos=PLANOS, user_plano=user_plano)
+
+@app.route('/alterar_plano', methods=['POST'])
+def alterar_plano():
+    if 'credentials' not in session:
+        flash("Você precisa estar logado para alterar o plano.", "warning")
+        return redirect(url_for('authorize'))
+
+    user_info = session.get('user_info', {})
+    user_id = user_info.get('id')
+    if not user_id:
+        flash("Usuário não identificado.", "danger")
+        return redirect(url_for('logout'))
+
+    novo_plano = request.form.get('plano')
+    if novo_plano not in PLANOS:
+        flash("Plano inválido.", "danger")
+        return redirect(url_for('planos'))
+
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        # Se não existir configurações, cria uma nova com valores padrão
+        settings = UserSettings(user_id=user_id)
+        db.session.add(settings)
+
+    if settings.plano == novo_plano:
+        flash(f"Você já está no plano {PLANOS[novo_plano]['nome']}.", "info")
+        return redirect(url_for('planos'))
+
+    # Atualiza plano e validade
+    settings.plano = novo_plano
+
+    # Define validade conforme plano mensal ou anual
+    dias_validade = 365 if novo_plano.endswith('_anual') else 30
+    settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
+
+    db.session.commit()
+
+    flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
+    return redirect(url_for('planos'))
 @app.route('/')
 def index():
     """Página inicial do aplicativo com resumo das avaliações."""
@@ -309,6 +553,28 @@ def index():
         now=datetime.now(),
         reviews=user_reviews
     )
+@app.route('/get_avaliacoes_count')
+def get_avaliacoes_count():
+    user_info = session.get('user_info')
+    if not user_info:
+        return jsonify(success=False, error="Usuário não autenticado")
+    user_id = user_info.get('id')
+    count = contar_avaliacoes_mes(user_id)
+    limite = PLANOS[get_user_plan(user_id)]['avaliacoes_mes']
+    restantes = (limite - count) if limite is not None else None
+    return jsonify(success=True, usados=count, restantes=restantes)
+
+@app.route('/get_relatorios_count')
+def get_relatorios_count():
+    user_info = session.get('user_info')
+    if not user_info:
+        return jsonify(success=False, error="Usuário não autenticado")
+    user_id = user_info.get('id')
+    count = contar_relatorios_mes(user_id)
+    limite = PLANOS[get_user_plan(user_id)]['relatorio_pdf_mes']
+    restantes = (limite - count) if limite is not None else None
+    return jsonify(success=True, usados=count, restantes=restantes)
+
 @app.context_processor
 def inject_admin_flag():
     user_info = session.get('user_info')
@@ -383,6 +649,7 @@ def quem_somos():
 
 @app.route('/relatorio', methods=['GET', 'POST'])
 @require_terms_accepted
+@require_plano_ativo
 def gerar_relatorio():
     if 'credentials' not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
@@ -398,9 +665,35 @@ def gerar_relatorio():
     if not user_settings['business_name'] or not user_settings['contact_info'] or not user_settings['terms_accepted']:
         return redirect(url_for('settings'))
 
-    if request.method == 'GET':
-        return render_template('relatorio.html')
+    plano = get_user_plan(user_id)
+    relatorio_limite = PLANOS[plano]['relatorio_pdf_mes']
 
+    # GET: Sempre mostra a página (deixe para bloquear no template)
+    if request.method == 'GET':
+        return render_template(
+            'relatorio.html',
+            PLANOS=PLANOS,
+            user_plano=plano,
+            user_settings=user_settings
+        )
+
+    # POST: Só permite gerar se o plano permitir
+    if relatorio_limite == 0:
+        flash("Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.", "warning")
+        return redirect(url_for('relatorio'))
+
+    # Conta quantos relatórios o usuário já gerou neste mês
+    if relatorio_limite is not None:  # Se não for ilimitado
+        inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        rels_mes = RelatorioHistorico.query.filter(
+            RelatorioHistorico.user_id == user_id,
+            RelatorioHistorico.data_criacao >= inicio_mes
+        ).count()
+        if rels_mes >= relatorio_limite:
+            flash(f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).", "warning")
+            return redirect(url_for('relatorio'))
+
+    # Coleta filtros do formulário
     periodo = request.form.get('periodo', '90dias')
     nota = request.form.get('nota', 'todas')
     respondida = request.form.get('respondida', 'todas')
@@ -413,21 +706,34 @@ def gerar_relatorio():
     agora = agora_brt()
     for av in avaliacoes_query:
         data_av = av.date
-        
+
+        # Consistência de timezone: tudo para America/Sao_Paulo
+        if data_av.tzinfo is None:
+            # Assume que é BRT se não tiver tzinfo
+            data_av = data_av.replace(tzinfo=agora.tzinfo)
+        else:
+            # Se já tem tzinfo, converte para BRT
+            data_av = data_av.astimezone(agora.tzinfo)
+
+        # Debug: diferença de dias para checar filtro correto
+        diff_days = (agora - data_av).days
+        print(f"[RELATÓRIO] DEBUG data_av={data_av}, agora={agora}, diff_days={diff_days}")
+
+        # Aplicando filtros
         if nota != 'todas' and str(av.rating) != nota:
             continue
         if respondida == 'sim' and not av.replied:
             continue
         if respondida == 'nao' and av.replied:
             continue
-        if periodo == '90dias' and (agora - data_av).days > 90:
+        if periodo == '90dias' and diff_days > 90:
             continue
-        if periodo == '6meses' and (agora - data_av).days > 180:
+        if periodo == '6meses' and diff_days > 180:
             continue
-        if periodo == '1ano' and (agora - data_av).days > 365:
+        if periodo == '1ano' and diff_days > 365:
             continue
         avaliacoes.append({
-            'data': av.date,
+            'data': data_av,  # <- AGORA SEMPRE TIMEZONE-AWARE!
             'nota': av.rating,
             'texto': av.text or "",
             'respondida': 1 if av.replied else 0,
@@ -475,6 +781,7 @@ def gerar_relatorio():
         print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
         flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
         return redirect(url_for('index'))
+
 @app.route('/delete_account', methods=['POST'])
 @require_terms_accepted
 def delete_account():
@@ -781,7 +1088,10 @@ def get_hiper_count():
     user_info = session.get('user_info', {})
     user_id = user_info.get('id')
     usos_hoje = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=get_data_hoje_brt()).first()
-    usos_restantes_hiper = 2 - (usos_hoje.quantidade_usos if usos_hoje else 0)
+    plano = get_user_plan(user_id)
+    hiper_limite = PLANOS[plano]['hiper_dia'] or 0
+    usos_restantes_hiper = (hiper_limite - (usos_hoje.quantidade_usos if usos_hoje else 0)) if hiper_limite else 0
+
     if usos_restantes_hiper < 0:
         usos_restantes_hiper = 0
     return jsonify({'success': True, 'usos_restantes_hiper': usos_restantes_hiper})
@@ -791,9 +1101,14 @@ def b64encode_filter(data):
         return Markup(base64.b64encode(data).decode('utf-8'))
     return ''
 def usuario_pode_usar_consideracoes(user_id):
-    hoje = get_data_hoje_brt()  # Usa a mesma função de data
+    hoje = get_data_hoje_brt()
+    plano = get_user_plan(user_id)
+    cons_limite = PLANOS[plano]['consideracoes_dia']
+    if cons_limite is None:
+        return True  # Ilimitado no Business
     uso = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-    return not uso or uso.quantidade_usos < 2
+    return not uso or uso.quantidade_usos < cons_limite
+
 
 def registrar_uso_consideracoes(user_id):
     hoje = get_data_hoje_brt()
@@ -810,8 +1125,10 @@ def get_consideracoes_count():
         return jsonify({'success': False, 'error': 'Não autenticado.'})
     user_info = session.get('user_info', {})
     user_id = user_info.get('id')
+    plano = get_user_plan(user_id)
+    cons_limite = PLANOS[plano]['consideracoes_dia'] or 0
     usos_hoje = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=get_data_hoje_brt()).first()
-    usos_restantes_consideracoes = 2 - (usos_hoje.quantidade_usos if usos_hoje else 0)
+    usos_restantes_consideracoes = (cons_limite - (usos_hoje.quantidade_usos if usos_hoje else 0)) if cons_limite else 0
     if usos_restantes_consideracoes < 0:
         usos_restantes_consideracoes = 0
     return jsonify({'success': True, 'usos_restantes_consideracoes': usos_restantes_consideracoes})
@@ -885,6 +1202,18 @@ def build_flow(state=None, redirect_uri=None):
         redirect_uri=redirect_uri or "https://comentsia.com.br/oauth2callback"
     )
 
+def ativar_ou_alterar_plano(user_id, novo_plano):
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        settings = UserSettings(user_id=user_id)
+        db.session.add(settings)  # adiciona para a sessão
+
+    settings.plano = novo_plano
+    # Define validade conforme plano mensal ou anual
+    dias_validade = 365 if novo_plano.endswith('_anual') else 30
+    settings.plano_ate = agora_brt() + timedelta(days=365)
+
+    db.session.commit()
 
 def credentials_to_dict(credentials):
     """Converte o objeto de credenciais em um dicionário serializável para a sessão."""
@@ -963,13 +1292,39 @@ def reviews():
 
 @app.route('/add_review', methods=['GET', 'POST'])
 @require_terms_accepted
+@require_plano_ativo
 def add_review():
-    """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática."""
+    """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática considerando limites do plano."""
     if 'credentials' not in session:
         return redirect(url_for('authorize'))
 
     user_info = session.get('user_info', {})
     user_id = user_info.get('id')
+
+    # Função auxiliar para limite mensal de avaliações
+    def atingiu_limite_avaliacoes_mes(user_id):
+        plano = get_user_plan(user_id)
+        limite = PLANOS[plano]['avaliacoes_mes']
+        if not limite:  # None = ilimitado
+            return False
+        inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        avals_mes = Review.query.filter(
+            Review.user_id == user_id,
+            Review.date >= inicio_mes
+        ).count()
+        return avals_mes >= limite
+
+    # Função auxiliar para hiper compreensiva
+    def usuario_pode_usar_resposta_especial_plano(user_id):
+        hoje = get_data_hoje_brt()
+        plano = get_user_plan(user_id)
+        hiper_limite = PLANOS[plano]['hiper_dia']
+        if hiper_limite is None:
+            return True  # Ilimitado no Business
+        if hiper_limite == 0:
+            return False  # Free não pode
+        uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
+        return not uso or uso.quantidade_usos < hiper_limite
 
     if request.method == 'POST':
         if not user_id:
@@ -977,17 +1332,22 @@ def add_review():
             return redirect(url_for('logout'))
 
         hiper_compreensiva = request.form.get('hiper_compreensiva') == 'on'
-        consideracoes = request.form.get('consideracoes', '').strip()  # <-- NOVO
+        consideracoes = request.form.get('consideracoes', '').strip()
 
-        if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
-            flash('Você já usou as 2 respostas hiper compreensivas permitidas hoje.', 'warning')
+        # BLOQUEIO POR PLANO - Limite de avaliações
+        if atingiu_limite_avaliacoes_mes(user_id):
+            flash("Você atingiu o limite de avaliações do seu plano este mês.", "warning")
+            return redirect(url_for('reviews'))
+
+        # BLOQUEIO POR PLANO - Resposta hiper compreensiva
+        if hiper_compreensiva and not usuario_pode_usar_resposta_especial_plano(user_id):
+            flash('Você atingiu o limite diário de respostas hiper compreensivas do seu plano.', 'warning')
             return redirect(url_for('add_review'))
 
         reviewer_name = request.form.get('reviewer_name') or request.json.get('reviewer_name', 'Cliente Anônimo')
         rating = int(request.form.get('rating') or request.json.get('rating', 5))
         text = request.form.get('text') or request.json.get('text', '')
         data = datetime.now(pytz.timezone("America/Sao_Paulo"))
-
 
         # Verifica duplicata
         existente = Review.query.filter_by(user_id=user_id, reviewer_name=reviewer_name, text=text).first()
@@ -1008,7 +1368,6 @@ def add_review():
         # Prompt base
         prompt = f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
-
 Avaliação recebida:
 - Nome do cliente: {reviewer_name}
 - Nota: {rating} estrelas
@@ -1073,7 +1432,14 @@ Instruções:
             flash('Avaliação adicionada com sucesso!', 'success')
             return redirect(url_for('reviews'))
 
-    return render_template('add_review.html', user=user_info, now=datetime.now())
+    return render_template(
+    'add_review.html',
+    user=user_info,
+    now=datetime.now(),
+    user_plano=get_user_plan(user_info.get('id') if user_info else None),
+    PLANOS=PLANOS
+    )
+
 
 
 
@@ -1108,8 +1474,9 @@ def save_reply():
 
 @app.route('/dashboard')
 @require_terms_accepted
+@require_plano_ativo
 def dashboard():
-    """Página de dashboard com análise de avaliações."""
+    """Página de dashboard com análise de avaliações, adaptada ao plano."""
     if 'credentials' not in flask.session:
         return flask.redirect(url_for('authorize'))
     
@@ -1120,6 +1487,9 @@ def dashboard():
         flash('Erro ao identificar usuário. Por favor, faça login novamente.', 'danger')
         return redirect(url_for('logout'))
     
+    # Obtém o plano do usuário
+    plano = get_user_plan(user_id)
+
     # Obtém as avaliações do usuário do banco de dados
     user_reviews = get_user_reviews(user_id)
     
@@ -1137,11 +1507,9 @@ def dashboard():
         if rating in rating_distribution:
             rating_distribution[rating] += 1
 
-    # Novo cálculo do percentual de respondidas
     responded_reviews = sum(1 for review in user_reviews if review.replied)
     percent_responded = (responded_reviews / total_reviews) * 100 if total_reviews else 0
 
-    # Aqui está o que faltava: preparar a lista de valores para o gráfico
     rating_distribution_values = [
         rating_distribution[1],
         rating_distribution[2],
@@ -1150,15 +1518,18 @@ def dashboard():
         rating_distribution[5],
     ]
     
+    # Passe também o dicionário PLANOS
     return render_template(
         'dashboard.html',
         total_reviews=total_reviews,
         avg_rating=avg_rating,
         rating_distribution=rating_distribution,
-        rating_distribution_values=rating_distribution_values,  # <- envia para o template
+        rating_distribution_values=rating_distribution_values,
         percent_responded=percent_responded,
         reviews=user_reviews,
         user=user_info,
+        user_plano=plano,
+        PLANOS=PLANOS,  # <- AQUI!
         now=datetime.now()
     )
 
