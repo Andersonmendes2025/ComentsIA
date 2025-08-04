@@ -1,5 +1,9 @@
 venv/
-.env
 __pycache__/
 *.pyc
-client_secrets.json
+*.sqlite
+*.db
+instance/
+.env
+*.log
+.DS_Store

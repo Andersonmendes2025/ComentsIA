@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-
 {% block title %}Início - ComentsIA - Gerenciador de Avaliações Google{% endblock %}
-
 {% block content %}
 <div class="container py-5">
   {% if not logged_in %}
+
     <!-- HERO -->
     <div class="text-center mb-5">
       <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" style="width:140px;" class="mb-3">
@@ -12,118 +11,114 @@
         Transforme avaliações em crescimento com IA!
       </h1>
       <p class="lead text-muted mb-4">
-        Descubra o jeito moderno, fácil e inteligente de responder, analisar e se destacar no Google.
+        Responder avaliações no Google não é mais opcional. É estratégico.
       </p>
       <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-5 py-3 fs-4 shadow">
         <i class="bi bi-google me-2"></i> Experimente grátis agora
       </a>
     </div>
 
-    <!-- PASSO 1 -->
+    <!-- BLOCO DE IMPACTO ESTATÍSTICO -->
+    <div class="card shadow border-0 mb-5 p-4" style="background: #f9faff;">
+      <h2 class="fw-bold mb-3 text-center" style="font-size:1.6rem;">✨ Oportunidade: sua reputação no Google é o novo cartão de visita</h2>
+      <ul class="list-unstyled lead text-muted mx-auto" style="max-width: 700px;">
+        <li class="mb-2">• <b>93%</b> dos consumidores esperam resposta das empresas após uma avaliação.</li>
+        <li class="mb-2">• <b>88%</b> só comprariam de empresas que respondem comentários.</li>
+        <li class="mb-2">• <span style="color:#007bff;"><b>+4,1%</b></span> de conversão para cada aumento no índice de respostas.</li>
+        <li class="mb-2">• <b>89%</b> leem as respostas antes de decidir comprar.</li>
+        <li class="mb-2">• <b>Até 9%</b> a mais de faturamento com apenas 1 estrela a mais na média.</li>
+        <li class="mb-2">• <b>63%</b> esperam resposta em até 3 dias — com a ComentsIA, você responde em minutos.</li>
+        <li class="mb-2">• Ainda assim, <b>54%</b> das empresas não respondem nenhuma avaliação.</li>
+      </ul>
+      <div class="text-center mt-3">
+        <a href="{{ url_for('planos') }}" class="btn btn-success rounded-pill fs-6 px-4 py-2 mb-2">
+          Destaque-se de verdade
+        </a><br>
+        <span class="text-muted">Empresas que respondem aparecem mais, vendem mais e são mais bem avaliadas!</span>
+      </div>
+    </div>
+
+    <!-- PASSO A PASSO COM DIFERENCIAIS COMENTSIA -->
     <div class="row align-items-center mb-5">
       <div class="col-md-6">
-        <h3 class="fw-bold mb-3">1. Centralize todas as suas avaliações</h3>
+        <h3 class="fw-bold mb-3">1. Responda avaliações em segundos, sem dúvidas ou enrolação</h3>
         <p>
-          Na ComentsIA, você cadastra manualmente todas as avaliações do Google, com nome do cliente, nota e comentário. Veja tudo cronologicamente, filtre, busque e nunca mais perca nenhuma interação.
+          <b>Com a ComentsIA, você nunca mais perde tempo pensando no que responder ou usando aquelas mensagens frias e repetitivas.</b>
+          <br>📥 Basta colar a avaliação recebida.<br>
+          🧠 A IA gera uma resposta personalizada, empática e inteligente.<br>
+          📤 Copie a resposta e publique no Google.<br>
+          <span class="text-muted">Em menos de 20 segundos, você resolveu algo que antes levava minutos (ou era ignorado).</span>
         </p>
       </div>
       <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Centralize avaliações" class="img-fluid rounded shadow">
+        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Centralize avaliações" class="img-fluid rounded shadow">
       </div>
     </div>
-    <!-- PASSO 2 -->
+
     <div class="row align-items-center mb-5 flex-md-row-reverse">
       <div class="col-md-6">
-        <h3 class="fw-bold mb-3">2. Gere respostas automáticas e inteligentes com IA</h3>
+        <h3 class="fw-bold mb-3">2. Geração automática de respostas profissionais</h3>
         <p>
-          Clique em <b>Gerar sugestão</b> e a IA cria respostas personalizadas e profissionais para você. Precisa de um texto ainda mais detalhado? Use o modo <b>Resposta hiper compreensiva</b> (exclusivo dos planos pagos).
+          Clique em <b>Gerar sugestão</b> e tenha textos únicos para cada nota, sem risco de cair na mesmice ou parecer robô.<br>
+          Use o modo <b>Resposta hiper compreensiva</b> (planos pagos) para críticas delicadas e clientes exigentes.
         </p>
       </div>
       <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Gerar resposta IA" class="img-fluid rounded shadow">
+        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Gerar resposta IA" class="img-fluid rounded shadow">
       </div>
     </div>
-    <!-- PASSO 3 -->
+
     <div class="row align-items-center mb-5">
       <div class="col-md-6">
-        <h3 class="fw-bold mb-3">3. Personalize cada resposta</h3>
+        <h3 class="fw-bold mb-3">3. Analise e melhore sua reputação</h3>
         <p>
-          Escolha o tom (profissional, amigável, empático) e, se quiser, adicione considerações ou instruções específicas para a IA deixar tudo do seu jeito.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Personalização resposta" class="img-fluid rounded shadow">
-      </div>
-    </div>
-    <!-- PASSO 4 -->
-    <div class="row align-items-center mb-5 flex-md-row-reverse">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">4. Veja e edite todas as interações</h3>
-        <p>
-          Acompanhe respostas já enviadas, saiba o que está pendente, edite ou exclua avaliações e mantenha o histórico sempre acessível.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Histórico de respostas" class="img-fluid rounded shadow">
-      </div>
-    </div>
-    <!-- PASSO 5 -->
-    <div class="row align-items-center mb-5">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">5. Analise seus resultados com o Dashboard</h3>
-        <p>
-          Visualize o total de avaliações, respondidas, sua média, gráficos de notas, avaliações recentes e análise inteligente dos principais pontos positivos e negativos.
+          Veja todas as suas avaliações organizadas, filtre por respondidas, notas e datas, visualize seu desempenho e entenda o que clientes mais elogiam e criticam.
         </p>
       </div>
       <div class="col-md-6 text-center">
         <img src="{{ url_for('static', filename='prints/dashboard.png') }}" alt="Dashboard ComentsIA" class="img-fluid rounded shadow">
       </div>
     </div>
-    <!-- PASSO 6 -->
+
     <div class="row align-items-center mb-5 flex-md-row-reverse">
       <div class="col-md-6">
-        <h3 class="fw-bold mb-3">6. Gere relatórios profissionais em PDF</h3>
+        <h3 class="fw-bold mb-3">4. Relatórios em PDF prontos para impressionar</h3>
         <p>
-          Crie relatórios completos com gráficos, análise de elogios e críticas, prontos para apresentar à equipe, sócios ou parceiros.
+          Gere relatórios completos com gráficos e análises inteligentes, perfeitos para reuniões, sócios ou acompanhamento mensal.
         </p>
       </div>
       <div class="col-md-6 text-center">
         <img src="{{ url_for('static', filename='prints/relatorios.png') }}" alt="Relatórios PDF" class="img-fluid rounded shadow">
       </div>
     </div>
-    <!-- PASSO 7 -->
+
     <div class="row align-items-center mb-5">
       <div class="col-md-6">
-        <h3 class="fw-bold mb-3">7. Configuração fácil e personalização da marca</h3>
+        <h3 class="fw-bold mb-3">5. Tudo personalizável, rápido e fácil</h3>
         <p>
-          No primeiro acesso, personalize com nome, gerente, contatos, logo e mensagens padrão. Tudo fica com a identidade da sua empresa.
+          No primeiro acesso, personalize nome, contatos, logo e mensagens padrão. Tudo pronto para sua marca se destacar.
         </p>
       </div>
       <div class="col-md-6 text-center">
         <img src="{{ url_for('static', filename='prints/configuracao.png') }}" alt="Configuração personalizada" class="img-fluid rounded shadow">
       </div>
     </div>
-    <!-- PASSO 8 -->
-    <div class="row align-items-center mb-5 flex-md-row-reverse">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">8. Relatórios completos e suporte fácil</h3>
-        <p>
-          Todos os dados e relatórios ficam seguros na sua conta. E nosso suporte está sempre pronto para ajudar você.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/relatorios.png') }}" alt="Suporte ComentsIA" class="img-fluid rounded shadow">
-      </div>
-    </div>
 
+    <!-- CHAMADA FINAL -->
     <div class="text-center mt-5">
-      <a href="{{ url_for('authorize') }}" class="btn btn-lg btn-primary px-5 py-3 fs-4 shadow">
+      <div class="mb-4">
+        <span class="fs-5 text-primary fw-bold">🎯 Chega de dúvidas, respostas genéricas e tempo perdido.</span><br>
+        <span class="fs-5">Com a ComentsIA, responder e analisar avaliações nunca foi tão fácil.</span>
+      </div>
+      <a href="{{ url_for('authorize') }}" class="btn btn-lg btn-primary px-5 py-3 fs-4 shadow mb-3">
         <i class="bi bi-google me-2"></i> Experimente grátis agora
       </a>
-      <p class="text-muted mt-3 mb-0">
-        Experimente agora a ComentsIA e leve seu atendimento para outro nível.
-      </p>
+      <div class="text-muted mt-2 mb-2 fs-6">
+        ✅ Geração de respostas com IA • ✅ Relatórios inteligentes • ✅ Versão gratuita sem complicações
+      </div>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4">🔵 Conheça os planos</a>
     </div>
+
   {% else %}
     <!-- VERSÃO LOGADO (igual já estava) -->
     <div class="row justify-content-center">
