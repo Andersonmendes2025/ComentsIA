@@ -41,6 +41,8 @@ from email_utils import montar_email_boas_vindas, enviar_email
 from models import RespostaEspecialUso
 from flask import request, flash
 from models import ConsideracoesUso
+from utils.crypto import encrypt, decrypt
+
 # Configuração do aplicativo Flask
 # Inicializar o Flask
 
@@ -324,19 +326,32 @@ def get_user_reviews(user_id):
 
 def get_user_settings(user_id):
     """Obtém as configurações de um usuário do banco de dados."""
+    from utils.crypto import decrypt
+
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if settings:
-        return {
-            'business_name': settings.business_name or '',
-            'default_greeting': settings.default_greeting or 'Olá,',
-            'default_closing': settings.default_closing or 'Agradecemos seu feedback!',
-            'contact_info': settings.contact_info or 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
-            'terms_accepted': settings.terms_accepted if settings else False,
-            'logo': settings.logo if settings else None,
-            'manager_name': settings.manager_name or ''if settings else None,
-        }
+        try:
+            return {
+                'business_name': decrypt(settings.business_name) if settings.business_name else '',
+                'default_greeting': settings.default_greeting or 'Olá,',
+                'default_closing': settings.default_closing or 'Agradecemos seu feedback!',
+                'contact_info': decrypt(settings.contact_info) if settings.contact_info else 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com',
+                'terms_accepted': settings.terms_accepted,
+                'logo': settings.logo,
+                'manager_name': decrypt(settings.manager_name) if settings.manager_name else ''
+            }
+        except Exception as e:
+            print(f"[⚠️ ERRO de descriptografia]: {e}")
+            return {
+                'business_name': '',
+                'default_greeting': 'Olá,',
+                'default_closing': 'Agradecemos seu feedback!',
+                'contact_info': '',
+                'terms_accepted': False,
+                'logo': None,
+                'manager_name': ''
+            }
     else:
-        # Retorna configurações padrão se não existirem
         return {
             'business_name': '',
             'default_greeting': 'Olá,',
@@ -347,36 +362,43 @@ def get_user_settings(user_id):
             'manager_name': ''
         }
 
+
 def save_user_settings(user_id, settings_data):
+    from utils.crypto import encrypt  # garante que está visível mesmo se estiver fora do escopo
+
     # Converter checkbox/string em booleano de verdade:
     terms_accepted_raw = settings_data.get('terms_accepted')
     terms_accepted = terms_accepted_raw in [True, 'on', 'true', 'True', 1, '1']
 
+    # Criptografar campos sensíveis
+    encrypted_name = encrypt(settings_data.get('business_name', ''))
+    encrypted_contact = encrypt(settings_data.get('contact_info', ''))
+    encrypted_manager = encrypt(settings_data.get('manager_name', ''))
+
     existing = UserSettings.query.filter_by(user_id=user_id).first()
     if existing:
-        existing.business_name = settings_data.get('business_name', '')
+        existing.business_name = encrypted_name
         existing.default_greeting = settings_data.get('default_greeting', 'Olá,')
         existing.default_closing = settings_data.get('default_closing', 'Agradecemos seu feedback!')
-        existing.contact_info = settings_data.get('contact_info', 'Entre em contato...')
+        existing.contact_info = encrypted_contact
         existing.terms_accepted = terms_accepted
-        existing.manager_name = settings_data.get('manager_name', '')
+        existing.manager_name = encrypted_manager
         # Só atualiza logo se veio nova
         if settings_data.get('logo'):
             existing.logo = settings_data['logo']
     else:
         new_settings = UserSettings(
             user_id=user_id,
-            business_name=settings_data.get('business_name', ''),
+            business_name=encrypted_name,
             default_greeting=settings_data.get('default_greeting', 'Olá,'),
             default_closing=settings_data.get('default_closing', 'Agradecemos seu feedback!'),
-            contact_info=settings_data.get('contact_info', ''),
+            contact_info=encrypted_contact,
             terms_accepted=terms_accepted,
             logo=settings_data.get('logo'),
-            manager_name=settings_data.get('manager_name', '')
+            manager_name=encrypted_manager
         )
         db.session.add(new_settings)
     db.session.commit()
-from flask import url_for
 
 def montar_email_boas_vindas(nome_do_usuario):
     logo_url = url_for('static', filename='logo-symbol.png', _external=True)
