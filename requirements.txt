@@ -20,4 +20,4 @@ flask-migrate
 pillow
 cryptography
 flask-limiter
-"sentry-sdk[flask]"
+sentry-sdk[flask]
