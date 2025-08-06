@@ -1,0 +1,3 @@
+User-agent: *
+Disallow:
+Sitemap: https://comentsia.com.br/sitemap.xml
