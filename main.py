@@ -42,6 +42,19 @@ from models import RespostaEspecialUso
 from flask import request, flash
 from models import ConsideracoesUso
 from utils.crypto import encrypt, decrypt
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask import g
+from flask import jsonify
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[FlaskIntegration()],
+    send_default_pii=True,  # Inclui IP, user-agent e cabeçalhos
+    traces_sample_rate=1.0  # Pode reduzir para 0.1 se quiser menos dados de performance
+)
 
 # Configuração do aplicativo Flask
 # Inicializar o Flask
@@ -159,7 +172,11 @@ API_VERSION = 'v4'
 
 from collections import Counter
 import numpy as np
-
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]  # Exemplo: 200 por dia / 50 por hora
+)
 # Função para identificar palavras-chave nas avaliações
 def agora_brt():
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
@@ -186,6 +203,19 @@ PLANO_EQUIVALENTES = {
     'pro': ['pro', 'pro_anual'],
     'business': ['business', 'business_anual']
 }
+
+def get_user_or_ip():
+    user_info = session.get('user_info')
+    if user_info and user_info.get('id'):
+        return f"user:{user_info['id']}"
+    return get_remote_address()
+
+limiter = Limiter(
+    key_func=get_user_or_ip,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
+
 def is_pro(user_id):
     return get_user_plan(user_id) in PLANO_EQUIVALENTES['pro']
 
@@ -445,6 +475,9 @@ def montar_email_boas_vindas(nome_do_usuario):
     <p style='margin-top: 28px; font-weight: bold;'>Seja muito bem-vindo!<br>
     Equipe ComentsIA</p>
     """
+@app.route("/erro-sentry")
+def erro_sentry():
+    1 / 0  # Força um erro
 
 @app.context_processor
 def inject_logged_user():
@@ -585,6 +618,13 @@ def get_avaliacoes_count():
     limite = PLANOS[get_user_plan(user_id)]['avaliacoes_mes']
     restantes = (limite - count) if limite is not None else None
     return jsonify(success=True, usados=count, restantes=restantes)
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    if request.accept_mimetypes.accept_json:
+        return jsonify(error="Você está fazendo requisições rápidas demais. Tente novamente em instantes."), 429
+    flash("Você está fazendo ações rápidas demais. Aguarde um pouco e tente novamente.", "warning")
+    return redirect(request.referrer or url_for('index')), 429
 
 @app.route('/get_relatorios_count')
 def get_relatorios_count():
@@ -1104,6 +1144,7 @@ def formatar_data_brt(data):
     return ''
 
 @app.route('/get_hiper_count')
+@limiter.limit("10 per minute")
 def get_hiper_count():
     if 'credentials' not in session:
         return jsonify({'success': False, 'error': 'Não autenticado.'})
@@ -1142,6 +1183,7 @@ def registrar_uso_consideracoes(user_id):
         uso.quantidade_usos += 1
     db.session.commit()
 @app.route('/get_consideracoes_count')
+@limiter.limit("10 per minute")
 def get_consideracoes_count():
     if 'credentials' not in session:
         return jsonify({'success': False, 'error': 'Não autenticado.'})
@@ -1288,6 +1330,7 @@ def logout():
     return flask.redirect(url_for('index'))
 
 @app.route('/reviews')
+@limiter.limit("5 per minute")
 @require_terms_accepted
 def reviews():
     """Página de visualização e gerenciamento de avaliações."""
@@ -1313,6 +1356,7 @@ def reviews():
     return render_template('reviews.html', reviews=user_reviews, user=user_info, now=datetime.now())
 
 @app.route('/add_review', methods=['GET', 'POST'])
+@limiter.limit("15 per minute")
 @require_terms_accepted
 @require_plano_ativo
 def add_review():
@@ -1466,6 +1510,7 @@ Instruções:
 
 
 @app.route('/save_reply', methods=['POST'])
+@limiter.limit("10 per minute")
 def save_reply():
     """Salva a resposta para uma avaliação no banco de dados."""
     if 'credentials' not in flask.session:
