@@ -44,6 +44,7 @@ from models import ConsideracoesUso
 from utils.crypto import encrypt, decrypt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from redis import from_url
 from flask import g
 from flask import jsonify
 import sentry_sdk
@@ -172,8 +173,10 @@ API_VERSION = 'v4'
 
 from collections import Counter
 import numpy as np
+redis_url = os.getenv("REDIS_URL")
 limiter = Limiter(
     get_remote_address,
+    storage_uri=redis_url,
     app=app,
     default_limits=["200 per day", "50 per hour"]  # Exemplo: 200 por dia / 50 por hora
 )
@@ -1750,6 +1753,10 @@ def logo():
         ext = 'png'  # ou verifique o tipo
         return f'data:image/{ext};base64,' + base64.b64encode(settings.logo).decode()
     return ""
+@app.route("/teste-limite")
+@limiter.limit("5 per minute")
+def teste_limite():
+    return "Acesso liberado!"
 
 @app.route('/apply_template', methods=['POST'])
 def apply_template():
