@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-FERNET_KEY = os.getenv("FERNET_KEY")
+with open("/etc/secrets/fernet_key", "rb") as f:
+    FERNET_KEY = f.read().strip()
 fernet = Fernet(FERNET_KEY)
 
 def encrypt(text):
