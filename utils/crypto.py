@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-with open("/etc/secrets/fernet_key", "rb") as f:
+with open("/etc/secrets/encryption_key", "rb") as f:
     FERNET_KEY = f.read().strip()
 fernet = Fernet(FERNET_KEY)
 
