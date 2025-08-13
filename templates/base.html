@@ -9,6 +9,7 @@
     gtag('js', new Date());
     gtag('config', 'G-QN1FEB1YJT');
   </script>
+
   <meta charset="UTF-8" />
   <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,28 +22,62 @@
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 
   {% block extra_head %}{% endblock %}
+
   <style>
-  .footer-comentsia { background: #f8f9fb; border-top: 2px solid #e4e8f2; margin-top: 50px; padding-top: 22px; padding-bottom: 14px; font-size: 1.05rem; color: #444; letter-spacing: 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.03);}
-  .footer-content { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;}
-  .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 7px;}
-  .footer-logo { width: 40px; border-radius: 9px; box-shadow: 0 0 10px #e3e7fb;}
-  .footer-secure { font-size: 1.01rem; color: #129d47; font-weight: 500; margin-left: 5px; letter-spacing: 0;}
-  .footer-links { display: flex; gap: 20px; margin-bottom: 3px; flex-wrap: wrap; justify-content: center;}
-  .footer-links a { color: #222; text-decoration: none; transition: color 0.18s;}
-  .footer-links a:hover { color: #007bff; text-decoration: underline;}
-  .footer-links i { margin-right: 5px;}
-  .footer-pags { margin-bottom: 3px;}
-  .footer-pags a { color: #006fd8; text-decoration: none; font-weight: 500; margin: 0 3px; transition: color 0.18s;}
-  .footer-pags a:hover { color: #007bff; text-decoration: underline;}
-  .footer-dot { color: #b1b7c6; margin: 0 6px;}
-  .footer-copy { font-size: 0.98rem; color: #888; margin-top: 4px;}
-  @media (max-width: 640px) {
+    .footer-comentsia { background: #f8f9fb; border-top: 2px solid #e4e8f2; margin-top: 50px; padding-top: 22px; padding-bottom: 14px; font-size: 1.05rem; color: #444; letter-spacing: 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.03);}
+    .footer-content { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;}
+    .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 7px;}
+    .footer-logo { width: 40px; border-radius: 9px; box-shadow: 0 0 10px #e3e7fb;}
+    .footer-secure { font-size: 1.01rem; color: #129d47; font-weight: 500; margin-left: 5px; letter-spacing: 0;}
+    .footer-links { display: flex; gap: 20px; margin-bottom: 3px; flex-wrap: wrap; justify-content: center;}
+    .footer-links a { color: #222; text-decoration: none; transition: color 0.18s;}
+    .footer-links a:hover { color: #007bff; text-decoration: underline;}
+    .footer-links i { margin-right: 5px;}
+    .footer-pags { margin-bottom: 3px;}
+    .footer-pags a { color: #006fd8; text-decoration: none; font-weight: 500; margin: 0 3px; transition: color 0.18s;}
+    .footer-pags a:hover { color: #007bff; text-decoration: underline;}
+    .footer-dot { color: #b1b7c6; margin: 0 6px;}
+    .footer-copy { font-size: 0.98rem; color: #888; margin-top: 4px;}
+    @media (max-width: 640px) {
       .footer-content { padding: 0 2vw; }
       .footer-brand { flex-direction: column; gap: 2px; }
       .footer-logo { width: 32px; }
       .footer-links { gap: 9px; font-size: 0.99rem; }
       .footer-pags { font-size: 0.98rem; }
-  }
+    }
+
+    /* Banner de aviso (visualizando filial) */
+    .filial-banner {
+      background: #fff3cd;
+      border-bottom: 1px solid #ffe69c;
+      color: #664d03;
+    }
+    .filial-badge {
+      background: #ffd24d;
+      color: #664d03;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-weight: 600;
+      font-size: .9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .filial-back-btn {
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    /* Modo escuro básico (assumindo que style.css tenha o restante) */
+    body.dark .filial-banner {
+      background: #3b3a2c;
+      border-color: #5a552d;
+      color: #f6e7b2;
+    }
+    body.dark .filial-badge {
+      background: #8a7a39;
+      color: #fffbe6;
+    }
   </style>
 </head>
 <body>
@@ -54,13 +89,24 @@
         <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo" width="32" height="32">
         <span class="fw-semibold text-primary">ComentsIA</span>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Alternar navegação">
         <span class="navbar-toggler-icon"></span>
       </button>
+
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <!-- Só mostra para logados -->
           {% if logged_in %}
+          {% if convites_pendentes %}
+            <li class="nav-item position-relative">
+              <a class="nav-link text-warning" href="{{ url_for('matriz.ver_convites') }}">
+                <i class="bi bi-bell-fill"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                  {{ convites_pendentes|length }}
+                </span>
+              </a>
+            </li>
+          {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
             </li>
@@ -71,67 +117,108 @@
               <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('gerar_relatorio') }}">
-                <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios
-              </a>
+              <a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a>
             </li>
           {% endif %}
-          <!-- Planos sempre aparece -->
+
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('planos') }}">
-              <i class="bi bi-card-list me-1"></i> Planos
-            </a>
+            <a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a>
           </li>
-          <!-- Quem Somos sempre aparece -->
+
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('quem_somos') }}">
-              <i class="bi bi-people me-1"></i> Quem Somos
-            </a>
+            <a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a>
           </li>
+
           {% if is_admin %}
-          <li class="nav-item">
-            <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}">
-              <i class="bi bi-shield-lock-fill me-1"></i> Admin
-            </a>
-          </li>
+            <li class="nav-item">
+              <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-shield-lock-fill me-1"></i> Admin</a>
+            </li>
           {% endif %}
+              {% if logged_in %}
+              <li class="nav-item">
+                <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
+                  <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
+                </a>
+              </li>
+            {% endif %}
         </ul>
-        <div class="d-flex align-items-center">
-          <button class="btn btn-sm theme-toggle me-2" onclick="toggleTheme()" title="Alternar tema">
+        <div class="d-flex align-items-center gap-2">
+          <!-- Botão voltar para a matriz na NAVBAR quando visualizando uma filial -->
+          {% if viewing_filial %}
+            <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
+              <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+            </a>
+          {% endif %}
+
+          <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
             <i class="bi bi-moon-stars-fill"></i>
           </button>
+
           {% if logged_in %}
-          <div class="dropdown">
-            <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
-              <span class="small fw-semibold">{{ user.name }}</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-              <li>
-                <a class="dropdown-item" href="{{ url_for('settings') }}">
-                  <i class="bi bi-gear"></i> Configurações
-                </a>
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
-                  <i class="bi bi-trash"></i> Apagar minha conta
-                </a>
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li>
-                <a class="dropdown-item" href="{{ url_for('logout') }}">
-                  <i class="bi bi-box-arrow-right"></i> Sair
-                </a>
-              </li>
-            </ul>
-          </div>
+            <div class="dropdown">
+              <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                {% if viewing_filial %}
+                  <span class="small fw-semibold">Filial: {{ filial_name }}</span>
+                {% else %}
+                  <span class="small fw-semibold">{{ user.name }}</span>
+                {% endif %}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                {% if viewing_filial %}
+                  <li>
+                    <a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}">
+                      <i class="bi bi-arrow-return-left"></i> Voltar para a matriz
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                {% endif %}
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('settings') }}">
+                    <i class="bi bi-gear"></i> Configurações
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
+                    <i class="bi bi-trash"></i> Apagar minha conta
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('logout') }}">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                  </a>
+                </li>
+              </ul>
+            </div>
           {% else %}
-          <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
+            <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
           {% endif %}
         </div>
       </div>
     </div>
   </nav>
+
+  <!-- Banner de aviso fixo quando visualizando filial (mobile + desktop) -->
+  {% if viewing_filial %}
+  <div class="filial-banner py-2">
+    <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="filial-badge">
+          <i class="bi bi-building"></i> Filial
+        </span>
+        <span class="fw-semibold">
+          Você está visualizando a filial: <span class="text-decoration-underline">{{ filial_name }}</span>
+        </span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-warning btn-sm filial-back-btn">
+          <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Conteúdo principal -->
   <main class="py-4">
@@ -203,7 +290,7 @@
     </div>
   </div>
 
-  <!-- Scripts Bootstrap e suas funções -->
+  <!-- Scripts Bootstrap e funções -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     // Tema claro/escuro
@@ -213,21 +300,23 @@
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     }
+
     // Toast moderno
     function showToast(mensagem, tipo = 'success') {
-      const toast = new bootstrap.Toast(document.getElementById('toast-alert'));
       const toastEl = document.getElementById('toast-alert');
       const toastMsg = document.getElementById('toast-message');
-      toastEl.classList.remove('bg-success', 'bg-danger', 'toast-info');
+      toastEl.classList.remove('bg-success', 'bg-danger', 'toast-info', 'bg-info', 'bg-warning');
       if (tipo === 'info') {
-        toastEl.classList.add('toast-info');
+        toastEl.classList.add('bg-info');
       } else if (tipo === 'danger') {
         toastEl.classList.add('bg-danger');
+      } else if (tipo === 'warning') {
+        toastEl.classList.add('bg-warning');
       } else {
         toastEl.classList.add('bg-success');
       }
       toastMsg.innerHTML = mensagem;
-      toast.show();
+      new bootstrap.Toast(toastEl).show();
     }
 
     // Toast Persistente (para "Excluindo conta...", "Salvando...", etc)
@@ -277,7 +366,7 @@
               window.location = '/';
             } else {
               removePersistentToast(toastId);
-              showToast('Erro ao apagar conta: ' + data.error, 'danger');
+              showToast('Erro ao apagar conta: ' + (data.error || 'Tente novamente.'), 'danger');
             }
           })
           .catch(() => {
@@ -304,5 +393,17 @@
     };
   </script>
   {% block extra_scripts %}{% endblock %}
+  {% if viewing_filial %}
+<div id="filial-alert" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+  <div class="toast show text-dark bg-warning shadow border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex align-items-center p-3">
+      <div class="me-auto">
+        <strong>📍 Filial:</strong> {{ filial_name or 'Filial' }}
+      </div>
+      <a href="{{ matriz_back_url }}" class="btn btn-sm btn-dark ms-3">Matriz</a>
+    </div>
+  </div>
+</div>
+{% endif %}
 </body>
 </html>

@@ -1,0 +1,38 @@
+<!-- templates/convites.html -->
+{% extends "base.html" %}
+
+{% block title %}Convites Recebidos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4"><i class="bi bi-bell-fill me-2 text-warning"></i> Convites de Filiais</h3>
+
+  {% if convites %}
+    <div class="list-group">
+      {% for convite in convites %}
+        <div class="list-group-item d-flex justify-content-between align-items-center flex-column flex-md-row">
+          <!-- Informação da matriz -->
+          <div class="text-start">
+            <strong>{{ convite.parent_user.email }}</strong><br>
+            {% if convite.data_convite %}
+              <span class="text-muted small">Convite enviado em {{ convite.data_convite.strftime('%d/%m/%Y às %H:%M') }}</span>
+            {% else %}
+              <span class="text-muted small text-danger">Data de convite não disponível</span>
+            {% endif %}
+          </div>
+
+          <!-- Botões de ação -->
+          <div class="mt-2 mt-md-0 text-md-end">
+            <a href="{{ url_for('matriz.aceitar_convite', vinculo_id=convite.id) }}" class="btn btn-sm btn-success me-2">Aceitar</a>
+            <a href="{{ url_for('matriz.recusar_convite', vinculo_id=convite.id) }}" class="btn btn-sm btn-outline-danger">Recusar</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      Você não possui convites pendentes no momento.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

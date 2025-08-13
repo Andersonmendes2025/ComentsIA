@@ -27,6 +27,8 @@ from relatorio import RelatorioAvaliacoes
 import io
 import pandas as pd
 from flask import send_file
+from flask_login import LoginManager
+from models import db, Review, UserSettings, RelatorioHistorico, FilialVinculo
 
 current_date = datetime.now().strftime("%d/%m/%Y")
 from sqlalchemy import func
@@ -183,6 +185,8 @@ API_VERSION = "v4"
 
 from collections import Counter
 import numpy as np
+from matriz import matriz_bp
+app.register_blueprint(matriz_bp)
 
 redis_url = os.getenv("REDIS_URL")
 limiter = Limiter(
@@ -542,6 +546,64 @@ def montar_email_boas_vindas(nome_do_usuario):
 @app.route("/erro-sentry")
 def erro_sentry():
     1 / 0  # Força um erro
+from flask import session, url_for
+from models import UserSettings
+from utils.crypto import decrypt
+
+@app.context_processor
+def inject_vars():
+    convites = []
+    user_info = session.get("user_info")
+    viewing_filial = False
+    filial_name = ""
+    matriz_back_url = None
+
+    if user_info:
+        user_id = user_info.get("id")
+        convites = FilialVinculo.query.filter_by(child_user_id=user_id, status="pendente").all()
+
+        if "orig_user_info" in session:
+            viewing_filial = True
+            filial_id = user_id
+            filial_settings = UserSettings.query.filter_by(user_id=filial_id).first()
+            if filial_settings and filial_settings.business_name:
+                try:
+                    filial_name = decrypt(filial_settings.business_name)
+                except Exception:
+                    filial_name = "[Erro ao descriptografar]"
+            matriz_back_url = url_for("matriz.sair_filial")
+
+    return dict(
+        convites_pendentes=convites,
+        viewing_filial=viewing_filial,
+        filial_name=filial_name,
+        matriz_back_url=matriz_back_url,
+    )
+
+@app.context_processor
+def inject_filial_context():
+    user_info = session.get("user_info")
+    viewing_filial = False
+    filial_name = None
+    matriz_back_url = url_for("matriz.sair_filial")  # rota correta
+
+    if "orig_user_info" in session and user_info:
+        viewing_filial = True
+        filial_id = user_info.get("id")
+
+        # Tenta buscar nome da empresa (filial)
+        filial_settings = UserSettings.query.filter_by(user_id=filial_id).first()
+        if filial_settings and filial_settings.business_name:
+            try:
+                filial_name = decrypt(filial_settings.business_name)
+            except Exception:
+                filial_name = "[Erro ao descriptografar]"
+
+    return dict(
+        viewing_filial=viewing_filial,
+        filial_name=filial_name,
+        matriz_back_url=matriz_back_url
+    )
 
 
 @app.context_processor
@@ -561,6 +623,13 @@ def inject_plan_helpers():
 
     return dict(is_pro_plan=is_pro_plan, is_business_plan=is_business_plan)
 
+@app.context_processor
+def inject_filial_context():
+    return {
+        'viewing_filial': session.get('filial_de') is not None,
+        'filial_name': session.get('filial_name', ''),
+        'matriz_back_url': url_for('matriz.matriz_sair_da_filial') if session.get('filial_de') else None
+    }
 
 @app.route("/planos", methods=["GET", "POST"])
 def planos():

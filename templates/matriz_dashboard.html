@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}Matriz - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Métricas da Matriz -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header"><strong>Matriz - Métricas</strong></div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="text-muted small">Total de avaliações</div>
+          <div class="h5">{{ matriz_metrics.total_reviews }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Nota média</div>
+          <div class="h5">{{ matriz_metrics.avg_rating }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Taxa de resposta</div>
+          <div class="h5">{{ matriz_metrics.response_rate }}%</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted small">Última avaliação</div>
+          <div class="h6">
+            {% if matriz_metrics.last_review_at %}
+              {{ matriz_metrics.last_review_at|formatar_data_brt }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Título e botão -->
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">Dashboard da Matriz</h3>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalVincular">
+      Vincular nova filial
+    </button>
+  </div>
+
+  <!-- Métricas agregadas das Filiais -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card stat-card text-white shadow-sm
+          {% if aggregate.avg_rating >= 4 %}
+            bg-success
+          {% elif aggregate.avg_rating >= 2.5 %}
+            bg-warning
+          {% else %}
+            bg-danger
+          {% endif %}">
+        <div class="card-body">
+          <div class="text-muted small">Total de avaliações (Filiais)</div>
+          <div class="h4 mb-0">{{ aggregate.total_reviews if aggregate else 0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card stat-card text-white shadow-sm
+          {% if aggregate.avg_rating >= 4 %}
+            bg-success
+          {% elif aggregate.avg_rating >= 2.5 %}
+            bg-warning
+          {% else %}
+            bg-danger
+          {% endif %}">
+        <div class="card-body">
+          <div class="text-muted small">Média ponderada</div>
+          <div class="h4 mb-0">{{ aggregate.avg_rating if aggregate else 0.0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card stat-card text-white shadow-sm bg-info">
+        <div class="card-body">
+          <div class="text-muted small">Taxa de resposta</div>
+          <div class="h4 mb-0">{{ aggregate.response_rate if aggregate else 0.0 }}%</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card stat-card text-white shadow-sm bg-primary">
+        <div class="card-body">
+          <div class="text-muted small">Última avaliação</div>
+          <div class="h6 mb-0">
+            {% if aggregate and aggregate.last_review_at %}
+              {{ aggregate.last_review_at|formatar_data_brt }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Filiais -->
+  <div class="card shadow-sm">
+    <div class="card-header">
+      <strong>Filiais vinculadas</strong>
+    </div>
+    <div class="card-body p-0">
+      {% if filiais and filiais|length > 0 %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 40%;">Filial</th>
+              <th class="text-center">Avaliações</th>
+              <th class="text-center">Média</th>
+              <th class="text-center">Respondidas</th>
+              <th class="text-center">Taxa de Resposta</th>
+              <th class="text-end" style="width: 180px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for f in filiais %}
+          <tr class="{% if f.metrics.avg_rating >= 4 %}table-success{% elif f.metrics.avg_rating >= 2.5 %}table-warning{% else %}table-danger{% endif %}">
+            <td>{{ f.display_name }}</td>
+            <td class="text-center">{{ f.metrics.total_reviews }}</td>
+            <td class="text-center">{{ f.metrics.avg_rating }}</td>
+            <td class="text-center">{{ f.metrics.responded }}</td>
+            <td class="text-center">{{ f.metrics.response_rate }}%</td>
+            <td class="text-end">
+              <button class="btn btn-outline-primary btn-sm" onclick="gerarAnaliseIA('{{ f.user_id }}')">
+                <i class="bi bi-robot"></i> IA
+              </button>
+              <button class="btn btn-outline-danger btn-sm ms-1" onclick="desvincularFilial('{{ f.user_id }}')">
+                Desvincular
+              </button>
+            </td>
+          </tr>
+          <tr id="analise-{{ f.user_id }}" style="display: none;">
+            <td colspan="6">
+              <div class="card border-primary shadow-sm mt-2">
+                <div class="card-body">
+                  <div id="analise-conteudo-{{ f.user_id }}">
+                    <div class="text-center text-muted">
+                      <div class="spinner-border text-primary" role="status"></div>
+                      <p class="mt-2">🔄 Gerando análise com IA...</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+        </table>
+      </div>
+      {% else %}
+        <div class="p-3 text-muted">Nenhuma filial vinculada ainda.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Vincular -->
+<div class="modal fade" id="modalVincular" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" onsubmit="return vincularFilial(event)">
+      <div class="modal-header">
+        <h5 class="modal-title">Vincular nova filial</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">ID/E-mail da filial</label>
+        <input type="text" name="child_user_id" id="child_user_id" class="form-control" placeholder="email@empresa.com" required>
+        <div class="form-text">A conta da filial já deve existir para ser vinculada.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Vincular</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+  <div id="toastMsg" class="toast align-items-center text-white bg-primary border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toastText">Ação executada.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function vincularFilial(e) {
+    e.preventDefault();
+    const id = document.getElementById('child_user_id').value.trim();
+    if (!id) return false;
+
+    const formData = new FormData();
+    formData.append('child_user_id', id);
+
+    const resp = await fetch('{{ url_for("matriz.vincular_filial") }}', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await resp.json();
+    showToast(data.message || data.error || 'OK', resp.ok ? 'success' : 'danger');
+
+    if (data.success) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('modalVincular'));
+      modal && modal.hide();
+      setTimeout(() => location.reload(), 600);
+    }
+    return false;
+  }
+
+  async function desvincularFilial(childId) {
+    if (!confirm('Desvincular esta filial?')) return;
+
+    const formData = new FormData();
+    formData.append('child_user_id', childId);
+
+    const resp = await fetch('{{ url_for("matriz.desvincular_filial") }}', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await resp.json();
+    showToast(data.message || data.error || 'OK', resp.ok ? 'success' : 'danger');
+    if (data.success) setTimeout(() => location.reload(), 600);
+  }
+
+  function showToast(text, theme) {
+    const toastEl = document.getElementById('toastMsg');
+    const toastText = document.getElementById('toastText');
+    toastText.textContent = text;
+    toastEl.classList.remove('bg-primary', 'bg-danger', 'bg-success');
+    toastEl.classList.add(theme === 'danger' ? 'bg-danger' : (theme === 'success' ? 'bg-success' : 'bg-primary'));
+    new bootstrap.Toast(toastEl).show();
+  }
+  async function gerarAnaliseIA(filialId) {
+  const linhaAnalise = document.getElementById(`analise-${filialId}`);
+  const conteudoAnalise = document.getElementById(`analise-conteudo-${filialId}`);
+
+  // Alternar visibilidade
+  const isVisible = linhaAnalise.style.display === "table-row";
+  if (isVisible) {
+    linhaAnalise.style.display = "none";
+    return;
+  }
+
+  // Mostra o card com "gerando..."
+  linhaAnalise.style.display = "table-row";
+  conteudoAnalise.innerHTML = `
+    <div class="text-center text-muted">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2">🔄 Gerando análise com IA...</p>
+    </div>
+  `;
+
+  try {
+    const resp = await fetch(`/matriz/analyze_reviews?filial_id=${filialId}`, {
+      method: "POST",
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      const texto = data.analysis || data.raw_analysis || "Análise indisponível.";
+      conteudoAnalise.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="text-primary"><i class="bi bi-graph-up-arrow me-2"></i>Análise da Filial</h5>
+          <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('analise-${filialId}').style.display='none'">↩️ Esconder</button>
+        </div>
+        <div style="white-space: pre-wrap; max-width: 100%; overflow-x: auto;" class="bg-light p-3 rounded border">
+          ${texto}
+        </div>
+      `;
+    } else {
+      conteudoAnalise.innerHTML = `<p class="text-danger">Erro: ${data.error || 'Erro inesperado.'}</p>`;
+    }
+  } catch (error) {
+    conteudoAnalise.innerHTML = `<p class="text-danger">Erro ao gerar análise.</p>`;
+  }
+}
+</script>
+{% endblock %}
