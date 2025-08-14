@@ -273,7 +273,7 @@ def desvincular_filial():
         return jsonify(success=False, error="Não autenticado."), 401
 
     parent_id = get_current_user_id()
-    child_id = request.form.get("child_user_id", "").strip()
+    child_id = request.form.get("child_user_id", "").strip().lower()
 
     if not child_id:
         return jsonify(success=False, error="Informe o ID da filial."), 400
