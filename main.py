@@ -11,6 +11,7 @@ from flask import (
     jsonify,
     flash,
 )
+from models import User
 from datetime import datetime
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
@@ -1434,9 +1435,11 @@ def get_consideracoes_count():
     )
 
 
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 @app.route("/oauth2callback")
 def oauth2callback():
-    # Tenta recuperar o estado da sessão com segurança
+    # 1) Estado / fluxo OAuth
     state = session.get("state")
     if not state:
         flash("Sessão inválida. Por favor, inicie o login novamente.", "danger")
@@ -1455,25 +1458,47 @@ def oauth2callback():
     credentials = flow.credentials
     session["credentials"] = credentials_to_dict(credentials)
 
+    # 2) Informações do usuário (Google)
     try:
         user_info = get_user_info(credentials)
     except Exception as e:
         flash(f"Erro ao obter informações do usuário: {e}", "danger")
         return redirect(url_for("logout"))
 
-    if not user_info.get("id"):
-        flash(
-            "Erro: não foi possível identificar o usuário. Verifique as permissões concedidas.",
-            "danger",
-        )
+    user_email = user_info.get("email", "").strip().lower()
+    user_name = user_info.get("name", "").strip()
+    user_picture = user_info.get("picture", "")
+    user_id = user_email  # Usamos o e-mail como ID fixo
+
+    print("ID do usuário autenticado (normalizado):", user_id)
+    session["user_info"] = user_info
+
+    # 3) GET-OR-CREATE em 'users'
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            user = User(
+                id=user_email,
+                email=user_email,
+                nome=user_name,
+                foto_url=user_picture,
+                criado_em=agora_brt()
+            )
+            db.session.add(user)
+            db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        user = User.query.get(user_id)
+        if not user:
+            flash("Ocorreu um problema ao criar o usuário. Tente novamente.", "danger")
+            return redirect(url_for("logout"))
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f"Erro de banco ao registrar usuário: {e}", "danger")
         return redirect(url_for("logout"))
 
-    session["user_info"] = user_info
-    print("ID do usuário autenticado:", user_info["id"])
-
-    # Verifica se o usuário tem configurações; cria padrão se não
-    user_id = user_info.get("id")
-    if user_id:
+    # 4) Configurações padrão
+    try:
         existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
         if not existing_settings:
             default_settings = {
@@ -1483,8 +1508,15 @@ def oauth2callback():
                 "contact_info": "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com",
             }
             save_user_settings(user_id, default_settings)
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f"Erro ao salvar configurações padrão: {e}", "danger")
+        return redirect(url_for("logout"))
 
+    # 5) Redireciona para a área autenticada
     return redirect(url_for("reviews"))
+
+
 
 
 def build_flow(state=None, redirect_uri=None):

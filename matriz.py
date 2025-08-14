@@ -12,7 +12,7 @@ from utils.crypto import decrypt
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-
+from models import UserSettings
 load_dotenv()
 
 matriz_bp = Blueprint("matriz", __name__, url_prefix="/matriz")
@@ -235,6 +235,12 @@ def vincular_filial():
     if child_id == parent_id:
         return jsonify(success=False, error="Não é possível vincular a si mesmo."), 400
 
+    # 🔒 Verifica se a conta existe
+    from models import User
+    child_user = User.query.get(child_id)
+    if not child_user:
+        return jsonify(success=False, error="Essa conta ainda não existe. Peça para o responsável fazer login primeiro."), 400
+
     # Verifica se já houve vínculo antes
     vinc = FilialVinculo.query.filter_by(parent_user_id=parent_id, child_user_id=child_id).first()
 
@@ -244,7 +250,6 @@ def vincular_filial():
         elif vinc.status == "aceito":
             return jsonify(success=True, message="Filial já vinculada.")
         else:
-            # Reativa vínculo recusado ou removido
             vinc.status = "pendente"
             vinc.data_convite = agora_brt()
             vinc.data_aceite = None
@@ -356,7 +361,24 @@ def ver_convites():
         return redirect(url_for("authorize"))
 
     user_id = get_current_user_id()
-    convites = FilialVinculo.query.filter_by(child_user_id=user_id, status='pendente').all()
+    convites_raw = FilialVinculo.query.filter_by(child_user_id=user_id, status='pendente').all()
+
+    convites = []
+    for convite in convites_raw:
+        parent_id = convite.parent_user_id
+        settings = UserSettings.query.filter_by(user_id=parent_id).first()
+
+        try:
+            nome_matriz = decrypt(settings.business_name) if settings and settings.business_name else parent_id
+        except Exception:
+            nome_matriz = parent_id
+
+        convites.append({
+            "id": convite.id,
+            "nome_matriz": nome_matriz,
+            "data_convite": convite.data_convite,
+        })
+
     return render_template("convites.html", convites=convites)
 
 

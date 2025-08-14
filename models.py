@@ -93,4 +93,4 @@ class User(db.Model):
     criado_em = db.Column(db.DateTime(timezone=True), default=default_brt_now)
 
     def __repr__(self):
-        return f"<User {self.email}>"
+        return f"<users {self.email}>"
