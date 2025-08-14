@@ -397,9 +397,9 @@ def recusar_convite(vinculo_id):
 
     if convite.child_user_id != user_id:
         flash("Você não tem permissão para recusar este convite.", "danger")
-        return redirect(url_for("ver_convites"))
+        return redirect(url_for("matriz.ver_convites"))
 
     db.session.delete(convite)
     db.session.commit()
     flash("Convite recusado com sucesso.", "info")
-    return redirect(url_for("ver_convites"))
+    return redirect(url_for("matriz.ver_convites"))

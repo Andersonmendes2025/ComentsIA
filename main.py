@@ -2075,18 +2075,24 @@ def apply_template():
 import os
 
 # Aplica as migrações automaticamente no Render (RENDER=true)
-if os.environ.get("RENDER") == "true":
+def aplicar_migracoes():
+    """Executa o upgrade do banco se estiver no Render ou no modo principal"""
     with app.app_context():
-        from flask_migrate import upgrade
-        upgrade()
+        try:
+            print("📦 Aplicando migrações...")
+            upgrade()
+            print("✅ Migrações aplicadas com sucesso.")
+        except Exception as e:
+            print(f"⚠️ Erro ao aplicar migrações: {e}")
+
+# Executa upgrade automaticamente se estiver no Render
+if os.environ.get("RENDER") == "true" and __name__ == "__main__":
+    aplicar_migracoes()
 
 if __name__ == "__main__":
-    # Aplica as migrações localmente (modo dev)
-    with app.app_context():
-        from flask_migrate import upgrade
-        upgrade()
-
+    # Ambiente local
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    aplicar_migracoes()
+
     print("🚀 Servidor Flask rodando em http://127.0.0.1:8000")
     app.run(host="127.0.0.1", port=8000, debug=True)
-

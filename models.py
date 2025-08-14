@@ -73,21 +73,19 @@ class ConsideracoesUso(db.Model):
 class FilialVinculo(db.Model):
     __tablename__ = "filial_vinculo"
     id = db.Column(db.Integer, primary_key=True)
-    parent_user_id = db.Column(db.String, db.ForeignKey('user.id'), index=True, nullable=False)
-    child_user_id = db.Column(db.String, db.ForeignKey('user.id'), index=True, nullable=False)
+    parent_user_id = db.Column(db.String, db.ForeignKey('users.id'), index=True, nullable=False)
+    child_user_id  = db.Column(db.String, db.ForeignKey('users.id'), index=True, nullable=False)
     status = db.Column(db.String(20), default="pendente", nullable=False)
     data_convite = db.Column(DateTime(timezone=True), default=default_brt_now)
     data_aceite = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    # RELACIONAMENTOS
     parent_user = relationship("User", foreign_keys=[parent_user_id], backref="convites_enviados")
-    child_user = relationship("User", foreign_keys=[child_user_id], backref="convites_recebidos")
+    child_user  = relationship("User", foreign_keys=[child_user_id], backref="convites_recebidos")
 
-    __table_args__ = (
-        db.UniqueConstraint("parent_user_id", "child_user_id", name="uq_parent_child"),
-    )
+    __table_args__ = (db.UniqueConstraint("parent_user_id", "child_user_id", name="uq_parent_child"),)
+
 class User(db.Model):
-    __tablename__ = 'user'  # mantém compatibilidade com ForeignKey('user.id')
+    __tablename__ = 'users'  # mantém compatibilidade com ForeignKey('user.id')
     id = db.Column(db.String(255), primary_key=True)  # ID do Google (email)
     email = db.Column(db.String(255), unique=True, nullable=False)
     nome = db.Column(db.String(255))
