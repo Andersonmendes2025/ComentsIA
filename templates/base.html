@@ -133,12 +133,24 @@
             {% endif %}
         </ul>
         <div class="d-flex align-items-center gap-2">
-          <!-- Botão voltar para a matriz na NAVBAR quando visualizando uma filial -->
-          {% if viewing_filial %}
-            <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
-              <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+          {% if logged_in %}
+          <div class="position-relative">
+            <a class="btn btn-light rounded-circle p-2" href="{{ url_for('matriz.ver_convites') }}" title="Notificações">
+              <i class="bi bi-bell-fill text-primary fs-5"></i>
+              {% if convites_pendentes %}
+              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                {{ convites_pendentes|length }}
+              </span>
+              {% endif %}
             </a>
+          </div>
           {% endif %}
+        {% if viewing_filial %}
+          <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
+            <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+          </a>
+        {% endif %}
+
 
           <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
             <i class="bi bi-moon-stars-fill"></i>
