@@ -17,7 +17,16 @@ depends_on = None
 
 
 def upgrade():
-    pass
+    op.create_table(
+        'filial_vinculo',
+        sa.Column('id', sa.Integer(), primary_key=True),
+        sa.Column('parent_user_id', sa.String(), nullable=False),
+        sa.Column('child_user_id', sa.String(), nullable=False),
+        sa.Column('status', sa.String(), default='pendente'),
+        sa.Column('data_convite', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('data_aceite', sa.DateTime(timezone=True), nullable=True),
+    )
+
 
 
 def downgrade():
