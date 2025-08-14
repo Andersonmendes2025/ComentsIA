@@ -361,13 +361,19 @@ def ver_convites():
         return redirect(url_for("authorize"))
 
     user_id = get_current_user_id()
+
     convites_raw = FilialVinculo.query.filter_by(child_user_id=user_id, status='pendente').all()
+    historico_raw = FilialVinculo.query.filter(
+        FilialVinculo.child_user_id == user_id,
+        FilialVinculo.status != 'pendente'
+    ).order_by(FilialVinculo.data_convite.desc()).all()
 
     convites = []
+    historico = []
+
     for convite in convites_raw:
         parent_id = convite.parent_user_id
         settings = UserSettings.query.filter_by(user_id=parent_id).first()
-
         try:
             nome_matriz = decrypt(settings.business_name) if settings and settings.business_name else parent_id
         except Exception:
@@ -377,9 +383,28 @@ def ver_convites():
             "id": convite.id,
             "nome_matriz": nome_matriz,
             "data_convite": convite.data_convite,
+            "parent_user_id": parent_id,
         })
 
-    return render_template("convites.html", convites=convites)
+    for h in historico_raw:
+        parent_id = h.parent_user_id
+        settings = UserSettings.query.filter_by(user_id=parent_id).first()
+        try:
+            nome_matriz = decrypt(settings.business_name) if settings and settings.business_name else parent_id
+        except Exception:
+            nome_matriz = parent_id
+
+        historico.append({
+            "id": h.id,
+            "nome_matriz": nome_matriz,
+            "data_convite": h.data_convite,
+            "data_aceite": h.data_aceite,
+            "status": h.status,
+            "parent_user_id": parent_id,
+        })
+
+    return render_template("convites.html", convites=convites, historico=historico)
+
 
 
 @matriz_bp.route("/convites/aceitar/<int:vinculo_id>")

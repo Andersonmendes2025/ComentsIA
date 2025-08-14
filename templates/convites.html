@@ -1,7 +1,6 @@
-<!-- templates/convites.html -->
 {% extends "base.html" %}
 
-{% block title %}Convites Recebidos{% endblock %}
+{% block title %}Convites de Filiais{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
@@ -10,51 +9,84 @@
   </h3>
 
   {% if convites %}
-    <div class="list-group">
+    <h5 class="text-success mb-3">🟢 Convites Pendentes</h5>
+    <div class="row row-cols-1 g-3">
       {% for convite in convites %}
-        <div class="list-group-item d-flex justify-content-between align-items-center flex-column flex-md-row">
-          <!-- Informação da matriz -->
-          <div class="text-start">
-            <strong>
-              <i class="bi bi-building me-1 text-primary"></i>{{ convite.nome_matriz }}
-            </strong><br>
-            <small class="text-muted">
-              <i class="bi bi-envelope-fill me-1"></i>{{ convite.parent_user_id }}
-            </small><br>
-            {% if convite.data_convite %}
-              <span class="text-muted small">
-                <i class="bi bi-calendar-event me-1"></i>
-                Convite enviado em {{ convite.data_convite.strftime('%d/%m/%Y às %H:%M') }}
-              </span>
-            {% else %}
-              <span class="text-muted small text-danger">
-                <i class="bi bi-exclamation-circle me-1"></i>
-                Data de convite não disponível
-              </span>
-            {% endif %}
-          </div>
-
-          <!-- Botões de ação -->
-          <div class="mt-2 mt-md-0 text-md-end">
-            <a href="{{ url_for('matriz.aceitar_convite', vinculo_id=convite.id) }}"
-               class="btn btn-sm btn-success me-2">
-              <i class="bi bi-check-circle-fill me-1"></i> Aceitar
-            </a>
-
-            <form action="{{ url_for('matriz.recusar_convite', vinculo_id=convite.id) }}"
-                  method="post" class="d-inline">
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-x-circle me-1"></i> Recusar
-              </button>
-            </form>
+        <div class="col">
+          <div class="card shadow-sm border-start border-4 border-primary">
+            <div class="card-body d-flex justify-content-between flex-column flex-md-row align-items-start align-items-md-center">
+              <div>
+                <h5 class="card-title mb-1">
+                  <i class="bi bi-building text-primary me-1"></i>{{ convite.nome_matriz }}
+                </h5>
+                <p class="card-text mb-1 text-muted">
+                  <i class="bi bi-envelope-fill me-1"></i>{{ convite.parent_user_id or 'E-mail não disponível' }}
+                </p>
+                <small class="text-muted">
+                  <i class="bi bi-calendar-event me-1"></i>
+                  Convite enviado em {{ convite.data_convite.strftime('%d/%m/%Y às %H:%M') }}
+                </small>
+              </div>
+              <div class="mt-3 mt-md-0 text-md-end">
+                <a href="{{ url_for('matriz.aceitar_convite', vinculo_id=convite.id) }}" class="btn btn-success btn-sm me-2">
+                  <i class="bi bi-check-circle-fill me-1"></i> Aceitar
+                </a>
+                <form action="{{ url_for('matriz.recusar_convite', vinculo_id=convite.id) }}" method="post" class="d-inline">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-x-circle me-1"></i> Recusar
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       {% endfor %}
     </div>
   {% else %}
     <div class="alert alert-info">
-      <i class="bi bi-info-circle-fill me-1"></i>
-      Você não possui convites pendentes no momento.
+      <i class="bi bi-info-circle-fill me-1"></i> Você não possui convites pendentes no momento.
+    </div>
+  {% endif %}
+
+  {% if historico %}
+    <hr class="my-5">
+    <h5 class="text-secondary mb-3">📜 Histórico de Vínculos</h5>
+    <div class="row row-cols-1 g-3">
+      {% for h in historico %}
+        <div class="col">
+          <div class="card shadow-sm border-start border-4 
+            {% if h.status == 'aceito' %}border-success
+            {% elif h.status == 'recusado' %}border-danger
+            {% else %}border-secondary{% endif %}">
+            <div class="card-body d-flex justify-content-between flex-column flex-md-row align-items-start align-items-md-center">
+              <div>
+                <h5 class="card-title mb-1">
+                  <i class="bi bi-building me-1 text-primary"></i>{{ h.nome_matriz }}
+                </h5>
+                <p class="card-text mb-1 text-muted">
+                  <i class="bi bi-envelope-fill me-1"></i>{{ h.parent_user_id or 'E-mail não disponível' }}
+                </p>
+                <small class="text-muted">
+                  {% if h.status == 'aceito' %}
+                    <i class="bi bi-check-circle-fill text-success me-1"></i> Aceito em {{ h.data_aceite.strftime('%d/%m/%Y às %H:%M') if h.data_aceite else 'Data não disponível' }}
+                  {% elif h.status == 'recusado' %}
+                    <i class="bi bi-x-circle-fill text-danger me-1"></i> Recusado
+                  {% elif h.status == 'desvinculado' %}
+                    <i class="bi bi-box-arrow-left text-secondary me-1"></i> Desvinculado
+                  {% else %}
+                    <i class="bi bi-info-circle text-muted me-1"></i> Status: {{ h.status }}
+                  {% endif %}
+                </small>
+              </div>
+              <div class="mt-2 mt-md-0 text-end">
+                <span class="badge bg-light text-dark border">
+                  {{ h.status|capitalize }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
     </div>
   {% endif %}
 </div>
