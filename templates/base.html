@@ -97,16 +97,6 @@
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           {% if logged_in %}
-          {% if convites_pendentes %}
-            <li class="nav-item position-relative">
-              <a class="nav-link text-warning" href="{{ url_for('matriz.ver_convites') }}">
-                <i class="bi bi-bell-fill"></i>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                  {{ convites_pendentes|length }}
-                </span>
-              </a>
-            </li>
-          {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
             </li>
