@@ -43,7 +43,7 @@ def require_login():
 
 def get_current_user_id():
     ui = session.get("user_info") or {}
-    return ui.get("id")
+    return ui.get("id", "").lower()
 
 def get_context_user_id():
     return session.get("viewing_filial") or get_current_user_id()
@@ -228,20 +228,20 @@ def vincular_filial():
         return jsonify(success=False, error="Não autenticado."), 401
 
     parent_id = get_current_user_id()
-    child_id = request.form.get("child_user_id", "").strip()
+    child_id = request.form.get("child_user_id", "").strip().lower()
 
     if not child_id:
         return jsonify(success=False, error="Informe o ID da filial."), 400
     if child_id == parent_id:
         return jsonify(success=False, error="Não é possível vincular a si mesmo."), 400
 
-    # 🔒 Verifica se a conta existe
+    # 🔒 Verifica se a conta da filial existe
     from models import User
-    child_user = User.query.filter_by(id=child_id.lower()).first()
+    child_user = User.query.get(child_id)
     if not child_user:
         return jsonify(success=False, error="Essa conta ainda não existe. Peça para o responsável fazer login primeiro."), 400
 
-    # Verifica se já houve vínculo antes
+    # 🔄 Verifica se já houve vínculo anterior
     vinc = FilialVinculo.query.filter_by(parent_user_id=parent_id, child_user_id=child_id).first()
 
     if vinc:

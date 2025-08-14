@@ -1468,9 +1468,12 @@ def oauth2callback():
     user_email = user_info.get("email", "").strip().lower()
     user_name = user_info.get("name", "").strip()
     user_picture = user_info.get("picture", "")
-    user_id = user_email  # Usamos o e-mail como ID fixo
+    user_id = user_email.lower()
 
     print("ID do usuário autenticado (normalizado):", user_id)
+
+    # ✅ Corrige o problema: adiciona o campo 'id' manualmente
+    user_info["id"] = user_id
     session["user_info"] = user_info
 
     # 3) GET-OR-CREATE em 'users'
@@ -1478,7 +1481,7 @@ def oauth2callback():
         user = User.query.get(user_id)
         if not user:
             user = User(
-                id=user_email,
+                id=user_id,
                 email=user_email,
                 nome=user_name,
                 foto_url=user_picture,
@@ -1515,8 +1518,6 @@ def oauth2callback():
 
     # 5) Redireciona para a área autenticada
     return redirect(url_for("reviews"))
-
-
 
 
 def build_flow(state=None, redirect_uri=None):
