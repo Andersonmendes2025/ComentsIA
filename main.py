@@ -29,7 +29,7 @@ import pandas as pd
 from flask import send_file
 from flask_login import LoginManager
 from models import db, Review, UserSettings, RelatorioHistorico, FilialVinculo
-
+from models import FilialVinculo
 current_date = datetime.now().strftime("%d/%m/%Y")
 from sqlalchemy import func
 import numpy as np

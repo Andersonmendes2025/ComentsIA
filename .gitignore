@@ -7,3 +7,5 @@ instance/
 .env
 *.log
 .DS_Store
+.venv/
+
