@@ -82,193 +82,119 @@
 </head>
 <body>
 
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg custom-navbar shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('index') }}">
-        <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo" width="32" height="32">
-        <span class="fw-semibold text-primary">ComentsIA</span>
-      </a>
-
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Alternar navegação">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="navbarContent">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          {% if logged_in %}
-          {% if convites_pendentes %}
-            <li class="nav-item position-relative">
-              <a class="nav-link text-warning" href="{{ url_for('matriz.ver_convites') }}">
-                <i class="bi bi-bell-fill"></i>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                  {{ convites_pendentes|length }}
-                </span>
-              </a>
-            </li>
-          {% endif %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a>
-            </li>
-          {% endif %}
-
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a>
-          </li>
-
-          {% if is_admin %}
-            <li class="nav-item">
-              <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-shield-lock-fill me-1"></i> Admin</a>
-            </li>
-          {% endif %}
-              {% if logged_in %}
-              <li class="nav-item">
-                <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
-                  <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
-                </a>
-              </li>
-            {% endif %}
-        </ul>
-        <div class="d-flex align-items-center gap-2">
-          <!-- Botão voltar para a matriz na NAVBAR quando visualizando uma filial -->
-          {% if viewing_filial %}
-            <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
-              <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
-            </a>
-          {% endif %}
-
-          <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
-            <i class="bi bi-moon-stars-fill"></i>
-          </button>
-
-          {% if logged_in %}
-            <div class="dropdown">
-              <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                {% if viewing_filial %}
-                  <span class="small fw-semibold">Filial: {{ filial_name }}</span>
-                {% else %}
-                  <span class="small fw-semibold">{{ user.name }}</span>
-                {% endif %}
-              </a>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                {% if viewing_filial %}
-                  <li>
-                    <a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}">
-                      <i class="bi bi-arrow-return-left"></i> Voltar para a matriz
-                    </a>
-                  </li>
-                  <li><hr class="dropdown-divider"></li>
-                {% endif %}
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('settings') }}">
-                    <i class="bi bi-gear"></i> Configurações
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
-                    <i class="bi bi-trash"></i> Apagar minha conta
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right"></i> Sair
-                  </a>
-                </li>
-              </ul>
-            </div>
-          {% else %}
-            <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Banner de aviso fixo quando visualizando filial (mobile + desktop) -->
-  {% if viewing_filial %}
-  <div class="filial-banner py-2">
-    <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <span class="filial-badge">
-          <i class="bi bi-building"></i> Filial
-        </span>
-        <span class="fw-semibold">
-          Você está visualizando a filial: <span class="text-decoration-underline">{{ filial_name }}</span>
-        </span>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-warning btn-sm filial-back-btn">
-          <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
-        </a>
-      </div>
-    </div>
-  </div>
+<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+  {% if logged_in %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a>
+    </li>
   {% endif %}
 
-  <!-- Conteúdo principal -->
-  <main class="py-4">
-    {% block content %}{% endblock %}
-  </main>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a>
+  </li>
 
-  <!-- Rodapé institucional -->
-  <footer class="footer-comentsia">
-    <div class="footer-content">
-      <div class="footer-brand">
-        <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">
-        <div class="footer-secure">
-          <i class="bi bi-lock-fill" style="color:#10b981; font-size: 1.08em; vertical-align: -2px;"></i>
-          <span>Site seguro &mdash; HTTPS ativo</span>
-        </div>
-      </div>
-      <div class="footer-links">
-        <a href="mailto:contato@comentsia.com.br" title="E-mail institucional">
-          <i class="bi bi-envelope"></i> contato@comentsia.com.br
-        </a>
-        <a href="mailto:suporte@comentsia.com.br" title="Suporte">
-          <i class="bi bi-life-preserver"></i> suporte@comentsia.com.br
-        </a>
-        <a href="https://instagram.com/comentsia" target="_blank" title="Instagram">
-          <i class="bi bi-instagram"></i> @comentsia
-        </a>
-      </div>
-      <div class="footer-pags">
-        <a href="{{ url_for('quem_somos') }}">Quem Somos</a>
-        <span class="footer-dot">&middot;</span>
-        <a href="{{ url_for('terms') }}">Termos de Uso</a>
-        <span class="footer-dot">&middot;</span>
-        <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>
-      </div>
-      <div class="footer-copy">
-        &copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.
-      </div>
-    </div>
-  </footer>
+  {% if is_admin %}
+    <li class="nav-item">
+      <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}">
+        <i class="bi bi-shield-lock-fill me-1"></i> Admin
+      </a>
+    </li>
+  {% endif %}
 
-  <!-- Toast container fixo -->
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999">
-    <div id="toast-alert" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex align-items-center">
-        <div class="toast-body d-flex align-items-center" id="toast-message">
-          Mensagem
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
-      </div>
+  {% if logged_in %}
+    <li class="nav-item">
+      <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
+        <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
+      </a>
+    </li>
+  {% endif %}
+</ul>
+
+<!-- Ações da direita da navbar -->
+<div class="d-flex align-items-center gap-2">
+
+  {% if logged_in %}
+    <!-- Botão de notificações -->
+    <div class="position-relative me-2">
+      <a href="{{ url_for('matriz.ver_convites') }}" class="btn btn-light rounded-circle position-relative" title="Notificações">
+        <i class="bi bi-bell-fill text-primary fs-5"></i>
+        {% if convites_pendentes %}
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            {{ convites_pendentes|length }}
+          </span>
+        {% endif %}
+      </a>
     </div>
+  {% endif %}
+
+  {% if viewing_filial %}
+    <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}"
+       class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex"
+       title="Voltar para a matriz">
+      <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+    </a>
+  {% endif %}
+
+  <!-- Alternador de tema -->
+  <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
+    <i class="bi bi-moon-stars-fill"></i>
+  </button>
+
+  <!-- Menu do usuário -->
+  {% if logged_in %}
+    <div class="dropdown">
+      <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+        {% if viewing_filial %}
+          <span class="small fw-semibold">Filial: {{ filial_name }}</span>
+        {% else %}
+          <span class="small fw-semibold">{{ user.name }}</span>
+        {% endif %}
+      </a>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+        {% if viewing_filial %}
+          <li>
+            <a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}">
+              <i class="bi bi-arrow-return-left"></i> Voltar para a matriz
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+        {% endif %}
+        <li>
+          <a class="dropdown-item" href="{{ url_for('settings') }}">
+            <i class="bi bi-gear"></i> Configurações
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
+            <i class="bi bi-trash"></i> Apagar minha conta
+          </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('logout') }}">
+            <i class="bi bi-box-arrow-right"></i> Sair
+          </a>
+        </li>
+      </ul>
+    </div>
+  {% else %}
+    <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
+  {% endif %}
+</div>
+
   </div>
 
   <!-- Modal de Confirmação Bootstrap -->
