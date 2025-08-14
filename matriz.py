@@ -237,7 +237,7 @@ def vincular_filial():
 
     # 🔒 Verifica se a conta existe
     from models import User
-    child_user = User.query.get(child_id)
+    child_user = User.query.filter_by(id=child_id.lower()).first()
     if not child_user:
         return jsonify(success=False, error="Essa conta ainda não existe. Peça para o responsável fazer login primeiro."), 400
 
