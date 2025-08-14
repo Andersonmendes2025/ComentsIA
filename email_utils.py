@@ -6,9 +6,26 @@ import smtplib
 import os
 from dotenv import load_dotenv
 from utils.crypto import decrypt
-
+import os
+from cryptography.fernet import Fernet
 load_dotenv()
 
+def _load_key_bytes():
+    key = os.getenv("ENCRYPTION_KEY")           # opcional: chave direta (base64 do Fernet)
+    path = os.getenv("ENCRYPTION_KEY_PATH")     # ou caminho p/ arquivo com a chave
+    if key:
+        return key.encode()
+    if path and os.path.exists(path):
+        return open(path, "rb").read().strip()
+    raise RuntimeError("ENCRYPTION_KEY ou ENCRYPTION_KEY_PATH ausente")
+
+FERNET = Fernet(_load_key_bytes())
+
+def encrypt(s: str) -> str:
+    return FERNET.encrypt(s.encode()).decode()
+
+def decrypt(t: str) -> str:
+    return FERNET.decrypt(t.encode()).decode()
 
 def _maybe_decrypt(value: str) -> str:
     """Tenta descriptografar; se falhar, retorna o valor original."""

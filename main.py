@@ -2072,13 +2072,21 @@ def apply_template():
     return jsonify({"success": True, "formatted_reply": formatted_reply})
 
 
-# Garante que as tabelas sejam criadas no Render também
-if __name__ == "__main__":
+import os
+
+# Aplica as migrações automaticamente no Render (RENDER=true)
+if os.environ.get("RENDER") == "true":
     with app.app_context():
         from flask_migrate import upgrade
+        upgrade()
 
-        upgrade()  # <-- Isso aplica as migrações pendentes no banco de dados online
+if __name__ == "__main__":
+    # Aplica as migrações localmente (modo dev)
+    with app.app_context():
+        from flask_migrate import upgrade
+        upgrade()
 
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     print("🚀 Servidor Flask rodando em http://127.0.0.1:8000")
     app.run(host="127.0.0.1", port=8000, debug=True)
+
