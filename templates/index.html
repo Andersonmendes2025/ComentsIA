@@ -1,235 +1,525 @@
 {% extends "base.html" %}
 {% block title %}Início - ComentsIA - Gerenciador de Avaliações Google{% endblock %}
+
 {% block content %}
-<div class="container py-5">
+
+<div class="container py-4">
+
   {% if not logged_in %}
 
-    <!-- HERO -->
-    <div class="text-center mb-5">
-      <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" style="width:140px;" class="mb-3">
-      <h1 class="display-5 fw-bold mb-3" style="color: #007bff;">
-        Transforme avaliações em crescimento com IA!
-      </h1>
-      <p class="lead text-muted mb-4">
-        Responder avaliações no Google não é mais opcional. É estratégico.
-      </p>
-      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-5 py-3 fs-4 shadow">
-        <i class="bi bi-google me-2"></i> Experimente grátis agora
-      </a>
-    </div>
+  <!-- ====== SEÇÃO NÃO LOGADO ====== -->
+  <!-- === CSS Dark Futurista (neon) + Hero, Cards, Métricas, Carrossel e Planos === -->
+  <style>
+    :root{
+      --bg:#0b1020;--panel:#0f1630;--ink:#eaf1ff;--muted:#9fb0d3;--brand:#2f7bff;--neon:#8a5bff;--hot:#ff4fb5;
+    }
+    body{ background: radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
+                       radial-gradient(900px 600px at 120% -20%, rgba(138,91,255,.14), transparent 60%),
+                       linear-gradient(180deg, #0a0f1e 0%, #0b1020 60%); color:var(--ink); }
+    .text-muted{ color:var(--muted)!important; }
+    .hero{ position:relative; overflow:hidden; border-radius:24px; padding:56px 18px;
+      background: linear-gradient(180deg, rgba(47,123,255,.16), rgba(138,91,255,.06)) ,
+                  radial-gradient(1300px 700px at -20% -40%, rgba(255,79,181,.15), transparent 60%),
+                  linear-gradient(180deg, #0f1630, #0b1020 70%);
+      box-shadow: inset 0 0 0 1px rgba(143,164,255,.12), 0 40px 80px rgba(0,0,0,.35);
+    }
+    .hero::before,.hero::after{ content:""; position:absolute; border-radius:50%; filter:blur(40px); opacity:.5; pointer-events:none; }
+    .hero::before{ width:420px;height:420px; left:-120px; top:-120px;
+      background: conic-gradient(from 120deg, var(--brand), var(--neon)); animation:float1 16s ease-in-out infinite; }
+    .hero::after{ width:300px;height:300px; right:-80px; bottom:-100px;
+      background: conic-gradient(from 200deg, var(--hot), var(--brand)); animation:float2 18s ease-in-out infinite; }
+    @keyframes float1{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(22px) rotate(18deg)}}
+    @keyframes float2{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-22px) rotate(-16deg)}}
+    .title-gradient{ background: linear-gradient(90deg, #fff, #cfe1ff 30%, #eabfff 60%, #fff);
+      -webkit-background-clip:text;background-clip:text; color:transparent; background-size: 200% auto; animation:shine 6s linear infinite; letter-spacing:-.01em; }
+    @keyframes shine{0%{background-position:0 0}100%{background-position:200% 0}}
+    .btn-neon{ background: linear-gradient(135deg, var(--brand), var(--neon)); border:none; color:#fff; border-radius:14px; padding:12px 18px; font-weight:800;
+      box-shadow:0 10px 30px rgba(47,123,255,.35), 0 0 0 1px rgba(143,164,255,.18) inset; transition: transform .2s, box-shadow .2s; will-change: transform; }
+    .btn-neon:hover{ transform: translateY(-2px) rotateX(6deg); box-shadow:0 18px 42px rgba(138,91,255,.42); }
+    .btn-ghost{ border:1.5px solid rgba(143,164,255,.35); color:#cfe1ff; border-radius:14px; padding:12px 18px; font-weight:800; }
+    .glass{ background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); backdrop-filter: blur(8px);
+      border:1px solid rgba(143,164,255,.16); border-radius:20px; padding:20px; box-shadow:0 12px 40px rgba(0,0,0,.35);
+      transition: transform .25s, box-shadow .25s, border-color .25s; }
+    .glass:hover{ transform: translateY(-6px) rotateX(4deg); border-color: rgba(143,164,255,.28); box-shadow:0 18px 60px rgba(0,0,0,.45); }
+    .icon-plate{ width:48px;height:48px; display:grid;place-items:center; border-radius:14px;
+      background: radial-gradient(80% 80% at 30% 20%, rgba(47,123,255,.45), rgba(138,91,255,.25)); color:#fff; box-shadow: inset 0 0 0 1px rgba(143,164,255,.18); }
+    .stat{ display:flex; align-items:center; gap:12px; padding:18px; border-radius:16px;
+      background: linear-gradient(180deg, rgba(47,123,255,.20), rgba(20,28,60,.35));
+      border:1px solid rgba(143,164,255,.18); color:#eaf1ff;
+      box-shadow: inset 0 0 0 1px rgba(20,28,60,.6), 0 10px 28px rgba(0,0,0,.35);
+    }
+    .stat .value{ font-size:1.7rem; font-weight:900; letter-spacing:.5px; }
+    .stat small{ color:var(--muted); }
+    .plans-band{ background: radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.15), transparent 60%),
+                             radial-gradient(1100px 600px at 120% -10%, rgba(255,79,181,.10), transparent 60%),
+                             linear-gradient(180deg,#0b1020,#0a0f1e 70%); border-top:1px solid rgba(143,164,255,.16); }
+    #printsCarousel{ max-width:65%; margin:0 auto; }
+    #printsCarousel img{ width:100%; height:auto; object-fit:contain; }
+    #printsCarousel .carousel-caption{ background: rgba(11,16,32,.72); backdrop-filter: blur(6px); bottom:10px; padding:.5rem .75rem; }
+    @media (max-width:768px){ #printsCarousel{ max-width:100%; } }
+    .band{ height:2px; background: linear-gradient(90deg, transparent, rgba(47,123,255,.5), rgba(255,79,181,.4), rgba(138,91,255,.5), transparent); border-radius:999px; }
 
-    <!-- BLOCO DE IMPACTO ESTATÍSTICO -->
-    <div class="card shadow border-0 mb-5 p-4" style="background: #f9faff;">
-      <h2 class="fw-bold mb-3 text-center" style="font-size:1.6rem;">✨ Oportunidade: sua reputação no Google é o novo cartão de visita</h2>
-      <ul class="list-unstyled lead text-muted mx-auto" style="max-width: 700px;">
-        <li class="mb-2">• <b>93%</b> dos consumidores esperam resposta das empresas após uma avaliação.</li>
-        <li class="mb-2">• <b>88%</b> só comprariam de empresas que respondem comentários.</li>
-        <li class="mb-2">• <span style="color:#007bff;"><b>+4,1%</b></span> de conversão para cada aumento no índice de respostas.</li>
-        <li class="mb-2">• <b>89%</b> leem as respostas antes de decidir comprar.</li>
-        <li class="mb-2">• <b>Até 9%</b> a mais de faturamento com apenas 1 estrela a mais na média.</li>
-        <li class="mb-2">• <b>63%</b> esperam resposta em até 3 dias — com a ComentsIA, você responde em minutos.</li>
-        <li class="mb-2">• Ainda assim, <b>54%</b> das empresas não respondem nenhuma avaliação.</li>
+    /* ===== Estilo da seção "Quem Somos" no INDEX (dark + glass) ===== */
+    .qs-panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(143,164,255,.16);
+      border-radius: 20px;
+      padding: 32px 22px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      color: #eaf1ff;
+    }
+    .qs-logo{
+      max-width: 160px;
+      margin: 0 auto 18px auto;
+      display:block;
+      filter: drop-shadow(0 0 12px rgba(143,164,255,.35));
+    }
+    .qs-title{
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: -.02em;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg,#fff,#cfe1ff 30%,#eabfff 60%,#fff);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+    }
+    .qs-text{
+      font-size: 1.08rem;
+      line-height: 1.75;
+      color: #dbe7ff;
+      text-align: justify;
+      margin-bottom: 14px;
+    }
+    .qs-list{
+      color:#dbe7ff;
+      font-size:1.05rem;
+      margin: 14px auto 2px auto;
+      max-width: 880px;
+    }
+    .qs-list li{ margin-bottom: 10px; }
+    .qs-band{ height:2px; margin:28px 0; background:linear-gradient(90deg,transparent,#2f7bff80,#8a5bff80,#ff4fb580,transparent); border-radius:999px; }
+
+    @media (max-width: 700px){
+      .qs-title{ font-size: 1.5rem; }
+      .qs-text{ font-size: 1rem; }
+      .qs-logo{ max-width: 120px; }
+    }
+  </style>
+
+  <section class="hero mb-4">
+    <div class="text-center">
+      <img src="{{ url_for('static', filename='favicon.png') }}" alt="ComentsIA" style="width:120px;" class="mb-3" />
+      <h1 class="display-5 fw-extrabold title-gradient">Gerenciador de Avaliações Google</h1>
+      <p class="lead text-muted mt-2 mb-3">IA + automação para responder, analisar e converter mais com sua reputação online.</p>
+      <div class="d-flex justify-content-center gap-2">
+        <a href="{{ url_for('authorize') }}" class="btn btn-neon"><i class="bi bi-google me-2"></i> Entrar ou Cadastrar com Google</a>
+        <a href="{{ url_for('planos') }}" class="btn btn-ghost"><i class="bi bi-box-seam me-2"></i> Ver Planos</a>
+      </div>
+      <div class="mt-3"><span class="badge bg-transparent border text-uppercase" style="border-color:rgba(143,164,255,.25); color:#cfe1ff">Site seguro — HTTPS</span></div>
+    </div>
+  </section>
+
+  <div class="band my-4"></div>
+
+  <section class="mb-5">
+    <div class="row g-3">
+      <div class="col-12 col-md-4">
+        <div class="glass h-100">
+          <div class="icon-plate mb-2"><i class="bi bi-robot"></i></div>
+          <h4 class="mb-1">IA Inteligente</h4>
+          <p class="text-muted mb-0">Gere respostas empáticas e consistentes, no tom da sua marca, com um clique. Personalize saudações, assinatura e contatos.</p>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="glass h-100">
+          <div class="icon-plate mb-2"><i class="bi bi-graph-up"></i></div>
+          <h4 class="mb-1">Dashboard & Insights</h4>
+          <p class="text-muted mb-0">Acompanhe média, taxa de resposta e pontos críticos com destaque visual. Gere relatórios PDF prontos.</p>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="glass h-100">
+          <div class="icon-plate mb-2"><i class="bi bi-bolt"></i></div>
+          <h4 class="mb-1">Fluxo Rápido</h4>
+          <p class="text-muted mb-0">Cole a avaliação, revise a sugestão e publique em segundos.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-5">
+    <div class="row g-3">
+      <div class="col-6 col-lg-3">
+        <div class="stat"><i class="bi bi-stars fs-4"></i>
+          <div><div class="value count" data-target="9" data-suffix="%">0%</div><small>+ faturamento por ⭐ a mais</small></div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="stat"><i class="bi bi-reply-all fs-4"></i>
+          <div><div class="value count" data-target="35" data-suffix="%">0%</div><small>+ receita respondendo ≥ 25%</small></div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="stat"><i class="bi bi-graph-up-arrow fs-4"></i>
+          <div><div class="value count" data-target="12" data-suffix="%">0%</div><small>+ reviews e +0,12 na nota</small></div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="stat"><i class="bi bi-lightning-charge fs-4"></i>
+          <div><div class="value count" data-target="144" data-suffix="%">0%</div><small>↑ conversão com reviews</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-5">
+    <div class="text-center mb-3">
+      <h3 class="title-gradient">Veja na prática</h3>
+      <p class="text-muted m-0">Algumas telas reais do ComentsIA.</p>
+    </div>
+    <div id="printsCarousel" class="carousel slide" data-bs-ride="carousel">
+      <div class="carousel-inner rounded-4 overflow-hidden shadow">
+        <div class="carousel-item active">
+          <img src="{{ url_for('static', filename='prints/dashboard.png') }}" class="d-block w-100" alt="Dashboard">
+          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">Dashboard Analítico</h5><p class="mb-0">Média, taxa de resposta e análise automática.</p></div>
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" class="d-block w-100" alt="IA">
+          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">IA que responde por você</h5><p class="mb-0">Respostas empáticas no tom da marca.</p></div>
+        </div>
+        <div class="carousel-item">
+          <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" class="d-block w-100" alt="Adicionar">
+          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">Fluxo simples</h5><p class="mb-0">Cole, gere e publique.</p></div>
+        </div>
+      </div>
+      <button class="carousel-control-prev" type="button" data-bs-target="#printsCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Anterior</span>
+      </button>
+      <button class="carousel-control-next" type="button" data-bs-target="#printsCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Próximo</span>
+      </button>
+      <div class="carousel-indicators mt-3">
+        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="1"></button>
+        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="1" aria-label="2"></button>
+        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="2" aria-label="3"></button>
+      </div>
+    </div>
+  </section>
+
+  <div class="band my-4"></div>
+
+  <section class="plans-band py-5 rounded-4">
+    <div class="container">
+      <div class="text-center mb-4">
+        <h3 class="title-gradient">Planos ComentsIA</h3>
+        <p class="text-muted m-0">Escolha o melhor para o seu momento. Você pode alterar quando quiser.</p>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-4">
+          <div class="glass h-100">
+            <span class="badge bg-transparent border mb-2" style="border-color:rgba(143,164,255,.25);">Início</span>
+            <h5 class="fw-bold">Free</h5>
+            <div class="price">R$ 0</div>
+            <ul class="mt-2 list-unstyled text-muted">
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>20 respostas/mês</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Dashboard básico</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Personalização simples</li>
+            </ul>
+            <a href="{{ url_for('planos') }}" class="btn btn-ghost w-100 mt-2">Começar grátis</a>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="glass h-100 position-relative">
+            <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-2" style="background:linear-gradient(135deg,#ff4fb5,#8a5bff);color:#fff">Recomendado</span>
+            <div class="mt-3"></div>
+            <h5 class="fw-bold">Pro</h5>
+            <div class="price">R$ 19,99<span class="fs-6 fw-semibold text-muted">/mês</span></div>
+            <ul class="mt-2 list-unstyled text-muted">
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Respostas ilimitadas</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>IA avançada + análise</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Templates e branding</li>
+            </ul>
+            <small class="text-muted d-block">ou R$ 199,00/ano</small>
+            <a href="{{ url_for('planos') }}" class="btn btn-neon w-100 mt-2">Assinar Pro</a>
+          </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="glass h-100">
+            <span class="badge bg-transparent border mb-2" style="border-color:rgba(143,164,255,.25);">Escala</span>
+            <h5 class="fw-bold">Business Pro</h5>
+            <div class="price">R$ 34,99<span class="fs-6 fw-semibold text-muted">/mês</span></div>
+            <ul class="mt-2 list-unstyled text-muted">
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Multi‑filiais (até 5)</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Relatórios em PDF</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Suporte prioritário</li>
+            </ul>
+            <small class="text-muted d-block">ou R$ 349,00/ano</small>
+            <a href="{{ url_for('planos') }}" class="btn btn-ghost w-100 mt-2">Assinar Business Pro</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-4">
+        <a href="{{ url_for('authorize') }}" class="btn btn-neon btn-lg px-5"><i class="bi bi-magic me-2"></i>Experimente grátis agora</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== NOVA SEÇÃO: QUEM SOMOS (VERSÃO INDEX) ===== -->
+  <div class="band my-5"></div>
+  <section id="quem-somos" class="mb-5">
+    <div class="qs-panel">
+      <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo ComentsIA" class="qs-logo">
+      <h3 class="qs-title text-center">Quem Somos</h3>
+
+      <div class="qs-text">
+        A <b>ComentsIA</b> é uma plataforma para gerir e analisar avaliações com <b>IA de ponta</b>. Ajudamos empresas a interpretar feedbacks e <b>responder com empatia</b> — especialmente no <b>Google Meu Negócio</b> — para fortalecer reputação e impulsionar resultados.
+      </div>
+      <div class="qs-text">
+        Hoje, a maioria dos clientes consulta avaliações antes de comprar. Marcas que cultivam reviews e respondem com qualidade geram <b>mais confiança, mais conversões e mais receita</b>. Nosso foco é tornar isso simples e escalável.
+      </div>
+
+      <div class="qs-band"></div>
+
+      <ul class="qs-list">
+        <li><b>Monitoramento contínuo</b> das avaliações em um só lugar, com alertas e visão consolidada.</li>
+        <li><b>Respostas automatizadas</b> (NLP) no tom da sua marca — empáticas, consistentes e personalizáveis.</li>
+        <li><b>Relatórios analíticos</b> com métricas, tendências e insights para decisões baseadas em dados.</li>
+        <li><b>Integração segura e escalável</b>, alinhada a privacidade e conformidade.</li>
       </ul>
-      <div class="text-center mt-3">
-      <a href="{{ url_for('planos') }}" class="btn btn-success rounded-pill fs-6 px-4 py-2 mb-3">
-        Destaque-se de verdade
-      </a>
-      <div class="fw-bold mt-3 mb-2" style="font-size: 1.25rem; color: #007bff;">
-        <i class="bi bi-graph-up-arrow me-2"></i>
-        Empresas que respondem aparecem mais, vendem mais e são mais bem avaliadas!
-      </div>
-  </div>
-    </div>
 
-    <!-- PASSO A PASSO COM DIFERENCIAIS COMENTSIA -->
-    <div class="row align-items-center mb-5">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">1. Responda avaliações em segundos, sem dúvidas ou enrolação</h3>
-        <p>
-          <b>Com a ComentsIA, você nunca mais perde tempo pensando no que responder ou usando aquelas mensagens frias e repetitivas.</b>
-          <br>📥 Basta colar a avaliação recebida.<br>
-          🧠 A IA gera uma resposta personalizada, empática e inteligente.<br>
-          📤 Copie a resposta e publique no Google.<br>
-          <span class="text-muted">Em menos de 20 segundos, você resolveu algo que antes levava minutos (ou era ignorado).</span>
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" alt="Centralize avaliações" class="img-fluid rounded shadow">
-      </div>
-    </div>
+      <div class="qs-band"></div>
 
-    <div class="row align-items-center mb-5 flex-md-row-reverse">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">2. Geração automática de respostas profissionais</h3>
-        <p>
-          Clique em <b>Gerar sugestão</b> e tenha textos únicos para cada nota, sem risco de cair na mesmice ou parecer robô.<br>
-          Use o modo <b>Resposta hiper compreensiva</b> (planos pagos) para críticas delicadas e clientes exigentes.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" alt="Gerar resposta IA" class="img-fluid rounded shadow">
+      <div class="qs-text mb-0">
+        Em resumo, a ComentsIA <b>une tecnologia e estratégia</b> para elevar sua reputação digital, aprimorar a experiência do cliente e <b>acelerar o crescimento</b> do seu negócio.
       </div>
     </div>
+  </section>
+  <!-- ===== FIM: QUEM SOMOS ===== -->
 
-    <div class="row align-items-center mb-5">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">3. Analise e melhore sua reputação</h3>
-        <p>
-          Veja todas as suas avaliações organizadas, filtre por respondidas, notas e datas, visualize seu desempenho e entenda o que clientes mais elogiam e criticam.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/dashboard.png') }}" alt="Dashboard ComentsIA" class="img-fluid rounded shadow">
-      </div>
-    </div>
-
-    <div class="row align-items-center mb-5 flex-md-row-reverse">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">4. Relatórios em PDF prontos para impressionar</h3>
-        <p>
-          Gere relatórios completos com gráficos e análises inteligentes, perfeitos para reuniões, sócios ou acompanhamento mensal.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/relatorios.png') }}" alt="Relatórios PDF" class="img-fluid rounded shadow">
-      </div>
-    </div>
-
-    <div class="row align-items-center mb-5">
-      <div class="col-md-6">
-        <h3 class="fw-bold mb-3">5. Tudo personalizável, rápido e fácil</h3>
-        <p>
-          No primeiro acesso, personalize nome, contatos, logo e mensagens padrão. Tudo pronto para sua marca se destacar.
-        </p>
-      </div>
-      <div class="col-md-6 text-center">
-        <img src="{{ url_for('static', filename='prints/configuracao.png') }}" alt="Configuração personalizada" class="img-fluid rounded shadow">
-      </div>
-    </div>
-
-    <!-- CHAMADA FINAL -->
-    <div class="text-center mt-5">
-      <div class="mb-4">
-        <span class="fs-5 text-primary fw-bold">🎯 Chega de dúvidas, respostas genéricas e tempo perdido.</span><br>
-        <span class="fs-5">Com a ComentsIA, responder e analisar avaliações nunca foi tão fácil.</span>
-      </div>
-      <a href="{{ url_for('authorize') }}" class="btn btn-lg btn-primary px-5 py-3 fs-4 shadow mb-3">
-        <i class="bi bi-google me-2"></i> Experimente grátis agora
-      </a>
-      <div class="text-muted mt-2 mb-2 fs-6">
-        ✅ Geração de respostas com IA • ✅ Relatórios inteligentes • ✅ Versão gratuita sem complicações
-      </div>
-      <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4">🔵 Conheça os planos</a>
-    </div>
+  <!-- Scripts visuais (reveal, contadores, legendas do carrossel) -->
+  <script>
+    const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}})},{threshold:.14});
+    document.querySelectorAll('.glass,.stat').forEach((el,i)=>{ el.classList.add('reveal'); el.style.transition='all .6s ease'; el.style.transitionDelay=(i*0.03)+'s'; io.observe(el); });
+    function animateCount(el){ const tgt=parseFloat(el.dataset.target||'0'), suf=el.dataset.suffix||'', dur=1100, s=performance.now(), float=!Number.isInteger(tgt);
+      function f(n){const p=Math.min(1,(n-s)/dur),v=tgt*p; el.textContent=(float?v.toFixed(1):Math.round(v))+(suf? (suf.startsWith(' ')?suf:' '+suf):''); if(p<1) requestAnimationFrame(f);}
+      requestAnimationFrame(f);
+    }
+    document.querySelectorAll('.count').forEach(animateCount);
+    document.addEventListener('DOMContentLoaded', function () {
+      const carousel = document.getElementById('printsCarousel'); if (!carousel) return;
+      const captions = carousel.querySelectorAll('.carousel-caption'); captions.forEach(c=>{c.style.opacity=0;c.style.transition='opacity .6s ease';});
+      function showActive(){ captions.forEach(c=>c.style.opacity=0); const a=carousel.querySelector('.carousel-item.active .carousel-caption'); if(a){ setTimeout(()=>a.style.opacity=1,2000);} }
+      showActive(); carousel.addEventListener('slid.bs.carousel', showActive);
+    });
+  </script>
+  <!-- ====== FIM NÃO LOGADO ====== -->
 
   {% else %}
-    <!-- VERSÃO LOGADO (igual já estava) -->
-    <div class="row justify-content-center">
-      <div class="col-lg-8">
-        <!-- Hero Section -->
-        <div class="text-center mb-5">
-          <div class="hero-icon mb-4">
-            <i class="bi bi-star-fill text-warning" style="font-size: 4rem;"></i>
-          </div>
-          <h1 class="display-4 fw-bold mb-3">Gerenciador de Avaliações Google</h1>
-          <p class="lead text-muted mb-4">
-            Gerencie suas avaliações do Google com inteligência artificial.
-            Crie respostas personalizadas e analise o feedback dos seus clientes.
-          </p>
-          <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-            <a href="{{ url_for('reviews') }}" class="btn btn-primary btn-lg px-4 me-md-2">
-              <i class="bi bi-chat-square-text me-2"></i>
-              Ver Avaliações
-            </a>
-            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-lg px-4">
-              <i class="bi bi-plus-circle me-2"></i>
-              Adicionar Avaliação
-            </a>
-          </div>
+
+  {# =================== VERSÃO LOGADO (CLARA + INTERATIVA) =================== #}
+
+  {% set total = reviews|length if reviews else 0 %}
+  {% set responded = reviews|selectattr('replied')|list|length if reviews else 0 %}
+  {% set pending = (total - responded) if total else 0 %}
+  {% set avg = "%.1f"|format((reviews|map(attribute='rating')|sum)/total) if total>0 else "0.0" %}
+  {% set response_rate = (responded/total*100) if total>0 else 0 %}
+  {% set response_rate_str = "%.0f"|format(response_rate) %}
+
+  <style>
+    /* —— Light UI apenas para a home logada —— */
+    .logged-home{ --bg:#f7f9fc; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --brand:#2f7bff; --ok:#22c55e; --warn:#f59e0b; --info:#06b6d4; }
+    .logged-home .hero-lite{
+      background: linear-gradient(160deg, #1e3a8a 0%, #0ea5e9 100%);
+      color: #fff;
+      border-radius: 0 0 50% 50% / 0 0 10% 10%;
+      padding: 48px 18px 80px;
+      box-shadow: 0 10px 30px rgba(2,8,23,.06);
+    }
+    .logged-home .hero-lite h1,
+    .logged-home .hero-lite p {
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .logged-home h1,.logged-home h2,.logged-home h3{ color:var(--ink); }
+    .logged-home .lead{ color:var(--muted); }
+
+    /* Botão secundário SEMPRE branco (mesmo desativado) */
+    .logged-home .hero-lite .btn-outline-primary{
+      background:#ffffff !important;
+      color:#0f172a !important;
+      border-color:#ffffff !important;
+      opacity:.9;
+    }
+    .logged-home .hero-lite .btn-outline-primary:disabled,
+    .logged-home .hero-lite .btn-outline-primary[disabled]{
+      background:#ffffff !important;
+      color:#0f172a !important;
+      border-color:#ffffff !important;
+      opacity:.5;
+      cursor:not-allowed;
+    }
+
+    .logged-home .btn-primary{ background:var(--brand); border-color:var(--brand); border-radius:14px; padding:.825rem 1.15rem; font-weight:700; }
+    .logged-home .btn-outline-primary{ border-radius:14px; padding:.825rem 1.15rem; font-weight:700; }
+
+    /* Cards de métricas */
+    .logged-home .kpi-card{
+      border-radius:22px;
+      padding:22px;
+      color:#fff !important;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 12px 28px rgba(2,8,23,.15);
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .logged-home .kpi-card.blue { background:#2563eb; }
+    .logged-home .kpi-card.green { background:#16a34a; }
+    .logged-home .kpi-card.yellow { background:#f59e0b; }
+    .logged-home .kpi-card.cyan { background:#06b6d4; }
+    .logged-home .kpi-card:hover{ transform:translateY(-4px); box-shadow:0 16px 36px rgba(2,8,23,.10); }
+
+    /* Textos SEM fundo */
+    .logged-home .kpi-card .kpi-title,
+    .logged-home .kpi-card .kpi-value,
+    .logged-home .kpi-card .kpi-sub{
+      color:#fff !important;
+      background:transparent !important;
+      text-shadow:0 1px 2px rgba(0,0,0,.18);
+    }
+    .logged-home .kpi-card .kpi-value{ font-size:2rem; font-weight:900; line-height:1; }
+
+    /* Ícone clean no canto */
+    .logged-home .kpi-card .icon{
+      width:42px;height:42px; display:grid; place-items:center; margin-bottom:10px;
+      border-radius:12px;
+      background:rgba(255,255,255,.12);
+      color:#fff;
+      backdrop-filter:blur(2px);
+      box-shadow:0 2px 4px rgba(0,0,0,.08);
+    }
+
+    /* Donut (SVG) com contraste */
+    .donut-wrap{ position:relative; width:120px; height:120px; margin-inline:auto; }
+    .donut-wrap .center-label{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; color:#fff; }
+    .donut-note{ text-align:center; color:rgba(255,255,255,.9); font-size:.92rem; margin-top:.35rem; }
+    .kpi-card.green .donut-svg circle:first-child{ stroke:rgba(255,255,255,.28); }
+    .kpi-card.green .donut-progress{ stroke:#ffffff; }
+
+    /* contadores */
+    .countup{ opacity:0; transform:translateY(6px); }
+    .countup.visible{ opacity:1; transform:translateY(0); transition:opacity .35s ease, transform .35s ease; }
+  </style>
+
+  <section class="logged-home">
+    <!-- HERO claro -->
+    <div class="hero-lite text-center mb-4">
+      <h1 class="fw-bold mb-2">Gerenciador de Avaliações Google</h1>
+      <p class="lead mb-3">Gerencie, responda e analise suas avaliações com IA — de forma simples e segura.</p>
+      <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+        <a href="{{ url_for('reviews') }}" class="btn btn-primary">
+          <i class="bi bi-chat-square-text me-2"></i> Ver Avaliações
+        </a>
+        <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary">
+          <i class="bi bi-plus-circle me-2"></i> Adicionar Avaliação
+        </a>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-3">
+      <!-- Avaliações -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card blue h-100 text-center">
+          <div class="icon"><i class="bi bi-chat-square-text"></i></div>
+          <div class="kpi-title">Avaliações</div>
+          <div class="kpi-value countup" data-target="{{ total }}">0</div>
+          <div class="kpi-sub">&nbsp;</div>
         </div>
-        <!-- Features Section -->
-        <div class="row g-4 mb-5">
-          <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-              <div class="card-body text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="bi bi-robot text-primary" style="font-size: 2.5rem;"></i>
-                </div>
-                <h5 class="card-title">IA Inteligente</h5>
-                <p class="card-text text-muted">
-                  Gere respostas personalizadas para suas avaliações usando inteligência artificial avançada.
-                </p>
-              </div>
-            </div>
+      </div>
+
+      <!-- Respondidas (rosca + %) -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card green h-100 text-center">
+          <div class="icon"><i class="bi bi-check2-circle"></i></div>
+          <div class="kpi-title">Respondidas (%)</div>
+
+          <div class="donut-wrap my-1">
+            <svg viewBox="0 0 120 120" width="120" height="120" class="donut-svg">
+              <!-- trilha -->
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" stroke-width="14"/>
+              <!-- progresso -->
+              <circle cx="60" cy="60" r="50" fill="none"
+                      stroke="#ffffff"
+                      stroke-width="14" stroke-linecap="round"
+                      stroke-dasharray="314" stroke-dashoffset="314"
+                      class="donut-progress" />
+            </svg>
+            <div class="center-label"><span class="countup" data-target="{{ response_rate_str }}">0</span>%</div>
           </div>
-          <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-              <div class="card-body text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="bi bi-graph-up text-success" style="font-size: 2.5rem;"></i>
-                </div>
-                <h5 class="card-title">Dashboard Analítico</h5>
-                <p class="card-text text-muted">
-                  Visualize estatísticas detalhadas e identifique pontos positivos e negativos.
-                </p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card h-100 border-0 shadow-sm">
-              <div class="card-body text-center p-4">
-                <div class="feature-icon mb-3">
-                  <i class="bi bi-palette text-info" style="font-size: 2.5rem;"></i>
-                </div>
-                <h5 class="card-title">Personalização</h5>
-                <p class="card-text text-muted">
-                  Configure saudações, tons de resposta e informações de contato personalizadas.
-                </p>
-              </div>
-            </div>
-          </div>
+          <div class="donut-note">{{ responded }} de {{ total }} respondidas</div>
         </div>
-        <!-- Quick Stats -->
-        <div class="row g-3 mb-4">
-          <div class="col-md-3">
-            <div class="card bg-primary text-white">
-              <div class="card-body text-center">
-                <i class="bi bi-chat-square-text mb-2" style="font-size: 2rem;"></i>
-                <h4 class="card-title mb-0">{{ reviews|length if reviews else 0 }}</h4>
-                <p class="card-text">Avaliações</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-success text-white">
-              <div class="card-body text-center">
-                <i class="bi bi-reply mb-2" style="font-size: 2rem;"></i>
-                <h4 class="card-title mb-0">{{ reviews|selectattr('replied')|list|length if reviews else 0 }}</h4>
-                <p class="card-text">Respondidas</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-warning text-white">
-              <div class="card-body text-center">
-                <i class="bi bi-star-fill mb-2" style="font-size: 2rem;"></i>
-                <h4 class="card-title mb-0">{{ "%.1f"|format(reviews|map(attribute='rating')|sum / reviews|length) if reviews else "0.0" }}</h4>
-                <p class="card-text">Média</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="card bg-info text-white">
-              <div class="card-body text-center">
-                <i class="bi bi-clock mb-2" style="font-size: 2rem;"></i>
-                <h4 class="card-title mb-0">{{ reviews|rejectattr('replied')|list|length if reviews else 0 }}</h4>
-                <p class="card-text">Pendentes</p>
-              </div>
-            </div>
-          </div>
+      </div>
+
+      <!-- Média -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card yellow h-100 text-center">
+          <div class="icon"><i class="bi bi-star-fill"></i></div>
+          <div class="kpi-title">Média</div>
+          <div class="kpi-value countup" data-target="{{ avg|float }}">{{ avg }}</div>
+          <div class="kpi-sub">de 5,0</div>
+        </div>
+      </div>
+
+      <!-- Pendentes -->
+      <div class="col-6 col-md-3">
+        <div class="kpi-card cyan h-100 text-center">
+          <div class="icon"><i class="bi bi-clock"></i></div>
+          <div class="kpi-title">Pendentes</div>
+          <div class="kpi-value countup" data-target="{{ pending }}">0</div>
+          <div class="kpi-sub">aguardando resposta</div>
         </div>
       </div>
     </div>
+
+  </section>
+
+  <!-- JS: anima contadores + rosca -->
+  <script>
+    (function(){
+      const cards = document.querySelectorAll('.countup');
+      const obs = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{
+          if(!e.isIntersecting) return;
+          const el=e.target, tgt=parseFloat(el.dataset.target||'0');
+          const dur=900, start=performance.now(), float=!Number.isInteger(tgt);
+          function step(now){
+            const p=Math.min(1,(now-start)/dur), v=tgt*p;
+            el.textContent = float ? v.toFixed( (el.dataset.target||'').includes('.') ? 1 : 0 ) : Math.round(v);
+            if(p<1) requestAnimationFrame(step);
+          }
+          el.classList.add('visible'); requestAnimationFrame(step); obs.unobserve(el);
+        });
+      },{threshold:.5});
+      cards.forEach(c=>obs.observe(c));
+
+      // donut
+      const donut = document.querySelector('.donut-progress');
+      if(donut){
+        const per = {{ response_rate|round(0,'floor')|int }};
+        const CIRC = 2*Math.PI*50; // r=50 -> ~314
+        const targetOffset = CIRC * (1 - per/100);
+        const dur=900, start=performance.now();
+        function animate(now){
+          const p=Math.min(1,(now-start)/dur);
+          const current = CIRC - (CIRC-targetOffset)*p;
+          donut.style.strokeDasharray = CIRC.toString();
+          donut.style.strokeDashoffset = current.toString();
+          if(p<1) requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+      }
+    })();
+  </script>
+
   {% endif %}
+
 </div>
 {% endblock %}

@@ -24,6 +24,22 @@
   {% block extra_head %}{% endblock %}
 
   <style>
+      /* Rodapé no modo deslogado */
+  .footer-comentsia.footer-deslogado {
+    background: #0b1020; /* mesmo fundo do index */
+    border-top: none;
+    color: #eaf1ff;
+    box-shadow: none;
+  }
+
+  .footer-comentsia.footer-deslogado a {
+    color: #9fb0d3;
+  }
+
+  .footer-comentsia.footer-deslogado .footer-secure {
+    color: #8a5bff;
+  }
+
     .footer-comentsia { background: #f8f9fb; border-top: 2px solid #e4e8f2; margin-top: 50px; padding-top: 22px; padding-bottom: 14px; font-size: 1.05rem; color: #444; letter-spacing: 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.03);}
     .footer-content { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;}
     .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 7px;}
@@ -228,7 +244,7 @@
   </main>
 
   <!-- Rodapé institucional -->
-  <footer class="footer-comentsia">
+  <footer class="footer-comentsia {% if not logged_in %}footer-deslogado{% endif %}">
     <div class="footer-content">
       <div class="footer-brand">
         <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">

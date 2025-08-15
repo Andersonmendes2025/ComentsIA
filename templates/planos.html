@@ -3,213 +3,239 @@
 
 {% block extra_head %}
 <style>
-  .plan-card {
-    border-radius: 16px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    min-width: 270px;
-    position: relative;
-    margin-bottom: 2rem;
-    padding-bottom: 1.2rem;
-    border: 2px solid #f4f7fb;
-    height: 100%;
+  /* ====== PALETA DARK NEON (igual à home não-logada) ====== */
+  :root{
+    --bg:#0b1020;            /* fundo principal */
+    --panel:#0f1630;         /* painéis */
+    --ink:#eaf1ff;           /* texto primário */
+    --muted:#9cbce5;         /* texto secundário */
+    --brand:#2f7bff;         /* azul */
+    --neon:#8a5bff;          /* roxo */
+    --hot:#ff4fb5;           /* rosa acento */
+    --ok:#22c55e;            /* verde */
+    --warn:#f59e0b;          /* amarelo */
   }
-  .plan-card.selected {
-    border-color: #007bff !important;
+
+  body.plans-dark {
+    background:
+      radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
+      radial-gradient(900px 600px at 120% -20%, rgba(138,91,255,.14), transparent 60%),
+      linear-gradient(180deg, #0a0f1e 0%, #0b1020 60%);
+    color: var(--ink);
   }
-  .plan-header {
-    padding: 1.3rem 1.5rem 0.7rem;
-    border-bottom: 2px solid #007bff;
-    text-align: center;
-    font-weight: 700;
-    font-size: 1.6rem;
-    color: #007bff;
-    border-radius: 16px 16px 0 0;
-    background: #f9fafe;
+
+  /* HERO/FAIXA DOS PLANOS */
+  .plans-band{
+    background:
+      radial-gradient(1200px 700px at 8% -15%, rgba(47,123,255,.18), transparent 60%),
+      radial-gradient(1100px 650px at 110% -10%, rgba(255,79,181,.14), transparent 60%),
+      linear-gradient(180deg,#0b1020,#0a0f1e 70%);
+    border:1px solid rgba(143,164,255,.16);
+    border-radius:24px;
+    box-shadow:0 30px 80px rgba(0,0,0,.35), inset 0 0 0 1px rgba(143,164,255,.06);
+    padding: 36px 18px;
   }
-  .plan-price {
-    font-size: 1.45rem;
-    font-weight: 700;
-    color: #222;
-    margin-bottom: 0.6rem;
-    margin-top: 0.8rem;
-    text-align: center;
+  .plans-title{
+    background: linear-gradient(90deg, #fff, #cfe1ff 30%, #eabfff 60%, #fff);
+    -webkit-background-clip:text;background-clip:text; color:transparent;
+    background-size:200% auto; animation:shine 6s linear infinite;
+    letter-spacing:-.01em;
   }
-  .plan-price .ano {
-    color: #007bff;
-    font-size: 1.04rem;
-    font-weight: 500;
-    display: block;
-    margin-top: 0.2rem;
+  @keyframes shine{0%{background-position:0 0}100%{background-position:200% 0}}
+
+  /* CARD GLASS */
+  .glass{
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+    backdrop-filter: blur(8px);
+    border:1px solid rgba(143,164,255,.16);
+    border-radius:20px;
+    padding:22px;
+    box-shadow:0 12px 40px rgba(0,0,0,.35);
+    transition: transform .25s, box-shadow .25s, border-color .25s;
+    height:100%;
+    position:relative;
   }
-  .plan-details {
-    flex-grow: 1;
-    padding: 0 1.5rem 1.2rem;
-    color: #555;
-    font-size: 0.97rem;
-    line-height: 1.5;
+  .glass:hover{ transform: translateY(-6px); border-color: rgba(143,164,255,.28); box-shadow:0 18px 60px rgba(0,0,0,.45); }
+
+  /* HEADER DO PLANO + “badge” */
+  .plan-head{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;
   }
-  .plan-details strong { color: #222; }
-  .plan-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    margin: 0 1.5rem 1.3rem;
+  .plan-name{ font-size:1.25rem; font-weight:800; color:#fff; }
+  .badge-top{
+    background: linear-gradient(135deg, var(--hot), var(--neon));
+    color:#fff; border:none; font-weight:700; letter-spacing:.2px;
+    padding:.35rem .7rem; border-radius:999px; font-size:.78rem;
   }
-  .btn-plan {
-    width: 100%;
-    background: #007bff;
-    border: none;
-    color: #fff;
-    font-weight: 600;
-    border-radius: 7px;
-    padding: 0.77rem 0;
-    font-size: 1.08rem;
-    transition: background 0.17s;
-    margin-bottom: 0 !important;
+  .badge-tier{
+    background: transparent; color:#cfe1ff; border:1px solid rgba(143,164,255,.25);
+    padding:.28rem .55rem; border-radius:999px; font-size:.72rem;
   }
-  .btn-plan:disabled,
-  .btn-plan.selected {
-    background: #e6f0ff !important;
-    color: #007bff !important;
-    border: 2px solid #007bff !important;
-    font-weight: 700;
-    cursor: default !important;
+
+  .price{ font-size:1.6rem; font-weight:900; color:#fff; margin-top:.2rem; }
+  .price small{ font-size:.9rem; font-weight:600; color:var(--muted); }
+
+  .features{ list-style:none; padding-left:0; margin:14px 0 0; color:var(--muted); }
+  .features li{ margin:.45rem 0; display:flex; gap:.5rem; align-items:flex-start; }
+  .features i{ color:#79b7ff; }
+
+  /* BOTÕES */
+  .btn-neon{
+    background: linear-gradient(135deg, var(--brand), var(--neon));
+    border:none; color:#fff; border-radius:14px; padding:.9rem 1rem; font-weight:800;
+    width:100%;
+    box-shadow:0 10px 30px rgba(47,123,255,.35), 0 0 0 1px rgba(143,164,255,.18) inset;
+    transition: transform .2s, box-shadow .2s;
   }
-  .current-badge {
-    display: inline-block;
-    padding: 0.23em 0.7em;
-    font-size: 0.91rem;
-    font-weight: 600;
-    color: #fff;
-    background: #007bff;
-    border-radius: 0.7em;
-    margin-top: 0.5rem;
-    letter-spacing: 0.01em;
+  .btn-neon:hover{ transform: translateY(-2px) rotateX(6deg); box-shadow:0 18px 42px rgba(138,91,255,.42); }
+
+  .btn-ghost{
+    border:1.5px solid rgba(143,164,255,.35);
+    color:#cfe1ff; border-radius:14px; padding:.9rem 1rem; font-weight:800; width:100%;
+    background:transparent;
   }
+
+  /* ESTADOS */
+  .plan-selected{ outline:2px solid #2f7bff; box-shadow:0 0 0 4px rgba(47,123,255,.16); }
+  .btn-selected{ background:rgba(47,123,255,.15); color:#cfe1ff; border:1px solid rgba(47,123,255,.45); cursor:default; }
+
+  /* GRID */
+  .plans-grid .col{ display:flex; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container my-5">
-  <h1 class="mb-5 text-center fw-bold" style="color:#004085;">Escolha seu Plano</h1>
-  <div class="row g-4 justify-content-center">
+<div class="container my-4 plans-page">
+  {# força fundo dark nesta página #}
+  <script>document.body.classList.add('plans-dark');</script>
 
-    <!-- Free -->
-    <div class="col-12 col-md-6 col-lg-4 d-flex">
-      <div class="plan-card {% if user_plano == 'free' %}selected{% endif %} w-100">
-        <div class="plan-header">
-          {{ planos['free'].nome }}
+  <section class="plans-band mb-4">
+    <div class="text-center mb-3">
+      <h2 class="plans-title fw-extrabold m-0">Planos ComentsIA</h2>
+      <p class="text-neon mt-2 mb-0">Escolha o melhor para o seu momento. Você pode alterar quando quiser.</p>
+    </div>
+
+    <div class="row g-3 plans-grid">
+      <!-- FREE -->
+      <div class="col-12 col-md-4">
+        <div class="glass {% if user_plano == 'free' %}plan-selected{% endif %}">
+          <div class="plan-head">
+            <span class="badge-tier">Início</span>
+            {% if user_plano == 'free' %}<span class="badge-top">Atual</span>{% endif %}
+          </div>
+          <div class="plan-name">Free</div>
+          <div class="price">R$ 0 <small>/mês</small></div>
+
+          <ul class="features">
+            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>{{ planos['free'].avaliacoes_mes }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia:
+              <strong>{% if planos['free'].hiper_dia == 0 %}Não disponível{% elif planos['free'].hiper_dia is none %}Ilimitado{% else %}{{ planos['free'].hiper_dia }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia:
+              <strong>{% if planos['free'].consideracoes_dia == 0 %}Não disponível{% elif planos['free'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['free'].consideracoes_dia }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês:
+              <strong>{% if planos['free'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['free'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['free'].relatorio_pdf_mes }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['free'].suporte|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['free'].dashboard|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['free'].marca_dagua else 'Não' }}</strong></li>
+          </ul>
+
+          <div class="mt-3">
+            {% if user_plano == 'free' %}
+              <button class="btn btn-ghost btn-selected w-100" disabled>Plano Atual</button>
+            {% else %}
+              <form action="{{ url_for('planos') }}" method="post">
+                <input type="hidden" name="plano" value="free">
+                <button type="submit" class="btn btn-ghost w-100">Começar grátis</button>
+              </form>
+            {% endif %}
+          </div>
         </div>
-        <div class="plan-price">Gratuito</div>
-        <div class="plan-details">
-          <p><strong>Avaliações/mês:</strong> {{ planos['free'].avaliacoes_mes }}</p>
-          <p><strong>Respostas hiper compreensivas/dia:</strong>
-            {% if planos['free'].hiper_dia == 0 %}Não disponível{% elif planos['free'].hiper_dia is none %}Ilimitado{% else %}{{ planos['free'].hiper_dia }}{% endif %}
-          </p>
-          <p><strong>Considerações para IA/dia:</strong>
-            {% if planos['free'].consideracoes_dia == 0 %}Não disponível{% elif planos['free'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['free'].consideracoes_dia }}{% endif %}
-          </p>
-          <p><strong>Relatórios PDF/mês:</strong>
-            {% if planos['free'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['free'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['free'].relatorio_pdf_mes }}{% endif %}
-          </p>
-          <p><strong>Suporte:</strong> {{ planos['free'].suporte|capitalize }}</p>
-          <p><strong>Dashboard:</strong> {{ planos['free'].dashboard|capitalize }}</p>
-          <p><strong>Marca d'água:</strong> {{ 'Sim' if planos['free'].marca_dagua else 'Não' }}</p>
-        </div>
-        <div class="plan-buttons">
-          {% if user_plano == 'free' %}
-            <button class="btn btn-plan selected" disabled>Plano Atual</button>
-          {% else %}
+      </div>
+
+      <!-- PRO -->
+      <div class="col-12 col-md-4">
+        <div class="glass {% if user_plano in ['pro','pro_anual'] %}plan-selected{% endif %}">
+          <div class="plan-head">
+            <span class="badge-tier">Profissional</span>
+            <span class="badge-top">Recomendado</span>
+          </div>
+          <div class="plan-name">Pro</div>
+          <div class="price">
+            R$ {{ '%.2f'|format(planos['pro'].preco)|replace('.', ',') }} <small>/mês</small>
+            <div><small>ou R$ {{ '%.2f'|format(planos['pro_anual'].preco)|replace('.', ',') }}/ano</small></div>
+          </div>
+
+          <ul class="features">
+            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>{{ planos['pro'].avaliacoes_mes }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia:
+              <strong>{% if planos['pro'].hiper_dia == 0 %}Não disponível{% elif planos['pro'].hiper_dia is none %}Ilimitado{% else %}{{ planos['pro'].hiper_dia }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia:
+              <strong>{% if planos['pro'].consideracoes_dia == 0 %}Não disponível{% elif planos['pro'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['pro'].consideracoes_dia }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês:
+              <strong>{% if planos['pro'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['pro'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['pro'].relatorio_pdf_mes }}{% endif %}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['pro'].suporte|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['pro'].dashboard|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['pro'].marca_dagua else 'Não' }}</strong></li>
+          </ul>
+
+          <div class="mt-3 d-grid gap-2">
             <form action="{{ url_for('planos') }}" method="post">
-              <input type="hidden" name="plano" value="free">
-              <button type="submit" class="btn btn-plan">Selecionar Gratuito</button>
+              <input type="hidden" name="plano" value="pro">
+              <button type="submit" class="btn btn-neon {% if user_plano=='pro' %}btn-selected{% endif %}" {% if user_plano=='pro' %}disabled{% endif %}>
+                Mensal {% if user_plano=='pro' %}(Plano Atual){% endif %}
+              </button>
             </form>
-          {% endif %}
+            <form action="{{ url_for('planos') }}" method="post">
+              <input type="hidden" name="plano" value="pro_anual">
+              <button type="submit" class="btn btn-neon {% if user_plano=='pro_anual' %}btn-selected{% endif %}" {% if user_plano=='pro_anual' %}disabled{% endif %}>
+                Anual {% if user_plano=='pro_anual' %}(Plano Atual){% endif %}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Pro -->
-    <div class="col-12 col-md-6 col-lg-4 d-flex">
-      <div class="plan-card {% if user_plano in ['pro', 'pro_anual'] %}selected{% endif %} w-100">
-        <div class="plan-header">
-          Pro
-        </div>
-        <div class="plan-price">
-          R$ {{ '%.2f'|format(planos['pro'].preco)|replace('.', ',') }}/mês
-          <span class="ano">ou R$ {{ '%.2f'|format(planos['pro_anual'].preco)|replace('.', ',') }}/ano</span>
-        </div>
-        <div class="plan-details">
-          <p><strong>Avaliações/mês:</strong> {{ planos['pro'].avaliacoes_mes }}</p>
-          <p><strong>Respostas hiper compreensivas/dia:</strong>
-            {% if planos['pro'].hiper_dia == 0 %}Não disponível{% elif planos['pro'].hiper_dia is none %}Ilimitado{% else %}{{ planos['pro'].hiper_dia }}{% endif %}
-          </p>
-          <p><strong>Considerações para IA/dia:</strong>
-            {% if planos['pro'].consideracoes_dia == 0 %}Não disponível{% elif planos['pro'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['pro'].consideracoes_dia }}{% endif %}
-          </p>
-          <p><strong>Relatórios PDF/mês:</strong>
-            {% if planos['pro'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['pro'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['pro'].relatorio_pdf_mes }}{% endif %}
-          </p>
-          <p><strong>Suporte:</strong> {{ planos['pro'].suporte|capitalize }}</p>
-          <p><strong>Dashboard:</strong> {{ planos['pro'].dashboard|capitalize }}</p>
-          <p><strong>Marca d'água:</strong> {{ 'Sim' if planos['pro'].marca_dagua else 'Não' }}</p>
-        </div>
-        <div class="plan-buttons">
-          <form action="{{ url_for('planos') }}" method="post">
-            <input type="hidden" name="plano" value="pro">
-            <button type="submit" class="btn btn-plan {% if user_plano == 'pro' %}selected{% endif %}" {% if user_plano == 'pro' %}disabled{% endif %}>
-              Mensal /mês{% if user_plano == 'pro' %} (Plano Atual){% endif %}
-            </button>
-          </form>
-          <form action="{{ url_for('planos') }}" method="post">
-            <input type="hidden" name="plano" value="pro_anual">
-            <button type="submit" class="btn btn-plan {% if user_plano == 'pro_anual' %}selected{% endif %}" {% if user_plano == 'pro_anual' %}disabled{% endif %}>
-              Anual /ano{% if user_plano == 'pro_anual' %} (Plano Atual){% endif %}
-            </button>
-          </form>
+      <!-- BUSINESS -->
+      <div class="col-12 col-md-4">
+        <div class="glass {% if user_plano in ['business','business_anual'] %}plan-selected{% endif %}">
+          <div class="plan-head">
+            <span class="badge-tier">Escala</span>
+            {% if user_plano in ['business','business_anual'] %}<span class="badge-top">Atual</span>{% endif %}
+          </div>
+          <div class="plan-name">Business Pro</div>
+          <div class="price">
+            R$ {{ '%.2f'|format(planos['business'].preco)|replace('.', ',') }} <small>/mês</small>
+            <div><small>ou R$ {{ '%.2f'|format(planos['business_anual'].preco)|replace('.', ',') }}/ano</small></div>
+          </div>
+
+          <ul class="features">
+            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>Ilimitado</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia: <strong>Ilimitado</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia: <strong>Ilimitado</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês: <strong>Ilimitado</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['business'].suporte|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['business'].dashboard|capitalize }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['business'].marca_dagua else 'Não' }}</strong></li>
+          </ul>
+
+          <div class="mt-3 d-grid gap-2">
+            <form action="{{ url_for('planos') }}" method="post">
+              <input type="hidden" name="plano" value="business">
+              <button type="submit" class="btn btn-ghost {% if user_plano=='business' %}btn-selected{% endif %}" {% if user_plano=='business' %}disabled{% endif %}>
+                Mensal {% if user_plano=='business' %}(Plano Atual){% endif %}
+              </button>
+            </form>
+            <form action="{{ url_for('planos') }}" method="post">
+              <input type="hidden" name="plano" value="business_anual">
+              <button type="submit" class="btn btn-ghost {% if user_plano=='business_anual' %}btn-selected{% endif %}" {% if user_plano=='business_anual' %}disabled{% endif %}>
+                Anual {% if user_plano=='business_anual' %}(Plano Atual){% endif %}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Business -->
-    <div class="col-12 col-md-6 col-lg-4 d-flex">
-      <div class="plan-card {% if user_plano in ['business', 'business_anual'] %}selected{% endif %} w-100">
-        <div class="plan-header">
-          Business
-        </div>
-        <div class="plan-price">
-          R$ {{ '%.2f'|format(planos['business'].preco)|replace('.', ',') }}/mês
-          <span class="ano">ou R$ {{ '%.2f'|format(planos['business_anual'].preco)|replace('.', ',') }}/ano</span>
-        </div>
-        <div class="plan-details">
-          <p><strong>Avaliações/mês:</strong> Ilimitado</p>
-          <p><strong>Respostas hiper compreensivas/dia:</strong> Ilimitado</p>
-          <p><strong>Considerações para IA/dia:</strong> Ilimitado</p>
-          <p><strong>Relatórios PDF/mês:</strong> Ilimitado</p>
-          <p><strong>Suporte:</strong> {{ planos['business'].suporte|capitalize }}</p>
-          <p><strong>Dashboard:</strong> {{ planos['business'].dashboard|capitalize }}</p>
-          <p><strong>Marca d'água:</strong> {{ 'Sim' if planos['business'].marca_dagua else 'Não' }}</p>
-        </div>
-        <div class="plan-buttons">
-          <form action="{{ url_for('planos') }}" method="post">
-            <input type="hidden" name="plano" value="business">
-            <button type="submit" class="btn btn-plan {% if user_plano == 'business' %}selected{% endif %}" {% if user_plano == 'business' %}disabled{% endif %}>
-              Mensal /mês{% if user_plano == 'business' %} (Plano Atual){% endif %}
-            </button>
-          </form>
-          <form action="{{ url_for('planos') }}" method="post">
-            <input type="hidden" name="plano" value="business_anual">
-            <button type="submit" class="btn btn-plan {% if user_plano == 'business_anual' %}selected{% endif %}" {% if user_plano == 'business_anual' %}disabled{% endif %}>
-              Anual /ano{% if user_plano == 'business_anual' %} (Plano Atual){% endif %}
-            </button>
-          </form>
-        </div>
-      </div>
     </div>
-
-  </div>
+  </section>
 </div>
 {% endblock %}
