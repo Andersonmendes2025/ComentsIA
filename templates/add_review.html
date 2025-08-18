@@ -69,6 +69,7 @@
             <div class="card shadow-sm">
                 <div class="card-body p-4">
                     <form method="POST" id="reviewForm" autocomplete="off">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <div class="form-floating">

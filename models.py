@@ -20,6 +20,7 @@ class Review(db.Model):
     reply = db.Column(db.Text)
     replied = db.Column(db.Boolean, default=False)
     terms_accepted = db.Column(db.Boolean, default=False)
+    source = db.Column(db.String(50))
 
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)

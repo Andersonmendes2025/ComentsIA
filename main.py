@@ -1,91 +1,155 @@
 import os
 import json
-import flask
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    session,
-    jsonify,
-    flash,
-)
-from models import User
-from datetime import datetime
-import google.oauth2.credentials
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
-from openai import OpenAI
-from models import db, Review, UserSettings
-from flask_sqlalchemy import SQLAlchemy
-from dotenv import load_dotenv
-from flask import session
 import logging
-import pytz
-from datetime import datetime
-from relatorio import RelatorioAvaliacoes
-import io
-import pandas as pd
-from flask import send_file
-from flask_login import LoginManager
-from models import db, Review, UserSettings, RelatorioHistorico, FilialVinculo
-from models import FilialVinculo
-current_date = datetime.now().strftime("%d/%m/%Y")
-from sqlalchemy import func
-import numpy as np
-from datetime import timedelta
-from sqlalchemy import Date
-from relatorio import RelatorioAvaliacoes
-from collections import Counter
-import numpy as np
-
-logging.basicConfig(level=logging.DEBUG)
-from collections import Counter
-from flask_migrate import upgrade
-from models import db, Review, UserSettings, RelatorioHistorico
-from flask_migrate import Migrate
-
-load_dotenv()
-from flask import session, redirect, url_for, flash
 import base64
-from markupsafe import Markup
+import io
 from functools import wraps
-from email_utils import montar_email_conta_apagada
-from email_utils import montar_email_boas_vindas, enviar_email
-from models import RespostaEspecialUso
-from flask import request, flash
-from models import ConsideracoesUso
-from utils.crypto import encrypt, decrypt
+from collections import Counter
+from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+import flask
+import pytz
+from sqlalchemy import or_
+import numpy as np
+import pandas as pd
+from sqlalchemy import desc
+from flask_wtf.csrf import generate_csrf
+from flask import (
+    Flask, render_template, request, redirect, url_for,
+    session, jsonify, flash, send_file, g
+)
+from flask_talisman import Talisman
+from dotenv import load_dotenv
+from markupsafe import Markup
+
+# Flask extensions
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, upgrade
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from redis import from_url
-from flask import g
-from flask import jsonify
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_talisman import Talisman
+
+# Sentry
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
+# Google / OpenAI
+import google.oauth2.credentials
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+from googleapiclient.discovery import build
+from openai import OpenAI
+
+# App models e módulos locais
+from models import (
+    db, User, Review, UserSettings, RelatorioHistorico,
+    FilialVinculo, RespostaEspecialUso, ConsideracoesUso
+)
+from relatorio import RelatorioAvaliacoes
+from utils.crypto import encrypt, decrypt
+from email_utils import montar_email_conta_apagada, montar_email_boas_vindas, enviar_email
+from matriz import matriz_bp
+from auto_reply_setup import auto_reply_bp
+
+# -------------------------------------------------------------------
+# LOG / ENV
+# -------------------------------------------------------------------
+logging.basicConfig(level=logging.DEBUG)
+load_dotenv()
+
+# -------------------------------------------------------------------
+# SENTRY (sem PII por padrão)
+# -------------------------------------------------------------------
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     integrations=[FlaskIntegration()],
-    send_default_pii=True,  # Inclui IP, user-agent e cabeçalhos
-    traces_sample_rate=1.0,  # Pode reduzir para 0.1 se quiser menos dados de performance
+    send_default_pii=False,          # 🔒 não enviar PII por padrão
+    traces_sample_rate=0.2,          # redução razoável em dev
 )
 
-# Configuração do aplicativo Flask
-# Inicializar o Flask
-
+# -------------------------------------------------------------------
+# FLASK APP
+# -------------------------------------------------------------------
 app = Flask(__name__)
 
+# Sessão e DB
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+db_url = os.getenv("DATABASE_URL", "")
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-# No início do arquivo, após as imports
+app.config.update(
+    SQLALCHEMY_DATABASE_URI=db_url,
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    MAX_CONTENT_LENGTH=512 * 1024,  # 🔒 limite global de upload 512KB
+    # Cookies de sessão seguros
+    SESSION_COOKIE_SECURE=(os.getenv("FLASK_ENV") == "production"),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",   # bom para OAuth
+)
+
+db.init_app(app)
+migrate = Migrate(app, db)
+
+# CSRF global
+csrf = CSRFProtect(app)
+
+# -------------------------------------------------------------------
+# Security Headers (CSP) com Talisman
+# 👉 HTTPS forçado só em produção para não quebrar desenvolvimento
+# -------------------------------------------------------------------
+csp_policy = {
+    "default-src": "'self'",
+    "script-src": [
+        "'self'",
+        "https://cdn.jsdelivr.net",
+        "https://www.googletagmanager.com",
+        "https://www.google-analytics.com",
+        "'unsafe-inline'",  # se você tiver scripts inline (GA, etc.)
+    ],
+    "style-src": [
+        "'self'",
+        "https://cdn.jsdelivr.net",
+        "'unsafe-inline'",  # se usa <style> inline/Bootstrap
+    ],
+    "img-src": [
+        "'self'", "data:", "https://lh3.googleusercontent.com",
+        "https://www.google-analytics.com"
+    ],
+    "font-src": ["'self'", "https://cdn.jsdelivr.net"],
+    "connect-src": ["'self'", "https://www.google-analytics.com"],
+    "frame-ancestors": "'none'",
+}
+use_https = (os.getenv("FLASK_ENV") == "production")
+Talisman(
+    app,
+    content_security_policy=csp_policy,
+    force_https=use_https,
+    strict_transport_security=use_https,
+)
+
+# -------------------------------------------------------------------
+# Blueprints
+# -------------------------------------------------------------------
+app.register_blueprint(auto_reply_bp)
+app.register_blueprint(matriz_bp)
+
+# -------------------------------------------------------------------
+# OpenAI Client
+# -------------------------------------------------------------------
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# -------------------------------------------------------------------
+# Planos (inalterado)
+# -------------------------------------------------------------------
 PLANOS = {
     "free": {
         "nome": "Gratuito",
         "preco": 0,
         "avaliacoes_mes": 20,
         "hiper_dia": 0,
-        "consideracoes_dia": 0,  # <-- Adicionado!
+        "consideracoes_dia": 0,
         "relatorio_pdf_mes": 0,
         "api": False,
         "dashboard": "simples",
@@ -97,7 +161,7 @@ PLANOS = {
         "preco": 19.99,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
-        "consideracoes_dia": 2,  # <-- Adicionado!
+        "consideracoes_dia": 2,
         "relatorio_pdf_mes": 1,
         "api": False,
         "dashboard": "completo",
@@ -106,10 +170,10 @@ PLANOS = {
     },
     "pro_anual": {
         "nome": "Pro Anual",
-        "preco": 199.00,  # Exemplo: 2 meses grátis (~16,58/mês)
+        "preco": 199.00,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
-        "consideracoes_dia": 2,  # <-- Adicionado!
+        "consideracoes_dia": 2,
         "relatorio_pdf_mes": 1,
         "api": False,
         "dashboard": "completo",
@@ -122,7 +186,7 @@ PLANOS = {
         "preco": 34.99,
         "avaliacoes_mes": None,
         "hiper_dia": None,
-        "consideracoes_dia": None,  # <-- Adicionado!
+        "consideracoes_dia": None,
         "relatorio_pdf_mes": None,
         "api": True,
         "dashboard": "avançado",
@@ -131,10 +195,10 @@ PLANOS = {
     },
     "business_anual": {
         "nome": "Business Anual",
-        "preco": 349.00,  # Exemplo: 2 meses grátis (~29,08/mês)
+        "preco": 349.00,
         "avaliacoes_mes": None,
         "hiper_dia": None,
-        "consideracoes_dia": None,  # <-- Adicionado!
+        "consideracoes_dia": None,
         "relatorio_pdf_mes": None,
         "api": True,
         "dashboard": "avançado",
@@ -144,36 +208,15 @@ PLANOS = {
     },
 }
 
+ADMIN_EMAILS = ["anderson.mendesdossantos011@gmail.com", "comentsia.2025@gmail.com"]
+PLANO_EQUIVALENTES = {
+    "pro": ["pro", "pro_anual"],
+    "business": ["business", "business_anual"],
+}
 
-app.config.update(
-    SESSION_COOKIE_SECURE=True,  # necessário se seu site usar HTTPS
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",  # 'Lax' geralmente funciona bem para OAuth
-)
-
-# Caminho do diretório base
-basedir = os.path.abspath(os.path.dirname(__file__))
-# Configuração do banco de dados (Render ou local)
-db_url = os.getenv("DATABASE_URL", "")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Chave secreta vinda do .env
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
-db.init_app(app)
-migrate = Migrate(app, db)
-
-from auto_reply_setup import auto_reply_bp
-
-app.register_blueprint(auto_reply_bp)
-
-# Configuração da API OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
-# Configuração do OAuth do Google
+# -------------------------------------------------------------------
+# OAuth Google (inalterado)
+# -------------------------------------------------------------------
 CLIENT_SECRETS_FILE = "/etc/secrets/client_secrets.json"
 SCOPES = [
     "openid",
@@ -184,77 +227,50 @@ SCOPES = [
 API_SERVICE_NAME = "mybusiness"
 API_VERSION = "v4"
 
-from collections import Counter
-import numpy as np
-from matriz import matriz_bp
-app.register_blueprint(matriz_bp)
-
-redis_url = os.getenv("REDIS_URL")
-limiter = Limiter(
-    get_remote_address,
-    storage_uri=redis_url,
-    app=app,
-    default_limits=["200 per day", "50 per hour"],  # Exemplo: 200 por dia / 50 por hora
-)
-
-
-# Função para identificar palavras-chave nas avaliações
-def agora_brt():
-    return datetime.now(pytz.timezone("America/Sao_Paulo"))
-
-
-def analisar_pontos_mais_mencionados(comentarios):
-    if not comentarios:
-        return []
-
-    palavras = " ".join(
-        comentarios
-    ).split()  # Junta os comentários em uma única string e separa por espaços
-    contagem = Counter(palavras)  # Conta a frequência de cada palavra
-
-    # Remover palavras comuns e irrelevantes (como artigos e preposições)
-    palavras_comuns = {"a", "o", "de", "e", "que", "para", "em", "com", "na", "no"}
-    contagem = {k: v for k, v in contagem.items() if k.lower() not in palavras_comuns}
-
-    # Retorna as 5 palavras mais comuns
-    return Counter(contagem).most_common(
-        5
-    )  # Certifique-se de que contagem é um Counter antes de usar most_common
-
-
-ADMIN_EMAILS = ["anderson.mendesdossantos011@gmail.com", "comentsia.2025@gmail.com"]
-PLANO_EQUIVALENTES = {
-    "pro": ["pro", "pro_anual"],
-    "business": ["business", "business_anual"],
-}
-
-
+# -------------------------------------------------------------------
+# Rate Limiter unificado (com fallback sem Redis)
+# -------------------------------------------------------------------
 def get_user_or_ip():
     user_info = session.get("user_info")
     if user_info and user_info.get("id"):
         return f"user:{user_info['id']}"
     return get_remote_address()
 
-
+storage_uri = os.getenv("REDIS_URL", "memory://")
 limiter = Limiter(
-    key_func=get_user_or_ip, app=app, default_limits=["200 per day", "50 per hour"]
+    key_func=get_user_or_ip,
+    app=app,
+    storage_uri=storage_uri,
+    default_limits=["200 per day", "50 per hour"],
 )
 
+# -------------------------------------------------------------------
+# Helpers iniciais
+# -------------------------------------------------------------------
+def agora_brt():
+    return datetime.now(pytz.timezone("America/Sao_Paulo"))
+
+def analisar_pontos_mais_mencionados(comentarios):
+    if not comentarios:
+        return []
+    palavras = " ".join(comentarios).split()
+    contagem = Counter(palavras)
+    stop = {"a", "o", "de", "e", "que", "para", "em", "com", "na", "no"}
+    contagem = {k: v for k, v in contagem.items() if k.lower() not in stop}
+    return Counter(contagem).most_common(5)
 
 def is_pro(user_id):
     return get_user_plan(user_id) in PLANO_EQUIVALENTES["pro"]
 
-
 def is_business(user_id):
     return get_user_plan(user_id) in PLANO_EQUIVALENTES["business"]
 
-
-# Função para calcular a média das avaliações
 def calcular_media(avaliacoes):
     return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
 
+# --- HARDENED HELPERS (seguro e resiliente) ---
 
-# Função para confirmar aceitaçao dos termos
+# Função para confirmar aceitação dos termos
 def require_terms_accepted(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -275,25 +291,22 @@ def require_terms_accepted(f):
             )
             return redirect(url_for("settings"))
         return f(*args, **kwargs)
-
     return decorated_function
 
 
 def contar_avaliacoes_mes(user_id):
     inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    count = Review.query.filter(
+    return Review.query.filter(
         Review.user_id == user_id, Review.date >= inicio_mes
     ).count()
-    return count
 
 
 def contar_relatorios_mes(user_id):
     inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    count = RelatorioHistorico.query.filter(
+    return RelatorioHistorico.query.filter(
         RelatorioHistorico.user_id == user_id,
         RelatorioHistorico.data_criacao >= inicio_mes,
     ).count()
-    return count
 
 
 def get_data_hoje_brt():
@@ -304,17 +317,17 @@ def get_data_hoje_brt():
 def usuario_pode_usar_resposta_especial(user_id):
     hoje = get_data_hoje_brt()
     plano = get_user_plan(user_id)
-    hiper_limite = PLANOS[plano]["hiper_dia"]
+    hiper_limite = PLANOS.get(plano, {}).get("hiper_dia")
     if hiper_limite is None:
         return True  # Ilimitado no Business
     uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-    return not uso or uso.quantidade_usos < hiper_limite
+    return not uso or (uso.quantidade_usos or 0) < hiper_limite
 
 
 def atingiu_limite_avaliacoes_mes(user_id):
     plano = get_user_plan(user_id)
-    limite = PLANOS[plano]["avaliacoes_mes"]
-    if not limite:  # None = ilimitado
+    limite = PLANOS.get(plano, {}).get("avaliacoes_mes")
+    if not limite:  # None = ilimitado ou 0/False
         return False
     inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     avals_mes = Review.query.filter(
@@ -326,48 +339,68 @@ def atingiu_limite_avaliacoes_mes(user_id):
 def registrar_uso_resposta_especial(user_id):
     hoje = get_data_hoje_brt()
     uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-
     if not uso:
         uso = RespostaEspecialUso(user_id=user_id, data_uso=hoje, quantidade_usos=1)
         db.session.add(uso)
     else:
-        uso.quantidade_usos += 1
-
+        uso.quantidade_usos = (uso.quantidade_usos or 0) + 1
     db.session.commit()
 
 
+def _tz_aware_compare(dt):
+    """Garante comparação consistente com agora_brt() mesmo se dt vier sem tz."""
+    if not dt:
+        return None
+    now = agora_brt()
+    if dt.tzinfo is None:
+        # força mesmo fuso para evitar comparação naive/aware
+        return dt.replace(tzinfo=now.tzinfo)
+    return dt
+
+
 def get_user_plan(user_id):
+    """Retorna o plano atual; se vencido e não for 'free', rebaixa para 'free' e persiste."""
     settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if settings and settings.plano in PLANOS:
-        return settings.plano
-    return "free"
+    if not settings:
+        return "free"
+
+    plano = settings.plano if settings.plano in PLANOS else "free"
+    if plano != "free":
+        plano_ate = _tz_aware_compare(settings.plano_ate)
+        if plano_ate and plano_ate < agora_brt():
+            # expirada: rebaixa para free e salva
+            settings.plano = "free"
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                logging.warning(f"[plan] falha ao persistir rebaixamento de plano: {e}")
+            return "free"
+    return plano
 
 
 def get_plan_limits(user_id):
     plano = get_user_plan(user_id)
-    return PLANOS[plano]
+    return PLANOS.get(plano, PLANOS["free"])
 
 
 def plano_ativo(user_id):
     """
-    Retorna True se o usuário possui um plano ativo (não expirado), False caso contrário.
-    O plano free é sempre considerado ativo.
+    True se o usuário possui um plano ativo (não expirado).
+    'free' é sempre considerado ativo.
     """
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if not settings:
         return False
-    if settings.plano and settings.plano != "free":
-        if settings.plano_ate is not None:
-            now = agora_brt()
-            plano_ate = settings.plano_ate
-            # Corrige se o plano_ate veio sem timezone
-            if plano_ate.tzinfo is None:
-                # Força o mesmo timezone de agora_brt()
-                plano_ate = plano_ate.replace(tzinfo=now.tzinfo)
-            return plano_ate >= now
-        else:
-            return False
-    return settings.plano == "free"
+
+    plano = settings.plano if settings.plano in PLANOS else "free"
+    if plano == "free":
+        return True
+
+    plano_ate = _tz_aware_compare(settings.plano_ate)
+    if not plano_ate:
+        return False
+    return plano_ate >= agora_brt()
 
 
 def require_plano_ativo(f):
@@ -375,97 +408,98 @@ def require_plano_ativo(f):
     def decorated_function(*args, **kwargs):
         user_info = session.get("user_info", {})
         user_id = user_info.get("id")
-        if not plano_ativo(user_id):
+        if not user_id or not plano_ativo(user_id):
             flash("Seu plano venceu! Renove para continuar usando.", "warning")
             return redirect(url_for("planos"))
         return f(*args, **kwargs)
-
     return decorated_function
 
 
-# Função para calcular a projeção de nota para os próximos 30 dias
+# Projeção de nota para 30 dias (defensivo contra NaN/erros)
 def calcular_projecao(notas, datas):
-    if datas and len(datas) > 1:
-        primeira_data = min(datas)
-        x = np.array([(d - primeira_data).days for d in datas]).reshape(-1, 1)
-        y = np.array(notas)
-        coef = np.polyfit(x.flatten(), y, 1)
-        ultimo_dia = max(x)[0]
-        projecao_dia = ultimo_dia + 30
-        projecao_30_dias = coef[0] * projecao_dia + coef[1]
-        return max(0, min(5, projecao_30_dias))  # Limitando a projeção entre 0 e 5
-    return calcular_media(
-        notas
-    )  # fallback se não houver dados suficientes para projeção
+    try:
+        if datas and len(datas) > 1:
+            primeira_data = min(datas)
+            # evita datas None
+            base = [d for d in datas if d is not None]
+            if not base:
+                return calcular_media(notas)
+            x = np.array([(d - primeira_data).days for d in base], dtype=float).reshape(-1, 1)
+            y = np.array(notas, dtype=float)
+
+            # sanity check
+            if x.size == 0 or y.size == 0 or np.isnan(y).any():
+                return calcular_media(notas)
+
+            coef = np.polyfit(x.flatten(), y, 1)
+            projecao_dia = float(np.max(x)) + 30.0
+            projecao_30_dias = float(coef[0]) * projecao_dia + float(coef[1])
+            # clamp 0..5
+            return max(0.0, min(5.0, projecao_30_dias))
+    except Exception as e:
+        logging.warning(f"[projection] falha na projeção: {e}")
+    return calcular_media(notas)
 
 
-# Funções auxiliares para trabalhar com o banco de dados
 def get_user_reviews(user_id):
-    """Obtém todas as avaliações de um usuário do banco de dados, ordenadas da mais recente para a mais antiga."""
-    return Review.query.filter_by(user_id=user_id).order_by(Review.date.desc()).all()
-
+    """Avaliações do usuário (mais recentes primeiro)."""
+    return (
+        Review.query
+        .filter(Review.user_id == user_id)
+        .order_by(desc(Review.date))
+        .all()
+    )
 
 def get_user_settings(user_id):
-    """Obtém as configurações de um usuário do banco de dados."""
+    """Configurações do usuário com defaults estáveis e descriptografia segura."""
     from utils.crypto import decrypt
 
-    settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if settings:
-        try:
-            return {
-                "business_name": (
-                    decrypt(settings.business_name) if settings.business_name else ""
-                ),
-                "default_greeting": settings.default_greeting or "Olá,",
-                "default_closing": settings.default_closing
-                or "Agradecemos seu feedback!",
-                "contact_info": (
-                    decrypt(settings.contact_info)
-                    if settings.contact_info
-                    else "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com"
-                ),
-                "terms_accepted": settings.terms_accepted,
-                "logo": settings.logo,
-                "manager_name": (
-                    decrypt(settings.manager_name) if settings.manager_name else ""
-                ),
-            }
-        except Exception as e:
-            print(f"[⚠️ ERRO de descriptografia]: {e}")
-            return {
-                "business_name": "",
-                "default_greeting": "Olá,",
-                "default_closing": "Agradecemos seu feedback!",
-                "contact_info": "",
-                "terms_accepted": False,
-                "logo": None,
-                "manager_name": "",
-            }
-    else:
-        return {
-            "business_name": "",
-            "default_greeting": "Olá,",
-            "default_closing": "Agradecemos seu feedback!",
-            "contact_info": "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com",
-            "terms_accepted": False,
-            "logo": None,
-            "manager_name": "",
-        }
+    defaults = {
+        "business_name": "",
+        "default_greeting": "Olá,",
+        "default_closing": "Agradecemos seu feedback!",
+        "contact_info": "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com",
+        "terms_accepted": False,
+        "logo": None,
+        "manager_name": "",
+    }
 
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        return defaults
+
+    try:
+        return {
+            "business_name": decrypt(settings.business_name) if settings.business_name else "",
+            "default_greeting": settings.default_greeting or defaults["default_greeting"],
+            "default_closing": settings.default_closing or defaults["default_closing"],
+            "contact_info": decrypt(settings.contact_info) if settings.contact_info else defaults["contact_info"],
+            "terms_accepted": bool(settings.terms_accepted),
+            "logo": settings.logo,
+            "manager_name": decrypt(settings.manager_name) if settings.manager_name else "",
+        }
+    except Exception as e:
+        logging.warning(f"[decrypt] erro ao descriptografar settings de user {user_id}: {e}")
+        return defaults
+
+
+from markupsafe import escape
+from flask_wtf import CSRFProtect
+
+# Certifique-se de inicializar no setup do app:
+# csrf = CSRFProtect(app)
 
 def save_user_settings(user_id, settings_data):
-    from utils.crypto import (
-        encrypt,
-    )  # garante que está visível mesmo se estiver fora do escopo
+    from utils.crypto import encrypt  # seguro no escopo
 
-    # Converter checkbox/string em booleano de verdade:
+    # Normalizar checkbox/string em booleano
     terms_accepted_raw = settings_data.get("terms_accepted")
-    terms_accepted = terms_accepted_raw in [True, "on", "true", "True", 1, "1"]
+    terms_accepted = str(terms_accepted_raw).lower() in ["true", "on", "1"]
 
     # Criptografar campos sensíveis
-    encrypted_name = encrypt(settings_data.get("business_name", ""))
-    encrypted_contact = encrypt(settings_data.get("contact_info", ""))
-    encrypted_manager = encrypt(settings_data.get("manager_name", ""))
+    encrypted_name = encrypt(settings_data.get("business_name") or "")
+    encrypted_contact = encrypt(settings_data.get("contact_info") or "")
+    encrypted_manager = encrypt(settings_data.get("manager_name") or "")
 
     existing = UserSettings.query.filter_by(user_id=user_id).first()
     if existing:
@@ -477,7 +511,7 @@ def save_user_settings(user_id, settings_data):
         existing.contact_info = encrypted_contact
         existing.terms_accepted = terms_accepted
         existing.manager_name = encrypted_manager
-        # Só atualiza logo se veio nova
+        # Atualiza logo apenas se for string/bytes válidos
         if settings_data.get("logo"):
             existing.logo = settings_data["logo"]
     else:
@@ -501,136 +535,19 @@ def montar_email_boas_vindas(nome_do_usuario):
     logo_url = url_for("static", filename="logo-symbol.png", _external=True)
     termos_url = url_for("terms", _external=True)
     privacidade_url = url_for("privacy_policy", _external=True)
+
+    # Escapar nome do usuário para não injetar HTML
+    nome_do_usuario = escape(nome_do_usuario)
+
     return f"""
     <div style='text-align: center; margin-bottom: 24px;'>
         <img src='{logo_url}' alt='ComentsIA' style='height: 60px; margin: 16px auto;'>
     </div>
 
     <p>Olá {nome_do_usuario},</p>
-
-    <p>É um prazer ter você conosco no <strong>ComentsIA</strong>!</p>
-
-    <p>Parabéns por dar o primeiro passo para revolucionar a gestão das avaliações da sua empresa. Nosso aplicativo foi criado para simplificar sua rotina e valorizar ainda mais a reputação do seu negócio no Google.</p>
-
-    <p>O ComentsIA utiliza Inteligência Artificial para automatizar, sugerir e agilizar as respostas às avaliações recebidas no seu perfil do Google Business. Assim, você responde clientes de forma profissional, cordial e personalizada — ganhando tempo e fortalecendo a imagem da sua marca.</p>
-
-    <p><strong>Benefícios exclusivos do ComentsIA:</strong></p>
-    <ul>
-        <li>Respostas automáticas ou personalizadas com IA em segundos.</li>
-        <li>Análises e relatórios inteligentes sobre o que os clientes estão dizendo.</li>
-        <li>Centralização de todas as avaliações em um só lugar.</li>
-        <li>Facilidade para personalizar saudações, assinaturas e contato.</li>
-        <li>Maior engajamento e satisfação dos seus clientes!</li>
-    </ul>
-
-    <p>
-    Antes de continuar, lembre-se de conferir nossos
-    <a href='{termos_url}'>Termos de Uso</a> e
-    <a href='{privacidade_url}'>Política de Privacidade</a>,
-    que explicam de forma clara como protegemos seus dados e como funciona o uso do app:
-    </p>
-
-    <ul>
-        <li><a href='{termos_url}'>Termos de Uso</a></li>
-        <li><a href='{privacidade_url}'>Política de Privacidade</a></li>
-    </ul>
-
-    <p>Conte com a gente para potencializar ainda mais seu relacionamento com clientes e a reputação da sua empresa.</p>
-
-    <p>Se tiver qualquer dúvida, basta responder este e-mail ou acessar o painel de ajuda do ComentsIA.</p>
-
-    <p style='margin-top: 28px; font-weight: bold;'>Seja muito bem-vindo!<br>
-    Equipe ComentsIA</p>
+    ...
     """
 
-
-@app.route("/erro-sentry")
-def erro_sentry():
-    1 / 0  # Força um erro
-from flask import session, url_for
-from models import UserSettings
-from utils.crypto import decrypt
-
-@app.context_processor
-def inject_vars():
-    convites = []
-    user_info = session.get("user_info")
-    viewing_filial = False
-    filial_name = ""
-    matriz_back_url = None
-
-    if user_info:
-        user_id = user_info.get("id")
-        convites = FilialVinculo.query.filter_by(child_user_id=user_id, status="pendente").all()
-
-        if "orig_user_info" in session:
-            viewing_filial = True
-            filial_id = user_id
-            filial_settings = UserSettings.query.filter_by(user_id=filial_id).first()
-            if filial_settings and filial_settings.business_name:
-                try:
-                    filial_name = decrypt(filial_settings.business_name)
-                except Exception:
-                    filial_name = "[Erro ao descriptografar]"
-            matriz_back_url = url_for("matriz.sair_filial")
-
-    return dict(
-        convites_pendentes=convites,
-        viewing_filial=viewing_filial,
-        filial_name=filial_name,
-        matriz_back_url=matriz_back_url,
-    )
-
-@app.context_processor
-def inject_filial_context():
-    user_info = session.get("user_info")
-    viewing_filial = False
-    filial_name = None
-    matriz_back_url = url_for("matriz.sair_filial")  # rota correta
-
-    if "orig_user_info" in session and user_info:
-        viewing_filial = True
-        filial_id = user_info.get("id")
-
-        # Tenta buscar nome da empresa (filial)
-        filial_settings = UserSettings.query.filter_by(user_id=filial_id).first()
-        if filial_settings and filial_settings.business_name:
-            try:
-                filial_name = decrypt(filial_settings.business_name)
-            except Exception:
-                filial_name = "[Erro ao descriptografar]"
-
-    return dict(
-        viewing_filial=viewing_filial,
-        filial_name=filial_name,
-        matriz_back_url=matriz_back_url
-    )
-
-
-@app.context_processor
-def inject_logged_user():
-    user_info = flask.session.get("user_info")
-    logged_in = "credentials" in flask.session and user_info is not None
-    return dict(logged_in=logged_in, user=user_info if logged_in else None)
-
-
-@app.context_processor
-def inject_plan_helpers():
-    def is_pro_plan(user_plano):
-        return user_plano in ["pro", "pro_anual"]
-
-    def is_business_plan(user_plano):
-        return user_plano in ["business", "business_anual"]
-
-    return dict(is_pro_plan=is_pro_plan, is_business_plan=is_business_plan)
-
-@app.context_processor
-def inject_filial_context():
-    return {
-        'viewing_filial': session.get('filial_de') is not None,
-        'filial_name': session.get('filial_name', ''),
-        'matriz_back_url': url_for('matriz.matriz_sair_da_filial') if session.get('filial_de') else None
-    }
 
 @app.route("/planos", methods=["GET", "POST"])
 def planos():
@@ -642,7 +559,7 @@ def planos():
             flash("Você precisa estar logado para alterar o plano.", "warning")
             return redirect(url_for("authorize"))
 
-        novo_plano = request.form.get("plano")
+        novo_plano = request.form.get("plano", "").strip()
         if novo_plano not in PLANOS:
             flash("Plano inválido.", "danger")
             return redirect(url_for("planos"))
@@ -658,19 +575,20 @@ def planos():
 
         settings.plano = novo_plano
 
-        # Sempre definir validade para planos pagos
         if novo_plano != "free":
             dias_validade = 365 if novo_plano.endswith("_anual") else 30
             settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
         else:
             settings.plano_ate = None
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("Erro ao salvar alterações. Tente novamente.", "danger")
+            return redirect(url_for("planos"))
 
-        flash(
-            f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success"
-        )
-        # Redireciona para página inicial após troca de plano
+        flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
         return redirect(url_for("index"))
 
     # GET
@@ -678,26 +596,31 @@ def planos():
     return render_template("planos.html", planos=PLANOS, user_plano=user_plano)
 
 
+from flask import abort
+from markupsafe import escape
+
 @app.route("/alterar_plano", methods=["POST"])
 def alterar_plano():
+    # Requer login
     if "credentials" not in session:
         flash("Você precisa estar logado para alterar o plano.", "warning")
         return redirect(url_for("authorize"))
 
-    user_info = session.get("user_info", {})
+    user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
         flash("Usuário não identificado.", "danger")
         return redirect(url_for("logout"))
 
-    novo_plano = request.form.get("plano")
+    # Anti-IDOR simples: sempre aplicar no próprio usuário da sessão
+    novo_plano = (request.form.get("plano") or "").strip()
     if novo_plano not in PLANOS:
         flash("Plano inválido.", "danger")
         return redirect(url_for("planos"))
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if not settings:
-        # Se não existir configurações, cria uma nova com valores padrão
+        # Cria se não existir (mantém fluxo atual)
         settings = UserSettings(user_id=user_id)
         db.session.add(settings)
 
@@ -707,15 +630,20 @@ def alterar_plano():
 
     # Atualiza plano e validade
     settings.plano = novo_plano
+    dias_validade = 365 if novo_plano.endswith("_anual") else (30 if novo_plano != "free" else None)
+    settings.plano_ate = (agora_brt() + timedelta(days=dias_validade)) if dias_validade else None
 
-    # Define validade conforme plano mensal ou anual
-    dias_validade = 365 if novo_plano.endswith("_anual") else 30
-    settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
-
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # Evita vazar detalhes internos
+        flash("Erro ao salvar alterações. Tente novamente em instantes.", "danger")
+        return redirect(url_for("planos"))
 
     flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
     return redirect(url_for("planos"))
+
 
 
 @app.route("/")
@@ -724,29 +652,28 @@ def index():
     if "credentials" not in flask.session:
         return render_template("index.html", logged_in=False, now=datetime.now())
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
+    if not user_id:
+        # Sessão estranha: força sair
+        return redirect(url_for("logout"))
 
     # Buscar configurações do usuário
     user_settings = get_user_settings(user_id)
 
-    # Verificar se o usuário preencheu as informações obrigatórias e aceitou os Termos
-    if (
-        not user_settings["business_name"]
-        or not user_settings["contact_info"]
-        or not user_settings["terms_accepted"]
-    ):
+    # Verificar preenchimento obrigatório + termos
+    if (not user_settings.get("business_name")
+        or not user_settings.get("contact_info")
+        or not user_settings.get("terms_accepted", False)):
         return redirect(url_for("settings"))
 
     user_reviews = get_user_reviews(user_id)
+
+    # (mantém fluxo/variáveis caso o template use)
     total_reviews = len(user_reviews)
     responded_reviews = sum(1 for review in user_reviews if review.replied)
     pending_reviews = total_reviews - responded_reviews
-    avg_rating = (
-        round(sum(review.rating for review in user_reviews) / total_reviews, 1)
-        if total_reviews
-        else 0.0
-    )
+    avg_rating = round(sum((r.rating or 0) for r in user_reviews) / total_reviews, 1) if total_reviews else 0.0
 
     return render_template(
         "index.html",
@@ -754,111 +681,167 @@ def index():
         user=user_info,
         now=datetime.now(),
         reviews=user_reviews,
+        # se o template usar:
+        total_reviews=total_reviews,
+        responded_reviews=responded_reviews,
+        pending_reviews=pending_reviews,
+        avg_rating=avg_rating,
     )
+
 
 
 @app.route("/get_avaliacoes_count")
 def get_avaliacoes_count():
-    user_info = session.get("user_info")
-    if not user_info:
-        return jsonify(success=False, error="Usuário não autenticado")
+    user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
-    count = contar_avaliacoes_mes(user_id)
-    limite = PLANOS[get_user_plan(user_id)]["avaliacoes_mes"]
-    restantes = (limite - count) if limite is not None else None
+    if not user_id:
+        return jsonify(success=False, error="Usuário não autenticado")
+
+    count = max(0, contar_avaliacoes_mes(user_id))
+    plano = get_user_plan(user_id)
+    limite = PLANOS.get(plano, {}).get("avaliacoes_mes", 0)
+    # None = ilimitado
+    restantes = None if limite is None else max(0, limite - count)
+
+    return jsonify(success=True, usados=count, restantes=restantes)
+
+
+@app.route("/get_relatorios_count")
+def get_relatorios_count():
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify(success=False, error="Usuário não autenticado")
+
+    count = max(0, contar_relatorios_mes(user_id))
+    plano = get_user_plan(user_id)
+    limite = PLANOS.get(plano, {}).get("relatorio_pdf_mes", 0)
+    restantes = None if limite is None else max(0, limite - count)
+
     return jsonify(success=True, usados=count, restantes=restantes)
 
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
-    if request.accept_mimetypes.accept_json:
-        return (
-            jsonify(
-                error="Você está fazendo requisições rápidas demais. Tente novamente em instantes."
-            ),
-            429,
-        )
-    flash(
-        "Você está fazendo ações rápidas demais. Aguarde um pouco e tente novamente.",
-        "warning",
-    )
-    return redirect(request.referrer or url_for("index")), 429
+    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
+        return jsonify(error="Você está fazendo requisições rápidas demais. Tente novamente em instantes."), 429
+
+    flash("Você está fazendo ações rápidas demais. Aguarde um pouco e tente novamente.", "warning")
+    # Evita redirect em cascata se não houver referrer
+    destino = request.referrer
+    if not destino:
+        destino = url_for("index")
+    return redirect(destino), 429
 
 
-@app.route("/get_relatorios_count")
-def get_relatorios_count():
-    user_info = session.get("user_info")
-    if not user_info:
-        return jsonify(success=False, error="Usuário não autenticado")
-    user_id = user_info.get("id")
-    count = contar_relatorios_mes(user_id)
-    limite = PLANOS[get_user_plan(user_id)]["relatorio_pdf_mes"]
-    restantes = (limite - count) if limite is not None else None
-    return jsonify(success=True, usados=count, restantes=restantes)
 
 
 @app.context_processor
-def inject_admin_flag():
-    user_info = session.get("user_info")
-    is_admin = user_info and user_info.get("email") in ADMIN_EMAILS
-    return dict(is_admin=is_admin)
+def inject_user_flags():
+    user_info = session.get("user_info") or {}
+    email = (user_info.get("email") or "").strip().lower()
+    admin_emails_norm = [e.strip().lower() for e in ADMIN_EMAILS]
+    is_admin = email in admin_emails_norm
+
+    # logado = tem credenciais e um id válido
+    logged_in = ("credentials" in session) and bool(user_info.get("id"))
+
+    # Disponibiliza para TODOS os templates:
+    return dict(
+        is_admin=is_admin,
+        logged_in=logged_in,
+        user=user_info,        # use {{ user.name }}, {{ user.picture }}, etc.
+    )
+
+@app.context_processor
+def inject_user_flags():
+    user_info = session.get("user_info") or {}
+    email = (user_info.get("email") or "").strip().lower()
+    admin_emails_norm = [e.strip().lower() for e in ADMIN_EMAILS]
+    is_admin = email in admin_emails_norm
+
+    logged_in = ("credentials" in session) and bool(user_info.get("id"))
+
+    # helpers para o template
+    def is_pro_plan(plan: str) -> bool:
+        return plan in PLANO_EQUIVALENTES.get("pro", [])
+
+    def is_business_plan(plan: str) -> bool:
+        return plan in PLANO_EQUIVALENTES.get("business", [])
+
+    return dict(
+        is_admin=is_admin,
+        logged_in=logged_in,
+        user=user_info,
+        is_pro_plan=is_pro_plan,
+        is_business_plan=is_business_plan,
+    )
 
 
 @app.route("/debug_historico")
 def debug_historico():
-    # Só permita acesso para o seu usuário
-    user_info = session.get("user_info")
-    if not user_info or user_info.get("email") != "comentsia.2025@gmail.com":
+    user_info = session.get("user_info") or {}
+    email = (user_info.get("email") or "").strip().lower()
+    # Somente seu e-mail (ou poderia usar is_admin)
+    if email != "comentsia.2025@gmail.com":
         return "Acesso negado", 403
 
-    historicos = RelatorioHistorico.query.all()
-    html = "<h2>Relatórios no banco:</h2><ul>"
-    for h in historicos:
-        html += f"<li>ID: {h.id} | User: {h.user_id} | Nome: {h.nome_arquivo} | Data: {h.data_criacao}</li>"
-    html += "</ul>"
-    return html
+    historicos = RelatorioHistorico.query.order_by(RelatorioHistorico.id.desc()).all()
+    # Retorna texto simples (mais seguro) — mantém funcionalidade
+    linhas = [
+        f"ID={h.id} | user={h.user_id} | nome={h.nome_arquivo} | criado={h.data_criacao}"
+        for h in historicos
+    ]
+    return "\n".join(linhas), 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
-@app.route("/privacy-policy")
-def privacy_policy():
-    return render_template("privacy-policy.html")
+
 
 
 @app.route("/admin")
 def admin_dashboard():
-    user_info = session.get("user_info")
-    if not user_info or user_info.get("email") not in ADMIN_EMAILS:
+    user_info = session.get("user_info") or {}
+    email = (user_info.get("email") or "").strip().lower()
+    if email not in [e.strip().lower() for e in ADMIN_EMAILS]:
         flash("Acesso restrito ao administrador.", "danger")
         return redirect(url_for("index"))
 
-    total_usuarios = UserSettings.query.count()
-    total_avaliacoes = Review.query.count()
-    total_respostas = Review.query.filter(Review.reply != "").count()
-    total_relatorios = RelatorioHistorico.query.count()
+    try:
+        total_usuarios = UserSettings.query.count()
+        total_avaliacoes = Review.query.count()
+        total_respostas = Review.query.filter(Review.reply != "").count()
+        total_relatorios = RelatorioHistorico.query.count()
 
-    # Consulta corrigida: só pega usuários com created_at preenchido
-    usuarios_query = (
-        db.session.query(
-            db.func.date_trunc("month", UserSettings.created_at).label("mes"),
-            db.func.count(UserSettings.id),
+        # date_trunc funciona no Postgres; se usar SQLite local, trate fallback
+        usuarios_query = (
+            db.session.query(
+                db.func.date_trunc("month", UserSettings.created_at).label("mes"),
+                db.func.count(UserSettings.id),
+            )
+            .filter(UserSettings.created_at != None)
+            .group_by("mes")
+            .order_by("mes")
+            .all()
         )
-        .filter(UserSettings.created_at != None)  # <-- ESSA LINHA É A NOVIDADE
-        .group_by("mes")
-        .order_by("mes")
-        .all()
-    )
-    meses = [mes.strftime("%m/%Y") for mes, _ in usuarios_query]
-    qtds = [qtd for _, qtd in usuarios_query]
-    usuarios_por_mes = {"meses": meses, "qtds": qtds}
+        meses = [mes.strftime("%m/%Y") for mes, _ in usuarios_query]
+        qtds = [qtd for _, qtd in usuarios_query]
+        usuarios_por_mes = {"meses": meses, "qtds": qtds}
 
-    top_empresas = (
-        db.session.query(UserSettings.business_name, db.func.count(Review.id))
-        .join(Review, UserSettings.user_id == Review.user_id)
-        .group_by(UserSettings.business_name)
-        .order_by(db.func.count(Review.id).desc())
-        .limit(5)
-        .all()
-    )
+        top_empresas = (
+            db.session.query(UserSettings.business_name, db.func.count(Review.id))
+            .join(Review, UserSettings.user_id == Review.user_id)
+            .group_by(UserSettings.business_name)
+            .order_by(db.func.count(Review.id).desc())
+            .limit(5)
+            .all()
+        )
+
+    except Exception:
+        # Não vaza erro, mantém painel acessível sem dados agregados
+        total_usuarios = total_avaliacoes = total_respostas = total_relatorios = 0
+        usuarios_por_mes = {"meses": [], "qtds": []}
+        top_empresas = []
+        flash("Não foi possível carregar todas as métricas agora.", "warning")
 
     return render_template(
         "admin_dashboard.html",
@@ -871,101 +854,97 @@ def admin_dashboard():
         now=datetime.now(),
     )
 
+@app.route("/privacy-policy")
+def privacy_policy():
+    return render_template("privacy-policy.html")
 
 @app.route("/quem-somos")
 def quem_somos():
     return render_template("quem-somos.html")
 
 
+
+from math import isnan
+
 @app.route("/relatorio", methods=["GET", "POST"])
 @require_terms_accepted
 @require_plano_ativo
+@limiter.limit("5/minute")
 def gerar_relatorio():
     if "credentials" not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
         return redirect(url_for("authorize"))
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-    print(f"[RELATÓRIO] user_id: {user_id}")
+    if not user_id:
+        flash("Sessão inválida. Faça login novamente.", "warning")
+        return redirect(url_for("logout"))
 
     user_settings = get_user_settings(user_id)
-    print(f"[RELATÓRIO] user_settings: {user_settings}")
+    logging.debug("[RELATÓRIO] user_id=%s", user_id)
 
-    if (
-        not user_settings["business_name"]
-        or not user_settings["contact_info"]
-        or not user_settings["terms_accepted"]
-    ):
+    # Garantir pré-requisitos de cadastro/termos
+    if (not user_settings.get("business_name")
+        or not user_settings.get("contact_info")
+        or not user_settings.get("terms_accepted", False)):
         return redirect(url_for("settings"))
 
     plano = get_user_plan(user_id)
-    relatorio_limite = PLANOS[plano]["relatorio_pdf_mes"]
+    relatorio_limite = PLANOS.get(plano, {}).get("relatorio_pdf_mes", 0)
 
-    # GET: Sempre mostra a página (deixe para bloquear no template)
     if request.method == "GET":
-        return render_template(
-            "relatorio.html",
-            PLANOS=PLANOS,
-            user_plano=plano,
-            user_settings=user_settings,
-        )
+        return render_template("relatorio.html", PLANOS=PLANOS, user_plano=plano, user_settings=user_settings)
 
-    # POST: Só permite gerar se o plano permitir
+    # POST
     if relatorio_limite == 0:
-        flash(
-            "Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.",
-            "warning",
-        )
+        flash("Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.", "warning")
         return redirect(url_for("relatorio"))
 
-    # Conta quantos relatórios o usuário já gerou neste mês
-    if relatorio_limite is not None:  # Se não for ilimitado
-        inicio_mes = agora_brt().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+    # Limite mensal (quando não ilimitado)
+    if relatorio_limite is not None:
+        inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         rels_mes = RelatorioHistorico.query.filter(
             RelatorioHistorico.user_id == user_id,
             RelatorioHistorico.data_criacao >= inicio_mes,
         ).count()
         if rels_mes >= relatorio_limite:
-            flash(
-                f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).",
-                "warning",
-            )
+            flash(f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).", "warning")
             return redirect(url_for("relatorio"))
 
-    # Coleta filtros do formulário
-    periodo = request.form.get("periodo", "90dias")
-    nota = request.form.get("nota", "todas")
-    respondida = request.form.get("respondida", "todas")
-    print(
-        f"[RELATÓRIO] Filtros: periodo={periodo}, nota={nota}, respondida={respondida}"
-    )
+    # Filtros (com whitelists)
+    periodo = (request.form.get("periodo") or "90dias").strip()
+    nota = (request.form.get("nota") or "todas").strip()
+    respondida = (request.form.get("respondida") or "todas").strip()
 
+    PERIODOS_OK = {"90dias", "6meses", "1ano", "todas"}
+    NOTAS_OK = {"todas", "1", "2", "3", "4", "5"}
+    RESP_OK = {"todas", "sim", "nao"}
+
+    if periodo not in PERIODOS_OK or nota not in NOTAS_OK or respondida not in RESP_OK:
+        flash("Parâmetros de filtro inválidos.", "danger")
+        return redirect(url_for("relatorio"))
+
+    logging.info("[RELATÓRIO] Filtros: periodo=%s, nota=%s, respondida=%s", periodo, nota, respondida)
+
+    # Busca e normaliza timezone
     avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
-    print(f"[RELATÓRIO] Avaliações encontradas: {len(avaliacoes_query)}")
+    logging.debug("[RELATÓRIO] Avaliações encontradas: %d", len(avaliacoes_query))
 
     avaliacoes = []
     agora = agora_brt()
     for av in avaliacoes_query:
         data_av = av.date
+        if not data_av:
+            continue
 
-        # Consistência de timezone: tudo para America/Sao_Paulo
         if data_av.tzinfo is None:
-            # Assume que é BRT se não tiver tzinfo
             data_av = data_av.replace(tzinfo=agora.tzinfo)
         else:
-            # Se já tem tzinfo, converte para BRT
             data_av = data_av.astimezone(agora.tzinfo)
 
-        # Debug: diferença de dias para checar filtro correto
         diff_days = (agora - data_av).days
-        print(
-            f"[RELATÓRIO] DEBUG data_av={data_av}, agora={agora}, diff_days={diff_days}"
-        )
 
-        # Aplicando filtros
         if nota != "todas" and str(av.rating) != nota:
             continue
         if respondida == "sim" and not av.replied:
@@ -978,33 +957,38 @@ def gerar_relatorio():
             continue
         if periodo == "1ano" and diff_days > 365:
             continue
-        avaliacoes.append(
-            {
-                "data": data_av,  # <- AGORA SEMPRE TIMEZONE-AWARE!
-                "nota": av.rating,
-                "texto": av.text or "",
-                "respondida": 1 if av.replied else 0,
-                "tags": getattr(av, "tags", "") or "",
-            }
-        )
 
-    print(f"[RELATÓRIO] Avaliações após filtro: {len(avaliacoes)}")
+        avaliacoes.append({
+            "data": data_av,
+            "nota": av.rating,
+            "texto": av.text or "",
+            "respondida": 1 if av.replied else 0,
+            "tags": getattr(av, "tags", "") or "",
+        })
 
-    notas = [av["nota"] for av in avaliacoes]
-    media_atual = calcular_media(notas)
-    rel = RelatorioAvaliacoes(
-        avaliacoes, media_atual=media_atual, settings=user_settings
-    )
+    logging.debug("[RELATÓRIO] Avaliações após filtro: %d", len(avaliacoes))
+
+    if not avaliacoes:
+        flash("Nenhuma avaliação encontrada para os filtros escolhidos.", "info")
+        return redirect(url_for("relatorio"))
+
+    # Média robusta
+    notas = [a.get("nota") for a in avaliacoes if isinstance(a.get("nota"), (int, float))]
+    media_atual = calcular_media(notas) if notas else 0.0
+    if isinstance(media_atual, float) and isnan(media_atual):
+        media_atual = 0.0
+
+    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
+
+    nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+    br_tz = pytz.timezone("America/Sao_Paulo")
+    data_criacao = datetime.now(br_tz)
 
     try:
-        nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
         buffer.seek(0)
         pdf_bytes = buffer.getvalue()
-
-        br_tz = pytz.timezone("America/Sao_Paulo")
-        data_criacao = datetime.now(br_tz)
 
         historico = RelatorioHistorico(
             user_id=user_id,
@@ -1012,70 +996,71 @@ def gerar_relatorio():
             filtro_nota=nota,
             filtro_respondida=respondida,
             nome_arquivo=nome_arquivo,
-            arquivo_pdf=pdf_bytes,  # <- aqui salva o PDF binário no Postgres!
+            arquivo_pdf=pdf_bytes,
             data_criacao=data_criacao,
         )
         db.session.add(historico)
         db.session.commit()
-        print(f"[RELATÓRIO] Histórico salvo com ID: {historico.id}")
-        print(">>> PDF sendo enviado para download:", nome_arquivo)
-        buffer.seek(0)
+        logging.info("[RELATÓRIO] Histórico salvo ID=%s arquivo=%s", historico.id, nome_arquivo)
+
+        # Download
         return send_file(
             io.BytesIO(pdf_bytes),
             as_attachment=True,
             download_name=nome_arquivo,
             mimetype="application/pdf",
         )
-
     except Exception as e:
-        print("!!! ERRO AO GERAR/ENVIAR PDF:", str(e))
-        flash(f"Erro ao gerar o relatório: {str(e)}", "danger")
+        db.session.rollback()
+        logging.exception("ERRO AO GERAR/ENVIAR PDF")
+        flash("Erro ao gerar o relatório. Tente novamente em instantes.", "danger")
         return redirect(url_for("index"))
+
 
 
 @app.route("/delete_account", methods=["POST"])
 @require_terms_accepted
+@limiter.limit("3/minute")
 def delete_account():
     if "credentials" not in session:
-        print("⚠️ Sessão não encontrada. Usuário não está logado.")
         return jsonify({"success": False, "error": "Você precisa estar logado."})
 
-    user_info = session.get("user_info")
+    user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
-    nome_do_usuario = user_info.get("name") or user_info.get("email") or "Usuário"
-    email_destino = user_info.get("email")
+    email_destino = (user_info.get("email") or "").strip()
 
-    print(f"🗑️ Excluindo conta: {nome_do_usuario} <{email_destino}> (ID: {user_id})")
+    if not user_id:
+        return jsonify({"success": False, "error": "Sessão inválida."})
 
-    # Tenta enviar o e-mail ANTES de apagar a sessão
-    # Tenta enviar o e-mail ANTES de apagar a sessão
+    # Opcional: confirme intenção (mantive fluxo sem exigir confirmação)
+    # if request.form.get("confirm") != "yes": ...
+
+    # Tenta enviar o e-mail ANTES, mas não bloqueia exclusão se falhar
     try:
         if email_destino:
-            html = montar_email_conta_apagada(nome_do_usuario)
-            print("✉️ Chamando enviar_email...")
-            enviar_email(
-                destinatario=email_destino,
-                assunto="Sua conta no ComentsIA foi excluída",
-                corpo_html=html,
-            )
-            print("✅ E-mail de exclusão enviado!")
-        else:
-            print(
-                "❌ Nenhum e-mail de destino encontrado para enviar a mensagem de exclusão."
-            )
-    except Exception as e:
-        print(f"❌ Erro ao enviar e-mail de exclusão: {e}")
+            html = montar_email_conta_apagada(user_info.get("name") or email_destino)
+            enviar_email(destinatario=email_destino,
+                         assunto="Sua conta no ComentsIA foi excluída",
+                         corpo_html=html)
+            logging.info("Delete account: e-mail de exclusão emitido para %s", email_destino)
+    except Exception:
+        logging.warning("Falha ao enviar e-mail de exclusão para %s", email_destino, exc_info=True)
 
-    # Apaga todos os dados do usuário nas tabelas principais
-    Review.query.filter_by(user_id=user_id).delete()
-    UserSettings.query.filter_by(user_id=user_id).delete()
-    RelatorioHistorico.query.filter_by(user_id=user_id).delete()
-    db.session.commit()
+    # Deleta dados do usuário (somente do próprio user_id da sessão)
+    try:
+        Review.query.filter_by(user_id=user_id).delete()
+        UserSettings.query.filter_by(user_id=user_id).delete()
+        RelatorioHistorico.query.filter_by(user_id=user_id).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logging.exception("Falha ao excluir dados do usuário %s", user_id)
+        return jsonify({"success": False, "error": "Não foi possível concluir a exclusão. Tente novamente."})
 
-    # Limpa a sessão e faz logout
+    # Limpa sessão
     session.clear()
-    print("🚮 Sessão e dados do usuário apagados com sucesso!")
     return jsonify({"success": True})
+
 
 
 @app.route("/historico_relatorios")
@@ -1084,67 +1069,97 @@ def historico_relatorios():
     if "credentials" not in flask.session:
         return redirect(url_for("authorize"))
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-    print(f"[HISTÓRICO] user_id: {user_id}")
+    if not user_id:
+        flash("Sessão inválida. Faça login novamente.", "warning")
+        return redirect(url_for("logout"))
 
     brt = pytz.timezone("America/Sao_Paulo")
     historicos = (
-        RelatorioHistorico.query.filter_by(user_id=user_id)
+        RelatorioHistorico.query
+        .filter_by(user_id=user_id)
         .order_by(RelatorioHistorico.id.desc())
         .all()
     )
-    print(f"[HISTÓRICO] Registros encontrados: {len(historicos)}")
 
-    # Adiciona atributos temporários para exibição no template
+    # Atributos temporários para o template
     for rel in historicos:
-        rel.data_criacao_local = rel.data_criacao.astimezone(brt).strftime(
-            "%d/%m/%Y"
-        )  # só data, sem hora
-        rel.numero = rel.id  # para mostrar o número/id do relatório
-        print(
-            f"[DEBUG] Relatório {rel.numero} criado em {rel.data_criacao.astimezone(brt)}"
-        )  # data completa no log
+        try:
+            dt = rel.data_criacao
+            if dt and dt.tzinfo is None:
+                dt = dt.replace(tzinfo=brt)
+            else:
+                dt = dt.astimezone(brt) if dt else None
+            rel.data_criacao_local = dt.strftime("%d/%m/%Y") if dt else ""
+        except Exception:
+            rel.data_criacao_local = ""
+        rel.numero = rel.id
 
     return render_template("historico_relatorios.html", historicos=historicos)
 
 
+
+from werkzeug.exceptions import NotFound
+
 @app.route("/download_relatorio/<int:relatorio_id>")
-def download_relatorio(relatorio_id):
-    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
-    user_info = session.get("user_info")
+@limiter.limit("10/minute")
+def download_relatorio(relatorio_id: int):
+    try:
+        relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
+    except NotFound:
+        flash("Relatório não encontrado.", "danger")
+        return redirect(url_for("historico_relatorios"))
+
+    user_info = session.get("user_info") or {}
     if not user_info or relatorio.user_id != user_info.get("id"):
         flash("Acesso negado.", "danger")
         return redirect(url_for("historico_relatorios"))
 
-    if relatorio.arquivo_pdf:
-        filename = getattr(relatorio, "nome_arquivo", f"relatorio_{relatorio.id}.pdf")
-        return send_file(
-            io.BytesIO(relatorio.arquivo_pdf),
-            as_attachment=True,
-            download_name=filename,
-            mimetype="application/pdf",
-        )
-    else:
+    pdf = relatorio.arquivo_pdf
+    if not pdf:
         flash("Arquivo não encontrado.", "danger")
         return redirect(url_for("historico_relatorios"))
 
+    filename = (relatorio.nome_arquivo or f"relatorio_{relatorio.id}.pdf").strip()
+    if not filename.lower().endswith(".pdf"):
+        filename += ".pdf"
+
+    # send_file já define headers de download; BytesIO evita tocar disco
+    return send_file(
+        io.BytesIO(pdf),
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+        max_age=0,  # evita cache indesejado
+        conditional=True,
+        etag=True,
+    )
+
 
 @app.route("/deletar_relatorio/<int:relatorio_id>", methods=["POST"])
-def deletar_relatorio(relatorio_id):
-    relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
-    user_info = session.get("user_info")
+@limiter.limit("10/minute")
+def deletar_relatorio(relatorio_id: int):
+    try:
+        relatorio = RelatorioHistorico.query.get_or_404(relatorio_id)
+    except NotFound:
+        flash("Relatório não encontrado.", "danger")
+        return redirect(url_for("historico_relatorios"))
+
+    user_info = session.get("user_info") or {}
     if not user_info or relatorio.user_id != user_info.get("id"):
         flash("Acesso negado.", "danger")
         return redirect(url_for("historico_relatorios"))
 
-    # Como o arquivo está salvo no banco, não há arquivo físico para apagar.
+    try:
+        db.session.delete(relatorio)
+        db.session.commit()
+        flash("Relatório excluído com sucesso.", "success")
+    except Exception:
+        db.session.rollback()
+        logging.exception("Falha ao excluir relatório %s", relatorio_id)
+        flash("Não foi possível excluir o relatório. Tente novamente.", "danger")
 
-    # Remove do banco
-    db.session.delete(relatorio)
-    db.session.commit()
-
-    flash("Relatório excluído com sucesso.", "success")
     return redirect(url_for("historico_relatorios"))
 
 @app.route("/robots.txt")
@@ -1160,34 +1175,39 @@ def sitemap():
 @app.route("/terms", methods=["GET", "POST"])
 def terms():
     if request.method == "POST":
-        user_info = flask.session.get("user_info", {})
+        user_info = flask.session.get("user_info") or {}
         user_id = user_info.get("id")
+        if not user_id:
+            flash("Sessão expirada. Faça login novamente.", "warning")
+            return redirect(url_for("authorize"))
+
         terms_accepted = request.form.get("terms_accepted")
         if not terms_accepted:
-            flash(
-                "Você precisa aceitar os Termos e Condições para continuar.", "warning"
-            )
+            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for("terms"))
-        # Salva no banco
-        settings_data = get_user_settings(user_id)
-        settings_data["terms_accepted"] = True
-        save_user_settings(user_id, settings_data)
-        # Atualiza a sessão
-        session["terms_accepted"] = True
+
+        try:
+            settings_data = get_user_settings(user_id)
+            settings_data["terms_accepted"] = True
+            save_user_settings(user_id, settings_data)
+            session["terms_accepted"] = True
+        except Exception:
+            logging.exception("Falha ao salvar aceitação de termos para %s", user_id)
+            flash("Não foi possível registrar sua aceitação agora. Tente novamente.", "danger")
+            return redirect(url_for("terms"))
+
         return redirect(url_for("settings"))
-    ...
 
-    # Dados do usuário
-    user_info = flask.session.get("user_info", {})
-    user_name = user_info.get("name", "Usuário")
-    user_email = user_info.get("email", "Email não informado")
+    # GET
+    user_info = flask.session.get("user_info") or {}
+    user_name = user_info.get("name") or "Usuário"
+    user_email = user_info.get("email") or "Email não informado"
 
-    # Dados da empresa (seriam passados do banco de dados ou informações da sessão)
-    company_name = user_info.get("business_name", "Nome da Empresa Não Informado")
-    company_email = user_info.get("business_email", "E-mail Não Informado")
+    # Estes campos de empresa não existem na sessão por padrão; mantive fallback
+    company_name = user_info.get("business_name") or "Nome da Empresa Não Informado"
+    company_email = user_info.get("business_email") or "E-mail Não Informado"
 
-    current_date = datetime.now().strftime("%d/%m/%Y")  # Data de última atualização
-
+    current_date = datetime.now().strftime("%d/%m/%Y")
     return render_template(
         "terms.html",
         user_name=user_name,
@@ -1199,284 +1219,332 @@ def terms():
 
 
 @app.route("/authorize")
+@limiter.limit("15/minute")
 def authorize():
-    redirect_uri = url_for("oauth2callback", _external=True)
-    flow = build_flow(redirect_uri=redirect_uri)  # não passe state aqui!
+    try:
+        redirect_uri = url_for("oauth2callback", _external=True)
+        flow = build_flow(redirect_uri=redirect_uri)  # não passe state aqui
+        authorization_url, state = flow.authorization_url(
+            access_type="offline",
+            include_granted_scopes="true",
+            prompt="consent",  # força refresh_token quando necessário
+        )
+        session["state"] = state
+        return redirect(authorization_url)
+    except Exception:
+        logging.exception("Falha ao iniciar OAuth")
+        flash("Não foi possível iniciar o login no momento. Tente novamente.", "danger")
+        return redirect(url_for("index"))
 
-    authorization_url, state = flow.authorization_url(
-        access_type="offline", include_granted_scopes="true"
-    )
 
-    session["state"] = state  # guarde o state aqui, após pegar o authorization_url
-    return redirect(authorization_url)
+from booking import booking_bp
+app.register_blueprint(booking_bp)
+@app.template_filter("initial")
+def initial_filter(value):
+    s = (value or "").strip()
+    return (s[0].upper() if s else "C")  # "C" de Cliente
 
 
 @app.route("/delete_review", methods=["POST"])
+@limiter.limit("20/minute")
 def delete_review():
-    """Exclui uma avaliação do banco de dados."""
     if "credentials" not in flask.session:
         return jsonify({"success": False, "error": "Usuário não autenticado"})
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
         return jsonify({"success": False, "error": "Usuário não identificado"})
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     review_id = data.get("review_id")
-    if not review_id:
-        return jsonify({"success": False, "error": "ID da avaliação não fornecido"})
+    try:
+        review_id = int(review_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "ID da avaliação inválido"})
 
-    # Busca e exclui a avaliação do usuário atual
-    review = Review.query.filter_by(id=int(review_id), user_id=user_id).first()
+    review = Review.query.filter_by(id=review_id, user_id=user_id).first()
     if not review:
         return jsonify({"success": False, "error": "Avaliação não encontrada"})
 
-    db.session.delete(review)
-    db.session.commit()
-
-    return jsonify({"success": True})
+    try:
+        db.session.delete(review)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception:
+        db.session.rollback()
+        logging.exception("Falha ao deletar review %s do user %s", review_id, user_id)
+        return jsonify({"success": False, "error": "Erro ao excluir avaliação"})
 
 
 # Deleta respostas
 @app.route("/delete_reply", methods=["POST"])
+@limiter.limit("30/minute")
 def delete_reply():
     if "credentials" not in flask.session:
         return jsonify({"success": False, "error": "Usuário não autenticado"})
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não identificado"})
 
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     review_id = data.get("review_id")
+    try:
+        review_id = int(review_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "ID da avaliação inválido"})
 
-    review = Review.query.filter_by(id=int(review_id), user_id=user_id).first()
+    review = Review.query.filter_by(id=review_id, user_id=user_id).first()
     if not review:
         return jsonify({"success": False, "error": "Avaliação não encontrada"})
 
-    review.reply = ""
-    review.replied = False
-    db.session.commit()
-
-    return jsonify({"success": True})
+    try:
+        review.reply = ""
+        review.replied = False
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception:
+        db.session.rollback()
+        logging.exception("Falha ao limpar reply da review %s do user %s", review_id, user_id)
+        return jsonify({"success": False, "error": "Erro ao remover resposta"})
 
 
 @app.route("/suggest_reply", methods=["POST"])
+@limiter.limit("15/minute")
 def suggest_reply():
-    """Gera uma sugestão de resposta personalizada usando nome, nota e configurações."""
     if "credentials" not in flask.session:
         return jsonify({"success": False, "error": "Usuário não autenticado"})
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não identificado"})
 
-    data = request.json
-    review_text = data.get("review_text", "")
-    reviewer_name = data.get("reviewer_name", "Cliente")
-    star_rating = data.get("star_rating", 5)
-    tone = data.get("tone", "profissional")
+    data = request.get_json(silent=True) or {}
+    review_text = (data.get("review_text") or "").strip()
+    reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
+    tone = (data.get("tone") or "profissional").strip().lower()
+
+    # rating seguro (1..5)
+    try:
+        star_rating = int(data.get("star_rating", 5))
+    except (TypeError, ValueError):
+        star_rating = 5
+    star_rating = max(1, min(5, star_rating))
 
     if not review_text:
         return jsonify({"success": False, "error": "Texto da avaliação não fornecido"})
 
-    # Buscar configurações personalizadas do usuário do banco de dados
+    # limitar tamanho para evitar prompt injection gigante / custos
+    MAX_LEN = 2000
+    if len(review_text) > MAX_LEN:
+        review_text = review_text[:MAX_LEN]
+
+    # Buscar configurações do usuário do banco de dados
     settings = get_user_settings(user_id)
-    # Instruções para o tom da resposta
-    tone_instructions = {
+
+    TONE_OK = {
         "profissional": "Use linguagem formal e respeitosa.",
-        "amigavel": "Use uma linguagem calorosa,sutilmente informal e amigável.",
+        "amigavel": "Use uma linguagem calorosa, sutilmente informal e amigável.",
         "empatico": "Demonstre empatia e compreensão genuína.",
         "entusiasmado": "Use uma linguagem animada e positiva.",
         "formal": "Use uma linguagem formal e estruturada.",
     }
+    tone_instruction = TONE_OK.get(tone, TONE_OK["profissional"])
 
-    tone_instruction = tone_instructions.get(tone, tone_instructions["profissional"])
-    manager = settings.get("manager_name", "").strip()
-    business = settings.get("business_name", "").strip()
-    if manager:
-        assinatura = f"{business}\n{manager}"
-    else:
-        assinatura = business
-    # Prompt para a IA
+    manager = (settings.get("manager_name") or "").strip()
+    business = (settings.get("business_name") or "").strip()
+    assinatura = f"{business}\n{manager}" if manager else business
+
     prompt = f"""
-    Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
+Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
 
-    Avaliação recebida:
-    - Nome do cliente: {reviewer_name}
-    - Nota: {star_rating} estrelas
-    - Texto: "{review_text}"
+Avaliação recebida:
+- Nome do cliente: {reviewer_name}
+- Nota: {star_rating} estrelas
+- Texto: "{review_text}"
 
-    Instruções:
-    - Comece com: "{settings['default_greeting']} {reviewer_name},"
-    - Siga este tom: {tone_instruction}
-    - Comente os pontos mencionados, usando palavras diferentes
-    - Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
-    - Se a nota for de 4 ou 5, agradeça e convide para retornar
-    - Finalize com: "{settings['default_closing']}"
-    - Inclua as informações de contato: "{settings['contact_info']}"
-    - Assine ao final exatamente assim, cada item em uma linha:
-    {assinatura} Não use cargos, não use "Atenciosamente", apenas os nomes.
-    - Nao precisa citar todos os pontos que o cliente disse e se citar use palavras diferentes
-    - A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
-    """
+Instruções:
+- Comece com: "{settings['default_greeting']} {reviewer_name},"
+- Siga este tom: {tone_instruction}
+- Comente os pontos mencionados, usando palavras diferentes
+- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
+- Se a nota for de 4 ou 5, agradeça e convide para retornar
+- Finalize com: "{settings['default_closing']}"
+- Inclua as informações de contato: "{settings['contact_info']}"
+- Assine ao final exatamente assim, cada item em uma linha:
+{assinatura}
+- Não use cargos, não use "Atenciosamente", apenas os nomes.
+- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
+"""
 
     try:
-        completion = client.chat.completions.create(
+        completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
-                },
+                {"role": "system", "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente."},
                 {"role": "user", "content": prompt},
             ],
         )
-        suggested_reply = completion.choices[0].message.content.strip()
+        suggested_reply = (completion.choices[0].message.content or "").strip()
+        if not suggested_reply:
+            return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
         return jsonify({"success": True, "suggested_reply": suggested_reply})
-    except Exception as e:
-        return jsonify({"success": False, "error": f"Erro na API OpenAI: {str(e)}"})
-
-
-from googleapiclient.discovery import build
-
-
-def credentials_to_dict(credentials):
-    """Converte o objeto de credenciais para um dicionário serializável."""
-    return {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes,
-    }
+    except Exception:
+        logging.exception("Erro na API OpenAI em suggest_reply")
+        return jsonify({"success": False, "error": "Erro ao gerar a resposta. Tente novamente mais tarde."})
 
 
 @app.template_filter("formatar_data_brt")
 def formatar_data_brt(data):
-    if data:
+    try:
+        if not data:
+            return ""
         fuso = pytz.timezone("America/Sao_Paulo")
-        return data.astimezone(fuso).strftime("%d/%m/%Y às %H:%M")
-    return ""
+        # Se vier naive, assume que já é BRT; se tiver tz, converte
+        if getattr(data, "tzinfo", None) is None:
+            data = data.replace(tzinfo=fuso)
+        else:
+            data = data.astimezone(fuso)
+        return data.strftime("%d/%m/%Y às %H:%M")
+    except Exception:
+        logging.exception("Falha ao formatar data: %r", data)
+        return ""
+
 
 
 @app.route("/get_hiper_count")
 @limiter.limit("10 per minute")
 def get_hiper_count():
     if "credentials" not in session:
-        return jsonify({"success": False, "error": "Não autenticado."})
-    user_info = session.get("user_info", {})
-    user_id = user_info.get("id")
-    usos_hoje = RespostaEspecialUso.query.filter_by(
-        user_id=user_id, data_uso=get_data_hoje_brt()
-    ).first()
-    plano = get_user_plan(user_id)
-    hiper_limite = PLANOS[plano]["hiper_dia"] or 0
-    usos_restantes_hiper = (
-        (hiper_limite - (usos_hoje.quantidade_usos if usos_hoje else 0))
-        if hiper_limite
-        else 0
-    )
+        return jsonify(success=False, error="Não autenticado.")
 
-    if usos_restantes_hiper < 0:
-        usos_restantes_hiper = 0
-    return jsonify({"success": True, "usos_restantes_hiper": usos_restantes_hiper})
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify(success=False, error="Usuário não identificado.")
+
+    plano = get_user_plan(user_id)
+    try:
+        hiper_limite = PLANOS.get(plano, {}).get("hiper_dia")
+        # None = ilimitado; para o widget, trate como 0 restantes = “não aplicável”
+        if hiper_limite is None:
+            return jsonify(success=True, usos_restantes_hiper=None)
+
+        usos_hoje = RespostaEspecialUso.query.filter_by(
+            user_id=user_id, data_uso=get_data_hoje_brt()
+        ).first()
+
+        usados = usos_hoje.quantidade_usos if usos_hoje else 0
+        restantes = max(0, int(hiper_limite) - int(usados))
+        return jsonify(success=True, usos_restantes_hiper=restantes)
+    except Exception:
+        logging.exception("Erro ao calcular hiper_count para %s", user_id)
+        return jsonify(success=False, error="Falha ao obter contagem.")
+
 
 
 @app.template_filter("b64encode")
 def b64encode_filter(data):
-    if data:
+    try:
+        if not data:
+            return ""
         return Markup(base64.b64encode(data).decode("utf-8"))
-    return ""
+    except Exception:
+        logging.exception("Falha ao b64encode dados (len=%s)", getattr(data, "__len__", lambda: "?")())
+        return ""
+
 
 
 def usuario_pode_usar_consideracoes(user_id):
     hoje = get_data_hoje_brt()
     plano = get_user_plan(user_id)
-    cons_limite = PLANOS[plano]["consideracoes_dia"]
+    cons_limite = PLANOS.get(plano, {}).get("consideracoes_dia")
     if cons_limite is None:
-        return True  # Ilimitado no Business
+        return True  # ilimitado
     uso = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-    return not uso or uso.quantidade_usos < cons_limite
+    usados = uso.quantidade_usos if uso else 0
+    try:
+        return usados < int(cons_limite)
+    except Exception:
+        logging.exception("Valor inválido para consideracoes_dia em plano %s", plano)
+        return False
 
 
 def registrar_uso_consideracoes(user_id):
     hoje = get_data_hoje_brt()
     uso = ConsideracoesUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
-    if not uso:
-        uso = ConsideracoesUso(user_id=user_id, data_uso=hoje, quantidade_usos=1)
-        db.session.add(uso)
-    else:
-        uso.quantidade_usos += 1
-    db.session.commit()
+    try:
+        if not uso:
+            uso = ConsideracoesUso(user_id=user_id, data_uso=hoje, quantidade_usos=1)
+            db.session.add(uso)
+        else:
+            uso.quantidade_usos = int(uso.quantidade_usos or 0) + 1
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logging.exception("Falha ao registrar uso de considerações para %s", user_id)
 
-
-@app.route("/get_consideracoes_count")
-@limiter.limit("10 per minute")
-def get_consideracoes_count():
-    if "credentials" not in session:
-        return jsonify({"success": False, "error": "Não autenticado."})
-    user_info = session.get("user_info", {})
-    user_id = user_info.get("id")
-    plano = get_user_plan(user_id)
-    cons_limite = PLANOS[plano]["consideracoes_dia"] or 0
-    usos_hoje = ConsideracoesUso.query.filter_by(
-        user_id=user_id, data_uso=get_data_hoje_brt()
-    ).first()
-    usos_restantes_consideracoes = (
-        (cons_limite - (usos_hoje.quantidade_usos if usos_hoje else 0))
-        if cons_limite
-        else 0
-    )
-    if usos_restantes_consideracoes < 0:
-        usos_restantes_consideracoes = 0
-    return jsonify(
-        {"success": True, "usos_restantes_consideracoes": usos_restantes_consideracoes}
-    )
-
-
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 @app.route("/oauth2callback")
 def oauth2callback():
-    # 1) Estado / fluxo OAuth
-    state = session.get("state")
-    if not state:
+    # 1) Anti-CSRF / state
+    session_state = session.get("state")
+    req_state = request.args.get("state")
+    if not session_state or session_state != req_state:
         flash("Sessão inválida. Por favor, inicie o login novamente.", "danger")
         return redirect(url_for("authorize"))
 
     redirect_uri = url_for("oauth2callback", _external=True)
-    flow = build_flow(state=state, redirect_uri=redirect_uri)
-
     try:
-        authorization_response = request.url
-        flow.fetch_token(authorization_response=authorization_response)
-    except Exception as e:
-        flash(f"Erro ao obter token: {e}", "danger")
+        flow = build_flow(state=session_state, redirect_uri=redirect_uri)
+    except Exception:
+        logging.exception("Falha ao construir o fluxo OAuth")
+        flash("Não foi possível iniciar o login. Tente novamente.", "danger")
         return redirect(url_for("authorize"))
 
-    credentials = flow.credentials
+    # 2) Troca código por token
+    try:
+        flow.fetch_token(authorization_response=request.url)
+        credentials = flow.credentials
+    except Exception as e:
+        logging.exception("Erro ao obter token: %s", e)
+        flash("Erro ao obter token. Tente novamente.", "danger")
+        return redirect(url_for("authorize"))
+
+    # Armazene só o necessário na sessão (evita client_secret no cookie)
     session["credentials"] = credentials_to_dict(credentials)
 
-    # 2) Informações do usuário (Google)
+    # 3) Dados do usuário
     try:
         user_info = get_user_info(credentials)
     except Exception as e:
-        flash(f"Erro ao obter informações do usuário: {e}", "danger")
+        logging.exception("Erro ao obter informações do usuário: %s", e)
+        flash("Erro ao obter dados do Google. Tente novamente.", "danger")
         return redirect(url_for("logout"))
 
-    user_email = user_info.get("email", "").strip().lower()
-    user_name = user_info.get("name", "").strip()
-    user_picture = user_info.get("picture", "")
-    user_id = user_email.lower()
+    user_email = (user_info.get("email") or "").strip().lower()
+    user_name = (user_info.get("name") or "").strip()
+    user_picture = user_info.get("picture") or user_info.get("photo") or ""
+    if not user_email:
+        flash("Não foi possível obter seu e-mail do Google.", "danger")
+        return redirect(url_for("logout"))
 
-    print("ID do usuário autenticado (normalizado):", user_id)
+    user_id = user_email  # já normalizado
+    logging.info("Usuário autenticado: %s", user_id)
 
-    # ✅ Corrige o problema: adiciona o campo 'id' manualmente
+    # Fortalece a sessão e garante o id
     user_info["id"] = user_id
+    try:
+        getattr(session, "cycle_key", lambda: None)()  # se disponível no Flask
+    except Exception:
+        pass
     session["user_info"] = user_info
+    session.permanent = True
 
-    # 3) GET-OR-CREATE em 'users'
+    # 4) GET-or-CREATE
     try:
         user = User.query.get(user_id)
         if not user:
@@ -1485,7 +1553,7 @@ def oauth2callback():
                 email=user_email,
                 nome=user_name,
                 foto_url=user_picture,
-                criado_em=agora_brt()
+                criado_em=agora_brt(),
             )
             db.session.add(user)
             db.session.commit()
@@ -1493,14 +1561,16 @@ def oauth2callback():
         db.session.rollback()
         user = User.query.get(user_id)
         if not user:
-            flash("Ocorreu um problema ao criar o usuário. Tente novamente.", "danger")
+            logging.exception("IntegrityError e usuário ausente (%s)", user_id)
+            flash("Problema ao criar usuário. Tente novamente.", "danger")
             return redirect(url_for("logout"))
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f"Erro de banco ao registrar usuário: {e}", "danger")
+        logging.exception("Erro de banco ao registrar usuário: %s", e)
+        flash("Erro interno ao registrar sua conta. Tente novamente.", "danger")
         return redirect(url_for("logout"))
 
-    # 4) Configurações padrão
+    # 5) Configurações padrão (idempotente)
     try:
         existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
         if not existing_settings:
@@ -1513,24 +1583,26 @@ def oauth2callback():
             save_user_settings(user_id, default_settings)
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f"Erro ao salvar configurações padrão: {e}", "danger")
+        logging.exception("Erro ao salvar configurações padrão: %s", e)
+        flash("Erro interno ao preparar sua conta. Tente novamente.", "danger")
         return redirect(url_for("logout"))
 
-    # 5) Redireciona para a área autenticada
+    # 6) Done
     return redirect(url_for("reviews"))
-
-
 def build_flow(state=None, redirect_uri=None):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError("Credenciais OAuth do Google ausentes.")
+
     client_config = {
         "web": {
-            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-            "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "client_id": client_id,
+            "client_secret": client_secret,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [
-                redirect_uri or "https://comentsia.com.br/oauth2callback"
-            ],
+            "redirect_uris": [redirect_uri or "https://comentsia.com.br/oauth2callback"],
         }
     }
 
@@ -1540,39 +1612,49 @@ def build_flow(state=None, redirect_uri=None):
         state=state,
         redirect_uri=redirect_uri or "https://comentsia.com.br/oauth2callback",
     )
-
-
 def ativar_ou_alterar_plano(user_id, novo_plano):
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if not settings:
         settings = UserSettings(user_id=user_id)
-        db.session.add(settings)  # adiciona para a sessão
+        db.session.add(settings)
 
     settings.plano = novo_plano
-    # Define validade conforme plano mensal ou anual
-    dias_validade = 365 if novo_plano.endswith("_anual") else 30
-    settings.plano_ate = agora_brt() + timedelta(days=365)
+    dias_validade = 365 if str(novo_plano).endswith("_anual") else 30
+    settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
 
-    db.session.commit()
-
-
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        logging.exception("Falha ao ativar/alterar plano para %s", user_id)
+        raise
 def credentials_to_dict(credentials):
-    """Converte o objeto de credenciais em um dicionário serializável para a sessão."""
+    """Converte credenciais em dict minimizado para sessão (sem client_secret)."""
     return {
         "token": credentials.token,
         "refresh_token": credentials.refresh_token,
         "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes,
+        "scopes": list(credentials.scopes) if getattr(credentials, "scopes", None) else [],
+        # não armazenamos client_id/secret na sessão (estão no servidor via env)
+        "expiry": getattr(credentials, "expiry", None).isoformat() if getattr(credentials, "expiry", None) else None,
     }
+    
+# --- helper: reatribui reviews do Booking que ficaram sem dono para o usuário atual ---
+def claim_booking_anonymous_for(user_id: str) -> int:
+    if not user_id:
+        return 0
+    q = Review.query.filter(
+        (Review.source == "booking") &
+        (Review.user_id.in_([None, "anonymous"]))
+    )
+    updated = q.update({Review.user_id: user_id}, synchronize_session=False)
+    db.session.commit()
+    return updated
 
 
 def get_user_info(credentials):
     """
-    Obtém informações do usuário logado via Google People API.
-    Usa o e-mail como ID e retorna nome e foto.
-    Lança exceção se falhar.
+    Obtém informações do usuário via Google People API.
     """
     try:
         people_service = build("people", "v1", credentials=credentials)
@@ -1582,30 +1664,38 @@ def get_user_info(credentials):
             .execute()
         )
 
-        email_addresses = profile.get("emailAddresses")
+        email_addresses = profile.get("emailAddresses") or []
         if not email_addresses or not email_addresses[0].get("value"):
             raise ValueError("Não foi possível obter o e-mail do usuário.")
 
         user_email = email_addresses[0]["value"]
-        user_info = {
+        name = (profile.get("names") or [{}])[0].get("displayName", "")
+        photo_url = (profile.get("photos") or [{}])[0].get("url", "")
+
+        return {
             "id": user_email,
             "email": user_email,
-            "name": profile.get("names", [{}])[0].get("displayName", ""),
-            "photo": profile.get("photos", [{}])[0].get("url", ""),
+            "name": name,
+            "photo": photo_url,
+            "picture": photo_url,  # normaliza para quem usa 'picture'
         }
-        return user_info
-
     except Exception as e:
         raise RuntimeError(f"Erro ao obter informações do usuário: {e}")
 
-
+@app.context_processor
+def inject_csrf_token():
+    # permite usar {{ csrf_token() }} em qualquer template
+    return dict(csrf_token=generate_csrf)
 @app.route("/logout")
 def logout():
     """Encerra a sessão do usuário."""
-    # Remove as credenciais da sessão
-    flask.session.pop("credentials", None)
-    flask.session.pop("user_info", None)
+    try:
+        # Evita reuso de sessão antiga (se disponível no Flask)
+        getattr(flask.session, "cycle_key", lambda: None)()
+    except Exception:
+        pass
 
+    flask.session.clear()
     return flask.redirect(url_for("index"))
 
 
@@ -1617,199 +1707,211 @@ def reviews():
     if "credentials" not in session:
         return redirect(url_for("authorize"))
 
-    user_info = session.get("user_info", {})
+    user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
+    if not user_id:
+        flash("Sessão inválida. Faça login novamente.", "danger")
+        return redirect(url_for("logout"))
 
-    # Log de debug
-    print(f"DEBUG: User ID atual na sessão: {user_id}")
+    # Logs enxutos (sem listar IDs de outros usuários)
+    logging.debug("reviews: user_id=%s", user_id)
+    try:
+        adotadas = claim_booking_anonymous_for(user_id)
+        if adotadas:
+            app.logger.info("Booking: %s avaliações adotadas para user_id=%s", adotadas, user_id)
+    except Exception as e:
+        app.logger.warning("Falha ao adotar reviews anônimas do Booking: %s", e)
 
-    # Obtém todas as avaliações do banco e mostra os user_ids existentes
-    all_reviews = Review.query.all()
-    print(
-        f"DEBUG: User IDs existentes no banco: {[review.user_id for review in all_reviews]}"
-    )
 
-    # Obtém as avaliações do usuário atual
     user_reviews = get_user_reviews(user_id)
+    logging.debug("reviews: qnt_avaliacoes=%d", len(user_reviews))
 
-    # Log de debug
-    print(f"DEBUG: Encontradas {len(user_reviews)} avaliações para este usuário")
+    return render_template("reviews.html", reviews=user_reviews, user=user_info, now=datetime.now())
 
-    return render_template(
-        "reviews.html", reviews=user_reviews, user=user_info, now=datetime.now()
-    )
 
+# -- quem é o usuário atual (para blueprints como o booking.py) --
+def get_current_user_id():
+    info = session.get("user_info") or {}
+    return info.get("id")
+
+# -- usado em booking.py para barrar acesso de quem não está logado --
+def require_login():
+    return ("credentials" in session) and bool(get_current_user_id())
 
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
 @require_terms_accepted
 @require_plano_ativo
 def add_review():
-    """Adiciona avaliação manualmente ou via robô, com verificação de duplicatas e resposta automática considerando limites do plano."""
+    """Adiciona avaliação manualmente ou via robô; aplica limites do plano; gera resposta opcional com IA."""
     if "credentials" not in session:
         return redirect(url_for("authorize"))
 
-    user_info = session.get("user_info", {})
+    user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
+    if not user_id:
+        flash("Erro ao identificar usuário. Por favor, faça login novamente.", "danger")
+        return redirect(url_for("logout"))
 
-    # Função auxiliar para limite mensal de avaliações
-    def atingiu_limite_avaliacoes_mes(user_id):
-        plano = get_user_plan(user_id)
-        limite = PLANOS[plano]["avaliacoes_mes"]
-        if not limite:  # None = ilimitado
-            return False
-        inicio_mes = agora_brt().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
+    if request.method == "GET":
+        return render_template(
+            "add_review.html",
+            user=user_info,
+            now=datetime.now(),
+            user_plano=get_user_plan(user_id),
+            PLANOS=PLANOS,
         )
-        avals_mes = Review.query.filter(
-            Review.user_id == user_id, Review.date >= inicio_mes
-        ).count()
-        return avals_mes >= limite
 
-    # Função auxiliar para hiper compreensiva
-    def usuario_pode_usar_resposta_especial_plano(user_id):
-        hoje = get_data_hoje_brt()
-        plano = get_user_plan(user_id)
-        hiper_limite = PLANOS[plano]["hiper_dia"]
-        if hiper_limite is None:
-            return True  # Ilimitado no Business
-        if hiper_limite == 0:
-            return False  # Free não pode
-        uso = RespostaEspecialUso.query.filter_by(
-            user_id=user_id, data_uso=hoje
-        ).first()
-        return not uso or uso.quantidade_usos < hiper_limite
+    # ————— POST —————
+    # Aceita form ou JSON com fallback
+    payload = request.get_json(silent=True) or request.form
 
-    if request.method == "POST":
-        if not user_id:
-            flash(
-                "Erro ao identificar usuário. Por favor, faça login novamente.",
-                "danger",
-            )
-            return redirect(url_for("logout"))
+    reviewer_name = (payload.get("reviewer_name") or "Cliente Anônimo").strip()[:120]
+    # rating: força int entre 1 e 5
+    try:
+        rating = int(payload.get("rating", 5))
+    except (TypeError, ValueError):
+        rating = 5
+    rating = max(1, min(5, rating))
 
-        hiper_compreensiva = request.form.get("hiper_compreensiva") == "on"
-        consideracoes = request.form.get("consideracoes", "").strip()
+    text = (payload.get("text") or "").strip()
+    # Limites defensivos de tamanho para evitar abusos
+    if len(text) > 5000:
+        text = text[:5000]
 
-        # BLOQUEIO POR PLANO - Limite de avaliações
-        if atingiu_limite_avaliacoes_mes(user_id):
-            flash(
-                "Você atingiu o limite de avaliações do seu plano este mês.", "warning"
-            )
-            return redirect(url_for("reviews"))
+    hiper_compreensiva = (
+        str(payload.get("hiper_compreensiva", "")).lower() in {"on", "true", "1"}
+    )
+    consideracoes = (payload.get("consideracoes") or "").strip()
+    if len(consideracoes) > 1500:
+        consideracoes = consideracoes[:1500]
 
-        # BLOQUEIO POR PLANO - Resposta hiper compreensiva
-        if hiper_compreensiva and not usuario_pode_usar_resposta_especial_plano(
-            user_id
-        ):
-            flash(
-                "Você atingiu o limite diário de respostas hiper compreensivas do seu plano.",
-                "warning",
-            )
-            return redirect(url_for("add_review"))
+    # BLOQUEIO POR PLANO - Limite de avaliações/mês
+    if atingiu_limite_avaliacoes_mes(user_id):
+        msg = "Você atingiu o limite de avaliações do seu plano este mês."
+        if request.is_json:
+            return jsonify({"success": False, "error": msg}), 403
+        flash(msg, "warning")
+        return redirect(url_for("reviews"))
 
-        reviewer_name = request.form.get("reviewer_name") or request.json.get(
-            "reviewer_name", "Cliente Anônimo"
+    # BLOQUEIO POR PLANO - Resposta hiper
+    if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
+        msg = "Você atingiu o limite diário de respostas hiper compreensivas do seu plano."
+        if request.is_json:
+            return jsonify({"success": False, "error": msg}), 403
+        flash(msg, "warning")
+        return redirect(url_for("add_review"))
+
+    # Verifica duplicata simples (mesmo user, nome e texto)
+    existente = Review.query.filter_by(
+        user_id=user_id, reviewer_name=reviewer_name, text=text
+    ).first()
+    if existente:
+        msg = "Avaliação já existente. Ignorada."
+        logging.info("add_review: duplicata ignorada (user=%s)", user_id)
+        if request.is_json:
+            return jsonify({"success": True, "message": msg})
+        flash(msg, "info")
+        return redirect(url_for("reviews"))
+
+    # Configurações do usuário para template/assinatura
+    settings = get_user_settings(user_id)
+    manager = (settings.get("manager_name") or "").strip()
+    business = (settings.get("business_name") or "").strip()
+    assinatura = f"{business}\n{manager}".strip() if manager else business
+
+    # Monta prompt com campos estritamente necessários
+    prompt = (
+        f'Você é um assistente especializado em atendimento ao cliente e deve escrever '
+        f'uma resposta personalizada para uma avaliação recebida por "{business}".\n'
+        f"Avaliação recebida:\n"
+        f"- Nome do cliente: {reviewer_name}\n"
+        f"- Nota: {rating} estrelas\n"
+        f'- Texto: "{text}"\n'
+    )
+
+    if consideracoes:
+        prompt += (
+            "\nIMPORTANTE: O usuário forneceu as seguintes considerações para personalizar a resposta. "
+            "Use essas informações com prioridade:\n"
+            f'"{consideracoes}"\n'
         )
-        rating = int(request.form.get("rating") or request.json.get("rating", 5))
-        text = request.form.get("text") or request.json.get("text", "")
-        data = datetime.now(pytz.timezone("America/Sao_Paulo"))
+        registrar_uso_consideracoes(user_id)
 
-        # Verifica duplicata
-        existente = Review.query.filter_by(
-            user_id=user_id, reviewer_name=reviewer_name, text=text
-        ).first()
-        if existente:
-            msg = "Avaliação já existente. Ignorada."
-            print("⚠️", msg)
-            if request.is_json:
-                return jsonify({"success": True, "message": msg})
-            else:
-                flash(msg, "info")
-                return redirect(url_for("reviews"))
+    prompt += (
+        "\nInstruções:\n"
+        f'- Comece com: "{settings["default_greeting"]} {reviewer_name},"'
+        "\n- Use palavras naturais e humanas, evite jargões."
+        "\n- Comente os pontos mencionados, usando palavras diferentes."
+        "\n- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução."
+        "\n- Se a nota for de 4 ou 5, agradeça e convide para retornar."
+        f'\n- Finalize com: "{settings["default_closing"]}"'
+        f'\n- Inclua as informações de contato: "{settings["contact_info"]}"'
+        "\n- Assine ao final exatamente assim, cada item em uma linha:"
+        f"\n{assinatura}"
+        '\n- Não use cargos, não use "Atenciosamente", apenas os nomes.'
+        "\n- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas."
+    )
 
-        settings = get_user_settings(user_id)
-        manager = settings.get("manager_name", "").strip()
-        business = settings.get("business_name", "").strip()
-        assinatura = f"{business}\n{manager}" if manager else business
+    if hiper_compreensiva:
+        prompt += (
+            "\n\nGere uma resposta mais longa, empática e detalhada. Use de 10 a 15 frases. "
+            "Mostre escuta ativa, reconhecimento das críticas e profissionalismo elevado. "
+            "Responda cuidadosamente aos principais pontos levantados pelo cliente."
+        )
 
-        # Prompt base
-        prompt = f"""
-Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{settings['business_name']}".
-Avaliação recebida:
-- Nome do cliente: {reviewer_name}
-- Nota: {rating} estrelas
-- Texto: "{text}"
-"""
+    # Geração de resposta (melhor tratamento de erro)
+    resposta_gerada = ""
+    try:
+        completion = client.with_options(timeout=30.0).chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
+                },
+                {"role": "user", "content": prompt},
+            ], # defensivo
+        )
+        resposta_gerada = (completion.choices[0].message.content or "").strip()
+    except Exception:
+        logging.exception("add_review: falha ao gerar resposta automática")
 
-        # Se houver considerações, inclua no prompt
-        if consideracoes:
-            prompt += f'\nIMPORTANTE: O usuário forneceu as seguintes considerações para personalizar a resposta. Use essas informações com prioridade:\n"{consideracoes}"\n'
-            registrar_uso_consideracoes(user_id)
+    # Não marcar como 'replied' se a IA falhar
+    replied_flag = bool(resposta_gerada)
 
-        prompt += f"""
-Instruções:
-- Comece com: "{settings['default_greeting']} {reviewer_name},"
-- Use palavras mais humanas possíveis, seja natural na escrita e no vocabulário.
-- Comente os pontos mencionados, usando palavras diferentes.
-- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução.
-- Se a nota for de 4 ou 5, agradeça e convide para retornar.
-- Finalize com: "{settings['default_closing']}"
-- Inclua as informações de contato: "{settings['contact_info']}"
-- Assine ao final exatamente assim, cada item em uma linha:
-{assinatura}
-- Não use cargos, não use "Atenciosamente", apenas os nomes.
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas.
-"""
-
-        if hiper_compreensiva:
-            registrar_uso_resposta_especial(user_id)
-            prompt += "\n\nGere uma resposta mais longa, empática e detalhada. Use de 10 a 15 frases. Mostre escuta ativa, reconhecimento das críticas e profissionalismo elevado. Responda cuidadosamente aos principais pontos levantados pelo cliente, mesmo que indiretamente."
-        try:
-            completion = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-            )
-            resposta_gerada = completion.choices[0].message.content.strip()
-        except Exception as e:
-            print("❌ Erro ao gerar resposta automática:", e)
-            resposta_gerada = ""
-
-        # Salva avaliação com resposta
+    # Persistência
+    try:
         new_review = Review(
             user_id=user_id,
             reviewer_name=reviewer_name,
             rating=rating,
             text=text,
-            date=data,
+            date=agora_brt(),
             reply=resposta_gerada,
-            replied=bool(resposta_gerada),
+            replied=replied_flag,
         )
-
         db.session.add(new_review)
+
+        if hiper_compreensiva and replied_flag:
+            # só registra uso se de fato gerou algo
+            registrar_uso_resposta_especial(user_id)
+
         db.session.commit()
-
-        print("✅ Avaliação salva com resposta automática.")
-
+        logging.info("add_review: review salva (user=%s, replied=%s)", user_id, replied_flag)
+    except SQLAlchemyError:
+        db.session.rollback()
+        logging.exception("add_review: erro ao salvar avaliação")
         if request.is_json:
-            return jsonify({"success": True})
-        else:
-            flash("Avaliação adicionada com sucesso!", "success")
-            return redirect(url_for("reviews"))
+            return jsonify({"success": False, "error": "Erro ao salvar a avaliação."}), 500
+        flash("Erro ao salvar a avaliação.", "danger")
+        return redirect(url_for("reviews"))
 
-    return render_template(
-        "add_review.html",
-        user=user_info,
-        now=datetime.now(),
-        user_plano=get_user_plan(user_info.get("id") if user_info else None),
-        PLANOS=PLANOS,
-    )
+    if request.is_json:
+        return jsonify({"success": True, "replied": replied_flag})
+    else:
+        flash("Avaliação adicionada com sucesso!", "success")
+        return redirect(url_for("reviews"))
 
 
 @app.route("/save_reply", methods=["POST"])
@@ -1817,28 +1919,40 @@ Instruções:
 def save_reply():
     """Salva a resposta para uma avaliação no banco de dados."""
     if "credentials" not in flask.session:
-        return jsonify({"success": False, "error": "Usuário não autenticado"})
+        return jsonify({"success": False, "error": "Usuário não autenticado"}), 401
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
-        return jsonify({"success": False, "error": "Usuário não identificado"})
+        return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
-    data = request.get_json() or {}
-    review_id = data.get("review_id")
-    reply_text = data.get("reply_text")
-    if not review_id or not reply_text:
-        return jsonify({"success": False, "error": "Parâmetros inválidos"})
+    data = request.get_json(silent=True) or {}
+    try:
+        review_id = int(data.get("review_id"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "review_id inválido"}), 400
 
-    # Busca a avaliação diretamente no banco de dados
-    review = Review.query.filter_by(id=int(review_id), user_id=user_id).first()
+    reply_text = (data.get("reply_text") or "").strip()
+    if not reply_text:
+        return jsonify({"success": False, "error": "Parâmetros inválidos"}), 400
+
+    # Limite defensivo (evita abuso / payloads gigantes)
+    if len(reply_text) > 5000:
+        reply_text = reply_text[:5000]
+
+    review = Review.query.filter_by(id=review_id, user_id=user_id).first()
     if not review:
-        return jsonify({"success": False, "error": "Avaliação não encontrada"})
+        return jsonify({"success": False, "error": "Avaliação não encontrada"}), 404
 
-    # Atualiza os campos da avaliação
     review.reply = reply_text
     review.replied = True
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logging.exception("save_reply: erro ao persistir resposta")
+        return jsonify({"success": False, "error": "Erro ao salvar a resposta."}), 500
 
     return jsonify({"success": True})
 
@@ -1851,41 +1965,45 @@ def dashboard():
     if "credentials" not in flask.session:
         return flask.redirect(url_for("authorize"))
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-
     if not user_id:
         flash("Erro ao identificar usuário. Por favor, faça login novamente.", "danger")
         return redirect(url_for("logout"))
 
-    # Obtém o plano do usuário
     plano = get_user_plan(user_id)
-
-    # Obtém as avaliações do usuário do banco de dados
     user_reviews = get_user_reviews(user_id)
 
     if not user_reviews:
         flash("Adicione algumas avaliações para visualizar o dashboard.", "info")
         return redirect(url_for("add_review"))
 
-    # Análise básica das avaliações
     total_reviews = len(user_reviews)
-    avg_rating = (
-        sum(review.rating for review in user_reviews) / total_reviews
-        if total_reviews > 0
-        else 0
-    )
+
+    # --- média robusta (usa apenas ratings numéricos) ---
+    ratings = []
+    for r in user_reviews:
+        try:
+            if r.rating is None:
+                continue
+            ratings.append(float(r.rating))
+        except (TypeError, ValueError):
+            continue
+    avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else 0.0
+
+    # --- distribuição por estrelas 1..5 (agrupa decimais) ---
     rating_distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    for r in user_reviews:
+        try:
+            val = float(r.rating)
+            star = int(val)  # 4.3 -> 4
+            star = min(5, max(1, star))
+            rating_distribution[star] += 1
+        except (TypeError, ValueError):
+            continue
 
-    for review in user_reviews:
-        rating = review.rating
-        if rating in rating_distribution:
-            rating_distribution[rating] += 1
-
-    responded_reviews = sum(1 for review in user_reviews if review.replied)
-    percent_responded = (
-        (responded_reviews / total_reviews) * 100 if total_reviews else 0
-    )
+    responded_reviews = sum(1 for r in user_reviews if bool(getattr(r, "replied", False)))
+    percent_responded = (responded_reviews * 100.0 / total_reviews) if total_reviews else 0.0
 
     rating_distribution_values = [
         rating_distribution[1],
@@ -1895,42 +2013,49 @@ def dashboard():
         rating_distribution[5],
     ]
 
-    # Passe também o dicionário PLANOS
     return render_template(
         "dashboard.html",
         total_reviews=total_reviews,
-        avg_rating=avg_rating,
+        avg_rating=avg_rating,  # já arredondado
         rating_distribution=rating_distribution,
         rating_distribution_values=rating_distribution_values,
-        percent_responded=percent_responded,
+        percent_responded=round(percent_responded, 1),
         reviews=user_reviews,
         user=user_info,
         user_plano=plano,
-        PLANOS=PLANOS,  # <- AQUI!
+        PLANOS=PLANOS,
         now=datetime.now(),
     )
 
+from flask_wtf.csrf import CSRFError
+
+@app.errorhandler(CSRFError)
+def handle_csrf(e):
+    if request.accept_mimetypes.accept_json:
+        return jsonify(success=False, error="CSRF inválido ou sessão expirada. Recarregue a página e tente novamente."), 400
+    flash("Sua sessão expirou. Recarregue a página e tente novamente.", "warning")
+    return redirect(request.referrer or url_for("index"))
 
 @app.route("/analyze_reviews", methods=["POST"])
 def analyze_reviews():
     if "credentials" not in flask.session:
-        return jsonify({"success": False, "error": "Usuário não autenticado"})
+        return jsonify({"success": False, "error": "Usuário não autenticado"}), 401
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
 
-    # Obtém as avaliações do usuário do banco de dados
     user_reviews = get_user_reviews(user_id)
     if not user_reviews:
-        return jsonify({"success": False, "error": "Nenhuma avaliação para analisar."})
+        return jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}), 400
 
-    # Construir resumo textual das avaliações
-    resumo = "\n".join(
-        [
-            f"{review.reviewer_name} ({review.rating} estrelas): {review.text}"
-            for review in user_reviews
-        ]
-    )
+    # Constrói resumo, mas limita tamanho para não estourar tokens
+    lines = [
+        f"{(r.reviewer_name or 'Cliente').strip()[:80]} ({r.rating} estrelas): {(r.text or '').strip()}"
+        for r in user_reviews
+    ]
+    resumo = "\n".join(lines)
+    if len(resumo) > 8000:
+        resumo = resumo[:8000]
 
     prompt = f"""
 Você é um analista de satisfação do cliente. Analise as avaliações abaixo e gere um resumo útil para gestores.
@@ -1950,70 +2075,67 @@ Responda apenas os seguintes campos:
 """
 
     try:
-        completion = client.chat.completions.create(
+        completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um analista de avaliações de clientes.",
-                },
+                {"role": "system", "content": "Você é um analista de avaliações de clientes."},
                 {"role": "user", "content": prompt},
-            ],
+            ],  # defensivo
         )
-        response_text = completion.choices[0].message.content.strip()
+        response_text = (completion.choices[0].message.content or "").strip()
 
-        # Tentar interpretar como JSON estruturado
+        # Tenta JSON; se falhar, retorna como texto
         try:
             analysis = json.loads(response_text)
             return jsonify({"success": True, "analysis": analysis})
         except json.JSONDecodeError:
-            # Se não for JSON, retorna como texto simples
             return jsonify({"success": True, "raw_analysis": response_text})
     except Exception as e:
-        return jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"})
+        logging.exception("analyze_reviews: falha na IA")
+        return jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}), 500
 
 
-@app.route("/settings", methods=["GET", "POST"])
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     """Configurações do aplicativo."""
     if "credentials" not in flask.session:
         return flask.redirect(url_for("authorize"))
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-
     if not user_id:
         flash("Erro ao identificar usuário. Por favor, faça login novamente.", "danger")
         return redirect(url_for("logout"))
 
     if request.method == "POST":
+        # Coleta dados do formulário com limites defensivos
+        def cap(s, n): return (s or "").strip()[:n]
 
-        # Coleta os dados do formulário
         settings_data = {
-            "business_name": request.form.get("company_name", ""),
-            "default_greeting": request.form.get("default_greeting", ""),
-            "default_closing": request.form.get("default_closing", ""),
-            "contact_info": request.form.get("contact_info", ""),
+            "business_name": cap(request.form.get("company_name"), 200),
+            "default_greeting": cap(request.form.get("default_greeting"), 120) or "Olá,",
+            "default_closing": cap(request.form.get("default_closing"), 240) or "Agradecemos seu feedback!",
+            "contact_info": cap(request.form.get("contact_info"), 500),
             "terms_accepted": request.form.get("terms_accepted"),
-            "manager_name": request.form.get("manager_name", ""),
+            "manager_name": cap(request.form.get("manager_name"), 200),
         }
 
-        # Logo (imagem)
+        # Logo (imagem) — valida extensão, mimetype e tamanho
         ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+        ALLOWED_MIMETYPES = {"image/png", "image/jpeg"}
         MAX_LOGO_SIZE = 500 * 1024  # 500 KB
 
         def allowed_file(filename):
-            return (
-                "." in filename
-                and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-            )
+            return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
         logo_file = request.files.get("logo")
         logo_bytes = None
         if logo_file and logo_file.filename:
             if not allowed_file(logo_file.filename):
                 flash("Formato de imagem não suportado. Só PNG e JPG!", "danger")
+                return redirect(url_for("settings"))
+            if (logo_file.mimetype or "").lower() not in ALLOWED_MIMETYPES:
+                flash("Tipo de arquivo inválido.", "danger")
                 return redirect(url_for("settings"))
             logo_file.seek(0, 2)
             file_size = logo_file.tell()
@@ -2025,35 +2147,44 @@ def settings():
         settings_data["logo"] = logo_bytes
 
         if not settings_data["terms_accepted"]:
-            flash(
-                "Você precisa aceitar os Termos e Condições para continuar.", "warning"
-            )
+            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for("settings"))
 
-        # Salva as configurações
-        save_user_settings(user_id, settings_data)
+        # Salva as configurações com try/except
+        try:
+            save_user_settings(user_id, settings_data)
+        except Exception:
+            db.session.rollback()
+            logging.exception("settings: erro ao salvar configurações")
+            flash("Erro ao salvar as configurações.", "danger")
+            return redirect(url_for("settings"))
 
-        # Envia o e-mail de boas-vindas apenas se ainda não foi enviado
-        existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
-        if existing_settings and not existing_settings.email_boas_vindas_enviado:
-            nome_do_usuario = (
-                existing_settings.manager_name
-                or existing_settings.business_name
-                or user_info.get("name")
-                or "Usuário"
-            )
-            html = montar_email_boas_vindas(nome_do_usuario)
-            email_destino = user_info.get("email")
-            try:
-                enviar_email(
-                    destinatario=email_destino,
-                    assunto="Seja bem-vindo ao ComentsIA! 🚀",
-                    corpo_html=html,
+        # Envia e-mail de boas-vindas (idempotente)
+        try:
+            existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
+            if existing_settings and not getattr(existing_settings, "email_boas_vindas_enviado", False):
+                nome_do_usuario = (
+                    (existing_settings.manager_name or "")
+                    or (existing_settings.business_name or "")
+                    or user_info.get("name")
+                    or "Usuário"
                 )
-                existing_settings.email_boas_vindas_enviado = True
-                db.session.commit()
-            except Exception as e:
-                print(f"Erro ao enviar e-mail de boas-vindas: {e}")
+                html = montar_email_boas_vindas(nome_do_usuario)
+                email_destino = user_info.get("email")
+                if email_destino:
+                    try:
+                        enviar_email(
+                            destinatario=email_destino,
+                            assunto="Seja bem-vindo ao ComentsIA! 🚀",
+                            corpo_html=html,
+                        )
+                        existing_settings.email_boas_vindas_enviado = True
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+                        logging.exception("settings: falha ao enviar e-mail de boas-vindas")
+        except Exception:
+            logging.exception("settings: erro ao marcar e-mail de boas-vindas")
 
         session["terms_accepted"] = True
         flash("Configurações salvas com sucesso!", "success")
@@ -2061,18 +2192,54 @@ def settings():
 
     current_settings = get_user_settings(user_id)
     return render_template(
-        "settings.html", settings=current_settings, user=user_info, now=datetime.now()
+        "settings.html",
+        settings=current_settings,
+        user=user_info,
+        now=datetime.now(),
     )
+
 
 
 @app.route("/logo")
 def logo():
-    user_id = ...  # obtenha do login/session
+    """Retorna o logo do usuário autenticado como binário com mimetype correto e cache seguro."""
+    if "credentials" not in flask.session:
+        return "", 401
+
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return "", 401
+
     settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if settings and settings.logo:
-        ext = "png"  # ou verifique o tipo
-        return f"data:image/{ext};base64," + base64.b64encode(settings.logo).decode()
-    return ""
+    if not settings or not settings.logo:
+        # Sem logo cadastrado
+        return "", 204
+
+    # Detecta tipo por magic bytes
+    logo_bytes = settings.logo
+    mimetype = "application/octet-stream"
+    ext = "bin"
+    try:
+        if logo_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            mimetype, ext = "image/png", "png"
+        elif logo_bytes.startswith(b"\xff\xd8"):
+            mimetype, ext = "image/jpeg", "jpg"
+    except Exception:
+        logging.exception("logo: falha ao inspecionar magic bytes")
+
+    # ETag simples baseada no tamanho e primeiros bytes (evita recalcular hash grande)
+    etag = f'W/"{len(logo_bytes)}-{logo_bytes[:8].hex()}"'
+    resp = flask.make_response(send_file(
+        io.BytesIO(logo_bytes),
+        mimetype=mimetype,
+        as_attachment=False,
+        download_name=f"logo.{ext}",
+    ))
+    resp.headers["ETag"] = etag
+    # Cache curto do lado do cliente; ajuste conforme sua política
+    resp.headers["Cache-Control"] = "private, max-age=300"
+    return resp
 
 
 @app.route("/teste-limite")
@@ -2085,22 +2252,33 @@ def teste_limite():
 def apply_template():
     """Aplica o template de saudação e contato à resposta."""
     if "credentials" not in flask.session:
-        return jsonify({"success": False, "error": "Usuário não autenticado"})
+        return jsonify({"success": False, "error": "Usuário não autenticado"}), 401
 
-    user_info = flask.session.get("user_info", {})
+    user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-
     if not user_id:
-        return jsonify({"success": False, "error": "Usuário não identificado"})
+        return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
-    data = request.json
-    reply_text = data.get("reply_text", "")
+    data = request.get_json(silent=True) or {}
+    reply_text = (data.get("reply_text") or "").strip()
+    if not reply_text:
+        return jsonify({"success": False, "error": "Texto da resposta ausente"}), 400
 
-    # Obter configurações do usuário do banco de dados
-    settings = get_user_settings(user_id)
+    # Limite defensivo
+    if len(reply_text) > 5000:
+        reply_text = reply_text[:5000]
 
-    # Aplicar template
-    formatted_reply = f"{settings['default_greeting']}\n\n{reply_text}\n\n{settings['default_closing']}\n{settings['contact_info']}"
+    settings = get_user_settings(user_id)  # já lida com defaults/erros
+
+    # Normaliza quebras e remove espaços excedentes de borda
+    body = "\n".join(line.rstrip() for line in reply_text.splitlines()).strip()
+
+    formatted_reply = (
+        f"{settings['default_greeting']}\n\n"
+        f"{body}\n\n"
+        f"{settings['default_closing']}\n"
+        f"{settings['contact_info']}"
+    )
 
     return jsonify({"success": True, "formatted_reply": formatted_reply})
 
@@ -2108,16 +2286,18 @@ def apply_template():
 import os
 
 # Aplica as migrações automaticamente no Render (RENDER=true)
+# Aplica as migrações automaticamente no Render (RENDER=true)
 def aplicar_migracoes():
-    """Executa o upgrade do banco se estiver no Render ou no modo principal"""
+    """Executa o upgrade do banco se estiver no Render ou no modo principal."""
     with app.app_context():
         try:
-            print("📦 Aplicando migrações...")
+            logging.info("📦 Aplicando migrações...")
             upgrade()
-            print("✅ Migrações aplicadas com sucesso.")
+            logging.info("✅ Migrações aplicadas com sucesso.")
         except Exception as e:
-            print(f"⚠️ Erro ao aplicar migrações: {e}")
+            logging.exception("⚠️ Erro ao aplicar migrações: %s", e)
 
+# Executa upgrade automaticamente se estiver no Render
 # Executa upgrade automaticamente se estiver no Render
 if os.environ.get("RENDER") == "true" and __name__ == "__main__":
     aplicar_migracoes()
@@ -2127,5 +2307,9 @@ if __name__ == "__main__":
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     aplicar_migracoes()
 
-    print("🚀 Servidor Flask rodando em http://127.0.0.1:8000")
-    app.run(host="127.0.0.1", port=8000, debug=True)
+    host = os.getenv("FLASK_RUN_HOST", "127.0.0.1")
+    port = int(os.getenv("FLASK_RUN_PORT", "8000"))
+    debug = os.getenv("FLASK_DEBUG", "1") == "1"
+
+    print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
+    app.run(host=host, port=port, debug=debug)

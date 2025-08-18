@@ -77,6 +77,15 @@
 
   .features{ list-style:none; padding-left:0; margin:14px 0 0; color:var(--muted); }
   .features li{ margin:.45rem 0; display:flex; gap:.5rem; align-items:flex-start; }
+  .features li {
+  align-items: baseline;      /* Garante que o texto e o <strong> alinhem pela linha de base */
+  flex-wrap: wrap;            /* Permite quebra de linha onde for necessário */
+  }
+
+.features li strong {
+  white-space: nowrap;        /* Evita quebra de linha dentro do <strong> */
+  }
+
   .features i{ color:#79b7ff; }
 
   /* BOTÕES */
@@ -143,10 +152,11 @@
             {% if user_plano == 'free' %}
               <button class="btn btn-ghost btn-selected w-100" disabled>Plano Atual</button>
             {% else %}
-              <form action="{{ url_for('planos') }}" method="post">
-                <input type="hidden" name="plano" value="free">
-                <button type="submit" class="btn btn-ghost w-100">Começar grátis</button>
-              </form>
+              <form method="post" action="{{ url_for('planos') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="plano" value="free">
+              <button type="submit" class="btn btn-ghost w-100">Começar grátis</button>
+            </form>
             {% endif %}
           </div>
         </div>
@@ -179,13 +189,15 @@
           </ul>
 
           <div class="mt-3 d-grid gap-2">
-            <form action="{{ url_for('planos') }}" method="post">
+            <form method="post" action="{{ url_for('planos') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="plano" value="pro">
               <button type="submit" class="btn btn-neon {% if user_plano=='pro' %}btn-selected{% endif %}" {% if user_plano=='pro' %}disabled{% endif %}>
                 Mensal {% if user_plano=='pro' %}(Plano Atual){% endif %}
               </button>
             </form>
-            <form action="{{ url_for('planos') }}" method="post">
+            <form method="post" action="{{ url_for('planos') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="plano" value="pro_anual">
               <button type="submit" class="btn btn-neon {% if user_plano=='pro_anual' %}btn-selected{% endif %}" {% if user_plano=='pro_anual' %}disabled{% endif %}>
                 Anual {% if user_plano=='pro_anual' %}(Plano Atual){% endif %}
@@ -219,13 +231,15 @@
           </ul>
 
           <div class="mt-3 d-grid gap-2">
-            <form action="{{ url_for('planos') }}" method="post">
+            <form method="post" action="{{ url_for('planos') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="plano" value="business">
               <button type="submit" class="btn btn-ghost {% if user_plano=='business' %}btn-selected{% endif %}" {% if user_plano=='business' %}disabled{% endif %}>
                 Mensal {% if user_plano=='business' %}(Plano Atual){% endif %}
               </button>
             </form>
-            <form action="{{ url_for('planos') }}" method="post">
+            <form method="post" action="{{ url_for('planos') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="plano" value="business_anual">
               <button type="submit" class="btn btn-ghost {% if user_plano=='business_anual' %}btn-selected{% endif %}" {% if user_plano=='business_anual' %}disabled{% endif %}>
                 Anual {% if user_plano=='business_anual' %}(Plano Atual){% endif %}

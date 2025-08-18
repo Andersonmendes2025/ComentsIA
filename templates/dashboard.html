@@ -3,257 +3,242 @@
 {% block title %}Dashboard - Gerenciador de Avaliações Google{% endblock %}
 
 {% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
-.stat-card {
-    transition: transform 0.2s ease-in-out;
-}
-.stat-card:hover {
-    transform: translateY(-2px);
-}
-.chart-container {
-    position: relative;
-    height: 300px;
-}
-.analysis-card {
-    border-left: 4px solid #007bff;
-}
+.stat-card { transition: transform 0.2s ease-in-out; }
+.stat-card:hover { transform: translateY(-2px); }
+.chart-container { position: relative; height: 300px; }
+.analysis-card { border-left: 4px solid #007bff; }
 .positive-point { color: #28a745; }
 .negative-point { color: #dc3545; }
 /* BLOQUEIO DE RECURSO */
-.premium-locked {
-    opacity: 0.55;
-    pointer-events: none;
-    filter: grayscale(1);
-    background: #f4f6fa !important;
-}
+.premium-locked { opacity: 0.55; pointer-events: none; filter: grayscale(1); background: #f4f6fa !important; }
 .lock-overlay {
-    position: absolute;
-    left: 0; top: 0; right: 0; bottom: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.13rem;
-    font-weight: 500;
-    color: #566079;
-    background: rgba(244,246,250,0.88);
-    border-radius: 0 0 12px 12px;
-    text-align: center;
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 1.13rem; font-weight: 500; color: #566079; background: rgba(244,246,250,0.88);
+  border-radius: 0 0 12px 12px; text-align: center;
 }
+.avatar-inicial { font-weight: 600; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">
-                <i class="bi bi-graph-up me-2"></i>
-                Dashboard de Avaliações
-            </h2>
-            <p class="text-muted mb-0">Análise completa das suas avaliações e feedback dos clientes</p>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-graph-up me-2"></i>
+        Dashboard de Avaliações
+      </h2>
+      <p class="text-muted mb-0">Análise completa das suas avaliações e feedback dos clientes</p>
+    </div>
+    <div>
+      {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
+        <button class="btn btn-primary me-2" onclick="analyzeReviews()">
+          <i class="bi bi-robot me-1"></i>
+          Analisar com IA
+        </button>
+      {% else %}
+        <button class="btn btn-secondary me-2" disabled style="cursor:not-allowed;">
+          <i class="bi bi-robot me-1"></i>
+          Analisar com IA
+        </button>
+        <span class="text-muted small d-block mt-1 ms-2">Disponível apenas no <b>PRO</b> ou <b>BUSINESS</b></span>
+      {% endif %}
+      <a href="{{ url_for('add_review') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>
+        Adicionar Avaliação
+      </a>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card stat-card bg-primary text-white shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="card-title mb-1">{{ total_reviews }}</h3>
+              <p class="card-text mb-0">Total de Avaliações</p>
+            </div>
+            <i class="bi bi-chat-square-text" style="font-size: 2.5rem; opacity: 0.7;"></i>
+          </div>
         </div>
-        <div>
-            {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
-                <button class="btn btn-primary me-2" onclick="analyzeReviews()">
-                    <i class="bi bi-robot me-1"></i>
-                    Analisar com IA
-                </button>
-            {% else %}
-                <button class="btn btn-secondary me-2" disabled style="cursor:not-allowed;">
-                    <i class="bi bi-robot me-1"></i>
-                    Analisar com IA
-                </button>
-                <span class="text-muted small d-block mt-1 ms-2">Disponível apenas no <b>PRO</b> ou <b>BUSINESS</b></span>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card stat-card bg-success text-white shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="card-title mb-1">{{ reviews|selectattr('replied')|list|length }}</h3>
+              <p class="card-text mb-0">Respondidas</p>
+            </div>
+            <i class="bi bi-reply" style="font-size: 2.5rem; opacity: 0.7;"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card stat-card bg-warning text-white shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h3 class="card-title mb-1">{{ "%.1f"|format(avg_rating) }}</h3>
+              <p class="card-text mb-0">Classificação Média</p>
+            </div>
+            <i class="bi bi-star-fill" style="font-size: 2.5rem; opacity: 0.7;"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card stat-card bg-info text-white shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              {% set resp = reviews|selectattr('replied')|list|length %}
+              <h3 class="card-title mb-1">{{ (resp / total_reviews * 100)|round(1) if total_reviews > 0 else 0 }}%</h3>
+              <p class="card-text mb-0">Taxa de Resposta</p>
+            </div>
+            <i class="bi bi-percent" style="font-size: 2.5rem; opacity: 0.7;"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Chart Section (Bloqueio visual se não for PRO ou BUSINESS) -->
+    <div class="col-lg-8 mb-4">
+      <div class="card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
+        <div class="card-header">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-bar-chart me-1"></i>
+            Distribuição de Classificações
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas id="ratingsChart"></canvas>
+            {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
+            <div class="lock-overlay">
+              <i class="bi bi-lock-fill fs-2 mb-2"></i>
+              <div>Gráfico disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
+              <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+            </div>
             {% endif %}
-            <a href="{{ url_for('add_review') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                Adicionar Avaliação
-            </a>
+          </div>
         </div>
+      </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-lg-3 col-md-6">
-            <div class="card stat-card bg-primary text-white shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="card-title mb-1">{{ total_reviews }}</h3>
-                            <p class="card-text mb-0">Total de Avaliações</p>
-                        </div>
-                        <i class="bi bi-chat-square-text" style="font-size: 2.5rem; opacity: 0.7;"></i>
-                    </div>
-                </div>
-            </div>
+    <!-- Recent Reviews -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-clock me-1"></i>
+            Avaliações Recentes
+          </h5>
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card stat-card bg-success text-white shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="card-title mb-1">{{ reviews|selectattr('replied')|list|length }}</h3>
-                            <p class="card-text mb-0">Respondidas</p>
-                        </div>
-                        <i class="bi bi-reply" style="font-size: 2.5rem; opacity: 0.7;"></i>
-                    </div>
+        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+          {% if reviews %}
+            {% for review in reviews[-5:] %}
+              {% set display_name = review.reviewer_name or 'Cliente' %}
+              {% set stars = review.rating or 0 %}
+              {% set t = review.text or '' %}
+              <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
+                <div class="flex-shrink-0 me-3">
+                  <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                    <span class="avatar-inicial">{{ display_name[0]|upper }}</span>
+                  </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card stat-card bg-warning text-white shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="card-title mb-1">{{ "%.1f"|format(avg_rating) }}</h3>
-                            <p class="card-text mb-0">Classificação Média</p>
-                        </div>
-                        <i class="bi bi-star-fill" style="font-size: 2.5rem; opacity: 0.7;"></i>
-                    </div>
+                <div class="flex-grow-1">
+                  <h6 class="mb-1">{{ display_name }}</h6>
+                  <div class="text-warning mb-1">
+                    {% for i in range(1, 6) %}
+                      {% if i <= stars %}
+                        <i class="bi bi-star-fill"></i>
+                      {% else %}
+                        <i class="bi bi-star"></i>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                  <p class="text-muted small mb-1">
+                    {{ t[:80] }}{% if t|length > 80 %}...{% endif %}
+                  </p>
+                  <small class="text-muted">{{ review.date | formatar_data_brt }}</small>
                 </div>
-            </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted text-center">Nenhuma avaliação encontrada</p>
+          {% endif %}
         </div>
-        <div class="col-lg-3 col-md-6">
-            <div class="card stat-card bg-info text-white shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="card-title mb-1">{{ (reviews|selectattr('replied')|list|length / total_reviews * 100)|round(1) if total_reviews > 0 else 0 }}%</h3>
-                            <p class="card-text mb-0">Taxa de Resposta</p>
-                        </div>
-                        <i class="bi bi-percent" style="font-size: 2.5rem; opacity: 0.7;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+  </div>
 
-    <div class="row">
-        <!-- Chart Section (Bloqueio visual se não for PRO ou BUSINESS) -->
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-bar-chart me-1"></i>
-                        Distribuição de Classificações
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="ratingsChart"></canvas>
-                        {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
-                        <div class="lock-overlay">
-                            <i class="bi bi-lock-fill fs-2 mb-2"></i>
-                            <div>Gráfico disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
-                            <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+  <!-- AI Analysis Section (Bloqueio visual se não for PRO ou BUSINESS) -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card analysis-card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
+        <div class="card-header">
+          <h5 class="card-title mb-0">
+            <i class="bi bi-robot me-1"></i>
+            Análise Inteligente
+          </h5>
         </div>
+        <div class="card-body">
+          <div id="analysis-loading" style="display: none;">
+            <div class="text-center py-4">
+              <div class="spinner-border text-primary mb-3" role="status"></div>
+              <p class="text-muted">Analisando suas avaliações com inteligência artificial...</p>
+            </div>
+          </div>
 
-        <!-- Recent Reviews -->
-        <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-clock me-1"></i>
-                        Avaliações Recentes
-                    </h5>
-                </div>
-                <div class="card-body" style="max-height: 350px; overflow-y: auto;">
-                    {% if reviews %}
-                        {% for review in reviews[-5:] %}
-                        <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
-                            <div class="flex-shrink-0 me-3">
-                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                                    {{ review.reviewer_name[0].upper() }}
-                                </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1">{{ review.reviewer_name }}</h6>
-                                <div class="text-warning mb-1">
-                                    {% for i in range(1, 6) %}
-                                        {% if i <= review.rating %}
-                                            <i class="bi bi-star-fill"></i>
-                                        {% else %}
-                                            <i class="bi bi-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                <p class="text-muted small mb-1">{{ review.text[:80] }}{% if review.text|length > 80 %}...{% endif %}</p>
-                                <small class="text-muted">{{ review.date }}</small>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted text-center">Nenhuma avaliação encontrada</p>
-                    {% endif %}
-                </div>
+          <div id="analysis-content" style="display: none;">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 class="positive-point">
+                  <i class="bi bi-check-circle me-1"></i>
+                  Pontos Positivos
+                </h6>
+                <ul id="positive-points" class="list-unstyled"></ul>
+              </div>
+              <div class="col-md-6">
+                <h6 class="negative-point">
+                  <i class="bi bi-exclamation-circle me-1"></i>
+                  Pontos de Melhoria
+                </h6>
+                <ul id="negative-points" class="list-unstyled"></ul>
+              </div>
             </div>
+            <div class="mt-3">
+              <h6><i class="bi bi-lightbulb me-1"></i>Análise Geral</h6>
+              <p id="general-analysis" class="text-muted"></p>
+            </div>
+          </div>
+
+          <div id="analysis-placeholder" class="text-center py-4">
+            <i class="bi bi-robot text-muted" style="font-size: 3rem;"></i>
+            <h6 class="text-muted mt-2">Análise com IA</h6>
+            <p class="text-muted">Clique no botão "Analisar com IA" para obter insights sobre suas avaliações</p>
+          </div>
+          {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
+          <div class="lock-overlay">
+            <i class="bi bi-lock-fill fs-2 mb-2"></i>
+            <div>Funcionalidade disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
+            <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+          </div>
+          {% endif %}
         </div>
+      </div>
     </div>
-
-    <!-- AI Analysis Section (Bloqueio visual se não for PRO ou BUSINESS) -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card analysis-card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-robot me-1"></i>
-                        Análise Inteligente
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="analysis-loading" style="display: none;">
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary mb-3" role="status"></div>
-                            <p class="text-muted">Analisando suas avaliações com inteligência artificial...</p>
-                        </div>
-                    </div>
-                    
-                    <div id="analysis-content" style="display: none;">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6 class="positive-point">
-                                    <i class="bi bi-check-circle me-1"></i>
-                                    Pontos Positivos
-                                </h6>
-                                <ul id="positive-points" class="list-unstyled"></ul>
-                            </div>
-                            <div class="col-md-6">
-                                <h6 class="negative-point">
-                                    <i class="bi bi-exclamation-circle me-1"></i>
-                                    Pontos de Melhoria
-                                </h6>
-                                <ul id="negative-points" class="list-unstyled"></ul>
-                            </div>
-                        </div>
-                        <div class="mt-3">
-                            <h6><i class="bi bi-lightbulb me-1"></i>Análise Geral</h6>
-                            <p id="general-analysis" class="text-muted"></p>
-                        </div>
-                    </div>
-                    
-                    <div id="analysis-placeholder" class="text-center py-4">
-                        <i class="bi bi-robot text-muted" style="font-size: 3rem;"></i>
-                        <h6 class="text-muted mt-2">Análise com IA</h6>
-                        <p class="text-muted">Clique no botão "Analisar com IA" para obter insights sobre suas avaliações</p>
-                    </div>
-                    {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
-                    <div class="lock-overlay">
-                        <i class="bi bi-lock-fill fs-2 mb-2"></i>
-                        <div>Funcionalidade disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
-                        <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -263,116 +248,89 @@
 // Chart.js configuration
 const ctx = document.getElementById('ratingsChart').getContext('2d');
 const ratingsChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: ['1 Estrela', '2 Estrelas', '3 Estrelas', '4 Estrelas', '5 Estrelas'],
-        datasets: [{
-            label: 'Número de Avaliações',
-            data: {{ rating_distribution_values | tojson }},
-            backgroundColor: [
-                '#dc3545',
-                '#fd7e14',
-                '#ffc107',
-                '#20c997',
-                '#28a745'
-            ],
-            borderColor: [
-                '#dc3545',
-                '#fd7e14',
-                '#ffc107',
-                '#20c997',
-                '#28a745'
-            ],
-            borderWidth: 1
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 1
-                }
-            }
-        },
-        plugins: {
-            legend: {
-                display: false
-            }
-        }
-    }
+  type: 'bar',
+  data: {
+    labels: ['1 Estrela', '2 Estrelas', '3 Estrelas', '4 Estrelas', '5 Estrelas'],
+    datasets: [{
+      label: 'Número de Avaliações',
+      data: {{ rating_distribution_values | tojson }},
+      backgroundColor: ['#dc3545','#fd7e14','#ffc107','#20c997','#28a745'],
+      borderColor: ['#dc3545','#fd7e14','#ffc107','#20c997','#28a745'],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+    plugins: { legend: { display: false } }
+  }
 });
 
 function analyzeReviews() {
-    const loadingDiv = document.getElementById('analysis-loading');
-    const contentDiv = document.getElementById('analysis-content');
-    const placeholderDiv = document.getElementById('analysis-placeholder');
-    
-    loadingDiv.style.display = 'block';
-    contentDiv.style.display = 'none';
-    placeholderDiv.style.display = 'none';
-    
-    fetch('/analyze_reviews', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
+  const loadingDiv = document.getElementById('analysis-loading');
+  const contentDiv = document.getElementById('analysis-content');
+  const placeholderDiv = document.getElementById('analysis-placeholder');
+
+  loadingDiv.style.display = 'block';
+  contentDiv.style.display = 'none';
+  placeholderDiv.style.display = 'none';
+
+  fetch('/analyze_reviews', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    loadingDiv.style.display = 'none';
+    if (data.success) {
+      const positiveList = document.getElementById('positive-points');
+      const negativeList = document.getElementById('negative-points');
+      const generalAnalysis = document.getElementById('general-analysis');
+      positiveList.innerHTML = '';
+      negativeList.innerHTML = '';
+      generalAnalysis.textContent = '';
+
+      if (data.analysis) {
+        if (data.analysis.pontos_positivos) {
+          data.analysis.pontos_positivos.forEach(point => {
+            const li = document.createElement('li');
+            li.innerHTML = '<i class="bi bi-check text-success me-2"></i>' + point;
+            li.className = 'mb-2';
+            positiveList.appendChild(li);
+          });
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        loadingDiv.style.display = 'none';
-        
-        if (data.success) {
-            if (data.analysis) {
-                // Display structured analysis
-                const positiveList = document.getElementById('positive-points');
-                const negativeList = document.getElementById('negative-points');
-                const generalAnalysis = document.getElementById('general-analysis');
-                
-                positiveList.innerHTML = '';
-                negativeList.innerHTML = '';
-                
-                if (data.analysis.pontos_positivos) {
-                    data.analysis.pontos_positivos.forEach(point => {
-                        const li = document.createElement('li');
-                        li.innerHTML = '<i class="bi bi-check text-success me-2"></i>' + point;
-                        li.className = 'mb-2';
-                        positiveList.appendChild(li);
-                    });
-                }
-                
-                if (data.analysis.pontos_negativos) {
-                    data.analysis.pontos_negativos.forEach(point => {
-                        const li = document.createElement('li');
-                        li.innerHTML = '<i class="bi bi-x text-danger me-2"></i>' + point;
-                        li.className = 'mb-2';
-                        negativeList.appendChild(li);
-                    });
-                }
-                
-                if (data.analysis.analise_geral) {
-                    generalAnalysis.textContent = data.analysis.analise_geral;
-                }
-                
-                contentDiv.style.display = 'block';
-            } else if (data.raw_analysis) {
-                // Display raw analysis if JSON parsing failed
-                const generalAnalysis = document.getElementById('general-analysis');
-                generalAnalysis.textContent = data.raw_analysis;
-                contentDiv.style.display = 'block';
-            }
-        } else {
-            alert('Erro na análise: ' + data.error);
-            placeholderDiv.style.display = 'block';
+        if (data.analysis.pontos_negativos) {
+          data.analysis.pontos_negativos.forEach(point => {
+            const li = document.createElement('li');
+            li.innerHTML = '<i class="bi bi-x text-danger me-2"></i>' + point;
+            li.className = 'mb-2';
+            negativeList.appendChild(li);
+          });
         }
-    })
-    .catch(error => {
-        loadingDiv.style.display = 'none';
+        if (data.analysis.analise_geral) {
+          generalAnalysis.textContent = data.analysis.analise_geral;
+        }
+        contentDiv.style.display = 'block';
+      } else if (data.raw_analysis) {
+        generalAnalysis.textContent = data.raw_analysis;
+        contentDiv.style.display = 'block';
+      } else {
         placeholderDiv.style.display = 'block';
-        alert('Erro na comunicação com o servidor: ' + error);
-    });
+      }
+    } else {
+      alert('Erro na análise: ' + (data.error || 'desconhecido'));
+      placeholderDiv.style.display = 'block';
+    }
+  })
+  .catch(err => {
+    loadingDiv.style.display = 'none';
+    placeholderDiv.style.display = 'block';
+    alert('Erro na comunicação com o servidor: ' + err);
+  });
 }
 </script>
 {% endblock %}

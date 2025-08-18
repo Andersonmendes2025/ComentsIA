@@ -4,277 +4,233 @@
 
 {% block extra_head %}
 <style>
-    .settings-card {
-        border-left: 4px solid #007bff;
-    }
-    .preview-card {
-        background-color: #f8f9fa;
-        border: 2px dashed #dee2e6;
-    }
-    .form-floating textarea {
-        min-height: 100px;
-    }
-    .terms-conditions {
-        margin-top: 20px;
-        padding: 10px;
-        background-color: #f1f1f1;
-        border-radius: 5px;
-        border: 1px solid #007bff;
-        font-size: 1rem;
-    }
-    .terms-conditions a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    .terms-conditions a:hover {
-        text-decoration: underline;
-    }
+    .settings-card { border-left: 4px solid #007bff; }
+    .preview-card { background-color: #f8f9fa; border: 2px dashed #dee2e6; }
+    .form-floating textarea { min-height: 100px; }
+    .terms-conditions { margin-top: 20px; padding: 10px; background-color: #f1f1f1; border-radius: 5px; border: 1px solid #007bff; font-size: 1rem; }
+    .terms-conditions a { color: #007bff; text-decoration: none; }
+    .terms-conditions a:hover { text-decoration: underline; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="d-flex align-items-center mb-4">
-                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-3">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <div>
-                    <h2 class="mb-1">
-                        <i class="bi bi-gear me-2"></i>
-                        Configurações
-                    </h2>
-                    <p class="text-muted mb-0">Preencha suas informações de conta e personalize suas respostas</p>
-                </div>
-            </div>
-
-            <div class="row">
-                <!-- Settings Form -->
-                <div class="col-lg-8 mb-4">
-                    <div class="card settings-card shadow-sm">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="bi bi-palette me-1"></i>
-                                Personalização de Respostas
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" enctype="multipart/form-data" id="settingsForm">
-                                <!-- Formulário de Conta -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="company_name" name="company_name" 
-                                               value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
-                                        <label for="company_name">
-                                            <i class="bi bi-building me-1"></i>
-                                            Nome da Empresa
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Nome da sua empresa ou negócio (obrigatório)
-                                    </div>
-                                </div>
-                                <!-- Nome do gerente -->
-                                <div class="mb-4">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="manager_name" name="manager_name"
-                                        value="{{ settings.manager_name or '' }}" placeholder="Nome do gerente">
-                                    <label for="manager_name"><i class="bi bi-person-badge me-1"></i> Nome do Gerente</label>
-                                </div>
-                                <div class="form-text">
-                                    Nome do responsável pela empresa. Usado nas respostas e relatórios.
-                                </div>
-                                </div>
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="contact_info" name="contact_info" 
-                                               value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
-                                        <label for="contact_info">
-                                            <i class="bi bi-telephone me-1"></i>
-                                            Informações de Contato
-                                        </label>
-                                    </div>
-                                    <div class="form-text">
-                                        Suas informações de contato para incluir nas respostas (obrigatório)
-                                    </div>
-                                </div>
-
-                                <!-- Aceitação dos Termos e Política de Privacidade -->
-                                <div class="terms-conditions">
-                                    <label for="terms_accepted" style="font-weight: normal;">
-                                        <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted"
-                                         value="on"
-                                         {% if settings.terms_accepted %}checked{% endif %}
-                                         required>
-
-                                        Eu li e aceito integralmente os
-                                        <a href="{{ url_for('terms') }}" target="_blank">Termos de Uso</a>
-                                        e a
-                                        <a href="{{ url_for('privacy_policy') }}" target="_blank">Política de Privacidade</a>
-                                        do ComentsIA.
-                                    </label>
-                                    <div class="form-text" style="margin-top: 0.5em;">
-                                        Ao marcar esta opção, você concorda com todas as regras de uso, proteção e tratamento de dados da plataforma, conforme LGPD, Marco Civil da Internet e diretrizes do Google.
-                                    </div>
-                                </div>
-                                <!-- Logo da empresa -->
-                                <div class="mb-4">
-                                <label class="form-label" for="logo">
-                                    <i class="bi bi-image me-1"></i> Logo da Empresa (PNG ou JPG, até 500KB)
-                                </label>
-                                <input type="file" class="form-control" id="logo" name="logo" accept="image/png, image/jpeg">
-                                <div class="mt-2">
-                                    <strong>Logo atual:</strong><br>
-                                    <img
-                                    id="logo-preview-img"
-                                    src="{% if settings.logo %}data:image/png;base64,{{ settings.logo|b64encode }}{% endif %}"
-                                    alt="Logo da empresa"
-                                    style="max-height: 80px; border-radius: 8px; border: 1px solid #eee; box-shadow: 0 1px 6px #0001; {% if not settings.logo %}display: none;{% endif %}">
-                                </div>
-                                <div class="form-text">
-                                    Apenas PNG ou JPG. Tamanho máximo: 500KB.
-                                </div>
-                                </div>
-
-                                <!-- Saudação e Encerramento Padrão -->
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <input type="text" class="form-control" id="default_greeting" name="default_greeting" 
-                                               value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
-                                        <label for="default_greeting">Saudação Padrão</label>
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <div class="form-floating">
-                                        <textarea class="form-control" id="default_closing" name="default_closing" 
-                                                  placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
-                                        <label for="default_closing">Encerramento Padrão</label>
-                                    </div>
-                                </div>
-
-                                <!-- Botões -->
-                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                    <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetToDefaults()">
-                                        <i class="bi bi-arrow-clockwise me-1"></i>
-                                        Restaurar Padrões
-                                    </button>
-                                    <button type="submit" class="btn btn-primary">Salvar Configurações</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Preview -->
-                <div class="col-lg-4 mb-4">
-                    <div class="card preview-card shadow-sm">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="bi bi-eye me-1"></i>
-                                Prévia da Resposta
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div id="response-preview" class="p-3 bg-white rounded border">
-                                <div id="preview-greeting" class="fw-bold">{{ settings.default_greeting }}</div>
-                                <div class="my-3 text-muted fst-italic">
-                                    [Aqui aparecerá a resposta gerada pela IA]
-                                </div>
-                                <div id="preview-closing" class="mt-3">{{ settings.default_closing }}</div>
-                                <div id="preview-contact" class="mt-2 small text-muted">{{ settings.contact_info }}</div>
-                            </div>
-                            <small class="text-muted mt-2 d-block">
-                                Esta é uma prévia de como suas respostas aparecerão com as configurações atuais.
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary me-3">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h2 class="mb-1">
+            <i class="bi bi-gear me-2"></i>
+            Configurações
+          </h2>
+          <p class="text-muted mb-0">Preencha suas informações de conta e personalize suas respostas</p>
         </div>
+      </div>
+
+      <div class="row">
+        <!-- Settings Form -->
+        <div class="col-lg-8 mb-4">
+          <div class="card settings-card shadow-sm">
+            <div class="card-header">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-palette me-1"></i>
+                Personalização de Respostas
+              </h5>
+            </div>
+            <div class="card-body">
+              <form method="POST" enctype="multipart/form-data" id="settingsForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <!-- Empresa -->
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <input type="text" class="form-control" id="company_name" name="company_name"
+                           value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
+                    <label for="company_name"><i class="bi bi-building me-1"></i> Nome da Empresa</label>
+                  </div>
+                  <div class="form-text">Nome da sua empresa ou negócio (obrigatório)</div>
+                </div>
+
+                <!-- Gerente -->
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <input type="text" class="form-control" id="manager_name" name="manager_name"
+                           value="{{ settings.manager_name or '' }}" placeholder="Nome do gerente">
+                    <label for="manager_name"><i class="bi bi-person-badge me-1"></i> Nome do Gerente</label>
+                  </div>
+                  <div class="form-text">Nome do responsável pela empresa. Usado nas respostas e relatórios.</div>
+                </div>
+
+                <!-- Contato -->
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <input type="text" class="form-control" id="contact_info" name="contact_info"
+                           value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
+                    <label for="contact_info"><i class="bi bi-telephone me-1"></i> Informações de Contato</label>
+                  </div>
+                  <div class="form-text">Suas informações de contato para incluir nas respostas (obrigatório)</div>
+                </div>
+
+                <!-- Termos -->
+                <div class="terms-conditions">
+                  <label for="terms_accepted" style="font-weight: normal;">
+                    <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted"
+                           value="on" {% if settings.terms_accepted %}checked{% endif %} required>
+                    Eu li e aceito integralmente os
+                    <a href="{{ url_for('terms') }}" target="_blank">Termos de Uso</a> e a
+                    <a href="{{ url_for('privacy_policy') }}" target="_blank">Política de Privacidade</a>
+                    do ComentsIA.
+                  </label>
+                  <div class="form-text" style="margin-top: .5em;">
+                    Ao marcar esta opção, você concorda com todas as regras de uso, proteção e tratamento de dados da plataforma, conforme LGPD, Marco Civil da Internet e diretrizes do Google.
+                  </div>
+                </div>
+
+                <!-- Logo -->
+                <div class="mb-4">
+                  <label class="form-label" for="logo"><i class="bi bi-image me-1"></i> Logo da Empresa (PNG ou JPG, até 500KB)</label>
+                  <input type="file" class="form-control" id="logo" name="logo" accept="image/png, image/jpeg">
+                  <div class="mt-2">
+                    <strong>Logo atual:</strong><br>
+                    <img id="logo-preview-img"
+                         src="{% if settings.logo %}data:image/png;base64,{{ settings.logo|b64encode }}{% endif %}"
+                         alt="Logo da empresa"
+                         style="max-height:80px;border-radius:8px;border:1px solid #eee;box-shadow:0 1px 6px #0001;{% if not settings.logo %}display:none;{% endif %}">
+                  </div>
+                  <div class="form-text">Apenas PNG ou JPG. Tamanho máximo: 500KB.</div>
+                </div>
+
+                <!-- Saudação -->
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <input type="text" class="form-control" id="default_greeting" name="default_greeting"
+                           value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
+                    <label for="default_greeting">Saudação Padrão</label>
+                  </div>
+                </div>
+
+                <!-- Encerramento -->
+                <div class="mb-4">
+                  <div class="form-floating">
+                    <textarea class="form-control" id="default_closing" name="default_closing"
+                              placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
+                    <label for="default_closing">Encerramento Padrão</label>
+                  </div>
+                </div>
+
+                <!-- Ações -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                  <button type="button" class="btn btn-outline-secondary me-md-2" onclick="resetToDefaults()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Restaurar Padrões
+                  </button>
+                  <button type="submit" class="btn btn-primary">Salvar Configurações</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prévia -->
+        <div class="col-lg-4 mb-4">
+          <div class="card preview-card shadow-sm">
+            <div class="card-header">
+              <h6 class="card-title mb-0"><i class="bi bi-eye me-1"></i> Prévia da Resposta</h6>
+            </div>
+            <div class="card-body">
+              <div id="response-preview" class="p-3 bg-white rounded border">
+                <div id="preview-greeting" class="fw-bold">{{ settings.default_greeting }}</div>
+                <div class="my-3 text-muted fst-italic">[Aqui aparecerá a resposta gerada pela IA]</div>
+                <div id="preview-closing" class="mt-3">{{ settings.default_closing }}</div>
+                <div id="preview-contact" class="mt-2 small text-muted">{{ settings.contact_info }}</div>
+              </div>
+              <small class="text-muted mt-2 d-block">Esta é uma prévia de como suas respostas aparecerão com as configurações atuais.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-4">
+
+      <!-- Apagar conta -->
+      <div class="mt-4">
+        <h5 class="text-danger">Apagar Conta</h5>
+        <p class="text-muted">Essa ação é irreversível. Todos os seus dados serão excluídos permanentemente.</p>
+        <button id="btn-delete-account" class="btn btn-outline-danger">Apagar conta</button>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-// Atualiza a prévia em tempo real
-document.addEventListener('DOMContentLoaded', function() {
-    const greetingInput = document.getElementById('default_greeting');
-    const closingInput = document.getElementById('default_closing');
-    const contactInput = document.getElementById('contact_info');
-    
-    const previewGreeting = document.getElementById('preview-greeting');
-    const previewClosing = document.getElementById('preview-closing');
-    const previewContact = document.getElementById('preview-contact');
-    
-    function updatePreview() {
-        previewGreeting.textContent = greetingInput.value || 'Olá,';
-        previewClosing.textContent = closingInput.value || 'Agradecemos seu feedback!';
-        previewContact.textContent = contactInput.value || 'Entre em contato conosco';
-    }
-    
-    greetingInput.addEventListener('input', updatePreview);
-    closingInput.addEventListener('input', updatePreview);
-    contactInput.addEventListener('input', updatePreview);
+// --- Prévia em tempo real ---
+document.addEventListener('DOMContentLoaded', function () {
+  const greetingInput = document.getElementById('default_greeting');
+  const closingInput  = document.getElementById('default_closing');
+  const contactInput  = document.getElementById('contact_info');
+
+  const previewGreeting = document.getElementById('preview-greeting');
+  const previewClosing  = document.getElementById('preview-closing');
+  const previewContact  = document.getElementById('preview-contact');
+
+  function updatePreview() {
+    previewGreeting.textContent = greetingInput.value || 'Olá,';
+    previewClosing.textContent  = closingInput.value  || 'Agradecemos seu feedback!';
+    previewContact.textContent  = contactInput.value  || 'Entre em contato conosco';
+  }
+  greetingInput.addEventListener('input', updatePreview);
+  closingInput.addEventListener('input', updatePreview);
+  contactInput.addEventListener('input', updatePreview);
 });
 
+// --- Reset padrão ---
 function resetToDefaults() {
-    if (confirm('Tem certeza que deseja restaurar as configurações padrão?')) {
-        document.getElementById('company_name').value = '';
-        document.getElementById('default_greeting').value = 'Olá,';
-        document.getElementById('default_closing').value = 'Agradecemos seu feedback!';
-        document.getElementById('contact_info').value = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-        
-        // Atualiza a prévia
-        document.getElementById('preview-greeting').textContent = 'Olá,';
-        document.getElementById('preview-closing').textContent = 'Agradecemos seu feedback!';
-        document.getElementById('preview-contact').textContent = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-    }
+  if (!confirm('Tem certeza que deseja restaurar as configurações padrão?')) return;
+  document.getElementById('company_name').value = '';
+  document.getElementById('default_greeting').value = 'Olá,';
+  document.getElementById('default_closing').value = 'Agradecemos seu feedback!';
+  document.getElementById('contact_info').value = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
+  document.getElementById('preview-greeting').textContent = 'Olá,';
+  document.getElementById('preview-closing').textContent = 'Agradecemos seu feedback!';
+  document.getElementById('preview-contact').textContent = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
 }
-document.getElementById('logo').addEventListener('change', function(evt) {
-    const [file] = evt.target.files;
-    const img = document.getElementById('logo-preview-img');
-    if (file) {
-        img.src = URL.createObjectURL(file);
-        img.style.display = "inline";
-    } else {
-        img.src = "";
-        img.style.display = "none";
-    }
+
+// --- Preview do logo ---
+document.getElementById('logo').addEventListener('change', function (evt) {
+  const [file] = evt.target.files;
+  const img = document.getElementById('logo-preview-img');
+  if (file) { img.src = URL.createObjectURL(file); img.style.display = "inline"; }
+  else { img.src = ""; img.style.display = "none"; }
 });
 
-// --- Toast persistente ao salvar configurações ---
+// --- Toast persistente genérico (usa showToast do base.html) ---
 function showPersistentToast(message, type = 'info') {
-  const toastId = 'toast-' + Math.floor(Math.random() * 1000000);
-  const colorClass = type === 'success' ? 'bg-success' :
-                     type === 'danger'  ? 'bg-danger'  :
-                     type === 'warning' ? 'bg-warning' : 'bg-info';
+  const toastId = 'toast-' + Math.floor(Math.random() * 1e6);
+  const colorClass = type === 'success' ? 'bg-success'
+                   : type === 'danger'  ? 'bg-danger'
+                   : type === 'warning' ? 'bg-warning' : 'bg-info';
   const toast = document.createElement('div');
   toast.className = `toast align-items-center text-white ${colorClass} border-0 show`;
   toast.id = toastId;
-  toast.setAttribute('role', 'alert');
-  toast.setAttribute('aria-live', 'assertive');
-  toast.setAttribute('aria-atomic', 'true');
-  toast.style.position = 'fixed';
-  toast.style.top = '24px';
-  toast.style.right = '24px';
-  toast.style.zIndex = 9999;
-  toast.innerHTML = `
-    <div class="d-flex align-items-center">
-      <div class="toast-body">${message}</div>
-    </div>
-  `;
+  toast.setAttribute('role','alert');
+  toast.setAttribute('aria-live','assertive');
+  toast.setAttribute('aria-atomic','true');
+  toast.style.position='fixed';
+  toast.style.top='24px';
+  toast.style.right='24px';
+  toast.style.zIndex=9999;
+  toast.innerHTML = `<div class="d-flex align-items-center"><div class="toast-body">${message}</div></div>`;
   document.body.appendChild(toast);
   return toastId;
 }
-function removePersistentToast(toastId) {
-  const toast = document.getElementById(toastId);
-  if (toast) toast.remove();
-}
+function removePersistentToast(id){ const t=document.getElementById(id); if(t) t.remove(); }
 
-document.getElementById('settingsForm').onsubmit = async function(e) {
+// --- Salvar configurações com feedback ---
+document.getElementById('settingsForm').onsubmit = async function (e) {
   e.preventDefault();
   const toastId = showPersistentToast(
     '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Salvando configurações...',
@@ -282,20 +238,52 @@ document.getElementById('settingsForm').onsubmit = async function(e) {
   );
   const formData = new FormData(this);
   try {
-    const response = await fetch(this.action || window.location.pathname, {
-      method: 'POST',
-      body: formData,
-    });
-    if (response.redirected) {
-      window.location.href = response.url;
-    } else {
-      removePersistentToast(toastId);
-      showToast('Erro ao salvar configurações.', 'danger');
-    }
+    const response = await fetch(this.action || window.location.pathname, { method: 'POST', body: formData, credentials: 'same-origin' });
+    if (response.redirected) window.location.href = response.url;
+    else { removePersistentToast(toastId); showToast('Erro ao salvar configurações.', 'danger'); }
   } catch (err) {
     removePersistentToast(toastId);
     showToast('Erro ao conectar ao servidor.', 'danger');
   }
 };
+
+// ================== APAGAR CONTA (com CSRF) ==================
+function getCSRF() {
+  const m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.getAttribute('content') : null;
+}
+
+document.getElementById('btn-delete-account').addEventListener('click', function () {
+  if (!confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
+
+  const toastId = showPersistentToast(
+    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Excluindo conta...',
+    'danger'
+  );
+
+  fetch('{{ url_for("delete_account") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'X-CSRFToken': getCSRF() || ''
+    },
+    body: JSON.stringify({}),
+    credentials: 'same-origin'
+  })
+  .then(r => r.json())
+  .then(data => {
+    removePersistentToast(toastId);
+    if (data.success) {
+      window.location.href = '{{ url_for("index") }}';
+    } else {
+      showToast(data.error || 'Não foi possível excluir a conta.', 'danger');
+    }
+  })
+  .catch(err => {
+    removePersistentToast(toastId);
+    showToast('Erro de comunicação: ' + err.message, 'danger');
+  });
+});
 </script>
 {% endblock %}

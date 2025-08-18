@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  {# CSRF global para chamadas JS #}
+  {% if csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
+
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-QN1FEB1YJT"></script>
   <script>
@@ -10,9 +19,6 @@
     gtag('config', 'G-QN1FEB1YJT');
   </script>
 
-  <meta charset="UTF-8" />
-  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Gerenciador de Avaliações Google{% endblock %}</title>
 
   <!-- CSS e Fonts -->
@@ -24,78 +30,44 @@
   {% block extra_head %}{% endblock %}
 
   <style>
-      /* Rodapé no modo deslogado */
-  .footer-comentsia.footer-deslogado {
-    background: #0b1020; /* mesmo fundo do index */
-    border-top: none;
-    color: #eaf1ff;
-    box-shadow: none;
-  }
+    /* Rodapé no modo deslogado */
+    .footer-comentsia.footer-deslogado { background:#0b1020; border-top:none; color:#eaf1ff; box-shadow:none; }
+    .footer-comentsia.footer-deslogado a { color:#9fb0d3; }
+    .footer-comentsia.footer-deslogado .footer-secure { color:#8a5bff; }
 
-  .footer-comentsia.footer-deslogado a {
-    color: #9fb0d3;
-  }
-
-  .footer-comentsia.footer-deslogado .footer-secure {
-    color: #8a5bff;
-  }
-
-    .footer-comentsia { background: #f8f9fb; border-top: 2px solid #e4e8f2; margin-top: 50px; padding-top: 22px; padding-bottom: 14px; font-size: 1.05rem; color: #444; letter-spacing: 0; box-shadow: 0 -2px 20px rgba(0,0,0,0.03);}
-    .footer-content { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; align-items: center;}
-    .footer-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 7px;}
-    .footer-logo { width: 40px; border-radius: 9px; box-shadow: 0 0 10px #e3e7fb;}
-    .footer-secure { font-size: 1.01rem; color: #129d47; font-weight: 500; margin-left: 5px; letter-spacing: 0;}
-    .footer-links { display: flex; gap: 20px; margin-bottom: 3px; flex-wrap: wrap; justify-content: center;}
-    .footer-links a { color: #222; text-decoration: none; transition: color 0.18s;}
-    .footer-links a:hover { color: #007bff; text-decoration: underline;}
-    .footer-links i { margin-right: 5px;}
-    .footer-pags { margin-bottom: 3px;}
-    .footer-pags a { color: #006fd8; text-decoration: none; font-weight: 500; margin: 0 3px; transition: color 0.18s;}
-    .footer-pags a:hover { color: #007bff; text-decoration: underline;}
-    .footer-dot { color: #b1b7c6; margin: 0 6px;}
-    .footer-copy { font-size: 0.98rem; color: #888; margin-top: 4px;}
-    @media (max-width: 640px) {
-      .footer-content { padding: 0 2vw; }
-      .footer-brand { flex-direction: column; gap: 2px; }
-      .footer-logo { width: 32px; }
-      .footer-links { gap: 9px; font-size: 0.99rem; }
-      .footer-pags { font-size: 0.98rem; }
+    .footer-comentsia { background:#f8f9fb; border-top:2px solid #e4e8f2; margin-top:50px; padding-top:22px; padding-bottom:14px; font-size:1.05rem; color:#444; letter-spacing:0; box-shadow:0 -2px 20px rgba(0,0,0,.03);}
+    .footer-content { max-width:980px; margin:0 auto; display:flex; flex-direction:column; align-items:center;}
+    .footer-brand { display:flex; align-items:center; gap:12px; margin-bottom:7px;}
+    .footer-logo { width:40px; border-radius:9px; box-shadow:0 0 10px #e3e7fb;}
+    .footer-secure { font-size:1.01rem; color:#129d47; font-weight:500; margin-left:5px; letter-spacing:0;}
+    .footer-links { display:flex; gap:20px; margin-bottom:3px; flex-wrap:wrap; justify-content:center;}
+    .footer-links a { color:#222; text-decoration:none; transition: color .18s;}
+    .footer-links a:hover { color:#007bff; text-decoration:underline;}
+    .footer-links i { margin-right:5px;}
+    .footer-pags { margin-bottom:3px;}
+    .footer-pags a { color:#006fd8; text-decoration:none; font-weight:500; margin:0 3px; transition: color .18s;}
+    .footer-pags a:hover { color:#007bff; text-decoration:underline;}
+    .footer-dot { color:#b1b7c6; margin:0 6px;}
+    .footer-copy { font-size:.98rem; color:#888; margin-top:4px;}
+    @media (max-width:640px){
+      .footer-content{ padding:0 2vw; }
+      .footer-brand{ flex-direction:column; gap:2px; }
+      .footer-logo{ width:32px; }
+      .footer-links{ gap:9px; font-size:.99rem; }
+      .footer-pags{ font-size:.98rem; }
     }
 
     /* Banner de aviso (visualizando filial) */
-    .filial-banner {
-      background: #fff3cd;
-      border-bottom: 1px solid #ffe69c;
-      color: #664d03;
-    }
-    .filial-badge {
-      background: #ffd24d;
-      color: #664d03;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-weight: 600;
-      font-size: .9rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .filial-back-btn {
-      border-radius: 999px;
-      font-weight: 600;
-    }
+    .filial-banner{ background:#fff3cd; border-bottom:1px solid #ffe69c; color:#664d03; }
+    .filial-badge{ background:#ffd24d; color:#664d03; border-radius:999px; padding:4px 10px; font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:6px; }
+    .filial-back-btn{ border-radius:999px; font-weight:600; }
 
-    /* Modo escuro básico (assumindo que style.css tenha o restante) */
-    body.dark .filial-banner {
-      background: #3b3a2c;
-      border-color: #5a552d;
-      color: #f6e7b2;
-    }
-    body.dark .filial-badge {
-      background: #8a7a39;
-      color: #fffbe6;
-    }
+    /* Modo escuro básico */
+    body.dark .filial-banner{ background:#3b3a2c; border-color:#5a552d; color:#f6e7b2; }
+    body.dark .filial-badge{ background:#8a7a39; color:#fffbe6; }
   </style>
 </head>
+
 <body>
 
   <!-- Navbar -->
@@ -113,60 +85,45 @@
       <div class="collapse navbar-collapse" id="navbarContent">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           {% if logged_in %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a>
-            </li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a></li>
           {% endif %}
-
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a>
-          </li>
-
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a></li>
 
           {% if is_admin %}
+            <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-shield-lock-fill me-1"></i> Admin</a></li>
+          {% endif %}
+          {% if logged_in %}
             <li class="nav-item">
-              <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-shield-lock-fill me-1"></i> Admin</a>
+              <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
+                <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
+              </a>
             </li>
           {% endif %}
-              {% if logged_in %}
-              <li class="nav-item">
-                <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
-                  <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
-                </a>
-              </li>
-            {% endif %}
         </ul>
+
         <div class="d-flex align-items-center gap-2">
           {% if logged_in %}
-          <div class="position-relative">
-            <a class="btn btn-light rounded-circle p-2" href="{{ url_for('matriz.ver_convites') }}" title="Notificações">
-              <i class="bi bi-bell-fill text-primary fs-5"></i>
-              {% if convites_pendentes %}
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                {{ convites_pendentes|length }}
-              </span>
-              {% endif %}
-            </a>
-          </div>
+            <div class="position-relative">
+              <a class="btn btn-light rounded-circle p-2" href="{{ url_for('matriz.ver_convites') }}" title="Notificações">
+                <i class="bi bi-bell-fill text-primary fs-5"></i>
+                {% if convites_pendentes %}
+                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {{ convites_pendentes|length }}
+                  </span>
+                {% endif %}
+              </a>
+            </div>
           {% endif %}
-        {% if viewing_filial %}
-          <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
-            <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
-          </a>
-        {% endif %}
 
+          {% if viewing_filial %}
+            <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
+              <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
+            </a>
+          {% endif %}
 
           <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
             <i class="bi bi-moon-stars-fill"></i>
@@ -183,30 +140,14 @@
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                 {% if viewing_filial %}
-                  <li>
-                    <a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}">
-                      <i class="bi bi-arrow-return-left"></i> Voltar para a matriz
-                    </a>
-                  </li>
+                  <li><a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}"><i class="bi bi-arrow-return-left"></i> Voltar para a matriz</a></li>
                   <li><hr class="dropdown-divider"></li>
                 {% endif %}
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('settings') }}">
-                    <i class="bi bi-gear"></i> Configurações
-                  </a>
-                </li>
+                <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item text-danger" href="#" onclick="deleteAccount()">
-                    <i class="bi bi-trash"></i> Apagar minha conta
-                  </a>
-                </li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="deleteAccount()"><i class="bi bi-trash"></i> Apagar minha conta</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('logout') }}">
-                    <i class="bi bi-box-arrow-right"></i> Sair
-                  </a>
-                </li>
+                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
               </ul>
             </div>
           {% else %}
@@ -217,17 +158,12 @@
     </div>
   </nav>
 
-  <!-- Banner de aviso fixo quando visualizando filial (mobile + desktop) -->
   {% if viewing_filial %}
   <div class="filial-banner py-2">
     <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
       <div class="d-flex align-items-center gap-2">
-        <span class="filial-badge">
-          <i class="bi bi-building"></i> Filial
-        </span>
-        <span class="fw-semibold">
-          Você está visualizando a filial: <span class="text-decoration-underline">{{ filial_name }}</span>
-        </span>
+        <span class="filial-badge"><i class="bi bi-building"></i> Filial</span>
+        <span class="fw-semibold">Você está visualizando a filial: <span class="text-decoration-underline">{{ filial_name }}</span></span>
       </div>
       <div class="d-flex align-items-center gap-2">
         <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-warning btn-sm filial-back-btn">
@@ -238,31 +174,23 @@
   </div>
   {% endif %}
 
-  <!-- Conteúdo principal -->
   <main class="py-4">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Rodapé institucional -->
   <footer class="footer-comentsia {% if not logged_in %}footer-deslogado{% endif %}">
     <div class="footer-content">
       <div class="footer-brand">
         <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">
         <div class="footer-secure">
-          <i class="bi bi-lock-fill" style="color:#10b981; font-size: 1.08em; vertical-align: -2px;"></i>
+          <i class="bi bi-lock-fill" style="color:#10b981; font-size:1.08em; vertical-align:-2px;"></i>
           <span>Site seguro &mdash; HTTPS ativo</span>
         </div>
       </div>
       <div class="footer-links">
-        <a href="mailto:contato@comentsia.com.br" title="E-mail institucional">
-          <i class="bi bi-envelope"></i> contato@comentsia.com.br
-        </a>
-        <a href="mailto:suporte@comentsia.com.br" title="Suporte">
-          <i class="bi bi-life-preserver"></i> suporte@comentsia.com.br
-        </a>
-        <a href="https://instagram.com/comentsia" target="_blank" title="Instagram">
-          <i class="bi bi-instagram"></i> @comentsia
-        </a>
+        <a href="mailto:contato@comentsia.com.br" title="E-mail institucional"><i class="bi bi-envelope"></i> contato@comentsia.com.br</a>
+        <a href="mailto:suporte@comentsia.com.br" title="Suporte"><i class="bi bi-life-preserver"></i> suporte@comentsia.com.br</a>
+        <a href="https://instagram.com/comentsia" target="_blank" title="Instagram"><i class="bi bi-instagram"></i> @comentsia</a>
       </div>
       <div class="footer-pags">
         <a href="{{ url_for('quem_somos') }}">Quem Somos</a>
@@ -271,9 +199,7 @@
         <span class="footer-dot">&middot;</span>
         <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>
       </div>
-      <div class="footer-copy">
-        &copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.
-      </div>
+      <div class="footer-copy">&copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.</div>
     </div>
   </footer>
 
@@ -281,15 +207,13 @@
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999">
     <div id="toast-alert" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex align-items-center">
-        <div class="toast-body d-flex align-items-center" id="toast-message">
-          Mensagem
-        </div>
+        <div class="toast-body d-flex align-items-center" id="toast-message">Mensagem</div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
       </div>
     </div>
   </div>
 
-  <!-- Modal de Confirmação Bootstrap -->
+  <!-- Modal de Confirmação -->
   <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content rounded-4 shadow-lg">
@@ -297,9 +221,7 @@
           <h5 class="modal-title">Confirmar ação</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
-        <div class="modal-body" id="confirmModalBody">
-          Tem certeza que deseja executar esta ação?
-        </div>
+        <div class="modal-body" id="confirmModalBody">Tem certeza que deseja executar esta ação?</div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" class="btn btn-danger" id="confirmModalOk">OK</button>
@@ -308,86 +230,73 @@
     </div>
   </div>
 
-  <!-- Scripts Bootstrap e funções -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // Tema claro/escuro
+    // Tema
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') document.body.classList.add('dark');
-    function toggleTheme() {
+    function toggleTheme(){
       document.body.classList.toggle('dark');
       localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     }
 
-    // Toast moderno
-    function showToast(mensagem, tipo = 'success') {
+    // Toast simples
+    function showToast(mensagem, tipo='success'){
       const toastEl = document.getElementById('toast-alert');
       const toastMsg = document.getElementById('toast-message');
-      toastEl.classList.remove('bg-success', 'bg-danger', 'toast-info', 'bg-info', 'bg-warning');
-      if (tipo === 'info') {
-        toastEl.classList.add('bg-info');
-      } else if (tipo === 'danger') {
-        toastEl.classList.add('bg-danger');
-      } else if (tipo === 'warning') {
-        toastEl.classList.add('bg-warning');
-      } else {
-        toastEl.classList.add('bg-success');
-      }
+      toastEl.classList.remove('bg-success','bg-danger','bg-info','bg-warning');
+      toastEl.classList.add(tipo==='danger'?'bg-danger':tipo==='info'?'bg-info':tipo==='warning'?'bg-warning':'bg-success');
       toastMsg.innerHTML = mensagem;
       new bootstrap.Toast(toastEl).show();
     }
 
-    // Toast Persistente (para "Excluindo conta...", "Salvando...", etc)
-    function showPersistentToast(message, type = 'info') {
-      const toastId = 'toast-' + Math.floor(Math.random() * 1000000);
-      const colorClass = type === 'success' ? 'bg-success' :
-                         type === 'danger'  ? 'bg-danger'  :
-                         type === 'warning' ? 'bg-warning' : 'bg-info';
-      const toast = document.createElement('div');
-      toast.className = `toast align-items-center text-white ${colorClass} border-0 show`;
-      toast.id = toastId;
-      toast.setAttribute('role', 'alert');
-      toast.setAttribute('aria-live', 'assertive');
-      toast.setAttribute('aria-atomic', 'true');
-      toast.style.position = 'fixed';
-      toast.style.top = '24px';
-      toast.style.right = '24px';
-      toast.style.zIndex = 9999;
-      toast.innerHTML = `
-        <div class="d-flex align-items-center">
-          <div class="toast-body">${message}</div>
-        </div>
-      `;
-      document.body.appendChild(toast);
-      return toastId;
+    // Toast persistente
+    function showPersistentToast(message, type='info'){
+      const id = 'toast-' + Math.floor(Math.random()*1e6);
+      const color = type==='success'?'bg-success':type==='danger'?'bg-danger':type==='warning'?'bg-warning':'bg-info';
+      const t = document.createElement('div');
+      t.className = `toast align-items-center text-white ${color} border-0 show`;
+      t.id = id; t.role='alert'; t.setAttribute('aria-live','assertive'); t.setAttribute('aria-atomic','true');
+      Object.assign(t.style,{position:'fixed',top:'24px',right:'24px',zIndex:9999});
+      t.innerHTML = `<div class="d-flex align-items-center"><div class="toast-body">${message}</div></div>`;
+      document.body.appendChild(t);
+      return id;
     }
-    function removePersistentToast(toastId) {
-      const toast = document.getElementById(toastId);
-      if (toast) toast.remove();
+    function removePersistentToast(id){ const t=document.getElementById(id); if(t) t.remove(); }
+
+    // --------- CSRF helpers ---------
+    function getCSRF(){
+      const m = document.querySelector('meta[name="csrf-token"]');
+      return m ? m.getAttribute('content') : '';
     }
 
-    function deleteAccount() {
+    // --------- Apagar conta (menu) ---------
+    function deleteAccount(){
       askConfirm(
         'Tem certeza que deseja <b>APAGAR SUA CONTA</b>?<br><span class="text-danger">Todos os seus dados serão apagados e essa ação é <b>irreversível</b>!</span>',
-        function() {
-          const toastId = showPersistentToast(
-            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Excluindo conta...',
-            'danger'
-          );
-          fetch('/delete_account', {
+        function(){
+          const toastId = showPersistentToast('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Excluindo conta...', 'danger');
+          fetch('{{ url_for("delete_account") }}', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRFToken': getCSRF()
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({})
           })
-          .then(response => response.json())
+          .then(r => r.json())
           .then(data => {
-            if (data.success) {
-              window.location = '/';
+            removePersistentToast(toastId);
+            if (data && data.success){
+              window.location = '{{ url_for("index") }}';
             } else {
-              removePersistentToast(toastId);
-              showToast('Erro ao apagar conta: ' + (data.error || 'Tente novamente.'), 'danger');
+              showToast('Erro ao apagar conta: ' + ((data && data.error) || 'Tente novamente.'), 'danger');
             }
           })
-          .catch(() => {
+          .catch(err => {
             removePersistentToast(toastId);
             showToast('Erro ao conectar ao servidor.', 'danger');
           });
@@ -397,31 +306,29 @@
 
     // Modal de confirmação
     let confirmAction = null;
-    function askConfirm(message, callback) {
+    function askConfirm(message, callback){
       document.getElementById('confirmModalBody').innerHTML = message;
       confirmAction = callback;
-      var modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-      modal.show();
+      new bootstrap.Modal(document.getElementById('confirmModal')).show();
     }
-    document.getElementById('confirmModalOk').onclick = function() {
+    document.getElementById('confirmModalOk').onclick = function(){
       if (confirmAction) confirmAction();
-      var modalEl = document.getElementById('confirmModal');
-      var modal = bootstrap.Modal.getInstance(modalEl);
-      modal.hide();
+      const el = document.getElementById('confirmModal');
+      bootstrap.Modal.getInstance(el).hide();
     };
   </script>
+
   {% block extra_scripts %}{% endblock %}
+
   {% if viewing_filial %}
-<div id="filial-alert" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-  <div class="toast show text-dark bg-warning shadow border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex align-items-center p-3">
-      <div class="me-auto">
-        <strong>📍 Filial:</strong> {{ filial_name or 'Filial' }}
+  <div id="filial-alert" class="position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+    <div class="toast show text-dark bg-warning shadow border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex align-items-center p-3">
+        <div class="me-auto"><strong>📍 Filial:</strong> {{ filial_name or 'Filial' }}</div>
+        <a href="{{ matriz_back_url }}" class="btn btn-sm btn-dark ms-3">Matriz</a>
       </div>
-      <a href="{{ matriz_back_url }}" class="btn btn-sm btn-dark ms-3">Matriz</a>
     </div>
   </div>
-</div>
-{% endif %}
+  {% endif %}
 </body>
 </html>

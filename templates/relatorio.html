@@ -52,6 +52,7 @@
     <div class="col-lg-8">
       <div class="card shadow-sm p-4 mb-4">
         <form id="form-relatorio" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="row">
             <div class="col-md-4">
               <label class="form-label"><i class="bi bi-calendar me-1"></i>Período:</label>

@@ -248,7 +248,7 @@
             <h5 class="fw-bold">Business Pro</h5>
             <div class="price">R$ 34,99<span class="fs-6 fw-semibold text-muted">/mês</span></div>
             <ul class="mt-2 list-unstyled text-muted">
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Multi‑filiais (até 5)</li>
+              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Multi-filiais (até 5)</li>
               <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Relatórios em PDF</li>
               <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Suporte prioritário</li>
             </ul>
@@ -318,10 +318,21 @@
 
   {# =================== VERSÃO LOGADO (CLARA + INTERATIVA) =================== #}
 
+  {# Totais brutos #}
   {% set total = reviews|length if reviews else 0 %}
   {% set responded = reviews|selectattr('replied')|list|length if reviews else 0 %}
   {% set pending = (total - responded) if total else 0 %}
-  {% set avg = "%.1f"|format((reviews|map(attribute='rating')|sum)/total) if total>0 else "0.0" %}
+
+  {# Apenas ratings válidos (ignora None) #}
+  {% set valid_ratings = reviews
+      |selectattr('rating','ne', none)
+      |map(attribute='rating')
+      |list
+  %}
+  {% set total_valid = valid_ratings|length %}
+  {% set avg = "%.1f"|format( (valid_ratings|sum) / total_valid ) if total_valid>0 else "0.0" %}
+
+  {# taxa de resposta em % (sobre todas as avaliações) #}
   {% set response_rate = (responded/total*100) if total>0 else 0 %}
   {% set response_rate_str = "%.0f"|format(response_rate) %}
 
