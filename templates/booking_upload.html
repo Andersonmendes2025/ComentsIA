@@ -21,7 +21,6 @@
           </div>
         </div>
       </div>
-
       <!-- Explicação do fluxo -->
       <div class="alert alert-info border-0 shadow-sm">
         <div class="d-flex align-items-start gap-3">
@@ -30,13 +29,14 @@
             <div class="fw-bold mb-1">O que vai acontecer</div>
             <ul class="mb-0">
               <li>Você envia um arquivo <strong>CSV</strong> exportado do Booking.</li>
-              <li>Processamos em <strong>segundo plano</strong> (150 KB por vez) para economizar memória.</li>
+              <li>Processamos em <strong>segundo plano</strong> (150 KB por vez) para garantir estabilidade.</li>
               <li>Duplicadas são detectadas e <u>não</u> inseridas; notas (0–10) viram escala (0–5).</li>
               <li>Você pode <strong>sair da página</strong> e voltar depois — o upload continua.</li>
             </ul>
           </div>
         </div>
       </div>
+
 
       <!-- Ações -->
       <div class="d-flex gap-2 flex-wrap mb-3">
@@ -453,3 +453,4 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 });
 </script>
 {% endblock %}
+ 

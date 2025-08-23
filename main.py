@@ -72,6 +72,9 @@ sentry_sdk.init(
 # FLASK APP
 # -------------------------------------------------------------------
 app = Flask(__name__)
+if os.getenv("WORKER_ROLE") == "1":
+    from booking import _get_scheduler
+    _get_scheduler()
 
 # Sessão e DB
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
@@ -1737,6 +1740,7 @@ def get_current_user_id():
 # -- usado em booking.py para barrar acesso de quem não está logado --
 def require_login():
     return ("credentials" in session) and bool(get_current_user_id())
+
 @app.route("/get_consideracoes_count")
 @limiter.limit("10 per minute")
 def get_consideracoes_count():
