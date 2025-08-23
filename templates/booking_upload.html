@@ -8,6 +8,20 @@
 
       <h2 class="mb-3">Importar avaliações do Booking</h2>
 
+      <!-- Banner de progresso persistente -->
+      <div id="upload-progress-banner" class="alert alert-warning border-0 shadow-sm d-none" role="alert" aria-live="polite">
+        <div class="d-flex align-items-start gap-3">
+          <div class="spinner-border spinner-border-sm flex-shrink-0 mt-1" role="status" aria-hidden="true"></div>
+          <div>
+            <div class="fw-bold mb-1">Processando seu arquivo em segundo plano…</div>
+            <div class="small text-muted">
+              Você pode navegar pelo site; quando voltar, continuaremos de onde parou. <br/>
+              <span id="banner-meta" class="d-inline-block mt-1"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Explicação do fluxo -->
       <div class="alert alert-info border-0 shadow-sm">
         <div class="d-flex align-items-start gap-3">
@@ -16,11 +30,9 @@
             <div class="fw-bold mb-1">O que vai acontecer</div>
             <ul class="mb-0">
               <li>Você envia um arquivo <strong>CSV</strong> exportado do Booking.</li>
-              <li>Nós salvamos as avaliações no mesmo modelo <strong>Review</strong> usado pelo app.</li>
-              <li>A nota do Booking (0–10) é <strong>convertida</strong> para <strong>0–5</strong> (1 casa decimal), mantendo a nota original.</li>
-              <li>As avaliações aparecem no <strong>Dashboard</strong>, <strong>Relatórios</strong> e <strong>Análises com IA</strong>.</li>
-              <li>Elas ficam marcadas como <span class="badge bg-warning text-dark">Booking</span> para filtrar (Google | Booking).</li>
-              <li><strong>Apenas avaliações inéditas são salvas.</strong> Duplicadas são detectadas e <u>não</u> serão inseridas.</li>
+              <li>Processamos em <strong>segundo plano</strong> (150 KB por vez) para economizar memória.</li>
+              <li>Duplicadas são detectadas e <u>não</u> inseridas; notas (0–10) viram escala (0–5).</li>
+              <li>Você pode <strong>sair da página</strong> e voltar depois — o upload continua.</li>
             </ul>
           </div>
         </div>
@@ -36,7 +48,7 @@
         </button>
       </div>
 
-      <!-- Resultado do upload -->
+      <!-- Resultado do upload (último retorno rápido) -->
       <div id="resultado-upload" style="display:none;">
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-body">
@@ -161,6 +173,7 @@
     </div>
   </div>
 </div>
+
 <!-- Modal CONFIRMAR EXCLUSÃO -->
 <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true" aria-labelledby="confirmDeleteLabel">
   <div class="modal-dialog modal-dialog-centered">
@@ -176,7 +189,7 @@
           <div class="flex-grow-1">
             <h5 class="mb-1" id="confirmDeleteLabel">Excluir histórico de upload?</h5>
             <p class="text-muted mb-2">
-              Esta ação é permanente e removerá apenas o <strong>histórico</strong>. 
+              Esta ação remove apenas o <strong>histórico</strong>. 
               Os <strong>reviews já importados</strong> não serão apagados.
             </p>
             <div class="small bg-light rounded-3 p-2 px-3" id="confirmDeleteMeta" aria-live="polite"></div>
@@ -197,67 +210,32 @@
 
 <style>
   .border-dashed { border-style: dashed !important; }
-  #dropzone.dragover {
-    background: rgba(13, 110, 253, .06);
-    border-color: rgba(13, 110, 253, .6) !important;
-  }
-  .upload-card {
-    border: 1px solid rgba(0,0,0,.075);
-    border-radius: 1rem;
-  }
-  .upload-actions .btn {
-    border-radius: .6rem;
-  }
-  .status-dot {
-    width: .6rem; height: .6rem; border-radius: 50%;
-    display: inline-block; margin-right: .4rem;
-  }
+  #dropzone.dragover { background: rgba(13, 110, 253, .06); border-color: rgba(13, 110, 253, .6) !important; }
+  .upload-card { border: 1px solid rgba(0,0,0,.075); border-radius: 1rem; }
+  .upload-actions .btn { border-radius: .6rem; }
+  .status-dot { width: .6rem; height: .6rem; border-radius: 50%; display: inline-block; margin-right: .4rem; }
 </style>
 
 <script>
-// ---------- Utils ----------
-function bytesToSize(bytes) {
-  if (!bytes && bytes !== 0) return '—';
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
-  const val = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1);
-  return `${val} ${sizes[i]}`;
-}
-function fmtDate(iso) {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString('pt-BR');
-  } catch { return iso; }
-}
-function fmtDuration(startIso, endIso) {
-  if (!startIso || !endIso) return '—';
-  try {
-    const ms = Math.max(0, (new Date(endIso)) - (new Date(startIso)));
-    if (ms < 1000) return `${ms} ms`;
-    const s = Math.round(ms / 1000);
-    if (s < 60) return `${s}s`;
-    const m = Math.floor(s / 60), rs = s % 60;
-    if (m < 60) return `${m}m ${rs}s`;
-    const h = Math.floor(m / 60), rm = m % 60;
-    return `${h}h ${rm}m`;
-  } catch { return '—'; }
-}
-function statusBadge(st) {
-  const map = {
-    running: ['bg-warning text-dark', 'Em andamento', '#f59f00'],
-    success: ['bg-success', 'Concluído', '#198754'],
-    error:   ['bg-danger', 'Com erros', '#dc3545']
-  };
-  const [cls, label, dot] = map[st] || ['bg-secondary','—','#6c757d'];
-  return {cls, label, dot};
-}
-function esc(s) {
-  if (s === null || s === undefined) return '';
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
+/* ========= Helpers ========= */
+function bytesToSize(bytes){if(!bytes&&bytes!==0)return'—';const s=['B','KB','MB','GB'];const i=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),s.length-1);const v=(bytes/Math.pow(1024,i)).toFixed(i===0?0:1);return`${v} ${s[i]}`;}
+function fmtDate(iso){if(!iso)return'—';try{const d=new Date(iso);return d.toLocaleString('pt-BR');}catch{return iso;}}
+function fmtDuration(a,b){if(!a||!b)return'—';try{const ms=Math.max(0,(new Date(b))-(new Date(a)));if(ms<1e3)return`${ms} ms`;const s=Math.round(ms/1e3);if(s<60)return`${s}s`;const m=Math.floor(s/60),rs=s%60;if(m<60)return`${m}m ${rs}s`;const h=Math.floor(m/60),rm=m%60;return`${h}h ${rm}m`;}catch{return'—';}}
+function statusBadge(st){const map={queued:['bg-warning text-dark','Na fila','#f59f00'],processing:['bg-warning text-dark','Processando','#f59f00'],running:['bg-warning text-dark','Em andamento','#f59f00'],success:['bg-success','Concluído','#198754'],error:['bg-danger','Com erros','#dc3545']};return map[st]||['bg-secondary','—','#6c757d'];}
+function esc(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
-// ---------- Upload form behavior ----------
+/* ========= Persistência do upload ativo ========= */
+const ACTIVE_KEY = 'bookingUploadActive'; // guarda {id, startedAt}
+
+function setActiveUpload(id, startedAt){
+  localStorage.setItem(ACTIVE_KEY, JSON.stringify({id, startedAt: startedAt || new Date().toISOString()}));
+}
+function getActiveUpload(){
+  try{const raw=localStorage.getItem(ACTIVE_KEY);return raw?JSON.parse(raw):null;}catch{return null;}
+}
+function clearActiveUpload(){ localStorage.removeItem(ACTIVE_KEY); }
+
+/* ========= UI refs ========= */
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('csv-file');
 const chip = document.getElementById('file-chip');
@@ -266,256 +244,212 @@ const fileSizeEl = document.getElementById('file-size');
 const btnRemove = document.getElementById('btn-remove-file');
 const btnEnviar = document.getElementById('btn-enviar');
 const spnEnviar = document.getElementById('spn-enviar');
-
-function showChip(file) {
-  if (!file) return;
-  fileNameEl.textContent = file.name;
-  fileSizeEl.textContent = bytesToSize(file.size);
-  chip.classList.remove('d-none');
-  btnEnviar.disabled = false;
-}
-function clearChip() {
-  fileInput.value = '';
-  chip.classList.add('d-none');
-  btnEnviar.disabled = true;
-}
-// Drag & drop
-['dragenter','dragover'].forEach(ev => {
-  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
-});
-['dragleave','drop'].forEach(ev => {
-  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
-});
-dropzone.addEventListener('drop', e => {
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (file) {
-    if (!file.name.toLowerCase().endsWith('.csv')) { if (window.showToast) showToast('Selecione um arquivo .csv', 'warning'); return; }
-    fileInput.files = e.dataTransfer.files;
-    showChip(file);
-  }
-});
-fileInput.addEventListener('change', () => {
-  const f = fileInput.files[0];
-  if (f) {
-    if (!f.name.toLowerCase().endsWith('.csv')) { clearChip(); if (window.showToast) showToast('Selecione um arquivo .csv', 'warning'); return; }
-    showChip(f);
-  } else { clearChip(); }
-});
-btnRemove.addEventListener('click', clearChip);
-
-// Envio + resumo
-document.getElementById('form-upload').addEventListener('submit', async function (e) {
-  e.preventDefault();
-  const file = fileInput.files[0];
-  if (!file) { if (window.showToast) showToast('Selecione um arquivo CSV.', 'warning'); return; }
-
-  btnEnviar.disabled = true; spnEnviar.classList.remove('d-none');
-
-  const formData = new FormData(this);
-  let csrfVal = '';
-  const csrfEl = this.querySelector('input[name="csrf_token"]');
-  if (csrfEl) csrfVal = csrfEl.value;
-
-  try {
-    const resp = await fetch(this.action, {
-      method: 'POST',
-      headers: csrfVal ? { 'X-CSRFToken': csrfVal } : {},
-      body: formData
-    });
-    const data = await resp.json();
-
-    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
-    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal')); if (modal) modal.hide();
-    clearChip();
-
-    const wrap = document.getElementById('resultado-upload');
-    wrap.style.display = 'block';
-    document.getElementById('ins-inserted').innerText   = data.inserted ?? 0;
-    document.getElementById('ins-duplicates').innerText = data.duplicates ?? 0;
-    document.getElementById('ins-skipped').innerText    = data.skipped ?? 0;
-    document.getElementById('ins-status').innerText     = data.success ? 'Concluída' : 'Com erros';
-
-    const errBox = document.getElementById('ins-errors');
-    if (data.errors && data.errors.length) {
-      errBox.style.display = 'block';
-      errBox.querySelector('pre').innerText = (data.errors || []).join('\n');
-    } else {
-      errBox.style.display = 'none';
-    }
-
-    if (window.showToast) {
-      const msg = data.message || 'Importação concluída!';
-      showToast(`${msg} ${data.duplicates ? ' (duplicadas ignoradas)' : ''}`, data.success ? 'success' : 'danger');
-    }
-
-    // Recarrega histórico
-    await loadUploads();
-  } catch (err) {
-    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
-    if (window.showToast) showToast('Falha ao enviar o arquivo.', 'danger');
-  }
-});
-
-// ---------- Histórico de uploads ----------
 const uploadsGrid = document.getElementById('uploads-grid');
 const uploadsEmpty = document.getElementById('uploads-empty');
 const uploadsCount = document.getElementById('uploads-count');
 const uploadsSearch = document.getElementById('uploads-search');
+const banner = document.getElementById('upload-progress-banner');
+const bannerMeta = document.getElementById('banner-meta');
 
-async function loadUploads() {
-  uploadsGrid.innerHTML = `
-    <div class="col-12 text-center text-muted py-3">
-      <div class="spinner-border spinner-border-sm me-2"></div> Carregando...
-    </div>`;
-  try {
+let pollTimer = null;
+let autoRefreshTimer = null;
+
+/* ========= Dropzone ========= */
+function showChip(file){ if(!file)return; fileNameEl.textContent=file.name; fileSizeEl.textContent=bytesToSize(file.size); chip.classList.remove('d-none'); btnEnviar.disabled=false; }
+function clearChip(){ fileInput.value=''; chip.classList.add('d-none'); btnEnviar.disabled=true; }
+['dragenter','dragover'].forEach(ev=>{ dropzone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.add('dragover');});});
+['dragleave','drop'].forEach(ev=>{ dropzone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.remove('dragover');});});
+dropzone.addEventListener('drop',e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ if(!f.name.toLowerCase().endsWith('.csv')){window.showToast&&showToast('Selecione um arquivo .csv','warning');return;} fileInput.files=e.dataTransfer.files; showChip(f);} });
+fileInput.addEventListener('change',()=>{ const f=fileInput.files[0]; if(f){ if(!f.name.toLowerCase().endsWith('.csv')){clearChip(); window.showToast&&showToast('Selecione um arquivo .csv','warning'); return;} showChip(f);} else { clearChip(); }});
+btnRemove.addEventListener('click', clearChip);
+
+/* ========= Histórico ========= */
+async function loadUploads(){
+  try{
     const resp = await fetch('{{ url_for("booking.list_uploads") }}');
     const data = await resp.json();
     const items = (data && data.uploads) ? data.uploads : [];
-
-    // filtro texto
-    const term = (uploadsSearch.value || '').trim().toLowerCase();
-    const filtered = !term ? items : items.filter(u => {
-      const s = (u.filename || '') + ' ' + (u.status || '');
-      return s.toLowerCase().includes(term);
-    });
-
+    // filtro
+    const term = (uploadsSearch.value||'').trim().toLowerCase();
+    const filtered = !term ? items : items.filter(u => ((u.filename||'')+' '+(u.status||'')).toLowerCase().includes(term));
     uploadsCount.textContent = filtered.length;
-    if (!filtered.length) {
-      uploadsGrid.innerHTML = '';
-      uploadsEmpty.classList.remove('d-none');
-      return;
-    }
+
+    if(!filtered.length){ uploadsGrid.innerHTML=''; uploadsEmpty.classList.remove('d-none'); return; }
     uploadsEmpty.classList.add('d-none');
 
-    uploadsGrid.innerHTML = filtered.map(u => {
-      const sb = statusBadge(u.status);
-      const dot = `<span class="status-dot" style="background:${sb.dot}"></span>`;
-      const dur = fmtDuration(u.started_at, u.finished_at);
-      const hasErrors = Array.isArray(u.errors) && u.errors.length > 0;
-
+    uploadsGrid.innerHTML = filtered.map(u=>{
+      const [cls,label,dot] = statusBadge(u.status);
+      const hasErrors = Array.isArray(u.errors) && u.errors.length>0;
       return `
       <div class="col-12 col-md-6">
         <div class="upload-card p-3 h-100">
           <div class="d-flex justify-content-between align-items-start">
             <div class="me-2">
-              <div class="fw-semibold text-truncate" title="${esc(u.filename || '—')}">
-                <i class="bi bi-file-earmark-arrow-up me-1"></i>${esc(u.filename || '—')}
+              <div class="fw-semibold text-truncate" title="${esc(u.filename||'—')}">
+                <i class="bi bi-file-earmark-arrow-up me-1"></i>${esc(u.filename||'—')}
               </div>
-              <div class="text-muted small">
-                ${bytesToSize(u.filesize)} • ID ${u.id}
-              </div>
+              <div class="text-muted small">${bytesToSize(u.filesize)} • ID ${u.id}</div>
             </div>
-            <span class="badge ${sb.cls}">${dot}${sb.label}</span>
+            <span class="badge ${cls}"><span class="status-dot" style="background:${dot}"></span>${label}</span>
           </div>
 
           <div class="row g-2 mt-2">
-            <div class="col-6">
-              <div class="text-muted small">Iniciado</div>
-              <div>${fmtDate(u.started_at)}</div>
-            </div>
-            <div class="col-6">
-              <div class="text-muted small">Finalizado</div>
-              <div>${fmtDate(u.finished_at)}</div>
-            </div>
-            <div class="col-4">
-              <div class="text-muted small">Inseridas</div>
-              <div class="fw-semibold">${u.inserted ?? 0}</div>
-            </div>
-            <div class="col-4">
-              <div class="text-muted small">Duplicadas</div>
-              <div class="fw-semibold">${u.duplicates ?? 0}</div>
-            </div>
-            <div class="col-4">
-              <div class="text-muted small">Ignoradas</div>
-              <div class="fw-semibold">${u.skipped ?? 0}</div>
-            </div>
-            <div class="col-12">
-              <div class="text-muted small">Duração</div>
-              <div>${dur}</div>
-            </div>
+            <div class="col-6"><div class="text-muted small">Iniciado</div><div>${fmtDate(u.started_at)}</div></div>
+            <div class="col-6"><div class="text-muted small">Finalizado</div><div>${fmtDate(u.finished_at)}</div></div>
+            <div class="col-4"><div class="text-muted small">Inseridas</div><div class="fw-semibold">${u.inserted??0}</div></div>
+            <div class="col-4"><div class="text-muted small">Duplicadas</div><div class="fw-semibold">${u.duplicates??0}</div></div>
+            <div class="col-4"><div class="text-muted small">Ignoradas</div><div class="fw-semibold">${u.skipped??0}</div></div>
+            <div class="col-12"><div class="text-muted small">Duração</div><div>${fmtDuration(u.started_at,u.finished_at)}</div></div>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mt-3 upload-actions">
-            <button class="btn btn-sm btn-outline-secondary" data-action="toggle-errors" data-id="${u.id}" ${!hasErrors ? 'disabled' : ''}>
+            <button class="btn btn-sm btn-outline-secondary" data-action="toggle-errors" data-id="${u.id}" ${!hasErrors?'disabled':''}>
               <i class="bi bi-exclamation-triangle me-1"></i> Detalhes
             </button>
-            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${u.id}" data-filename="${esc(u.filename || '—')}">
-            <i class="bi bi-trash me-1"></i> Excluir
-          </button>
-
+            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${u.id}">
+              <i class="bi bi-trash me-1"></i> Excluir
+            </button>
           </div>
 
           <div class="mt-2" id="errors-${u.id}" style="display:none;">
             <div class="text-muted small mb-1">Erros/Avisos:</div>
-            <pre class="bg-light p-2 rounded" style="max-height:160px; overflow:auto;">${hasErrors ? esc(u.errors.join('\n')) : ''}</pre>
+            <pre class="bg-light p-2 rounded" style="max-height:160px; overflow:auto;">${hasErrors?esc(u.errors.join('\n')):''}</pre>
           </div>
         </div>
       </div>`;
     }).join('');
 
-  } catch (e) {
-    uploadsGrid.innerHTML = `
-      <div class="col-12">
-        <div class="alert alert-warning">Não foi possível carregar o histórico agora.</div>
-      </div>`;
+    // Atualiza banner se há um ativo
+    const active = getActiveUpload();
+    if(active){
+      const it = items.find(x=>String(x.id)===String(active.id));
+      if(it){
+        const [cls,label,_dot] = statusBadge(it.status);
+        bannerMeta.innerHTML = `
+          <span class="badge ${cls} me-2">${label}</span>
+          Inseridas: <strong>${it.inserted??0}</strong> • Duplicadas: <strong>${it.duplicates??0}</strong> • Ignoradas: <strong>${it.skipped??0}</strong>
+          ${it.finished_at?` • Finalizado: ${fmtDate(it.finished_at)}`:''}
+        `;
+        // fim de processamento: limpa ativo
+        if(it.status==='success' || it.status==='error'){
+          clearActiveUpload();
+          stopPolling();
+          banner.classList.add('d-none');
+        }else{
+          banner.classList.remove('d-none');
+        }
+      }else{
+        // não encontrou no histórico (talvez já removido)
+        banner.classList.add('d-none');
+      }
+    }else{
+      banner.classList.add('d-none');
+    }
+
+  }catch(e){
+    // silencioso
   }
 }
 
-document.getElementById('btn-refresh-uploads').addEventListener('click', loadUploads);
-uploadsSearch.addEventListener('input', () => loadUploads());
+function startPolling(){
+  stopPolling();
+  pollTimer = setInterval(loadUploads, 2500);
+  // enquanto houver ativo, também força refresh do grid
+  autoRefreshTimer = setInterval(loadUploads, 5000);
+}
+function stopPolling(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+}
 
-// Delegação de eventos para ações nos cards
-uploadsGrid.addEventListener('click', async (e) => {
+/* ========= Delegação de eventos nos cards ========= */
+uploadsGrid.addEventListener('click', async (e)=>{
   const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
+  if(!btn) return;
   const id = btn.getAttribute('data-id');
   const action = btn.getAttribute('data-action');
 
   // pega CSRF do formulário, se existir
   const form = document.getElementById('form-upload');
   let csrfVal = '';
-  if (form) {
+  if(form){
     const csrfEl = form.querySelector('input[name="csrf_token"]');
-    if (csrfEl) csrfVal = csrfEl.value;
+    if(csrfEl) csrfVal = csrfEl.value;
   }
 
-  if (action === 'toggle-errors') {
+  if(action==='toggle-errors'){
     const box = document.getElementById(`errors-${id}`);
-    if (box) box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+    if(box) box.style.display = (box.style.display==='none'||!box.style.display)?'block':'none';
   }
 
-  if (action === 'delete') {
-    if (!confirm('Confirma excluir este histórico de upload?')) return;
-    try {
+  if(action==='delete'){
+    if(!confirm('Confirma excluir este histórico de upload?')) return;
+    try{
       const resp = await fetch(`{{ url_for("booking.delete_upload_log", log_id=0) }}`.replace('0', id), {
         method: 'DELETE',
         headers: csrfVal ? { 'X-CSRFToken': csrfVal } : {}
       });
       const data = await resp.json();
-      if (data && data.success) {
-        if (window.showToast) showToast('Histórico excluído.', 'success');
-        await loadUploads();
-      } else {
-        if (window.showToast) showToast(data.error || 'Falha ao excluir.', 'danger');
-      }
-    } catch (err) {
-      if (window.showToast) showToast('Falha ao excluir.', 'danger');
-    }
+      if(data && data.success){ window.showToast&&showToast('Histórico excluído.','success'); await loadUploads(); }
+      else { window.showToast&&showToast(data.error||'Falha ao excluir.','danger'); }
+    }catch{ window.showToast&&showToast('Falha ao excluir.','danger'); }
   }
 });
 
-// Checar quantidade já importada
-document.getElementById('btn-checar').addEventListener('click', async function () {
-  try {
+/* ========= Envio do arquivo (resposta: queued) ========= */
+document.getElementById('form-upload').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const file = fileInput.files[0];
+  if(!file){ window.showToast&&showToast('Selecione um arquivo CSV.','warning'); return; }
+
+  btnEnviar.disabled = true; spnEnviar.classList.remove('d-none');
+
+  const formData = new FormData(this);
+  let csrfVal = ''; const csrfEl = this.querySelector('input[name="csrf_token"]'); if(csrfEl) csrfVal = csrfEl.value;
+
+  try{
+    const resp = await fetch(this.action, { method:'POST', headers: csrfVal?{'X-CSRFToken':csrfVal}:{}, body: formData });
+    const data = await resp.json();
+
+    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal')); if(modal) modal.hide();
+    clearChip();
+
+    if(data && data.success && data.status==='queued' && data.upload_id){
+      // marca ativo, mostra banner e inicia polling
+      setActiveUpload(String(data.upload_id));
+      bannerMeta.textContent = 'Na fila…'; banner.classList.remove('d-none');
+      startPolling();
+      window.showToast&&showToast('Arquivo recebido. Processando em segundo plano.','info');
+    }else{
+      window.showToast&&showToast(data.error||'Não foi possível iniciar o processamento.','danger');
+    }
+
+    // atualiza histórico imediatamente
+    await loadUploads();
+
+  }catch(err){
+    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
+    window.showToast&&showToast('Falha ao enviar o arquivo.','danger');
+  }
+});
+
+/* ========= Botões auxiliares ========= */
+document.getElementById('btn-refresh-uploads').addEventListener('click', loadUploads);
+uploadsSearch.addEventListener('input', loadUploads);
+document.getElementById('btn-checar').addEventListener('click', async function(){
+  try{
     const resp = await fetch('{{ url_for("booking.count_booking_reviews") }}');
     const data = await resp.json();
-    if (window.showToast) showToast(`Você tem ${data.count ?? 0} avaliações do Booking importadas.`, 'info');
-  } catch (e) {
-    if (window.showToast) showToast('Não foi possível checar agora.', 'warning');
-  }
+    window.showToast&&showToast(`Você tem ${data.count??0} avaliações do Booking importadas.`, 'info');
+  }catch{ window.showToast&&showToast('Não foi possível checar agora.', 'warning'); }
 });
 
-// Carrega histórico ao abrir a página
-document.addEventListener('DOMContentLoaded', loadUploads);
+/* ========= Boot: retomar se havia upload ativo ========= */
+document.addEventListener('DOMContentLoaded', async ()=>{
+  await loadUploads();
+  const active = getActiveUpload();
+  if(active){ banner.classList.remove('d-none'); startPolling(); }
+});
 </script>
 {% endblock %}
