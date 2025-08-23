@@ -21,6 +21,8 @@ class Review(db.Model):
     replied = db.Column(db.Boolean, default=False)
     terms_accepted = db.Column(db.Boolean, default=False)
     source = db.Column(db.String(50))
+    external_id = db.Column(db.String(64), index=True)      # número da reserva / review id
+    fingerprint = db.Column(db.String(128), index=True)     # opcional: hash único
 
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -86,7 +88,7 @@ class FilialVinculo(db.Model):
     __table_args__ = (db.UniqueConstraint("parent_user_id", "child_user_id", name="uq_parent_child"),)
 
 class User(db.Model):
-    __tablename__ = 'users'  # mantém compatibilidade com ForeignKey('user.id')
+    __tablename__ = 'users'
     id = db.Column(db.String(255), primary_key=True)  # ID do Google (email)
     email = db.Column(db.String(255), unique=True, nullable=False)
     nome = db.Column(db.String(255))
@@ -95,3 +97,39 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<users {self.email}>"
+
+# ========== NOVAS TABELAS Booking ==========
+class ReservationIndex(db.Model):
+    """
+    Índice de números de reserva (ou review id) já importados por usuário/fonte.
+    """
+    __tablename__ = "reservation_index"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), nullable=False, index=True)
+    source = db.Column(db.String(32), nullable=False, index=True, default="booking")
+    external_id = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "source", "external_id", name="uq_reservation_index_user_source_extid"),
+    )
+
+class UploadLog(db.Model):
+    """
+    Histórico de uploads efetuados pelo usuário (Booking CSV).
+    """
+    __tablename__ = "upload_log"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), index=True, nullable=False)
+    source = db.Column(db.String(32), index=True, nullable=False, default="booking")
+    filename = db.Column(db.String(255))
+    filesize = db.Column(db.Integer)
+    started_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+    finished_at = db.Column(db.DateTime(timezone=True))
+
+    inserted = db.Column(db.Integer, default=0)
+    duplicates = db.Column(db.Integer, default=0)
+    skipped = db.Column(db.Integer, default=0)
+
+    status = db.Column(db.String(24), default="running")  # running|success|error
+    errors_json = db.Column(db.Text)  # lista curta de erros/avisos

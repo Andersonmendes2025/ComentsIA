@@ -208,7 +208,7 @@ DADOS DAS AVALIACOES:
             try:
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                 completion = client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-4.1",
                     messages=[
                         {"role": "system", "content": "Voce e um assistente especializado em analise de satisfacao do cliente."},
                         {"role": "user", "content": prompt}

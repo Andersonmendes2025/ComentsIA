@@ -91,6 +91,18 @@ def run_migrations_online():
                 logger.info('No changes in schema detected.')
 
     conf_args = current_app.extensions['migrate'].configure_args
+    # Faça o autogenerate perceber mudanças de tipo e default
+    conf_args.setdefault("compare_type", True)
+    conf_args.setdefault("compare_server_default", True)
+
+    # No SQLite, use "render_as_batch" para suportar ALTER TABLE de forma segura
+    try:
+        eng = get_engine()
+        if getattr(eng, "name", "") == "sqlite":
+            conf_args.setdefault("render_as_batch", True)
+    except Exception:
+        pass
+
     if conf_args.get("process_revision_directives") is None:
         conf_args["process_revision_directives"] = process_revision_directives
 

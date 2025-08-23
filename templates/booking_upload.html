@@ -16,11 +16,11 @@
             <div class="fw-bold mb-1">O que vai acontecer</div>
             <ul class="mb-0">
               <li>Você envia um arquivo <strong>CSV</strong> exportado do Booking.</li>
-              <li>Nós salvamos <strong>todas</strong> as avaliações no mesmo modelo <strong>Review</strong> usado pelo app.</li>
-              <li>A nota do Booking (0–10) é <strong>convertida</strong> para <strong>0–5</strong> (1 casa decimal), mantendo a nota original para exibição.</li>
-              <li>As avaliações aparecem no <strong>Dashboard</strong>, nos <strong>Relatórios</strong> e nas <strong>Análises com IA</strong>.</li>
-              <li>Elas ficam marcadas como <span class="badge bg-warning text-dark">Booking</span> para você filtrar (Google | Booking).</li>
-              <li>Entradas duplicadas são evitadas automaticamente quando possível.</li>
+              <li>Nós salvamos as avaliações no mesmo modelo <strong>Review</strong> usado pelo app.</li>
+              <li>A nota do Booking (0–10) é <strong>convertida</strong> para <strong>0–5</strong> (1 casa decimal), mantendo a nota original.</li>
+              <li>As avaliações aparecem no <strong>Dashboard</strong>, <strong>Relatórios</strong> e <strong>Análises com IA</strong>.</li>
+              <li>Elas ficam marcadas como <span class="badge bg-warning text-dark">Booking</span> para filtrar (Google | Booking).</li>
+              <li><strong>Apenas avaliações inéditas são salvas.</strong> Duplicadas são detectadas e <u>não</u> serão inseridas.</li>
             </ul>
           </div>
         </div>
@@ -38,7 +38,7 @@
 
       <!-- Resultado do upload -->
       <div id="resultado-upload" style="display:none;">
-        <div class="card border-0 shadow-sm mb-3">
+        <div class="card border-0 shadow-sm mb-4">
           <div class="card-body">
             <h5 class="mb-3"><i class="bi bi-check2-circle me-2"></i>Resumo da importação</h5>
             <div class="row g-3">
@@ -55,8 +55,37 @@
         </div>
       </div>
 
-      <!-- Como obter as avaliações (colapsável) -->
+      <!-- Histórico de uploads -->
       <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-clock-history fs-5"></i>
+              <span class="fw-bold">Histórico de uploads</span>
+              <span id="uploads-count" class="badge bg-secondary">0</span>
+            </div>
+            <div class="d-flex gap-2">
+              <div class="input-group input-group-sm" style="width: 260px;">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="uploads-search" placeholder="Filtrar por arquivo/status...">
+              </div>
+              <button class="btn btn-sm btn-outline-primary" id="btn-refresh-uploads">
+                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+              </button>
+            </div>
+          </div>
+
+          <div id="uploads-empty" class="text-center text-muted py-4 d-none">
+            <i class="bi bi-inbox" style="font-size:2rem;"></i>
+            <p class="mt-2 mb-0">Nenhum upload encontrado ainda.</p>
+          </div>
+
+          <div id="uploads-grid" class="row g-3"></div>
+        </div>
+      </div>
+
+      <!-- Como obter as avaliações (colapsável) -->
+      <div class="card border-0 shadow-sm mt-4">
         <div class="card-body">
           <a class="d-flex align-items-center justify-content-between text-decoration-none"
              data-bs-toggle="collapse" href="#comoObter" role="button" aria-expanded="false" aria-controls="comoObter">
@@ -65,16 +94,11 @@
           </a>
           <div class="collapse mt-3" id="comoObter">
             <ol class="mb-3">
-              <li>Acesse a <a href="https://admin.booking.com/" class="link-primary" target="_blank" rel="noopener">Extranet do Booking</a> e faça login na propriedade correta.</li>
-              <li>No menu, vá em <strong>Avaliações</strong> / <strong>Guest Reviews</strong>.</li>
-              <li>Procure a opção de <strong>exportar/baixar</strong> avaliações e selecione o formato <strong>CSV</strong>.</li>
-              <li>Salve o arquivo no seu computador.</li>
-              <li>Volte aqui e clique em <strong>“Enviar avaliações (CSV)”</strong>.</li>
+              <li>Acesse a <a href="https://admin.booking.com/" class="link-primary" target="_blank" rel="noopener">Extranet do Booking</a> e faça login.</li>
+              <li>No menu, vá em <strong>Avaliações / Guest Reviews</strong> e exporte em <strong>CSV</strong>.</li>
+              <li>Salve o arquivo e clique em <strong>“Enviar avaliações (CSV)”</strong> aqui.</li>
             </ol>
-            <p class="text-muted small mb-0">
-              Dica: alguns rótulos podem variar conforme o idioma da conta. Se estiver no app móvel (Pulse),
-              a exportação CSV nem sempre está disponível — use a Extranet no navegador.
-            </p>
+            <p class="text-muted small mb-0">Dica: em alguns idiomas ou no app Pulse a exportação CSV pode não estar disponível.</p>
           </div>
         </div>
       </div>
@@ -83,39 +107,50 @@
   </div>
 </div>
 
-<!-- Modal (estética semelhante à captura) -->
+<!-- Modal Upload -->
 <div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 shadow">
       <div class="modal-body p-4">
         <div class="mb-3 fw-semibold">Importar avaliações do Booking (CSV)</div>
 
-        <!-- Caixa grande como no exemplo -->
-        <div class="mb-3">
-          <input type="text" class="form-control form-control-lg"
-                 placeholder="Insira um arquivo CSV de avaliações para habilitar a importação"
-                 disabled>
-        </div>
-
         <form id="form-upload" method="POST" action="{{ url_for('booking.upload_csv') }}" enctype="multipart/form-data">
           {% if csrf_token is defined %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% endif %}
 
-          <div class="text-center my-3">
-            <label for="csv-file" class="btn btn-light border px-4 py-2 rounded-3">
-              <i class="bi bi-link-45deg me-1"></i> <span class="text-primary">Clique aqui</span> para selecionar um arquivo
+          <!-- DROPZONE -->
+          <div id="dropzone" class="dropzone mb-3 text-center p-4 rounded-3 border border-2 border-dashed">
+            <i class="bi bi-file-earmark-spreadsheet" style="font-size:2rem;"></i>
+            <p class="mb-1 fw-semibold">Arraste e solte o CSV aqui</p>
+            <p class="text-muted small mb-0">ou</p>
+            <label for="csv-file" class="btn btn-light border mt-2">
+              <i class="bi bi-link-45deg me-1"></i> Selecionar arquivo
             </label>
             <input id="csv-file" name="file" type="file" accept=".csv" class="d-none" required>
           </div>
 
-          <div class="text-center text-muted small mb-3">
+          <!-- MINIATURA / CHIP DO ARQUIVO -->
+          <div id="file-chip" class="d-none">
+            <div class="d-flex align-items-center gap-3 bg-light rounded-3 p-2 px-3 border">
+              <i class="bi bi-filetype-csv fs-4"></i>
+              <div class="flex-grow-1">
+                <div class="fw-semibold" id="file-name">arquivo.csv</div>
+                <div class="text-muted small" id="file-size">—</div>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" id="btn-remove-file" type="button">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="text-center text-muted small my-3">
             Formatos aceitos: <strong>csv</strong> • Tamanho máximo <strong>1.5MB</strong>
           </div>
 
           <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-            <button type="submit" class="btn btn-primary" id="btn-enviar">
+            <button type="submit" class="btn btn-primary" id="btn-enviar" disabled>
               <span class="spinner-border spinner-border-sm me-2 d-none" id="spn-enviar"></span>
               Enviar
             </button>
@@ -126,23 +161,157 @@
     </div>
   </div>
 </div>
+<!-- Modal CONFIRMAR EXCLUSÃO -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true" aria-labelledby="confirmDeleteLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-start gap-3">
+          <div class="flex-shrink-0">
+            <div class="rounded-circle d-inline-flex align-items-center justify-content-center"
+                 style="width:48px;height:48px;background:rgba(220,53,69,.1);">
+              <i class="bi bi-trash text-danger" style="font-size:1.4rem;"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1">
+            <h5 class="mb-1" id="confirmDeleteLabel">Excluir histórico de upload?</h5>
+            <p class="text-muted mb-2">
+              Esta ação é permanente e removerá apenas o <strong>histórico</strong>. 
+              Os <strong>reviews já importados</strong> não serão apagados.
+            </p>
+            <div class="small bg-light rounded-3 p-2 px-3" id="confirmDeleteMeta" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+            <span class="spinner-border spinner-border-sm me-2 d-none" id="confirmDeleteSpinner"></span>
+            Excluir agora
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .border-dashed { border-style: dashed !important; }
+  #dropzone.dragover {
+    background: rgba(13, 110, 253, .06);
+    border-color: rgba(13, 110, 253, .6) !important;
+  }
+  .upload-card {
+    border: 1px solid rgba(0,0,0,.075);
+    border-radius: 1rem;
+  }
+  .upload-actions .btn {
+    border-radius: .6rem;
+  }
+  .status-dot {
+    width: .6rem; height: .6rem; border-radius: 50%;
+    display: inline-block; margin-right: .4rem;
+  }
+</style>
 
 <script>
-// Envio com fetch para JSON + resumo
+// ---------- Utils ----------
+function bytesToSize(bytes) {
+  if (!bytes && bytes !== 0) return '—';
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
+  const val = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1);
+  return `${val} ${sizes[i]}`;
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR');
+  } catch { return iso; }
+}
+function fmtDuration(startIso, endIso) {
+  if (!startIso || !endIso) return '—';
+  try {
+    const ms = Math.max(0, (new Date(endIso)) - (new Date(startIso)));
+    if (ms < 1000) return `${ms} ms`;
+    const s = Math.round(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60), rs = s % 60;
+    if (m < 60) return `${m}m ${rs}s`;
+    const h = Math.floor(m / 60), rm = m % 60;
+    return `${h}h ${rm}m`;
+  } catch { return '—'; }
+}
+function statusBadge(st) {
+  const map = {
+    running: ['bg-warning text-dark', 'Em andamento', '#f59f00'],
+    success: ['bg-success', 'Concluído', '#198754'],
+    error:   ['bg-danger', 'Com erros', '#dc3545']
+  };
+  const [cls, label, dot] = map[st] || ['bg-secondary','—','#6c757d'];
+  return {cls, label, dot};
+}
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Upload form behavior ----------
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('csv-file');
+const chip = document.getElementById('file-chip');
+const fileNameEl = document.getElementById('file-name');
+const fileSizeEl = document.getElementById('file-size');
+const btnRemove = document.getElementById('btn-remove-file');
+const btnEnviar = document.getElementById('btn-enviar');
+const spnEnviar = document.getElementById('spn-enviar');
+
+function showChip(file) {
+  if (!file) return;
+  fileNameEl.textContent = file.name;
+  fileSizeEl.textContent = bytesToSize(file.size);
+  chip.classList.remove('d-none');
+  btnEnviar.disabled = false;
+}
+function clearChip() {
+  fileInput.value = '';
+  chip.classList.add('d-none');
+  btnEnviar.disabled = true;
+}
+// Drag & drop
+['dragenter','dragover'].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragover'); });
+});
+['dragleave','drop'].forEach(ev => {
+  dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragover'); });
+});
+dropzone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (file) {
+    if (!file.name.toLowerCase().endsWith('.csv')) { if (window.showToast) showToast('Selecione um arquivo .csv', 'warning'); return; }
+    fileInput.files = e.dataTransfer.files;
+    showChip(file);
+  }
+});
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (f) {
+    if (!f.name.toLowerCase().endsWith('.csv')) { clearChip(); if (window.showToast) showToast('Selecione um arquivo .csv', 'warning'); return; }
+    showChip(f);
+  } else { clearChip(); }
+});
+btnRemove.addEventListener('click', clearChip);
+
+// Envio + resumo
 document.getElementById('form-upload').addEventListener('submit', async function (e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-enviar');
-  const spn = document.getElementById('spn-enviar');
-  const file = document.getElementById('csv-file').files[0];
-  if (!file) {
-    if (window.showToast) showToast('Selecione um arquivo CSV.', 'warning');
-    return;
-  }
+  const file = fileInput.files[0];
+  if (!file) { if (window.showToast) showToast('Selecione um arquivo CSV.', 'warning'); return; }
 
-  btn.disabled = true; spn.classList.remove('d-none');
+  btnEnviar.disabled = true; spnEnviar.classList.remove('d-none');
 
   const formData = new FormData(this);
-  // tenta enviar CSRF também como header se existir no form
   let csrfVal = '';
   const csrfEl = this.querySelector('input[name="csrf_token"]');
   if (csrfEl) csrfVal = csrfEl.value;
@@ -155,14 +324,12 @@ document.getElementById('form-upload').addEventListener('submit', async function
     });
     const data = await resp.json();
 
-    btn.disabled = false; spn.classList.add('d-none');
-
-    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal'));
-    if (modal) modal.hide();
+    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
+    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal')); if (modal) modal.hide();
+    clearChip();
 
     const wrap = document.getElementById('resultado-upload');
     wrap.style.display = 'block';
-
     document.getElementById('ins-inserted').innerText   = data.inserted ?? 0;
     document.getElementById('ins-duplicates').innerText = data.duplicates ?? 0;
     document.getElementById('ins-skipped').innerText    = data.skipped ?? 0;
@@ -171,14 +338,169 @@ document.getElementById('form-upload').addEventListener('submit', async function
     const errBox = document.getElementById('ins-errors');
     if (data.errors && data.errors.length) {
       errBox.style.display = 'block';
-      errBox.querySelector('pre').innerText = (data.errors || []).join('\\n');
+      errBox.querySelector('pre').innerText = (data.errors || []).join('\n');
     } else {
       errBox.style.display = 'none';
     }
-    if (window.showToast) showToast(data.message || 'Importação concluída!', data.success ? 'success' : 'danger');
+
+    if (window.showToast) {
+      const msg = data.message || 'Importação concluída!';
+      showToast(`${msg} ${data.duplicates ? ' (duplicadas ignoradas)' : ''}`, data.success ? 'success' : 'danger');
+    }
+
+    // Recarrega histórico
+    await loadUploads();
   } catch (err) {
-    btn.disabled = false; spn.classList.add('d-none');
+    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
     if (window.showToast) showToast('Falha ao enviar o arquivo.', 'danger');
+  }
+});
+
+// ---------- Histórico de uploads ----------
+const uploadsGrid = document.getElementById('uploads-grid');
+const uploadsEmpty = document.getElementById('uploads-empty');
+const uploadsCount = document.getElementById('uploads-count');
+const uploadsSearch = document.getElementById('uploads-search');
+
+async function loadUploads() {
+  uploadsGrid.innerHTML = `
+    <div class="col-12 text-center text-muted py-3">
+      <div class="spinner-border spinner-border-sm me-2"></div> Carregando...
+    </div>`;
+  try {
+    const resp = await fetch('{{ url_for("booking.list_uploads") }}');
+    const data = await resp.json();
+    const items = (data && data.uploads) ? data.uploads : [];
+
+    // filtro texto
+    const term = (uploadsSearch.value || '').trim().toLowerCase();
+    const filtered = !term ? items : items.filter(u => {
+      const s = (u.filename || '') + ' ' + (u.status || '');
+      return s.toLowerCase().includes(term);
+    });
+
+    uploadsCount.textContent = filtered.length;
+    if (!filtered.length) {
+      uploadsGrid.innerHTML = '';
+      uploadsEmpty.classList.remove('d-none');
+      return;
+    }
+    uploadsEmpty.classList.add('d-none');
+
+    uploadsGrid.innerHTML = filtered.map(u => {
+      const sb = statusBadge(u.status);
+      const dot = `<span class="status-dot" style="background:${sb.dot}"></span>`;
+      const dur = fmtDuration(u.started_at, u.finished_at);
+      const hasErrors = Array.isArray(u.errors) && u.errors.length > 0;
+
+      return `
+      <div class="col-12 col-md-6">
+        <div class="upload-card p-3 h-100">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="me-2">
+              <div class="fw-semibold text-truncate" title="${esc(u.filename || '—')}">
+                <i class="bi bi-file-earmark-arrow-up me-1"></i>${esc(u.filename || '—')}
+              </div>
+              <div class="text-muted small">
+                ${bytesToSize(u.filesize)} • ID ${u.id}
+              </div>
+            </div>
+            <span class="badge ${sb.cls}">${dot}${sb.label}</span>
+          </div>
+
+          <div class="row g-2 mt-2">
+            <div class="col-6">
+              <div class="text-muted small">Iniciado</div>
+              <div>${fmtDate(u.started_at)}</div>
+            </div>
+            <div class="col-6">
+              <div class="text-muted small">Finalizado</div>
+              <div>${fmtDate(u.finished_at)}</div>
+            </div>
+            <div class="col-4">
+              <div class="text-muted small">Inseridas</div>
+              <div class="fw-semibold">${u.inserted ?? 0}</div>
+            </div>
+            <div class="col-4">
+              <div class="text-muted small">Duplicadas</div>
+              <div class="fw-semibold">${u.duplicates ?? 0}</div>
+            </div>
+            <div class="col-4">
+              <div class="text-muted small">Ignoradas</div>
+              <div class="fw-semibold">${u.skipped ?? 0}</div>
+            </div>
+            <div class="col-12">
+              <div class="text-muted small">Duração</div>
+              <div>${dur}</div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3 upload-actions">
+            <button class="btn btn-sm btn-outline-secondary" data-action="toggle-errors" data-id="${u.id}" ${!hasErrors ? 'disabled' : ''}>
+              <i class="bi bi-exclamation-triangle me-1"></i> Detalhes
+            </button>
+            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${u.id}" data-filename="${esc(u.filename || '—')}">
+            <i class="bi bi-trash me-1"></i> Excluir
+          </button>
+
+          </div>
+
+          <div class="mt-2" id="errors-${u.id}" style="display:none;">
+            <div class="text-muted small mb-1">Erros/Avisos:</div>
+            <pre class="bg-light p-2 rounded" style="max-height:160px; overflow:auto;">${hasErrors ? esc(u.errors.join('\n')) : ''}</pre>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+  } catch (e) {
+    uploadsGrid.innerHTML = `
+      <div class="col-12">
+        <div class="alert alert-warning">Não foi possível carregar o histórico agora.</div>
+      </div>`;
+  }
+}
+
+document.getElementById('btn-refresh-uploads').addEventListener('click', loadUploads);
+uploadsSearch.addEventListener('input', () => loadUploads());
+
+// Delegação de eventos para ações nos cards
+uploadsGrid.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-id');
+  const action = btn.getAttribute('data-action');
+
+  // pega CSRF do formulário, se existir
+  const form = document.getElementById('form-upload');
+  let csrfVal = '';
+  if (form) {
+    const csrfEl = form.querySelector('input[name="csrf_token"]');
+    if (csrfEl) csrfVal = csrfEl.value;
+  }
+
+  if (action === 'toggle-errors') {
+    const box = document.getElementById(`errors-${id}`);
+    if (box) box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+  }
+
+  if (action === 'delete') {
+    if (!confirm('Confirma excluir este histórico de upload?')) return;
+    try {
+      const resp = await fetch(`{{ url_for("booking.delete_upload_log", log_id=0) }}`.replace('0', id), {
+        method: 'DELETE',
+        headers: csrfVal ? { 'X-CSRFToken': csrfVal } : {}
+      });
+      const data = await resp.json();
+      if (data && data.success) {
+        if (window.showToast) showToast('Histórico excluído.', 'success');
+        await loadUploads();
+      } else {
+        if (window.showToast) showToast(data.error || 'Falha ao excluir.', 'danger');
+      }
+    } catch (err) {
+      if (window.showToast) showToast('Falha ao excluir.', 'danger');
+    }
   }
 });
 
@@ -192,5 +514,8 @@ document.getElementById('btn-checar').addEventListener('click', async function (
     if (window.showToast) showToast('Não foi possível checar agora.', 'warning');
   }
 });
+
+// Carrega histórico ao abrir a página
+document.addEventListener('DOMContentLoaded', loadUploads);
 </script>
 {% endblock %}

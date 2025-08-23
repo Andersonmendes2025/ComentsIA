@@ -1737,6 +1737,34 @@ def get_current_user_id():
 # -- usado em booking.py para barrar acesso de quem não está logado --
 def require_login():
     return ("credentials" in session) and bool(get_current_user_id())
+@app.route("/get_consideracoes_count")
+@limiter.limit("10 per minute")
+def get_consideracoes_count():
+    if "credentials" not in session:
+        return jsonify(success=False, error="Não autenticado.")
+
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify(success=False, error="Usuário não identificado.")
+
+    plano = get_user_plan(user_id)
+    try:
+        cons_limite = PLANOS.get(plano, {}).get("consideracoes_dia")
+        # None = ilimitado
+        if cons_limite is None:
+            return jsonify(success=True, usos_restantes_consideracoes=None)
+
+        usos_hoje = ConsideracoesUso.query.filter_by(
+            user_id=user_id, data_uso=get_data_hoje_brt()
+        ).first()
+
+        usados = usos_hoje.quantidade_usos if usos_hoje else 0
+        restantes = max(0, int(cons_limite) - int(usados))
+        return jsonify(success=True, usos_restantes_consideracoes=restantes)
+    except Exception:
+        logging.exception("Erro ao calcular consideracoes_count para %s", user_id)
+        return jsonify(success=False, error="Falha ao obter contagem.")
 
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
