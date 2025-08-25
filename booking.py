@@ -40,11 +40,13 @@ try:
     def agora_brt():
         return datetime.now(BRT)
 except Exception:
+    BRT = None
     def agora_brt():
         return datetime.now()
 
 booking_bp = Blueprint("booking", __name__, url_prefix="/booking")
 
+# ======= Constantes de segurança / limites =======
 ALLOWED_EXT = {".csv"}
 ALLOWED_MIMETYPES = {
     "text/csv",
@@ -52,7 +54,7 @@ ALLOWED_MIMETYPES = {
     "application/vnd.ms-excel",
     "text/plain",
 }
-MAX_FILE_BYTES = 2_000_000  # ~2MB (apenas para upload imediato; processamento é em stream)
+MAX_FILE_BYTES = 2_000_000  # ~2MB (upload imediato; processamento é em stream)
 MAX_CSV_LINES = 100_000
 MAX_ERRORS_RETURNED = 10
 BOOKING_SOURCE = "booking"
@@ -62,12 +64,16 @@ CHUNK_BYTES = 150 * 1024  # 150 KB
 BATCH_ROWS = 400          # insere/commita a cada 400 linhas válidas (ajuda na RAM)
 SLEEP_BETWEEN_CHUNKS = 0.05  # descanso curto entre blocos, suaviza CPU/RAM
 
+# Regex para validar FLASK_APP_IMPORT (evita RCE via env)
+_SAFE_APP_IMPORT_RE = re.compile(r"^[A-Za-z_][\w\.]*(?::[A-Za-z_][\w]*)?$")
+
 # -------- Normalizadores ----------
 _ws_re = re.compile(r"\s+", re.UNICODE)
 _punct_re = re.compile(r"[^\w\s]", re.UNICODE)
 
 def _norm_text(s: Optional[str]) -> str:
-    if not s: return ""
+    if not s: 
+        return ""
     s = str(s)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(ch for ch in s if not unicodedata.combining(ch))
@@ -89,11 +95,20 @@ def _neutralize_excel_formula(s: Optional[str]) -> Optional[str]:
     return st
 
 def _sanitize_errmsg(msg: Any) -> str:
+    # evita vazamento de stack / HTML
     return html.escape(str(msg), quote=True)
 
 # -------- utilidades básicas ----------
 def _filename_ok(filename: str) -> bool:
-    return bool(filename) and any(filename.lower().endswith(ext) for ext in ALLOWED_EXT)
+    if not filename:
+        return False
+    # impede dupla extensão maliciosa (ex.: .csv.exe) e exige .csv real
+    safe = filename.lower()
+    if not any(safe.endswith(ext) for ext in ALLOWED_EXT):
+        return False
+    # exige que a última extensão seja .csv (e não apenas contenha .csv no meio)
+    root, ext = os.path.splitext(safe)
+    return ext == ".csv"
 
 def _mimetype_ok(mt: Optional[str]) -> bool:
     if not mt:
@@ -104,7 +119,10 @@ def _to_float(val: Any) -> Optional[float]:
     if val is None:
         return None
     try:
-        return float(str(val).strip().replace(",", ".")) if str(val).strip() else None
+        s = str(val).strip()
+        if not s:
+            return None
+        return float(s.replace(",", "."))
     except Exception:
         return None
 
@@ -134,34 +152,53 @@ def _detect_fields(headers: List[str]) -> Dict[str, str]:
     }
 
 def _parse_date(val: Any) -> Optional[datetime]:
-    if not val: return None
+    if not val: 
+        return None
     s = str(val).strip()
-    fmts = ["%Y-%m-%d %H:%M:%S","%Y-%m-%d","%d/%m/%Y %H:%M:%S","%d/%m/%Y",
-            "%d-%m-%Y %H:%M","%d-%m-%Y","%m/%d/%Y %H:%M:%S","%m/%d/%Y"]
+    fmts = [
+        "%Y-%m-%d %H:%M:%S","%Y-%m-%d",
+        "%d/%m/%Y %H:%M:%S","%d/%m/%Y",
+        "%d-%m-%Y %H:%M","%d-%m-%Y",
+        "%m/%d/%Y %H:%M:%S","%m/%d/%Y"
+    ]
     for f in fmts:
         try:
-            return datetime.strptime(s, f)
+            dt = datetime.strptime(s, f)
+            # Se timezone-aware não vier, aplica BRT se disponível
+            if BRT is not None and dt.tzinfo is None:
+                try:
+                    return BRT.localize(dt)
+                except Exception:
+                    return dt
+            return dt
         except Exception:
-            pass
+            continue
     return None
 
 def _convert_to_five_scale(x: Optional[float]) -> Optional[float]:
-    if x is None: return None
+    if x is None: 
+        return None
     v = float(x)
-    if 0 <= v <= 5: return round(v, 1)
-    if 0 <= v <= 10: return round(v/2.0, 1)
-    if 0 <= v <= 100: return round((v/100.0)*5.0, 1)
+    if 0 <= v <= 5: 
+        return round(v, 1)
+    if 0 <= v <= 10: 
+        return round(v/2.0, 1)
+    if 0 <= v <= 100: 
+        return round((v/100.0)*5.0, 1)
     return 0.0 if v < 0 else 5.0
 
 def _is_valid_extid(extid: Optional[str]) -> bool:
-    if not extid: return False
+    if not extid: 
+        return False
     s = str(extid).strip()
     return s.isdigit() and 6 <= len(s) <= 16
 
 def _set_if_attr(obj: Any, field: str, value: Any) -> None:
     if hasattr(obj, field):
-        try: setattr(obj, field, value)
-        except Exception: pass
+        try:
+            setattr(obj, field, value)
+        except Exception:
+            pass
 
 def _get_current_user_id() -> Optional[str]:
     info = session.get("user_info") or {}
@@ -195,7 +232,13 @@ def _sanitize_name(name: Optional[str],
 
 # ---------- Rate limiting (fallback em memória) ----------
 _rate_store: Dict[str, List[float]] = {}
+
 def _rate_limit(scope: str, max_calls: int, window_seconds: int):
+    """
+    Limitador simples em memória. Em produção, prefira Redis:
+    - chave: f"{scope}:{uid}"
+    - janela deslizante por timestamps.
+    """
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
@@ -237,6 +280,7 @@ def _prefetch_existing_by_ext(user_id: str, ext_ids: List[str]) -> set[str]:
             ).all()
             found.update(str(r[0]) for r in rows if r[0] is not None)
         except Exception:
+            # Se falhar, vamos para fallback
             found = set()
             break
     # 2) Fallback para Review.external_id
@@ -341,11 +385,26 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                 db.session.commit()
         except Exception:
             db.session.rollback()
+        finally:
+            # remove arquivo temporário
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception:
+                pass
+            db.session.remove()
         return
 
     with flask_app.app_context():
         log = db.session.get(UploadLog, log_id)
         if not log:
+            # limpeza defensiva
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception:
+                pass
+            db.session.remove()
             return
 
         log.status = "processing"
@@ -635,10 +694,12 @@ def delete_upload_log(log_id: int):
 @_rate_limit("upload_csv", 10, 3600)
 def upload_csv():
     """
-    Novo fluxo:
-    - Salva o arquivo em /tmp (sem carregar na RAM)
+    Fluxo seguro:
+    - Valida autenticação e CSRF (se disponível)
+    - Checa extensão dupla, mimetype (tolerante), tamanho
+    - Salva o arquivo em /tmp com permissão 0600 (stream, sem carregar na RAM)
     - Cria UploadLog com status 'queued'
-    - Agenda processamento em background que lê 150 KB por vez
+    - Agenda processamento em background lendo 150 KB por vez
     - Retorna imediatamente {status: queued, upload_id: ...}
     """
     if not _require_login():
@@ -656,39 +717,54 @@ def upload_csv():
     if not file_obj:
         return jsonify(success=False, error="Arquivo não enviado."), 400
 
-    if (request.content_length or 0) > MAX_FILE_BYTES:
+    # Tamanho máximo do corpo (Content-Length pode vir ausente)
+    content_len = request.content_length or 0
+    if content_len > MAX_FILE_BYTES:
         return jsonify(success=False, error="Arquivo muito grande."), 413
 
     fname_raw = (file_obj.filename or "").strip()
     if not _filename_ok(fname_raw):
         return jsonify(success=False, error="Extensão não suportada (use .csv)."), 400
+
+    # Mimetype checado de forma branda (browsers variam muito)
     if file_obj.mimetype and not _mimetype_ok(file_obj.mimetype):
-        # apenas alerta silencioso; alguns browsers mandam mimetype genérico
+        # Apenas avisa silenciosamente; seguimos (cliente pode definir 'text/plain')
         pass
 
     safe_name = secure_filename(fname_raw) or "arquivo.csv"
-    user_id = _get_current_user_id() or "anonymous"
+    user_id = _get_current_user_id() or "anonymous"  # não deveria cair, pois exigimos login
 
     # Garante diretório temp
     tmp_dir = os.environ.get("UPLOAD_TMP_DIR") or "/tmp"
     os.makedirs(tmp_dir, exist_ok=True)
     tmp_path = os.path.join(tmp_dir, f"booking_{int(time())}_{safe_name}")
 
-    # Salva em disco sem carregar tudo na RAM
+    # Salva em disco sem carregar tudo na RAM (perm 0600)
+    fdesc = None
     try:
-        with open(tmp_path, "wb") as f:
+        fdesc = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fdesc, "wb") as f:
+            total = 0
             while True:
                 chunk = file_obj.stream.read(CHUNK_BYTES)
                 if not chunk:
                     break
+                total += len(chunk)
+                if total > MAX_FILE_BYTES:
+                    raise ValueError("Arquivo muito grande.")
                 f.write(chunk)
-    except Exception:
+    except Exception as e:
         try:
+            if fdesc is not None:
+                try:
+                    os.close(fdesc)
+                except Exception:
+                    pass
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
         except Exception:
             pass
-        return jsonify(success=False, error="Falha ao salvar arquivo temporário."), 400
+        return jsonify(success=False, error=_sanitize_errmsg(e)), 400
 
     # Log inicial (status queued)
     upload_log = UploadLog(
@@ -703,17 +779,38 @@ def upload_csv():
     db.session.commit()
 
     # agenda job em background
-    app_import_path = os.environ.get("FLASK_APP_IMPORT", "main:app")  # configure se usar outro nome
-    scheduler = _get_scheduler()
-    scheduler.add_job(
-        _process_booking_file_bg,
-        kwargs=dict(app_import_path=app_import_path, log_id=upload_log.id, file_path=tmp_path, user_id=user_id),
-        # usa id único para não duplicar
-        id=f"booking_upload_{upload_log.id}",
-        replace_existing=True,
-        misfire_grace_time=3600,
-        max_instances=1,
-    )
+    env_import = (os.environ.get("FLASK_APP_IMPORT") or "main:app").strip()
+    app_import_path = env_import if _SAFE_APP_IMPORT_RE.match(env_import) else "main:app"
+
+    try:
+        scheduler = _get_scheduler()
+        scheduler.add_job(
+            _process_booking_file_bg,
+            kwargs=dict(app_import_path=app_import_path, log_id=upload_log.id, file_path=tmp_path, user_id=user_id),
+            # usa id único para não duplicar
+            id=f"booking_upload_{upload_log.id}",
+            replace_existing=True,
+            misfire_grace_time=3600,
+            max_instances=1,
+        )
+    except Exception as e:
+        # Se não conseguir agendar, marca erro e remove arquivo
+        try:
+            log = db.session.get(UploadLog, upload_log.id)
+            if log:
+                log.status = "error"
+                log.finished_at = agora_brt()
+                log.errors_json = json.dumps([_sanitize_errmsg(e)])
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except Exception:
+                pass
+        return jsonify(success=False, error="Falha ao agendar processamento."), 500
 
     return jsonify(
         success=True,
