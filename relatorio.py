@@ -360,6 +360,7 @@ DADOS DAS AVALIACOES (amostra limitada):
             """.strip()
 
             # ── IA (Gemini) — lazy import e tolerante a falhas
+                        # ── IA (Gemini) — forçando modelo 1.5 Pro
             dados_gerados = {}
             analise_limpa = "A IA não retornou texto de análise."
             try:
@@ -369,18 +370,24 @@ DADOS DAS AVALIACOES (amostra limitada):
 
                 import google.generativeai as genai  # lazy
                 genai.configure(api_key=gemini_api_key)
-                model = genai.GenerativeModel("gemini-1.5-pro-latest")
+                # força o Gemini 1.5 Pro
+                model = genai.GenerativeModel("gemini-1.5-pro")
+
                 response = model.generate_content(prompt)
 
+                # tenta pegar texto de forma robusta
+                response_text = ""
                 if hasattr(response, "text") and response.text:
                     response_text = response.text
                 elif getattr(response, "candidates", None):
                     parts = response.candidates[0].content.parts
                     response_text = "".join(getattr(p, "text", "") for p in parts)
-                else:
-                    response_text = ""
 
-                # tenta extrair bloco JSON opcional
+                # se não veio nada, gera aviso
+                if not response_text.strip():
+                    response_text = "A IA não conseguiu gerar uma análise para os dados fornecidos."
+
+                # tenta extrair JSON opcional
                 json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
                 if json_match:
                     try:
@@ -391,9 +398,12 @@ DADOS DAS AVALIACOES (amostra limitada):
                         dados_gerados = {}
 
                 final_analise = dados_gerados.get("analise_texto") or response_text
-                analise_limpa = limpa_markdown(final_analise or "A IA não retornou texto de análise.")
+                analise_limpa = limpa_markdown(final_analise)
+
             except Exception as e:
-                print(f"Erro ao gerar analise com IA: {str(e)}")
+                print(f"Erro ao gerar analise com IA (Gemini 1.5 Pro): {str(e)}")
+                analise_limpa = "Falha na chamada ao Gemini 1.5 Pro. Verifique sua chave de API."
+
 
             # ── Texto da análise
             pdf.set_font("Arial", "B", 12)
