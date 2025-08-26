@@ -3,185 +3,339 @@
 {% block title %}Relatórios de Avaliações - ComentsIA{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-3">
-    <i class="bi bi-file-earmark-bar-graph me-2"></i> Relatórios de Avaliações
-  </h2>
-  <p class="text-muted mb-4">
-    Gere relatórios completos das suas avaliações, com gráficos, análise profissional e resumo dos principais pontos positivos e negativos.
-  </p>
+<style>
+  /* HERO com contraste e legibilidade */
+  .hero-relatorios {
+    position: relative;
+    background: linear-gradient(135deg, #1b3fbf 0%, #1e74ff 45%, #6dd5ff 100%);
+    color: #fff;
+    border-radius: 22px;
+    padding: 32px 28px;
+    box-shadow: 0 10px 28px rgba(28,87,255,0.25);
+    overflow: hidden;
+  }
+  .hero-relatorios::after{
+    content:"";
+    position:absolute; inset:0;
+    /* leve escurecimento p/ dar contraste ao texto pequeno */
+    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.10));
+    border-radius: 22px;
+    pointer-events:none;
+  }
+  .hero-relatorios *{
+    position: relative; z-index: 1;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  .hero-relatorios h2 { font-weight: 800; letter-spacing: .2px; }
+  .hero-relatorios p { opacity: .95; margin: 6px 0 0; }
 
-  <!-- Informações do plano e uso mensal -->
-  <div id="plano-info" class="alert alert-info text-center mb-4">
+  /* Cards genéricos */
+  .card-soft { border: 0; border-radius: 18px; box-shadow: 0 10px 26px rgba(10, 22, 70, 0.06); }
+
+  /* Banners de plano */
+  .banner-grad-warning { background: linear-gradient(90deg,#fffbe7 0%,#fff3bf 100%); border-radius: 14px; }
+  .banner-grad-danger  { background: linear-gradient(90deg,#ffe7e7 0%,#ffd4cf 100%); border-radius: 14px; }
+
+  /* Métricas estilo home */
+  .metric-tile {
+    border: 0; border-radius: 20px; color:#fff;
+    padding: 22px; height: 100%; box-shadow: 0 12px 26px rgba(0,0,0,.08);
+  }
+  .metric-blue  { background: #2563eb; }   /* Avaliações */
+  .metric-green { background: #16a34a; }   /* Respondidas % */
+  .metric-amber { background: #f59e0b; }   /* Média */
+  .metric-cyan  { background: #06b6d4; }   /* Pendentes */
+
+  .metric-title { font-size: .95rem; opacity: .95; margin-bottom: 6px; display:flex; align-items:center; gap:8px;}
+  .metric-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .metric-sub   { font-size: .9rem; opacity: .95; }
+
+  /* Shimmer (carregando) */
+  .shimmer {
+    position: relative; overflow: hidden; border-radius: 14px; background: rgba(255,255,255,.25); min-height: 52px;
+  }
+  .shimmer::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,.2) 0%, rgba(255,255,255,.55) 50%, rgba(255,255,255,.2) 100%);
+    transform: translateX(-100%); animation: shimmerMove 1.4s infinite;
+  }
+  @keyframes shimmerMove { 100% { transform: translateX(100%); } }
+
+  /* Overlay permanente “Gerando relatório…” */
+  #loader-overlay {
+    position: fixed; inset: 0; background: rgba(8, 12, 27, 0.55);
+    backdrop-filter: blur(2px); z-index: 1080; display: none; align-items: center; justify-content: center;
+  }
+  #loader-card {
+    background: #0b1a43; color: #fff; border-radius: 16px; padding: 18px 20px; min-width: 280px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06) inset;
+  }
+  #loader-card .progress { height: 8px; border-radius: 10px; background: rgba(255,255,255,.15); }
+  #loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
+  @keyframes progressPulse { 0% {transform:scaleX(.15)} 50% {transform:scaleX(1)} 100% {transform:scaleX(.15)} }
+
+  .btn-pill { border-radius: 999px; }
+</style>
+
+<div class="container mt-4 mt-md-5">
+
+  <!-- HERO -->
+  <div class="hero-relatorios mb-4 mb-md-5">
+    <div class="d-flex align-items-start gap-3 flex-wrap">
+      <div class="display-6 d-flex align-items-center">
+        <i class="bi bi-file-earmark-bar-graph me-2"></i>
+        <span>Relatórios de Avaliações</span>
+      </div>
+      <div class="ms-auto d-flex gap-2">
+        <a href="{{ url_for('historico_relatorios') }}" class="btn btn-light btn-pill shadow-sm">
+          <i class="bi bi-clock-history me-1"></i> Histórico
+        </a>
+      </div>
+    </div>
+    <p class="bi bi-file-earmark-bar-graph me-2">
+      Gere relatórios completos com gráficos, análise profissional e resumo dos principais pontos.
+    </p>
+  </div>
+
+  <!-- MÉTRICAS (iguais à home, agora aqui) -->
+  <div class="row g-4 mb-4" id="metrics-row" aria-live="polite">
+    <!-- Avaliações -->
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="metric-tile metric-blue">
+        <div class="metric-title"><i class="bi bi-chat-left-text"></i> Avaliações</div>
+        <div class="metric-value" id="m-avaliacoes"><div class="shimmer"></div></div>
+        <div class="metric-sub" id="m-avaliacoes-sub">&nbsp;</div>
+      </div>
+    </div>
+    <!-- Respondidas (%) -->
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="metric-tile metric-green">
+        <div class="metric-title"><i class="bi bi-check-circle"></i> Respondidas (%)</div>
+        <div class="metric-value" id="m-respondidas"><div class="shimmer"></div></div>
+        <div class="metric-sub" id="m-respondidas-sub"><div class="shimmer"></div></div>
+      </div>
+    </div>
+    <!-- Média -->
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="metric-tile metric-amber">
+        <div class="metric-title"><i class="bi bi-star-fill"></i> Média</div>
+        <div class="metric-value" id="m-media"><div class="shimmer"></div></div>
+        <div class="metric-sub" id="m-media-sub">de 5,0</div>
+      </div>
+    </div>
+    <!-- Pendentes -->
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="metric-tile metric-cyan">
+        <div class="metric-title"><i class="bi bi-clock"></i> Pendentes</div>
+        <div class="metric-value" id="m-pendentes"><div class="shimmer"></div></div>
+        <div class="metric-sub" id="m-pendentes-sub">aguardando resposta</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO DO PLANO -->
+  <div id="plano-info" class="alert alert-info text-center card-soft py-3 mb-4">
     Carregando informações do plano...
   </div>
 
   {% if user_plano == 'free' %}
-    <div class="py-3 px-4 mb-4 shadow-sm text-center"
-         style="background: linear-gradient(90deg,#fffbe7 80%,#fff5d1 100%); border-radius: 13px;">
-      <div>
-        <i class="bi bi-lock-fill fs-2 text-warning mb-2"></i>
-        <div class="fw-semibold mb-2" style="color:#6c5700">
-          O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
-        </div>
-        <a href="{{ url_for('planos') }}"
-           class="btn btn-sm btn-primary mt-2 shadow-sm"
-           style="border-radius: 8px; min-width:140px;">
-          Veja os planos
-        </a>
+    <div class="banner-grad-warning py-3 px-4 mb-4 text-center card-soft">
+      <i class="bi bi-lock-fill fs-3 text-warning mb-2 d-block"></i>
+      <div class="fw-semibold mb-1" style="color:#6c5700">
+        O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
       </div>
+      <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Veja os planos</a>
     </div>
   {% elif limite_relatorio_atingido %}
-    <div class="py-3 px-4 mb-4 shadow-sm text-center"
-         style="background: linear-gradient(90deg,#ffe7e7 80%,#ffdad1 100%); border-radius: 13px;">
-      <div>
-        <i class="bi bi-exclamation-triangle-fill fs-2 text-danger mb-2"></i>
-        <div class="fw-semibold mb-2" style="color:#7c3535">
-          Você atingiu o limite mensal de relatórios em PDF do seu plano.
-        </div>
-        <a href="{{ url_for('planos') }}"
-           class="btn btn-sm btn-primary mt-2 shadow-sm"
-           style="border-radius: 8px; min-width:140px;">
-          Faça upgrade
-        </a>
+    <div class="banner-grad-danger py-3 px-4 mb-4 text-center card-soft">
+      <i class="bi bi-exclamation-triangle-fill fs-3 text-danger mb-2 d-block"></i>
+      <div class="fw-semibold mb-1" style="color:#7c3535">
+        Você atingiu o limite mensal de relatórios em PDF do seu plano.
       </div>
+      <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Faça upgrade</a>
     </div>
   {% endif %}
 
-  <div class="row">
-    <div class="col-lg-8">
-      <div class="card shadow-sm p-4 mb-4">
-        <form id="form-relatorio" method="post">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="row">
-            <div class="col-md-4">
-              <label class="form-label"><i class="bi bi-calendar me-1"></i>Período:</label>
-              <select name="periodo" class="form-control mb-2">
-                <option value="90dias">Últimos 90 dias</option>
-                <option value="6meses">Últimos 6 meses</option>
-                <option value="1ano">Último 1 ano</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label"><i class="bi bi-star me-1"></i>Nota:</label>
-              <select name="nota" class="form-control mb-2">
-                <option value="todas">Todas</option>
-                <option value="1">1 estrela</option>
-                <option value="2">2 estrelas</option>
-                <option value="3">3 estrelas</option>
-                <option value="4">4 estrelas</option>
-                <option value="5">5 estrelas</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label"><i class="bi bi-chat-left-quote me-1"></i>Respondida:</label>
-              <select name="respondida" class="form-control mb-2">
-                <option value="todas">Todas</option>
-                <option value="sim">Somente respondidas</option>
-                <option value="nao">Somente não respondidas</option>
-              </select>
-            </div>
-          </div>
-          <div class="d-flex justify-content-end">
-            <button type="submit"
-                    class="btn btn-primary mt-3"
-                    id="btn-gerar-pdf"
-                    {% if user_plano == 'free' or limite_relatorio_atingido %}disabled style="pointer-events:none; background:#a0a4ad; border-color:#a0a4ad;" title="Disponível apenas no PRO ou superior"{% endif %}>
-              <i class="bi bi-file-earmark-arrow-down me-1"></i>
-              Gerar PDF
-            </button>
-            <a href="{{ url_for('historico_relatorios') }}" class="btn btn-primary mt-3 ms-2">
-              <i class="bi bi-clock-history me-1"></i> Histórico
-            </a>
-          </div>
-        </form>
+  <!-- FORM -->
+  <div class="card card-soft p-4 mb-5">
+    <form id="form-relatorio" method="post" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold"><i class="bi bi-calendar me-1"></i> Período</label>
+          <select name="periodo" class="form-select">
+            <option value="90dias">Últimos 90 dias</option>
+            <option value="6meses">Últimos 6 meses</option>
+            <option value="1ano">Último 1 ano</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold"><i class="bi bi-star me-1"></i> Nota</label>
+          <select name="nota" class="form-select">
+            <option value="todas">Todas</option>
+            <option value="1">1 estrela</option>
+            <option value="2">2 estrelas</option>
+            <option value="3">3 estrelas</option>
+            <option value="4">4 estrelas</option>
+            <option value="5">5 estrelas</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold"><i class="bi bi-chat-left-quote me-1"></i> Respondida</label>
+          <select name="respondida" class="form-select">
+            <option value="todas">Todas</option>
+            <option value="sim">Somente respondidas</option>
+            <option value="nao">Somente não respondidas</option>
+          </select>
+        </div>
       </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-pill px-4" id="btn-gerar-pdf"
+          {% if user_plano == 'free' or limite_relatorio_atingido %}disabled
+             style="pointer-events:none; background:#a0a4ad; border-color:#a0a4ad;"
+             title="Disponível apenas no PRO ou superior"{% endif %}>
+          <span class="btn-text"><i class="bi bi-file-earmark-arrow-down me-1"></i> Gerar PDF</span>
+          <span class="btn-loading d-none">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Preparando...
+          </span>
+        </button>
+        <a href="{{ url_for('historico_relatorios') }}" class="btn btn-outline-primary btn-pill">
+          <i class="bi bi-clock-history me-1"></i> Histórico
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- OVERLAY permanente -->
+<div id="loader-overlay" aria-hidden="true">
+  <div id="loader-card" class="text-center">
+    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+      <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+      <strong>Gerando relatório…</strong>
     </div>
-    <div class="col-lg-4 d-none d-lg-block">
-      <div class="card shadow-sm mb-4 p-3 text-center">
-        <h6 class="mb-3"><i class="bi bi-lightbulb me-1"></i>Como funciona?</h6>
-        <ul class="list-unstyled small text-start mb-3">
-          <li>• Escolha o período, nota e respondidas.</li>
-          <li>• Clique em <b>Gerar PDF</b> para baixar seu relatório completo.</li>
-          <li>• O relatório inclui gráficos, análise e principais elogios/críticas.</li>
-        </ul>
-        <img src="{{ url_for('static', filename='exemplo_relatorio.png') }}" alt="Exemplo Gráfico" class="img-fluid rounded shadow" style="max-width:230px;">
-      </div>
+    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
+    <div class="progress" role="progressbar" aria-label="Progresso de geração">
+      <div class="progress-bar bg-light"></div>
     </div>
   </div>
 </div>
 
 <script>
-  // Atualiza info do plano e uso mensal de relatórios PDF
+  // ===== METRICS (troque a URL se sua API for outra) =====
+  async function carregarMetricas() {
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+    try {
+      const r = await fetch('/api/dashboard_metrics');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+
+      // Esperado: { total: 1441, respondidas: 0, respondidas_pct: 0.0, media: 4.5, pendentes: 1441 }
+      set('m-avaliacoes', String(j.total ?? '-'));
+      set('m-avaliacoes-sub', '');
+
+      const pct = (j.respondidas_pct ?? 0);
+      set('m-respondidas', (Math.round(pct * 10) / 10) + '%');
+      set('m-respondidas-sub', `${j.respondidas ?? 0} de ${j.total ?? 0} respondidas`);
+
+      const media = (j.media ?? 0);
+      set('m-media', (Math.round(media * 10) / 10));
+
+      set('m-pendentes', String(j.pendentes ?? Math.max((j.total ?? 0) - (j.respondidas ?? 0), 0)));
+      set('m-pendentes-sub', 'aguardando resposta');
+    } catch (e) {
+      // fallback em caso de erro
+      ['m-avaliacoes','m-respondidas','m-media','m-pendentes'].forEach(id=> {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="small">—</span>';
+      });
+      if (typeof showToast === 'function') showToast('Não foi possível carregar as métricas.', 'danger');
+    }
+  }
+
+  // ===== Plano / limites =====
   function atualizarInfoPlano() {
     fetch('/get_relatorios_count')
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        const el = document.getElementById('plano-info'); if (!el) return;
+        if (data && data.success) {
           const planoNome = "{{ PLANOS[user_plano].nome }}";
           const limite = {{ PLANOS[user_plano].relatorio_pdf_mes or 'null' }};
           let texto = `Você está no plano <strong>${planoNome}</strong>. `;
-          if (limite) {
-            texto += `Relatórios PDF gerados este mês: <strong>${data.usados}</strong> / <strong>${limite}</strong>.`;
-          } else {
-            texto += 'Relatórios PDF mensais ilimitados.';
-          }
-          document.getElementById('plano-info').innerHTML = texto;
+          if (limite) texto += `Relatórios PDF gerados este mês: <strong>${data.usados}</strong> / <strong>${limite}</strong>.`;
+          else texto += 'Relatórios PDF mensais <strong>ilimitados</strong>.';
+          el.classList.remove('alert-danger','alert-info'); el.classList.add('alert-info'); el.innerHTML = texto;
         } else {
-          document.getElementById('plano-info').textContent = 'Erro ao carregar informações do plano.';
+          el.classList.remove('alert-info'); el.classList.add('alert-danger'); el.textContent = 'Erro ao carregar informações do plano.';
         }
+      })
+      .catch(() => {
+        const el = document.getElementById('plano-info'); if (!el) return;
+        el.classList.remove('alert-info'); el.classList.add('alert-danger'); el.textContent = 'Erro ao carregar informações do plano.';
       });
   }
 
-  function mostrarGerandoRelatorio() {
-    showToast(
-      '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Gerando relatório...',
-      'info'
-    );
+  // ===== Overlay + botão loading =====
+  function toggleOverlay(show) {
+    const overlay = document.getElementById('loader-overlay');
+    if (!overlay) return;
+    overlay.style.display = show ? 'flex' : 'none';
+    overlay.setAttribute('aria-hidden', show ? 'false' : 'true');
   }
-  function mostrarRelatorioConcluido() {
-    showToast('Relatório concluído!', 'success');
+  function setButtonLoading(btn, loading) {
+    if (!btn) return;
+    const text = btn.querySelector('.btn-text');
+    const load = btn.querySelector('.btn-loading');
+    if (loading) {
+      btn.setAttribute('disabled', 'disabled');
+      if (text) text.classList.add('d-none');
+      if (load) load.classList.remove('d-none');
+    } else {
+      btn.removeAttribute('disabled');
+      if (text) text.classList.remove('d-none');
+      if (load) load.classList.add('d-none');
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
+    carregarMetricas();
     atualizarInfoPlano();
 
-    // Só ativa AJAX se o botão não estiver desabilitado
     const btnGerar = document.getElementById('btn-gerar-pdf');
     const form = document.getElementById('form-relatorio');
-    if (!btnGerar.disabled) {
-      form.onsubmit = async function(e) {
+
+    if (btnGerar && !btnGerar.disabled && form) {
+      form.addEventListener('submit', async function (e) {
         e.preventDefault();
-        mostrarGerandoRelatorio();
+        toggleOverlay(true);
+        setButtonLoading(btnGerar, true);
 
         const formData = new FormData(form);
-
         try {
-          const response = await fetch(form.action || window.location.pathname, {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (response.ok) {
+          const response = await fetch(form.action || window.location.pathname, { method: 'POST', body: formData });
+          if (response.ok && (response.headers.get('Content-Type') || '').includes('application/pdf')) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "relatorio.pdf";
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-
-            mostrarRelatorioConcluido();
-            atualizarInfoPlano(); // Atualiza o contador após baixar
+            const a = document.createElement('a'); a.href = url; a.download = "relatorio.pdf";
+            document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+            if (typeof showToast === 'function') showToast('Relatório concluído!', 'success');
+            atualizarInfoPlano();
           } else {
-            showToast('Erro ao gerar relatório.', 'danger');
+            let msg = 'Erro ao gerar relatório.';
+            try { const j = await response.json(); if (j && j.error) msg = j.error; } catch(_){}
+            if (typeof showToast === 'function') showToast(msg, 'danger');
           }
         } catch (err) {
-          showToast('Erro ao conectar ao servidor.', 'danger');
+          if (typeof showToast === 'function') showToast('Erro ao conectar ao servidor.', 'danger');
+        } finally {
+          toggleOverlay(false);
+          setButtonLoading(btnGerar, false);
         }
-      }
+      });
     }
   });
 </script>

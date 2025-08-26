@@ -29,6 +29,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_talisman import Talisman
+from routes_metrics import metrics_bp
 
 # Sentry
 import sentry_sdk
@@ -94,7 +95,7 @@ app.config.update(
 
 db.init_app(app)
 migrate = Migrate(app, db)
-
+app.register_blueprint(metrics_bp) 
 # CSRF global
 csrf = CSRFProtect(app)
 
