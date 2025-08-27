@@ -162,7 +162,7 @@ PLANOS = {
     },
     "pro": {
         "nome": "Pro",
-        "preco": 19.99,
+        "preco": 49.99,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -174,7 +174,7 @@ PLANOS = {
     },
     "pro_anual": {
         "nome": "Pro Anual",
-        "preco": 199.00,
+        "preco": 499.00,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -187,7 +187,7 @@ PLANOS = {
     },
     "business": {
         "nome": "Business",
-        "preco": 34.99,
+        "preco": 79.99,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -199,7 +199,7 @@ PLANOS = {
     },
     "business_anual": {
         "nome": "Business Anual",
-        "preco": 349.00,
+        "preco": 799.00,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -535,22 +535,6 @@ def save_user_settings(user_id, settings_data):
     db.session.commit()
 
 
-def montar_email_boas_vindas(nome_do_usuario):
-    logo_url = url_for("static", filename="logo-symbol.png", _external=True)
-    termos_url = url_for("terms", _external=True)
-    privacidade_url = url_for("privacy_policy", _external=True)
-
-    # Escapar nome do usuário para não injetar HTML
-    nome_do_usuario = escape(nome_do_usuario)
-
-    return f"""
-    <div style='text-align: center; margin-bottom: 24px;'>
-        <img src='{logo_url}' alt='ComentsIA' style='height: 60px; margin: 16px auto;'>
-    </div>
-
-    <p>Olá {nome_do_usuario},</p>
-    ...
-    """
 
 
 @app.route("/planos", methods=["GET", "POST"])
