@@ -1,0 +1,27 @@
+# 1) Entrar na pasta do projeto
+cd "C:\Users\sebas\Downloads\ComentsIA Local\ComentsIA"
+
+# 2) Criar o ambiente virtual (só na primeira vez)
+python -m venv venv
+
+# 3) Ativar o venv (toda vez que for trabalhar no projeto)
+.\venv\Scripts\activate
+
+# 4) Atualizar o pip
+python -m pip install --upgrade pip
+
+# 5) Instalar dependências do projeto
+pip install -r requirements.txt
+
+# 6) Exportar a variável FLASK_APP
+$env:FLASK_APP = "main.py"
+
+# 7) Rodar as migrações (cria/atualiza as tabelas do banco)
+flask db migrate -m "init"
+flask db upgrade
+
+# 8) (opcional) Rodar seed de papéis/permissões se você tiver comando criado
+# flask seed-rbac
+
+# 9) Subir o servidor em modo debug
+flask run

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Mapeamento de colunas – Booking{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <div class="mb-3">
+    <h4 class="fw-bold mb-1">
+      <i class="bi bi-table text-primary me-2"></i>
+      Mapeamento manual de colunas
+    </h4>
+    <div class="text-muted small">
+      Escolha abaixo quais colunas do CSV correspondem a cada campo necessário.  
+      <strong>“Número da reserva” é obrigatório.</strong>
+    </div>
+  </div>
+
+  <form id="form-map" method="post" action="{{ url_for('booking.save_mapping', upload_id=upload_id) }}">
+    {% if csrf_token is defined %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-3 p-md-4">
+
+        {% for field, label in fields %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ label }}</label>
+          <select class="form-select rounded-3" name="{{ field }}">
+            <option value="-1">— Não usar —</option>
+            {% for h in headers %}
+              <option value="{{ loop.index0 }}">{{ h }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-light rounded-3" onclick="parent.bootstrap.Collapse.getOrCreateInstance(parent.document.getElementById('mapperCollapse')).hide()">
+        Fechar
+      </button>
+      <button type="submit" class="btn btn-primary rounded-3">
+        <span class="spinner-border spinner-border-sm me-2 d-none" id="spn-salvar"></span>
+        Salvar mapeamento
+      </button>
+    </div>
+  </form>
+</div>
+
+<style>
+  body{ background:transparent; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  const form = document.getElementById('form-map');
+  const spnSalvar = document.getElementById('spn-salvar');
+
+  if(form){
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+
+      const selects = form.querySelectorAll('select');
+      const colmap = {};
+      selects.forEach(sel=>{
+        colmap[sel.name] = parseInt(sel.value);
+      });
+
+      const csrfEl = form.querySelector('input[name="csrf_token"]');
+      const headers = csrfEl ? { 'X-CSRFToken': csrfEl.value } : {};
+
+      if(spnSalvar) spnSalvar.classList.remove('d-none');
+
+      try{
+        const resp = await fetch(form.action, {
+          method:'POST',
+          headers: { ...headers, 'Content-Type':'application/json' },
+          body: JSON.stringify({ colmap })
+        });
+        const data = await resp.json();
+
+        if(spnSalvar) spnSalvar.classList.add('d-none');
+
+        if(data && data.success){
+          // avisa no toast do pai e recolhe o card
+          if(window.parent && window.parent.showToast){
+            window.parent.showToast('Mapeamento salvo. Processando em segundo plano.','success');
+          }
+          if(window.parent){
+            const collapseEl = window.parent.document.getElementById('mapperCollapse');
+            if(collapseEl){
+              const c = window.parent.bootstrap.Collapse.getOrCreateInstance(collapseEl,{toggle:false});
+              c.hide();
+            }
+          }
+        }else{
+          if(window.parent && window.parent.showToast){
+            window.parent.showToast((data && data.error) || 'Erro ao salvar mapeamento.','danger');
+          }
+        }
+      }catch(err){
+        if(spnSalvar) spnSalvar.classList.add('d-none');
+        if(window.parent && window.parent.showToast){
+          window.parent.showToast('Falha na comunicação com o servidor.','danger');
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

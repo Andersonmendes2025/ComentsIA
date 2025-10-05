@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Admin — Tickets{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    .glass{background:#fff;border:1px solid rgba(2,6,23,.12);border-radius:16px;box-shadow:0 10px 24px rgba(2,6,23,.08);padding:16px}
+    @media (prefers-color-scheme: dark){
+      .glass{background:#0f1629;border-color:rgba(143,164,255,.18);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+    }
+    .badge-soft{border:1px solid rgba(2,6,23,.12);background:transparent;border-radius:999px;padding:.15rem .55rem}
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Tickets</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <!-- Criar ticket -->
+  <div class="glass mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="m-0">Criar ticket</h6>
+      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+        <i class="bi bi-building-add"></i> Nova empresa
+      </button>
+    </div>
+
+    <form method="post" action="{{ url_for('admin.tickets_board') }}" class="row g-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">Empresa</label>
+        <div class="d-flex gap-2">
+          <select name="company_id" class="form-select" required>
+            <option value="" hidden>Selecione…</option>
+            {% for c in companies %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="btn btn-outline-primary d-none d-md-inline"
+                  data-bs-toggle="modal" data-bs-target="#newCompanyModal" title="Criar empresa">
+            <i class="bi bi-plus-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <label class="form-label">Assunto</label>
+        <input name="assunto" class="form-control" placeholder="Ex.: Corrigir cobrança" required>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="form-label">Prioridade</label>
+        <select name="prioridade" class="form-select">
+          <option value="baixa">Baixa</option>
+          <option value="normal" selected>Normal</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-8 d-flex align-items-end justify-content-end">
+        <button class="btn btn-primary"><i class="bi bi-check2"></i> Criar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lista -->
+  <div class="glass">
+    <h6 class="mb-2">Fila de tickets</h6>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Assunto</th>
+            <th>Empresa</th>
+            <th>Prioridade</th>
+            <th>Status</th>
+            <th>Atualizado em</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tickets %}
+          {% set c = (companies | selectattr('id', 'equalto', t.company_id) | list | first) %}
+          <tr>
+            <td>{{ t.assunto }}</td>
+            <td>{{ c.name if c else '—' }}</td>
+            <td>
+              <span class="badge-soft">
+                {{ t.prioridade|capitalize }}
+              </span>
+            </td>
+            <td>
+              <span class="badge {{ 'text-bg-secondary' if t.status=='aberto' else ('text-bg-warning' if t.status=='pendente' else 'text-bg-success') }}">
+                {{ t.status|capitalize }}
+              </span>
+            </td>
+            <td class="text-nowrap">{{ t.updated_at.strftime('%d/%m/%Y %H:%M') if t.updated_at else '—' }}</td>
+            <td class="text-end">
+              <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto">
+                  <option value="aberto"   {% if t.status=='aberto' %}selected{% endif %}>Aberto</option>
+                  <option value="pendente" {% if t.status=='pendente' %}selected{% endif %}>Pendente</option>
+                  <option value="resolvido"{% if t.status=='resolvido' %}selected{% endif %}>Resolvido</option>
+                </select>
+                <button class="btn btn-sm btn-outline-primary">Mover</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">Nenhum ticket.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nova empresa -->
+<div class="modal fade" id="newCompanyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('admin.company_create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-building"></i> Nova empresa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Nome da empresa</label>
+          <input name="name" class="form-control" placeholder="Ex.: Acme Ltda" required>
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label">E-mail (opcional)</label>
+            <input name="email" type="email" class="form-control" placeholder="contato@empresa.com">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label">Telefone (opcional)</label>
+            <input name="phone" class="form-control" placeholder="(11) 99999-9999">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

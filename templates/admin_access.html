@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Admin — Acessos & Permissões{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <style>
+    .glass{background:#fff;border:1px solid rgba(2,6,23,.12);border-radius:16px;box-shadow:0 10px 24px rgba(2,6,23,.08);padding:16px}
+    @media (prefers-color-scheme: dark){
+      .glass{background:#0f1629;border-color:rgba(143,164,255,.18);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+    }
+    .ov-badge{border:1px solid rgba(2,6,23,.12);border-radius:999px;padding:.15rem .5rem;margin:.15rem .25rem 0 0;font-size:.78rem}
+    .role-badge{border:1px solid rgba(2,6,23,.12);border-radius:999px;padding:.18rem .6rem;font-size:.8rem}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Acessos & Permissões</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  {% set email_q = request.args.get('email','') %}
+  {% set alvo = (users | selectattr('email','equalto', email_q) | list | first) if email_q else None %}
+
+  <!-- Procurar por e-mail -->
+  <div class="glass mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-6">
+        <label class="form-label">E-mail do usuário</label>
+        <input type="email" name="email" class="form-control" placeholder="usuario@empresa.com"
+               value="{{ email_q }}" required>
+        <div class="form-text">
+          Digite o e-mail e clique em “Procurar” para ver papel e exceções (overrides).
+          <strong>Dica:</strong> o usuário precisa ter feito login ao menos 1x para aparecer aqui.
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <button class="btn btn-primary w-100"><i class="bi bi-search"></i> Procurar</button>
+      </div>
+    </form>
+    {% if email_q and not alvo %}
+      <div class="alert alert-warning mt-3 mb-0">
+        Usuário <strong>{{ email_q }}</strong> não encontrado (ele precisa ter feito login ao menos uma vez).
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Definir papel -->
+  <div class="glass mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="m-0">Definir papel</h6>
+      {% if alvo %}
+        <span class="role-badge">
+          Atual:
+          {% set rid = role_map.get(alvo.id) %}
+          {% set nome = '—' %}{% set chave = '—' %}
+          {% for r in roles %}{% if r.id == rid %}{% set nome = r.name %}{% set chave = r.key %}{% endif %}{% endfor %}
+          {{ nome }} <small class="text-muted">({{ chave }})</small>
+        </span>
+      {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('admin.access') }}" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="set_role">
+      <div class="col-12 col-md-5">
+        <label class="form-label">E-mail</label>
+        <input type="email" name="user_email" class="form-control" value="{{ email_q }}" required>
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label">Papel</label>
+        <select name="role_key" class="form-select" required>
+          {% set permitidos = ['admin','diretoria','financeiro'] %}
+          {% for r in roles if r.key in permitidos %}
+            <option value="{{ r.key }}"
+              {% if alvo and r.id == role_map.get(alvo.id) %}selected{% endif %}>
+              {{ r.name }} ({{ r.key }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <button class="btn btn-primary w-100"><i class="bi bi-check2"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Exceção de permissão (override) -->
+  <div class="glass mb-3">
+    <h6 class="mb-2">Exceção de permissão</h6>
+    <form method="post" action="{{ url_for('admin.access') }}" class="row g-2 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="set_perm">
+      <div class="col-12 col-md-4">
+        <label class="form-label">E-mail</label>
+        <input type="email" name="user_email" class="form-control" value="{{ email_q }}" required>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Permissão</label>
+        <select name="perm" class="form-select" required>
+          {% for p in PERMISSIONS_ALL %}
+            <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <label class="form-label">Nível</label>
+        <select name="level" class="form-select" required>
+          <option value="none">nenhum</option>
+          <option value="read">leitura</option>
+          <option value="write">edição</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <button class="btn btn-outline-primary w-100"><i class="bi bi-sliders"></i> Aplicar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Exceções ativas -->
+  <div class="glass mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="m-0">Exceções (overrides) ativas</h6>
+      <form method="post" action="{{ url_for('admin.access') }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="reset_overrides">
+        <input type="hidden" name="user_email" value="{{ email_q }}">
+        <button class="btn btn-sm btn-outline-danger" {% if not alvo %}disabled{% endif %}
+                onclick="return confirm('Remover todas as exceções de {{ email_q }}?')">
+          <i class="bi bi-arrow-counterclockwise"></i> Resetar exceções
+        </button>
+      </form>
+    </div>
+    {% if alvo %}
+      {% set meus_ov = overrides | selectattr('user_id','equalto', alvo.id) | list %}
+      {% if meus_ov %}
+        <div class="d-flex flex-wrap">
+          {% for ov in meus_ov %}
+            <span class="ov-badge"><code>{{ ov.perm }}</code> → <strong>{{ ov.level }}</strong></span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-muted">Nenhuma exceção para este usuário.</div>
+      {% endif %}
+    {% else %}
+      <div class="text-muted">Informe um e-mail em “Procurar” para ver as exceções.</div>
+    {% endif %}
+  </div>
+
+  <!-- Usuários com acesso (só quem tem papel) -->
+  <div class="glass">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="m-0">Usuários com acesso</h6>
+      <div class="text-muted small">Clique em <em>Ver logs</em> para abrir o histórico.</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>E-mail</th>
+            <th>Papel</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users if role_map.get(u.id) %}
+          {% set rid = role_map.get(u.id) %}
+          {% set rnome = '—' %}{% set rkey = '—' %}
+          {% for r in roles %}{% if r.id == rid %}{% set rnome = r.name %}{% set rkey = r.key %}{% endif %}{% endfor %}
+          <tr>
+            <td>{{ u.email }}</td>
+            <td>{{ rnome }} <small class="text-muted">({{ rkey }})</small></td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-action="view-logs"
+                      data-user-id="{{ u.id }}"
+                      data-user-email="{{ u.email }}"
+                      data-bs-toggle="modal"
+                      data-bs-target="#userLogsModal">
+                <i class="bi bi-list-ul"></i> Ver logs
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-center text-muted py-4">Nenhum usuário com papel atribuído.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-text mt-2">
+      Não está vendo alguém? Verifique se o usuário já fez login pelo menos uma vez e se o papel foi salvo.
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Logs -->
+<div class="modal fade" id="userLogsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Logs do usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="logsLoading" class="text-center py-4 d-none">
+          <div class="spinner-border" role="status"></div>
+          <div class="small mt-2">Carregando…</div>
+        </div>
+        <div id="logsEmpty" class="text-muted d-none">Nenhum log encontrado.</div>
+        <div id="logsError" class="text-danger d-none">Erro ao carregar logs.</div>
+
+        <div class="table-responsive d-none" id="logsTableWrap">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Data/Hora</th>
+                <th>Tipo</th>
+                <th>Ação</th>
+                <th>Meta</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span id="logsUserEmail" class="text-muted small me-auto"></span>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const bodyEl  = document.getElementById('logsTableBody');
+  const loading = document.getElementById('logsLoading');
+  const empty   = document.getElementById('logsEmpty');
+  const errorEl = document.getElementById('logsError');
+  const wrap    = document.getElementById('logsTableWrap');
+  const emailEl = document.getElementById('logsUserEmail');
+
+  document.querySelectorAll('[data-action="view-logs"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid = btn.getAttribute('data-user-id');
+      const email = btn.getAttribute('data-user-email');
+      emailEl.textContent = email;
+
+      bodyEl.innerHTML = '';
+      loading.classList.remove('d-none');
+      empty.classList.add('d-none');
+      errorEl.classList.add('d-none');
+      wrap.classList.add('d-none');
+
+      try{
+        const resp = await fetch(`{{ url_for('admin.access_logs') }}?user_id=${encodeURIComponent(uid)}`);
+        const j = await resp.json();
+        loading.classList.add('d-none');
+
+        if(!resp.ok || !j.ok){
+          errorEl.classList.remove('d-none');
+          return;
+        }
+        if(!j.logs || j.logs.length === 0){
+          empty.classList.remove('d-none');
+          return;
+        }
+
+        const rows = j.logs.map(l => {
+          const dt = l.ts ? new Date(l.ts) : null;
+          const when = dt ? dt.toLocaleString() : '—';
+          const meta = (l.meta && Object.keys(l.meta).length)
+            ? JSON.stringify(l.meta, null, 2)
+            : '—';
+          const tipo = l.kind; // admin | email | billing
+          const label = ({
+            pricing_update: 'Atualização de preços',
+            finance_edit: 'Item financeiro criado/atualizado',
+            finance_toggle: 'Ativar/Desativar item financeiro',
+            finance_delete: 'Exclusão de item financeiro',
+            coupon_create: 'Criação de cupom',
+            coupon_edit: 'Edição de cupom',
+            coupon_toggle: 'Ativar/Desativar cupom',
+            coupon_delete: 'Exclusão de cupom',
+            broadcast: 'Envio de comunicação',
+            overdue_send_now: 'Cobrança manual enviada',
+            change_role: 'Alteração de papel',
+            change_perm: 'Exceção de permissão',
+          })[l.action] || l.action;
+
+          return `
+            <tr>
+              <td class="text-nowrap">${when}</td>
+              <td><span class="badge text-bg-${tipo==='admin'?'secondary':(tipo==='email'?'info':'warning')}">${tipo}</span></td>
+              <td><code class="mono">${label}</code></td>
+              <td><pre class="mono mb-0" style="white-space:pre-wrap">${meta}</pre></td>
+            </tr>`;
+        }).join('');
+
+        bodyEl.innerHTML = rows;
+        wrap.classList.remove('d-none');
+      }catch(e){
+        loading.classList.add('d-none');
+        errorEl.classList.remove('d-none');
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

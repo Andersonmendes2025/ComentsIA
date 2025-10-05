@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Admin — Broadcast{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <style>
+    .glass{
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      backdrop-filter:blur(8px);
+      border:1px solid rgba(143,164,255,.16);
+      border-radius:20px;
+      padding:18px
+    }
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Enviar Comunicação</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <form method="post" class="glass" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-8">
+        <label class="form-label">Assunto</label>
+        <input type="text" name="subject" class="form-control" placeholder="Assunto do e-mail / notificação" required>
+      </div>
+      <div class="col-12 col-lg-4">
+        <label class="form-label">Canal</label>
+        <select name="channel" class="form-select">
+          <option value="email">E-mail</option>
+          <option value="inapp">Notificação in-app</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">HTML / Mensagem</label>
+        <textarea name="html" class="form-control" rows="10" placeholder="<h1>...</h1>" required></textarea>
+        <div class="form-text">Você pode usar HTML básico. Imagens online são suportadas.</div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Segmento</label>
+        <select name="segment" class="form-select">
+          <option value="all">Todos</option>
+          <option value="pro">Plano Pro</option>
+          <option value="business">Plano Business</option>
+          <option value="delinquent">Inadimplentes</option>
+          <option value="free">Free</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <label class="form-label">Upload de imagem (opcional)</label>
+        <input type="file" name="image" class="form-control" accept="image/*">
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end mt-3">
+      <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#previewModal">
+        <i class="bi bi-eye"></i> Pré-visualizar
+      </button>
+      <button class="btn btn-primary">
+        <i class="bi bi-send"></i> Enviar
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal Preview -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title">Pré-visualização</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <iframe id="previewFrame" style="width:100%;height:60vh;border:0;background:#111;border-radius:12px"></iframe>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const previewBtn = document.querySelector('[data-bs-target="#previewModal"]');
+  if (previewBtn) {
+    previewBtn.addEventListener('click', () => {
+      const html = document.querySelector('textarea[name="html"]').value || '<p>(vazio)</p>';
+      const frameDoc = document.getElementById('previewFrame').contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(html);
+      frameDoc.close();
+    });
+  }
+</script>
+{% endblock %}

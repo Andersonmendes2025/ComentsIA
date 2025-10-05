@@ -57,14 +57,9 @@
       .footer-pags{ font-size:.98rem; }
     }
 
-    /* Banner de aviso (visualizando filial) */
-    .filial-banner{ background:#fff3cd; border-bottom:1px solid #ffe69c; color:#664d03; }
-    .filial-badge{ background:#ffd24d; color:#664d03; border-radius:999px; padding:4px 10px; font-weight:600; font-size:.9rem; display:inline-flex; align-items:center; gap:6px; }
-    .filial-back-btn{ border-radius:999px; font-weight:600; }
-
     /* Modo escuro básico */
-    body.dark .filial-banner{ background:#3b3a2c; border-color:#5a552d; color:#f6e7b2; }
-    body.dark .filial-badge{ background:#8a7a39; color:#fffbe6; }
+    body.dark .footer-comentsia { background:#0f1629; border-top-color:#233056; color:#e5edff; }
+    body.dark .footer-links a { color:#cfe0ff; }
   </style>
 </head>
 
@@ -93,9 +88,24 @@
           <li class="nav-item"><a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a></li>
 
-          {% if is_admin %}
-            <li class="nav-item"><a class="nav-link text-danger fw-bold" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-shield-lock-fill me-1"></i> Admin</a></li>
+          {# --- Menu Admin dinâmico (aparece só se houver acesso) --- #}
+          {% if logged_in and has_admin %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" data-bs-toggle="dropdown">
+                <i class="bi bi-shield-lock-fill me-1"></i> Admin
+              </a>
+              <ul class="dropdown-menu">
+                {% for it in admin_links %}
+                  <li>
+                    <a class="dropdown-item" href="{{ it.url }}">
+                      <i class="bi {{ it.icon }} me-1"></i> {{ it.label }}
+                    </a>
+                  </li>
+                {% endfor %}
+              </ul>
+            </li>
           {% endif %}
+
           {% if logged_in %}
             <li class="nav-item">
               <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
@@ -119,12 +129,6 @@
             </div>
           {% endif %}
 
-          {% if viewing_filial %}
-            <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-outline-warning btn-sm filial-back-btn d-none d-lg-inline-flex" title="Voltar para a matriz">
-              <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
-            </a>
-          {% endif %}
-
           <button class="btn btn-sm theme-toggle me-1" onclick="toggleTheme()" title="Alternar tema">
             <i class="bi bi-moon-stars-fill"></i>
           </button>
@@ -132,17 +136,9 @@
           {% if logged_in %}
             <div class="dropdown">
               <a class="btn btn-light rounded-pill px-3" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                {% if viewing_filial %}
-                  <span class="small fw-semibold">Filial: {{ filial_name }}</span>
-                {% else %}
-                  <span class="small fw-semibold">{{ user.name }}</span>
-                {% endif %}
+                <span class="small fw-semibold">{{ user.name }}</span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                {% if viewing_filial %}
-                  <li><a class="dropdown-item" href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}"><i class="bi bi-arrow-return-left"></i> Voltar para a matriz</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                {% endif %}
                 <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-danger" href="#" onclick="deleteAccount()"><i class="bi bi-trash"></i> Apagar minha conta</a></li>
@@ -157,22 +153,6 @@
       </div>
     </div>
   </nav>
-
-  {% if viewing_filial %}
-  <div class="filial-banner py-2">
-    <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <span class="filial-badge"><i class="bi bi-building"></i> Filial</span>
-        <span class="fw-semibold">Você está visualizando a filial: <span class="text-decoration-underline">{{ filial_name }}</span></span>
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <a href="{{ matriz_back_url or url_for('matriz_sair_da_filial') }}" class="btn btn-warning btn-sm filial-back-btn">
-          <i class="bi bi-arrow-return-left me-1"></i> Voltar para a matriz
-        </a>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 
   <main class="py-4">
     {% block content %}{% endblock %}
@@ -232,6 +212,7 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
   <script>
     // Tema
     const savedTheme = localStorage.getItem('theme');
@@ -319,16 +300,5 @@
   </script>
 
   {% block extra_scripts %}{% endblock %}
-
-  {% if viewing_filial %}
-  <div id="filial-alert" class="position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
-    <div class="toast show text-dark bg-warning shadow border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex align-items-center p-3">
-        <div class="me-auto"><strong>📍 Filial:</strong> {{ filial_name or 'Filial' }}</div>
-        <a href="{{ matriz_back_url }}" class="btn btn-sm btn-dark ms-3">Matriz</a>
-      </div>
-    </div>
-  </div>
-  {% endif %}
 </body>
 </html>

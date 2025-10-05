@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Admin — Finanças (Taxas & Custos){% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    :root{
+      --ink:#0f172a; --ink-muted:#475569; --surface:#ffffff; --bg:#f8fafc;
+      --border:rgba(2,6,23,.12); --shadow:0 10px 24px rgba(2,6,23,.08);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e5edff; --ink-muted:#9fb0d3; --surface:#0f1629; --bg:#0b1020;
+        --border:rgba(143,164,255,.18); --shadow:0 14px 28px rgba(0,0,0,.35);
+      }
+    }
+    body{ background:var(--bg); }
+    .glass{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow:var(--shadow); }
+    .stat{ display:flex; gap:10px; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px; height:100%; box-shadow:var(--shadow); color:var(--ink); }
+    .stat .k{ font-weight:700; }
+    .table{ color:var(--ink); }
+    .table thead th, .table tbody td{ border-color:var(--border); }
+    .btn-neon{ border:1px solid var(--border); background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.04)); color:var(--ink); }
+    .btn-neon:hover{ transform:translateY(-1px); box-shadow:var(--shadow); }
+    .form-text{ color:var(--ink-muted)!important; }
+    .badge-soft{ border:1px solid var(--border); background:transparent; color:var(--ink-muted); border-radius:999px; padding:.15rem .5rem; }
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Itens Financeiros</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-neon"><i class="bi bi-arrow-left"></i> Dashboard</a>
+      <button class="btn btn-sm btn-neon" type="button" data-bs-toggle="modal" data-bs-target="#financeModal"><i class="bi bi-plus"></i> Novo item</button>
+    </div>
+  </div>
+
+  <!-- Resumo MTD -->
+  <div class="glass mb-3">
+    <h5 class="mb-2">Resumo do mês</h5>
+    <div class="row g-2">
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-cash-coin"></i><div><div id="grossMTD" class="k">—</div><small>Bruto</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-receipt-cutoff"></i><div><div id="taxMTD" class="k">—</div><small>Impostos</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-basket2"></i><div><div id="costMTD" class="k">—</div><small>Custos</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-wallet2"></i><div><div id="netMTD" class="k">—</div><small>Líquido</small></div></div></div>
+    </div>
+  </div>
+
+  <!-- Resumo do ano (YTD) -->
+  <div class="glass mb-3">
+    <h5 class="mb-2">Resumo do ano</h5>
+    <div class="row g-2">
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-cash"></i><div><div id="grossYTD" class="k">—</div><small>Faturamento (bruto)</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-receipt"></i><div><div id="taxYTD" class="k">—</div><small>Impostos (ano)</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-basket"></i><div><div id="costYTD" class="k">—</div><small>Custos (ano)</small></div></div></div>
+      <div class="col-6 col-lg-3"><div class="stat"><i class="bi bi-cash-stack"></i><div><div id="netYTD" class="k">—</div><small>Líquido (ano)</small></div></div></div>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  <div class="glass">
+    <h5 class="mb-2">Taxas e Custos</h5>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Tipo</th><th>Nome</th><th>Método</th><th>Valor</th>
+            <th>Recorrência</th><th>Período</th><th>Alocação</th>
+            <th>Ativo</th><th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          <tr>
+            <td>{{ it.kind }}</td>
+            <td>{{ it.name }}</td>
+            <td>{{ it.method }}</td>
+            <td>
+              {% if it.method == 'percent' %}
+                {{ it.percent }}%
+              {% else %}
+                R$ {{ ('{:.2f}'.format(((it.amount_cents or 0)/100.0))).replace('.', ',') }}
+              {% endif %}
+            </td>
+            <td>{{ 'Mensal' if it.recurrence == 'monthly' else 'Única' }}</td>
+            <td>{{ it.start_month }}{% if it.end_month %} → {{ it.end_month }}{% endif %}</td>
+            <td>{{ it.allocation_method }}</td>
+            <td>{% if it.active %}<span class="badge text-bg-success">Ativo</span>{% else %}<span class="badge text-bg-secondary">Inativo</span>{% endif %}</td>
+            <td class="text-end">
+              <form method="post" class="d-inline" action="{{ url_for('admin.finance_toggle', item_id=it.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Desativar' if it.active else 'Ativar' }}</button>
+              </form>
+
+              <!-- Excluir (abre modal nativo do Bootstrap) -->
+              <button type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      data-bs-toggle="modal"
+                      data-bs-target="#confirmDelete"
+                      data-name="{{ it.name }}"
+                      data-url="{{ url_for('admin.finance_delete', item_id=it.id) }}">
+                Excluir
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="text-center text-muted py-4">Nenhum item cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Criar item -->
+<div class="modal fade" id="financeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" method="post" action="{{ url_for('admin.finance_items') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="modal-header">
+        <h5 class="modal-title">Novo item financeiro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" name="kind" required>
+              <option value="tax">Imposto</option>
+              <option value="cost">Custo</option>
+            </select>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Nome</label>
+            <input class="form-control" name="name" required>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Método</label>
+            <select class="form-select" name="method" id="mtdSel">
+              <option value="percent">Percentual (%)</option>
+              <option value="fixed">Fixo (centavos)</option>
+            </select>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Valor</label>
+            <input class="form-control" id="fldPercent" name="percent" placeholder="ex: 10" inputmode="decimal">
+            <input class="form-control mt-2 d-none" id="fldFixed" name="amount_cents" placeholder="ex: 990 (centavos)" inputmode="numeric">
+            <div class="form-text">Use % para “percentual” ou centavos para “fixo”.</div>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Recorrência</label>
+            <select class="form-select" name="recurrence">
+              <option value="monthly">Mensal</option>
+              <option value="once">Única</option>
+            </select>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Alocação</label>
+            <select class="form-select" name="allocation_method">
+              <option value="per_user_equal">por usuário (igual)</option>
+              <option value="per_revenue_share">por receita</option>
+              <option value="per_transaction">por transação</option>
+            </select>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Centro de custo (opcional)</label>
+            <input class="form-control" name="cost_center" placeholder="ex.: Marketing, Gateway, Infra">
+          </div>
+
+          <div class="col-6 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="active" name="active" checked>
+              <label class="form-check-label" for="active">Ativo</label>
+            </div>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Início</label>
+            <input type="month" class="form-control" name="start_month" required>
+            <div class="form-text">Formato enviado: YYYY-MM</div>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label">Fim (opcional)</label>
+            <input type="month" class="form-control" name="end_month">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-neon" type="submit"><i class="bi bi-check2"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Confirmar exclusão -->
+<div class="modal fade" id="confirmDelete" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="deleteForm" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-start gap-3">
+          <i class="bi bi-exclamation-octagon text-danger fs-3"></i>
+          <div>
+            <p class="mb-1">Tem certeza de que deseja excluir este item financeiro?</p>
+            <div class="badge-soft"><span class="text-muted">Item:</span> <strong id="delName">—</strong></div>
+            <p class="mt-2 mb-0 text-muted">Esta ação não poderá ser desfeita.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger" type="submit"><i class="bi bi-trash"></i> Excluir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // Alternância de campos (percent x fixed)
+  const sel = document.getElementById('mtdSel');
+  const fldP = document.getElementById('fldPercent');
+  const fldF = document.getElementById('fldFixed');
+  function syncFields(){
+    const isPercent = sel && sel.value === 'percent';
+    if (fldP) fldP.classList.toggle('d-none', !isPercent);
+    if (fldF) fldF.classList.toggle('d-none',  isPercent);
+    if (isPercent) { if (fldF) fldF.value=''; } else { if (fldP) fldP.value=''; }
+  }
+  if (sel) { sel.addEventListener('change', syncFields); syncFields(); }
+
+  // KPIs
+  try{
+    const r = await fetch('{{ url_for("admin.metrics_json") }}', {headers:{'Accept':'application/json'}});
+    if(r.ok){
+      const j = await r.json();
+      document.getElementById('grossMTD')?.append(document.createTextNode(j?.revenue?.mtd?.gross_fmt ?? '—'));
+      document.getElementById('taxMTD')?.append(document.createTextNode(j?.revenue?.mtd?.tax_fmt ?? '—'));
+      document.getElementById('costMTD')?.append(document.createTextNode(j?.revenue?.mtd?.cost_fmt ?? '—'));
+      document.getElementById('netMTD')?.append(document.createTextNode(j?.revenue?.mtd?.net_fmt ?? '—'));
+
+      document.getElementById('grossYTD')?.append(document.createTextNode(j?.revenue?.ytd?.gross_fmt ?? '—'));
+      document.getElementById('taxYTD')?.append(document.createTextNode(j?.revenue?.ytd?.tax_fmt ?? '—'));
+      document.getElementById('costYTD')?.append(document.createTextNode(j?.revenue?.ytd?.cost_fmt ?? '—'));
+      document.getElementById('netYTD')?.append(document.createTextNode(j?.revenue?.ytd?.net_fmt ?? '—'));
+    }
+  }catch(e){ console.warn(e); }
+
+  // ===== Modal de exclusão (fix) =====
+  const delModalEl = document.getElementById('confirmDelete');
+  if (delModalEl) {
+    delModalEl.addEventListener('show.bs.modal', (event) => {
+      // botão que abriu o modal
+      const button = event.relatedTarget;
+      const name = button?.getAttribute('data-name') ?? '—';
+      const url  = button?.getAttribute('data-url')  ?? '#';
+
+      const delName = document.getElementById('delName');
+      const delForm = document.getElementById('deleteForm');
+
+      if (delName) delName.textContent = name;
+      if (delForm) delForm.setAttribute('action', url);
+    });
+  }
+});
+</script>
+{% endblock %}

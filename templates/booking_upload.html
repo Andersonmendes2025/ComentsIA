@@ -2,121 +2,160 @@
 {% block title %}Importar avaliações do Booking{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <div class="row">
-    <div class="col-lg-10 mx-auto">
+<div class="container-xxl py-4">
 
-      <h2 class="mb-3">Importar avaliações do Booking</h2>
+  <!-- CSRF para chamadas fetch (delete) -->
+  {% if csrf_token is defined %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+  {% endif %}
 
-      <!-- Banner de progresso persistente -->
-      <div id="upload-progress-banner" class="alert alert-warning border-0 shadow-sm d-none" role="alert" aria-live="polite">
-        <div class="d-flex align-items-start gap-3">
-          <div class="spinner-border spinner-border-sm flex-shrink-0 mt-1" role="status" aria-hidden="true"></div>
-          <div>
-            <div class="fw-bold mb-1">Processando seu arquivo em segundo plano…</div>
-            <div class="small text-muted">
-              Você pode navegar pelo site; quando voltar, continuaremos de onde parou. <br/>
-              <span id="banner-meta" class="d-inline-block mt-1"></span>
-            </div>
-          </div>
+  <!-- Hero / Header -->
+  <div class="position-relative overflow-hidden mb-4 rounded-4 shadow-sm hero-wrap">
+    <div class="p-4 p-md-5 text-white">
+      <div class="d-flex align-items-center gap-3">
+        <div class="hero-icon d-inline-flex align-items-center justify-content-center rounded-3">
+          <i class="bi bi-stars"></i>
+        </div>
+        <div>
+          <h2 class="mb-1 fw-bold">Importar avaliações do Booking</h2>
+          <div class="opacity-75">Envie um CSV e nós processamos em segundo plano, com dedupe e relatórios.</div>
         </div>
       </div>
-      <!-- Explicação do fluxo -->
-      <div class="alert alert-info border-0 shadow-sm">
-        <div class="d-flex align-items-start gap-3">
-          <i class="bi bi-upload" style="font-size:1.6rem;"></i>
-          <div>
-            <div class="fw-bold mb-1">O que vai acontecer</div>
-            <ul class="mb-0">
-              <li>Você envia um arquivo <strong>CSV</strong> exportado do Booking.</li>
-              <li>Processamos em <strong>segundo plano</strong> (150 KB por vez) para garantir estabilidade.</li>
-              <li>Duplicadas são detectadas e <u>não</u> inseridas; notas (0–10) viram escala (0–5).</li>
-              <li>Você pode <strong>sair da página</strong> e voltar depois — o upload continua.</li>
-            </ul>
-          </div>
+    </div>
+    <div class="hero-accent"></div>
+  </div>
+
+  <!-- Banner de progresso persistente -->
+  <div id="upload-progress-banner" class="alert alert-warning border-0 shadow-sm d-none rounded-4" role="alert" aria-live="polite">
+    <div class="d-flex align-items-start gap-3">
+      <div class="spinner-border spinner-border-sm flex-shrink-0 mt-1" role="status" aria-hidden="true"></div>
+      <div>
+        <div class="fw-bold mb-1">Processando seu arquivo em segundo plano…</div>
+        <div class="small text-muted">
+          Você pode navegar pelo site; quando voltar, continuaremos de onde parou. <br/>
+          <span id="banner-meta" class="d-inline-block mt-1"></span>
         </div>
       </div>
-
-
-      <!-- Ações -->
-      <div class="d-flex gap-2 flex-wrap mb-3">
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-          <i class="bi bi-file-earmark-arrow-up me-1"></i> Enviar avaliações (CSV)
-        </button>
-        <button class="btn btn-outline-secondary" id="btn-checar">
-          <i class="bi bi-search me-1"></i> Checar quantidade importada
-        </button>
-      </div>
-
-      <!-- Resultado do upload (último retorno rápido) -->
-      <div id="resultado-upload" style="display:none;">
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-body">
-            <h5 class="mb-3"><i class="bi bi-check2-circle me-2"></i>Resumo da importação</h5>
-            <div class="row g-3">
-              <div class="col-sm-6 col-md-3"><div class="text-muted small">Inseridas</div><div class="h5" id="ins-inserted">0</div></div>
-              <div class="col-sm-6 col-md-3"><div class="text-muted small">Duplicadas</div><div class="h5" id="ins-duplicates">0</div></div>
-              <div class="col-sm-6 col-md-3"><div class="text-muted small">Ignoradas</div><div class="h5" id="ins-skipped">0</div></div>
-              <div class="col-sm-6 col-md-3"><div class="text-muted small">Status</div><div class="h5" id="ins-status">—</div></div>
-            </div>
-            <div id="ins-errors" class="mt-3" style="display:none;">
-              <div class="text-muted small mb-1">Ocorreram avisos/erros:</div>
-              <pre class="bg-light p-2 rounded" style="max-height:180px; overflow:auto;"></pre>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Histórico de uploads -->
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-clock-history fs-5"></i>
-              <span class="fw-bold">Histórico de uploads</span>
-              <span id="uploads-count" class="badge bg-secondary">0</span>
-            </div>
-            <div class="d-flex gap-2">
-              <div class="input-group input-group-sm" style="width: 260px;">
-                <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" id="uploads-search" placeholder="Filtrar por arquivo/status...">
-              </div>
-              <button class="btn btn-sm btn-outline-primary" id="btn-refresh-uploads">
-                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
-              </button>
-            </div>
-          </div>
-
-          <div id="uploads-empty" class="text-center text-muted py-4 d-none">
-            <i class="bi bi-inbox" style="font-size:2rem;"></i>
-            <p class="mt-2 mb-0">Nenhum upload encontrado ainda.</p>
-          </div>
-
-          <div id="uploads-grid" class="row g-3"></div>
-        </div>
-      </div>
-
-      <!-- Como obter as avaliações (colapsável) -->
-      <div class="card border-0 shadow-sm mt-4">
-        <div class="card-body">
-          <a class="d-flex align-items-center justify-content-between text-decoration-none"
-             data-bs-toggle="collapse" href="#comoObter" role="button" aria-expanded="false" aria-controls="comoObter">
-            <span class="fw-bold"><i class="bi bi-question-circle me-2"></i>Como obter as avaliações do Booking (CSV)</span>
-            <i class="bi bi-chevron-down"></i>
-          </a>
-          <div class="collapse mt-3" id="comoObter">
-            <ol class="mb-3">
-              <li>Acesse a <a href="https://admin.booking.com/" class="link-primary" target="_blank" rel="noopener">Extranet do Booking</a> e faça login.</li>
-              <li>No menu, vá em <strong>Avaliações / Guest Reviews</strong> e exporte em <strong>CSV</strong>.</li>
-              <li>Salve o arquivo e clique em <strong>“Enviar avaliações (CSV)”</strong> aqui.</li>
-            </ol>
-            <p class="text-muted small mb-0">Dica: em alguns idiomas ou no app Pulse a exportação CSV pode não estar disponível.</p>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
+
+  <!-- Info do fluxo -->
+  <div class="card border-0 shadow-sm rounded-4 mb-4 info-card">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-start gap-3">
+        <div class="callout-icon d-inline-flex align-items-center justify-content-center rounded-3">
+          <i class="bi bi-upload"></i>
+        </div>
+        <div>
+          <div class="fw-bold mb-1">Como funciona</div>
+          <ul class="mb-0">
+            <li>Envie um arquivo <strong>CSV</strong> exportado do Booking (delimitador/encoding variados).</li>
+            <li>Processamos em <strong>segundo plano</strong> (chunks de 150&nbsp;KB) para estabilidade.</li>
+            <li>Duplicadas não são inseridas; notas (0–10) viram escala (0–5).</li>
+            <li>Você pode <strong>sair da página</strong> e voltar depois — o upload continua.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ações -->
+  <div class="d-flex gap-2 flex-wrap mb-4">
+    <button class="btn btn-primary rounded-3 px-3" data-bs-toggle="modal" data-bs-target="#uploadModal">
+      <i class="bi bi-file-earmark-arrow-up me-1"></i> Enviar avaliações (CSV)
+    </button>
+    <button class="btn btn-outline-secondary rounded-3 px-3" id="btn-checar">
+      <i class="bi bi-search me-1"></i> Checar quantidade importada
+    </button>
+  </div>
+
+  <!-- Resultado pós-processamento (pode ser usado depois, se quiser popular) -->
+  <div id="resultado-upload" style="display:none;">
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+      <div class="card-body p-4">
+        <h5 class="mb-3"><i class="bi bi-check2-circle me-2 text-success"></i>Resumo da importação</h5>
+        <div class="row g-3 text-center">
+          <div class="col-6 col-md-3">
+            <div class="mini-stat bg-grad-green text-white rounded-3 p-3">
+              <div class="small opacity-75">Inseridas</div>
+              <div class="fs-4 fw-bold" id="ins-inserted">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-stat bg-grad-blue text-white rounded-3 p-3">
+              <div class="small opacity-75">Duplicadas</div>
+              <div class="fs-4 fw-bold" id="ins-duplicates">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-stat bg-grad-orange text-white rounded-3 p-3">
+              <div class="small opacity-75">Ignoradas</div>
+              <div class="fs-4 fw-bold" id="ins-skipped">0</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="mini-stat bg-grad-purple text-white rounded-3 p-3">
+              <div class="small opacity-75">Status</div>
+              <div class="fs-4 fw-bold" id="ins-status">—</div>
+            </div>
+          </div>
+        </div>
+        <div id="ins-errors" class="mt-3" style="display:none;">
+          <div class="text-muted small mb-1">Ocorreram avisos/erros:</div>
+          <pre class="bg-light p-3 rounded-3" style="max-height:180px; overflow:auto;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Histórico -->
+  <div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-clock-history fs-5 text-primary"></i>
+          <span class="fw-bold">Histórico de uploads</span>
+          <span id="uploads-count" class="badge rounded-pill bg-primary-subtle text-primary">0</span>
+        </div>
+        <div class="d-flex gap-2">
+          <div class="input-group input-group-sm" style="width: 280px;">
+            <span class="input-group-text bg-body-secondary border-0"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control border-0 bg-body-secondary" id="uploads-search" placeholder="Filtrar por arquivo/status...">
+          </div>
+          <button class="btn btn-sm btn-outline-primary rounded-3" id="btn-refresh-uploads">
+            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+          </button>
+        </div>
+      </div>
+
+      <div id="uploads-empty" class="text-center text-muted py-4 d-none">
+        <i class="bi bi-inbox" style="font-size:2rem;"></i>
+        <p class="mt-2 mb-0">Nenhum upload encontrado ainda.</p>
+      </div>
+
+      <div id="uploads-grid" class="row g-3"></div>
+    </div>
+  </div>
+
+  <!-- Como obter CSV (colapsável) -->
+  <div class="card border-0 shadow-sm rounded-4 mt-4">
+    <div class="card-body p-4">
+      <a class="d-flex align-items-center justify-content-between text-decoration-none"
+         data-bs-toggle="collapse" href="#comoObter" role="button" aria-expanded="false" aria-controls="comoObter">
+        <span class="fw-bold"><i class="bi bi-question-circle me-2 text-primary"></i>Como obter as avaliações do Booking (CSV)</span>
+        <i class="bi bi-chevron-down"></i>
+      </a>
+      <div class="collapse mt-3" id="comoObter">
+        <ol class="mb-3">
+          <li>Acesse a <a href="https://admin.booking.com/" class="link-primary" target="_blank" rel="noopener">Extranet do Booking</a> e faça login.</li>
+          <li>No menu, vá em <strong>Avaliações / Guest Reviews</strong> e exporte em <strong>CSV</strong>.</li>
+          <li>Salve o arquivo e clique em <strong>“Enviar avaliações (CSV)”</strong> aqui.</li>
+        </ol>
+        <p class="text-muted small mb-0">Dica: em alguns idiomas ou no app Pulse a exportação CSV pode não estar disponível.</p>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Modal Upload -->
@@ -126,43 +165,46 @@
       <div class="modal-body p-4">
         <div class="mb-3 fw-semibold">Importar avaliações do Booking (CSV)</div>
 
-        <form id="form-upload" method="POST" action="{{ url_for('booking.upload_csv') }}" enctype="multipart/form-data">
+        <form id="form-upload" method="POST" action="{{ url_for('booking.upload_csv') }}" enctype="multipart/form-data" novalidate>
           {% if csrf_token is defined %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           {% endif %}
 
           <!-- DROPZONE -->
-          <div id="dropzone" class="dropzone mb-3 text-center p-4 rounded-3 border border-2 border-dashed">
-            <i class="bi bi-file-earmark-spreadsheet" style="font-size:2rem;"></i>
+          <div id="dropzone" class="dropzone mb-3 text-center p-4 rounded-4 border border-2 border-dashed bg-body-tertiary">
+            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size:2rem;"></i>
             <p class="mb-1 fw-semibold">Arraste e solte o CSV aqui</p>
             <p class="text-muted small mb-0">ou</p>
-            <label for="csv-file" class="btn btn-light border mt-2">
+            <label for="csv-file" class="btn btn-light border mt-2 rounded-3">
               <i class="bi bi-link-45deg me-1"></i> Selecionar arquivo
             </label>
-            <input id="csv-file" name="file" type="file" accept=".csv" class="d-none" required>
+            <!-- Aceitamos vários MIME “comuns” de CSV -->
+            <input id="csv-file" name="file" type="file"
+                   accept="text/csv,application/csv,application/vnd.ms-excel,text/plain,.csv"
+                   class="d-none" required>
           </div>
 
-          <!-- MINIATURA / CHIP DO ARQUIVO -->
+          <!-- CHIP DO ARQUIVO -->
           <div id="file-chip" class="d-none">
-            <div class="d-flex align-items-center gap-3 bg-light rounded-3 p-2 px-3 border">
-              <i class="bi bi-filetype-csv fs-4"></i>
+            <div class="d-flex align-items-center gap-3 bg-body-secondary rounded-4 p-2 px-3 border">
+              <i class="bi bi-filetype-csv fs-4 text-success"></i>
               <div class="flex-grow-1">
                 <div class="fw-semibold" id="file-name">arquivo.csv</div>
                 <div class="text-muted small" id="file-size">—</div>
               </div>
-              <button class="btn btn-sm btn-outline-secondary" id="btn-remove-file" type="button">
+              <button class="btn btn-sm btn-outline-secondary rounded-3" id="btn-remove-file" type="button" aria-label="Remover arquivo">
                 <i class="bi bi-x-lg"></i>
               </button>
             </div>
           </div>
 
           <div class="text-center text-muted small my-3">
-            Formatos aceitos: <strong>csv</strong> • Tamanho máximo <strong>1.5MB</strong>
+            Formatos aceitos: <strong>CSV</strong> • Tamanho máximo <strong>2&nbsp;MB</strong>
           </div>
 
           <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-            <button type="submit" class="btn btn-primary" id="btn-enviar" disabled>
+            <button type="button" class="btn btn-outline-secondary rounded-3" data-bs-dismiss="modal">Fechar</button>
+            <button type="submit" class="btn btn-primary rounded-3" id="btn-enviar" disabled>
               <span class="spinner-border spinner-border-sm me-2 d-none" id="spn-enviar"></span>
               Enviar
             </button>
@@ -189,7 +231,7 @@
           <div class="flex-grow-1">
             <h5 class="mb-1" id="confirmDeleteLabel">Excluir histórico de upload?</h5>
             <p class="text-muted mb-2">
-              Esta ação remove apenas o <strong>histórico</strong>. 
+              Esta ação remove apenas o <strong>histórico</strong>.
               Os <strong>reviews já importados</strong> não serão apagados.
             </p>
             <div class="small bg-light rounded-3 p-2 px-3" id="confirmDeleteMeta" aria-live="polite"></div>
@@ -197,8 +239,8 @@
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-4">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+          <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger rounded-3" id="confirmDeleteBtn">
             <span class="spinner-border spinner-border-sm me-2 d-none" id="confirmDeleteSpinner"></span>
             Excluir agora
           </button>
@@ -209,84 +251,166 @@
 </div>
 
 <style>
+  :root{
+    --grad-hero: linear-gradient(135deg,#4f46e5 0%, #0ea5e9 45%, #22c55e 100%);
+    --accent-1: #4f46e5;
+    --accent-2: #0ea5e9;
+    --accent-3: #22c55e;
+  }
+  .hero-wrap{ background: var(--grad-hero); color:#fff; }
+  .hero-icon{ width:44px; height:44px; background: rgba(255,255,255,.18); font-size:1.2rem; }
+  .hero-accent{ position:absolute; inset:auto 0 0 auto; height:6px; width:100%;
+    background: linear-gradient(90deg, rgba(255,255,255,.35), transparent); }
   .border-dashed { border-style: dashed !important; }
   #dropzone.dragover { background: rgba(13, 110, 253, .06); border-color: rgba(13, 110, 253, .6) !important; }
-  .upload-card { border: 1px solid rgba(0,0,0,.075); border-radius: 1rem; }
+  .upload-card { border: 1px solid rgba(0,0,0,.075); border-radius: 1rem; transition: transform .08s ease; }
+  .upload-card:hover { transform: translateY(-1px); }
   .upload-actions .btn { border-radius: .6rem; }
   .status-dot { width: .6rem; height: .6rem; border-radius: 50%; display: inline-block; margin-right: .4rem; }
+  .callout-icon{ width:40px; height:40px; background: rgba(79,70,229,.1); color: var(--accent-1); }
+  .bg-grad-green{ background: linear-gradient(135deg,#22c55e,#16a34a); }
+  .bg-grad-blue{ background: linear-gradient(135deg,#0ea5e9,#0284c7); }
+  .bg-grad-orange{ background: linear-gradient(135deg,#f59e0b,#d97706); }
+  .bg-grad-purple{ background: linear-gradient(135deg,#8b5cf6,#6d28d9); }
+  .mini-stat{ box-shadow: inset 0 1px 0 rgba(255,255,255,.18); }
+  .info-card{ background: linear-gradient(180deg, rgba(13,110,253,.06), transparent); }
 </style>
 
 <script>
-/* ========= Helpers ========= */
-function bytesToSize(bytes){if(!bytes&&bytes!==0)return'—';const s=['B','KB','MB','GB'];const i=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),s.length-1);const v=(bytes/Math.pow(1024,i)).toFixed(i===0?0:1);return`${v} ${s[i]}`;}
-function fmtDate(iso){if(!iso)return'—';try{const d=new Date(iso);return d.toLocaleString('pt-BR');}catch{return iso;}}
-function fmtDuration(a,b){if(!a||!b)return'—';try{const ms=Math.max(0,(new Date(b))-(new Date(a)));if(ms<1e3)return`${ms} ms`;const s=Math.round(ms/1e3);if(s<60)return`${s}s`;const m=Math.floor(s/60),rs=s%60;if(m<60)return`${m}m ${rs}s`;const h=Math.floor(m/60),rm=m%60;return`${h}h ${rm}m`;}catch{return'—';}}
-function statusBadge(st){const map={queued:['bg-warning text-dark','Na fila','#f59f00'],processing:['bg-warning text-dark','Processando','#f59f00'],running:['bg-warning text-dark','Em andamento','#f59f00'],success:['bg-success','Concluído','#198754'],error:['bg-danger','Com erros','#dc3545']};return map[st]||['bg-secondary','—','#6c757d'];}
-function esc(s){if(s===null||s===undefined)return'';return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+/* ========= Config ========= */
+const MAX_FILE_BYTES = 2000000; // 2MB
+const POLL_MIN_MS = 3000;
+const POLL_MAX_MS = 20000;
+let pollDelay = POLL_MIN_MS;
+let pollHandle = null;
+let pausedUntil = 0;
 
-/* ========= Persistência do upload ativo ========= */
-const ACTIVE_KEY = 'bookingUploadActive'; // guarda {id, startedAt}
-
-function setActiveUpload(id, startedAt){
-  localStorage.setItem(ACTIVE_KEY, JSON.stringify({id, startedAt: startedAt || new Date().toISOString()}));
+/* ========= Utils ========= */
+function esc(s){ return (s??'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function bytesToSize(bytes){
+  if (bytes === undefined || bytes === null) return '—';
+  const thresh = 1024;
+  if (Math.abs(bytes) < thresh) return bytes + ' B';
+  const units = ['KB','MB','GB','TB'];
+  let u = -1;
+  do { bytes /= thresh; ++u; } while (Math.abs(bytes) >= thresh && u < units.length - 1);
+  return bytes.toFixed(1) + ' ' + units[u];
 }
-function getActiveUpload(){
-  try{const raw=localStorage.getItem(ACTIVE_KEY);return raw?JSON.parse(raw):null;}catch{return null;}
+function statusBadge(status){
+  switch((status||'').toLowerCase()){
+    case 'processing': return ['bg-warning-subtle text-warning-emphasis','Em andamento','#f59e0b'];
+    case 'running': return ['bg-warning-subtle text-warning-emphasis','Em andamento','#f59e0b'];
+    case 'queued': return ['bg-secondary-subtle text-secondary-emphasis','Na fila','#6c757d'];
+    case 'success': return ['bg-success-subtle text-success-emphasis','Concluído','#22c55e'];
+    case 'error': return ['bg-danger-subtle text-danger-emphasis','Erro','#dc3545'];
+    default: return ['bg-light text-muted','—','#adb5bd'];
+  }
 }
-function clearActiveUpload(){ localStorage.removeItem(ACTIVE_KEY); }
-
-/* ========= UI refs ========= */
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('csv-file');
-const chip = document.getElementById('file-chip');
-const fileNameEl = document.getElementById('file-name');
-const fileSizeEl = document.getElementById('file-size');
-const btnRemove = document.getElementById('btn-remove-file');
-const btnEnviar = document.getElementById('btn-enviar');
-const spnEnviar = document.getElementById('spn-enviar');
-const uploadsGrid = document.getElementById('uploads-grid');
-const uploadsEmpty = document.getElementById('uploads-empty');
-const uploadsCount = document.getElementById('uploads-count');
-const uploadsSearch = document.getElementById('uploads-search');
-const banner = document.getElementById('upload-progress-banner');
-const bannerMeta = document.getElementById('banner-meta');
-
-let pollTimer = null;
-let autoRefreshTimer = null;
-
-/* ========= Dropzone ========= */
-function showChip(file){ if(!file)return; fileNameEl.textContent=file.name; fileSizeEl.textContent=bytesToSize(file.size); chip.classList.remove('d-none'); btnEnviar.disabled=false; }
-function clearChip(){ fileInput.value=''; chip.classList.add('d-none'); btnEnviar.disabled=true; }
-['dragenter','dragover'].forEach(ev=>{ dropzone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.add('dragover');});});
-['dragleave','drop'].forEach(ev=>{ dropzone.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();dropzone.classList.remove('dragover');});});
-dropzone.addEventListener('drop',e=>{ const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f){ if(!f.name.toLowerCase().endsWith('.csv')){window.showToast&&showToast('Selecione um arquivo .csv','warning');return;} fileInput.files=e.dataTransfer.files; showChip(f);} });
-fileInput.addEventListener('change',()=>{ const f=fileInput.files[0]; if(f){ if(!f.name.toLowerCase().endsWith('.csv')){clearChip(); window.showToast&&showToast('Selecione um arquivo .csv','warning'); return;} showChip(f);} else { clearChip(); }});
-btnRemove.addEventListener('click', clearChip);
-
-/* ========= Histórico ========= */
-async function loadUploads(){
+function fmtDate(iso){
+  if (!iso) return '—';
   try{
-    const resp = await fetch('{{ url_for("booking.list_uploads") }}');
-    const data = await resp.json();
-    const items = (data && data.uploads) ? data.uploads : [];
-    // filtro
-    const term = (uploadsSearch.value||'').trim().toLowerCase();
-    const filtered = !term ? items : items.filter(u => ((u.filename||'')+' '+(u.status||'')).toLowerCase().includes(term));
-    uploadsCount.textContent = filtered.length;
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR');
+  }catch{ return '—';}
+}
+function fmtDuration(start,end){
+  if (!start || !end) return '—';
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  const ms = Math.max(0,e-s);
+  const sec = Math.round(ms/1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec/60), rem = sec%60;
+  return `${min}min ${rem}s`;
+}
 
-    if(!filtered.length){ uploadsGrid.innerHTML=''; uploadsEmpty.classList.remove('d-none'); return; }
+/* ========= Active upload (localStorage) ========= */
+const ACTIVE_KEY = 'booking_active_upload';
+function setActiveUpload(obj){ try{ localStorage.setItem(ACTIVE_KEY, JSON.stringify(obj||{})); }catch{} }
+function getActiveUpload(){ try{ return JSON.parse(localStorage.getItem(ACTIVE_KEY)||'null'); }catch{ return null; } }
+function clearActiveUpload(){ try{ localStorage.removeItem(ACTIVE_KEY); }catch{} }
+
+/* ========= Polling uploads ========= */
+async function loadUploads(){
+  const now = Date.now();
+  if (now < pausedUntil) return;
+
+  let resp, data;
+  try{
+    resp = await fetch('{{ url_for("booking.list_uploads") }}', { cache: 'no-store' });
+    if (resp.status === 429){
+      pollDelay = Math.min(POLL_MAX_MS, Math.round(pollDelay * 1.6));
+      pausedUntil = Date.now() + pollDelay;
+      return;
+    }
+    if (resp.status === 401){
+      stopPolling();
+      const banner = document.getElementById('upload-progress-banner');
+      if (banner) banner.classList.add('d-none');
+      return;
+    }
+    pollDelay = POLL_MIN_MS;
+    data = await resp.json();
+  }catch(e){
+    pollDelay = Math.min(POLL_MAX_MS, Math.round(pollDelay * 1.6));
+    pausedUntil = Date.now() + pollDelay;
+    return;
+  }
+
+  const items = (data && data.uploads) ? data.uploads : [];
+
+  const uploadsGrid = document.getElementById('uploads-grid');
+  const uploadsEmpty = document.getElementById('uploads-empty');
+  const uploadsCount = document.getElementById('uploads-count');
+  const uploadsSearch = document.getElementById('uploads-search');
+  const banner = document.getElementById('upload-progress-banner');
+  const bannerMeta = document.getElementById('banner-meta');
+  if(!uploadsGrid || !uploadsEmpty || !uploadsCount || !banner || !bannerMeta) return;
+
+  const term = (uploadsSearch && uploadsSearch.value ? uploadsSearch.value : '').trim().toLowerCase();
+  let filtered = !term ? items : items.filter(u => ((u.filename||'')+' '+(u.status||'')).toLowerCase().includes(term));
+
+  // Em processamento primeiro
+  filtered.sort((a,b)=>{
+    const order = s => ({processing:0, running:0, queued:1, error:2, success:3}[String(s||'').toLowerCase()] ?? 4);
+    const da = order(a.status), db = order(b.status);
+    if (da !== db) return da - db;
+    const ta = a.started_at ? new Date(a.started_at).getTime() : 0;
+    const tb = b.started_at ? new Date(b.started_at).getTime() : 0;
+    return tb - ta;
+  });
+
+  uploadsCount.textContent = filtered.length;
+
+  if(!filtered.length){
+    uploadsGrid.innerHTML='';
+    uploadsEmpty.classList.remove('d-none');
+  }else{
     uploadsEmpty.classList.add('d-none');
-
     uploadsGrid.innerHTML = filtered.map(u=>{
       const [cls,label,dot] = statusBadge(u.status);
       const hasErrors = Array.isArray(u.errors) && u.errors.length>0;
+      const processed = (u.inserted||0) + (u.duplicates||0) + (u.skipped||0);
+      const showProgress = ['processing','running','queued'].includes((u.status||'').toLowerCase());
+      const progressBar = showProgress ? `
+        <div class="mt-3">
+          <div class="d-flex justify-content-between align-items-center small mb-1">
+            <span class="text-muted">Progresso</span>
+            <span class="text-muted">${processed} processadas</span>
+          </div>
+          <div class="progress" role="progressbar" aria-label="Progresso do upload" style="height:8px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%"></div>
+          </div>
+        </div>
+      ` : '';
+
       return `
-      <div class="col-12 col-md-6">
-        <div class="upload-card p-3 h-100">
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="upload-card p-3 h-100 bg-white">
           <div class="d-flex justify-content-between align-items-start">
             <div class="me-2">
               <div class="fw-semibold text-truncate" title="${esc(u.filename||'—')}">
-                <i class="bi bi-file-earmark-arrow-up me-1"></i>${esc(u.filename||'—')}
+                <i class="bi bi-file-earmark-arrow-up text-primary me-1"></i>${esc(u.filename||'—')}
               </div>
               <div class="text-muted small">${bytesToSize(u.filesize)} • ID ${u.id}</div>
             </div>
@@ -302,155 +426,294 @@ async function loadUploads(){
             <div class="col-12"><div class="text-muted small">Duração</div><div>${fmtDuration(u.started_at,u.finished_at)}</div></div>
           </div>
 
+          ${progressBar}
+
           <div class="d-flex justify-content-between align-items-center mt-3 upload-actions">
             <button class="btn btn-sm btn-outline-secondary" data-action="toggle-errors" data-id="${u.id}" ${!hasErrors?'disabled':''}>
               <i class="bi bi-exclamation-triangle me-1"></i> Detalhes
             </button>
-            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${u.id}">
+            <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${u.id}" data-filename="${esc(u.filename||'')}" data-size="${u.filesize||0}">
               <i class="bi bi-trash me-1"></i> Excluir
             </button>
           </div>
 
           <div class="mt-2" id="errors-${u.id}" style="display:none;">
             <div class="text-muted small mb-1">Erros/Avisos:</div>
-            <pre class="bg-light p-2 rounded" style="max-height:160px; overflow:auto;">${hasErrors?esc(u.errors.join('\n')):''}</pre>
+            <pre class="bg-light p-2 rounded-3" style="max-height:160px; overflow:auto;">${hasErrors?esc((u.errors||[]).join('\n')):''}</pre>
           </div>
         </div>
       </div>`;
     }).join('');
+  }
 
-    // Atualiza banner se há um ativo
-    const active = getActiveUpload();
-    if(active){
-      const it = items.find(x=>String(x.id)===String(active.id));
-      if(it){
-        const [cls,label,_dot] = statusBadge(it.status);
-        bannerMeta.innerHTML = `
-          <span class="badge ${cls} me-2">${label}</span>
-          Inseridas: <strong>${it.inserted??0}</strong> • Duplicadas: <strong>${it.duplicates??0}</strong> • Ignoradas: <strong>${it.skipped??0}</strong>
-          ${it.finished_at?` • Finalizado: ${fmtDate(it.finished_at)}`:''}
-        `;
-        // fim de processamento: limpa ativo
-        if(it.status==='success' || it.status==='error'){
-          clearActiveUpload();
-          stopPolling();
-          banner.classList.add('d-none');
-        }else{
-          banner.classList.remove('d-none');
-        }
+  // Banner de progresso do upload ativo
+  const active = getActiveUpload();
+  if(active){
+    const it = items.find(x=>String(x.id)===String(active.id));
+    if(it){
+      const [cls,label,_dot] = statusBadge(it.status);
+      const processed = (it.inserted||0) + (it.duplicates||0) + (it.skipped||0);
+      bannerMeta.innerHTML = `
+        <span class="badge ${cls} me-2">${label}</span>
+        Processadas: <strong>${processed}</strong>
+        • Inseridas: <strong>${it.inserted??0}</strong>
+        • Duplicadas: <strong>${it.duplicates??0}</strong>
+        • Ignoradas: <strong>${it.skipped??0}</strong>
+        ${it.finished_at?` • Finalizado: ${fmtDate(it.finished_at)}`:''}
+      `;
+      if(String(it.status).toLowerCase()==='success' || String(it.status).toLowerCase()==='error'){
+        clearActiveUpload(); stopPolling(); banner.classList.add('d-none');
       }else{
-        // não encontrou no histórico (talvez já removido)
-        banner.classList.add('d-none');
+        banner.classList.remove('d-none');
       }
     }else{
       banner.classList.add('d-none');
     }
-
-  }catch(e){
-    // silencioso
+  }else{
+    banner.classList.add('d-none');
   }
 }
 
 function startPolling(){
   stopPolling();
-  pollTimer = setInterval(loadUploads, 2500);
-  // enquanto houver ativo, também força refresh do grid
-  autoRefreshTimer = setInterval(loadUploads, 5000);
+  const tick = async ()=>{ await loadUploads(); pollHandle = setTimeout(tick, pollDelay); };
+  pollHandle = setTimeout(tick, pollDelay);
 }
 function stopPolling(){
-  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
-  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+  if (pollHandle){ clearTimeout(pollHandle); pollHandle = null; }
+  pollDelay = POLL_MIN_MS; pausedUntil = 0;
 }
 
-/* ========= Delegação de eventos nos cards ========= */
-uploadsGrid.addEventListener('click', async (e)=>{
-  const btn = e.target.closest('button[data-action]');
-  if(!btn) return;
-  const id = btn.getAttribute('data-id');
-  const action = btn.getAttribute('data-action');
+/* ========= FILE INPUT + DROPZONE ========= */
+function isCsvFile(file){
+  if (!file) return false;
+  const nameOk = /\.csv$/i.test(file.name);
+  const mimeOk = [
+    'text/csv',
+    'application/csv',
+    'application/vnd.ms-excel',
+    'text/plain'
+  ].includes((file.type||'').toLowerCase());
+  return nameOk || mimeOk; // extensão OU mime compatível
+}
 
-  // pega CSRF do formulário, se existir
+function attachUploadUI(){
+  const fileInput = document.getElementById('csv-file');
+  const btnEnviar = document.getElementById('btn-enviar');
+  const spnEnviar = document.getElementById('spn-enviar');
+  const chip = document.getElementById('file-chip');
+  const fileName = document.getElementById('file-name');
+  const fileSize = document.getElementById('file-size');
+  const btnRemove = document.getElementById('btn-remove-file');
+  const dropzone = document.getElementById('dropzone');
   const form = document.getElementById('form-upload');
-  let csrfVal = '';
-  if(form){
-    const csrfEl = form.querySelector('input[name="csrf_token"]');
-    if(csrfEl) csrfVal = csrfEl.value;
+
+  function resetUI(){
+    btnEnviar.disabled = true;
+    chip.classList.add('d-none');
+    fileName.textContent = 'arquivo.csv';
+    fileSize.textContent = '—';
   }
 
-  if(action==='toggle-errors'){
-    const box = document.getElementById(`errors-${id}`);
-    if(box) box.style.display = (box.style.display==='none'||!box.style.display)?'block':'none';
+  function setFile(file){
+    if (!file){ resetUI(); return; }
+    if (!isCsvFile(file)){
+      alert('Arquivo inválido: envie um CSV (.csv).');
+      fileInput.value = '';
+      resetUI();
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES){
+      alert('Arquivo muito grande. Máximo permitido: 2 MB.');
+      fileInput.value = '';
+      resetUI();
+      return;
+    }
+    fileName.textContent = file.name;
+    fileSize.textContent = bytesToSize(file.size);
+    chip.classList.remove('d-none');
+    btnEnviar.disabled = false;
   }
 
-  if(action==='delete'){
-    if(!confirm('Confirma excluir este histórico de upload?')) return;
+  fileInput.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    setFile(f || null);
+  });
+  btnRemove.addEventListener('click', ()=>{
+    fileInput.value = '';
+    resetUI();
+  });
+
+  ['dragenter','dragover','dragleave','drop'].forEach(evt=>{
+    dropzone.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); });
+  });
+  ['dragenter','dragover'].forEach(evt=>{
+    dropzone.addEventListener(evt, ()=> dropzone.classList.add('dragover'));
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    dropzone.addEventListener(evt, ()=> dropzone.classList.remove('dragover'));
+  });
+  dropzone.addEventListener('drop', (e)=>{
+    const dt = e.dataTransfer;
+    const files = dt && dt.files ? dt.files : null;
+    if (files && files.length){
+      fileInput.files = files; // popula o input
+      setFile(files[0]);
+    }
+  });
+
+  // Submit com fetch => usa resposta {success, status, upload_id}
+  form.addEventListener('submit', async (e)=>{
+    if (btnEnviar.disabled) { e.preventDefault(); return; }
     try{
-      const resp = await fetch(`{{ url_for("booking.delete_upload_log", log_id=0) }}`.replace('0', id), {
-        method: 'DELETE',
-        headers: csrfVal ? { 'X-CSRFToken': csrfVal } : {}
+      e.preventDefault();
+      btnEnviar.disabled = true; spnEnviar.classList.remove('d-none');
+
+      const fd = new FormData(form);
+      const resp = await fetch(form.action, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'fetch' }
       });
+
+      const contentType = resp.headers.get('Content-Type') || '';
+      if (!contentType.includes('application/json')){
+        spnEnviar.classList.add('d-none');
+        form.submit(); // fallback
+        return;
+      }
+
       const data = await resp.json();
-      if(data && data.success){ window.showToast&&showToast('Histórico excluído.','success'); await loadUploads(); }
-      else { window.showToast&&showToast(data.error||'Falha ao excluir.','danger'); }
-    }catch{ window.showToast&&showToast('Falha ao excluir.','danger'); }
-  }
-});
+      // Backend atual retorna: { success: true, status: "queued", upload_id }
+      if (data && data.success){
+        setActiveUpload({ id: data.upload_id, started_at: Date.now() });
+        const banner = document.getElementById('upload-progress-banner');
+        if (banner) banner.classList.remove('d-none');
+        resetUI();
+        fileInput.value = '';
+        const modalEl = document.getElementById('uploadModal');
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+        startPolling();
+        // força um paint do grid já
+        await loadUploads();
+      }else{
+        alert((data && data.error) ? `Erro: ${data.error}` : 'Erro ao iniciar o upload.');
+        btnEnviar.disabled = false;
+      }
+    }catch(err){
+      spnEnviar.classList.add('d-none');
+      form.submit();
+    }
+  });
 
-/* ========= Envio do arquivo (resposta: queued) ========= */
-document.getElementById('form-upload').addEventListener('submit', async function(e){
-  e.preventDefault();
-  const file = fileInput.files[0];
-  if(!file){ window.showToast&&showToast('Selecione um arquivo CSV.','warning'); return; }
+  const modalEl = document.getElementById('uploadModal');
+  modalEl.addEventListener('show.bs.modal', resetUI);
+}
 
-  btnEnviar.disabled = true; spnEnviar.classList.remove('d-none');
+/* ========= Ações no grid (toggle errors / delete) ========= */
+function bindGridActions(){
+  const grid = document.getElementById('uploads-grid');
+  const deleteModalEl = document.getElementById('confirmDeleteModal');
+  const confirmBtn = document.getElementById('confirmDeleteBtn');
+  const confirmSpinner = document.getElementById('confirmDeleteSpinner');
+  const confirmMeta = document.getElementById('confirmDeleteMeta');
+  const bsModal = new bootstrap.Modal(deleteModalEl);
 
-  const formData = new FormData(this);
-  let csrfVal = ''; const csrfEl = this.querySelector('input[name="csrf_token"]'); if(csrfEl) csrfVal = csrfEl.value;
+  let deleteTargetId = null;
 
-  try{
-    const resp = await fetch(this.action, { method:'POST', headers: csrfVal?{'X-CSRFToken':csrfVal}:{}, body: formData });
-    const data = await resp.json();
+  grid.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const id = btn.getAttribute('data-id');
 
-    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
-    const modal = bootstrap.Modal.getInstance(document.getElementById('uploadModal')); if(modal) modal.hide();
-    clearChip();
-
-    if(data && data.success && data.status==='queued' && data.upload_id){
-      // marca ativo, mostra banner e inicia polling
-      setActiveUpload(String(data.upload_id));
-      bannerMeta.textContent = 'Na fila…'; banner.classList.remove('d-none');
-      startPolling();
-      window.showToast&&showToast('Arquivo recebido. Processando em segundo plano.','info');
-    }else{
-      window.showToast&&showToast(data.error||'Não foi possível iniciar o processamento.','danger');
+    if (action === 'toggle-errors'){
+      const pane = document.getElementById(`errors-${id}`);
+      if (pane){ pane.style.display = (pane.style.display==='none' || !pane.style.display) ? 'block' : 'none'; }
+      return;
     }
 
-    // atualiza histórico imediatamente
-    await loadUploads();
+    if (action === 'delete'){
+      deleteTargetId = id;
+      const fname = btn.getAttribute('data-filename') || '';
+      const fsize = Number(btn.getAttribute('data-size') || 0);
+      confirmMeta.textContent = `ID ${id}${fname ? ' • ' + fname : ''}${fsize ? ' • ' + bytesToSize(fsize) : ''}`;
+      confirmSpinner.classList.add('d-none');
+      confirmBtn.disabled = false;
+      bsModal.show();
+      return;
+    }
+  });
 
-  }catch(err){
-    btnEnviar.disabled = false; spnEnviar.classList.add('d-none');
-    window.showToast&&showToast('Falha ao enviar o arquivo.','danger');
-  }
-});
+  confirmBtn.addEventListener('click', async ()=>{
+    if (!deleteTargetId) return;
+    confirmBtn.disabled = true;
+    confirmSpinner.classList.remove('d-none');
 
-/* ========= Botões auxiliares ========= */
-document.getElementById('btn-refresh-uploads').addEventListener('click', loadUploads);
-uploadsSearch.addEventListener('input', loadUploads);
-document.getElementById('btn-checar').addEventListener('click', async function(){
-  try{
-    const resp = await fetch('{{ url_for("booking.count_booking_reviews") }}');
-    const data = await resp.json();
-    window.showToast&&showToast(`Você tem ${data.count??0} avaliações do Booking importadas.`, 'info');
-  }catch{ window.showToast&&showToast('Não foi possível checar agora.', 'warning'); }
-});
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const headers = { 'X-Requested-With': 'fetch' };
+    if (csrfMeta) headers['X-CSRFToken'] = csrfMeta.content;
 
-/* ========= Boot: retomar se havia upload ativo ========= */
+    try{
+      const resp = await fetch(`{{ url_for('booking.delete_upload_log', log_id=0) }}`.replace('0',''+deleteTargetId), {
+        method: 'DELETE',
+        headers
+      });
+      const ok = resp.ok;
+      const data = ok ? await resp.json() : null;
+      if (!ok || !(data && data.success)){
+        alert((data && data.error) ? `Erro: ${data.error}` : 'Falha ao excluir.');
+      }else{
+        // se estávamos acompanhando esse upload, limpa banner
+        const active = getActiveUpload();
+        if (active && String(active.id) === String(deleteTargetId)){
+          clearActiveUpload();
+          document.getElementById('upload-progress-banner')?.classList.add('d-none');
+        }
+        await loadUploads();
+      }
+    }catch(err){
+      alert('Erro de rede ao excluir.');
+    }finally{
+      confirmSpinner.classList.add('d-none');
+      confirmBtn.disabled = false;
+      bsModal.hide();
+      deleteTargetId = null;
+    }
+  });
+}
+
+/* ========= Checar quantidade importada ========= */
+async function bindCheckCount(){
+  document.getElementById('btn-checar')?.addEventListener('click', async ()=>{
+    try{
+      const resp = await fetch('{{ url_for("booking.count_booking_reviews") }}', { cache: 'no-store' });
+      const data = await resp.json();
+      if (data && data.success){
+        alert(`Total de avaliações do Booking importadas: ${data.count}`);
+      }else{
+        alert('Não foi possível obter a contagem agora.');
+      }
+    }catch{
+      alert('Erro ao consultar a contagem.');
+    }
+  });
+}
+
+/* ========= Boot ========= */
 document.addEventListener('DOMContentLoaded', async ()=>{
+  attachUploadUI();
+  bindGridActions();
+  bindCheckCount();
+
+  document.getElementById('btn-refresh-uploads')?.addEventListener('click', loadUploads);
+  document.getElementById('uploads-search')?.addEventListener('input', loadUploads);
+
   await loadUploads();
   const active = getActiveUpload();
-  if(active){ banner.classList.remove('d-none'); startPolling(); }
+  const banner = document.getElementById('upload-progress-banner');
+  if(active && banner){ banner.classList.remove('d-none'); startPolling(); }
 });
 </script>
 {% endblock %}
- 

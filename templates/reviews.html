@@ -14,12 +14,7 @@
         <i class="bi bi-robot me-1"></i>
         Ativar Respostas Automáticas
       </a>
-
-      <!-- Upload Booking -->
-      <a href="{{ url_for('booking.form_upload') }}" class="btn btn-outline-warning">
-        <i class="bi bi-upload me-1"></i>
-        Importar CSV (Booking)
-      </a>
+      {# Botão de Importar CSV (Booking) removido a pedido #}
     </div>
 
     <div class="d-flex flex-wrap align-items-end gap-3">
@@ -367,7 +362,7 @@ function deleteReply(id) {
     })
     .catch(err => {
       console.error('delete_reply error:', err);
-      showToast('Erro de comunicação: ' + err.message, 'danger');
+      showToast('Erro de comunicação: ' + err.message', 'danger');
     });
   });
 }

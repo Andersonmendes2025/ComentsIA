@@ -1,48 +1,44 @@
-import os
-import json
-import logging
-import base64
-import io
+# --- std/3rd-party ---
+import os, json, logging, base64, io
 from functools import wraps
 from collections import Counter
 from datetime import datetime, timedelta
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 import flask
 import pytz
-from sqlalchemy import or_
 import numpy as np
 import pandas as pd
-from sqlalchemy import desc
-from flask_wtf.csrf import generate_csrf
+from admin import user_can 
+from sqlalchemy import or_, desc
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from flask import session
+
 from flask import (
     Flask, render_template, request, redirect, url_for,
     session, jsonify, flash, send_file, g
 )
-from flask_talisman import Talisman
-from dotenv import load_dotenv
-from markupsafe import Markup
-
-# Flask extensions
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy   # (se não usar diretamente, pode remover)
 from flask_migrate import Migrate, upgrade
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
 from flask_talisman import Talisman
-from routes_metrics import metrics_bp
 
-# Sentry
+from dotenv import load_dotenv
+from markupsafe import Markup
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
 
 # Google / OpenAI
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
-import googleapiclient.discovery
 from googleapiclient.discovery import build
 from openai import OpenAI
 
-# App models e módulos locais
+# --- app modules ---
+from admin import admin_bp, get_plan_prices, seed_roles_permissions
+from admin import get_pricing_catalog, get_plan_display_name, get_plan_duration_days
+from routes_metrics import metrics_bp
 from models import (
     db, User, Review, UserSettings, RelatorioHistorico,
     FilialVinculo, RespostaEspecialUso, ConsideracoesUso
@@ -52,6 +48,7 @@ from utils.crypto import encrypt, decrypt
 from email_utils import montar_email_conta_apagada, montar_email_boas_vindas, enviar_email
 from matriz import matriz_bp
 from auto_reply_setup import auto_reply_bp
+
 
 # -------------------------------------------------------------------
 # LOG / ENV
@@ -93,9 +90,25 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",   # bom para OAuth
 )
 
+
+# 👉 primeiro inicializa DB e Migrate
 db.init_app(app)
 migrate = Migrate(app, db)
-app.register_blueprint(metrics_bp) 
+
+# 👉 depois registra os blueprints
+app.register_blueprint(admin_bp)
+
+# 👉 só então roda o seed (dentro do app_context)
+from sqlalchemy import inspect
+
+with app.app_context():
+    insp = inspect(db.engine)
+    if insp.has_table("roles"):
+        seed_roles_permissions()
+    else:
+        app.logger.info("Seed pulado: tabela 'roles' ainda não existe.")
+
+ 
 # CSRF global
 csrf = CSRFProtect(app)
 
@@ -535,20 +548,23 @@ def save_user_settings(user_id, settings_data):
     db.session.commit()
 
 
-
-
 @app.route("/planos", methods=["GET", "POST"])
 def planos():
     user_info = session.get("user_info", {})
     user_id = user_info.get("id") if user_info else None
+
+    # Catálogo centralizado de planos (inclui preços para o template)
+    catalog = get_pricing_catalog()  # ex.: {"free": {...}, "pro": {...}, "pro_anual": {...}, ...}
 
     if request.method == "POST":
         if not user_id:
             flash("Você precisa estar logado para alterar o plano.", "warning")
             return redirect(url_for("authorize"))
 
-        novo_plano = request.form.get("plano", "").strip()
-        if novo_plano not in PLANOS:
+        novo_plano = (request.form.get("plano") or "").strip()
+
+        # valida contra o catálogo vindo do admin.py
+        if not novo_plano or novo_plano not in catalog:
             flash("Plano inválido.", "danger")
             return redirect(url_for("planos"))
 
@@ -558,16 +574,15 @@ def planos():
             return redirect(url_for("planos"))
 
         if settings.plano == novo_plano:
-            flash(f"Você já está no plano {PLANOS[novo_plano]['nome']}.", "info")
+            flash(f"Você já está no plano {get_plan_display_name(novo_plano)}.", "info")
             return redirect(url_for("planos"))
 
+        # aplica o novo plano
         settings.plano = novo_plano
 
-        if novo_plano != "free":
-            dias_validade = 365 if novo_plano.endswith("_anual") else 30
-            settings.plano_ate = agora_brt() + timedelta(days=dias_validade)
-        else:
-            settings.plano_ate = None
+        # validade centralizada (0 = sem validade para 'free')
+        dias_validade = get_plan_duration_days(novo_plano)
+        settings.plano_ate = None if dias_validade == 0 else agora_brt() + timedelta(days=dias_validade)
 
         try:
             db.session.commit()
@@ -576,62 +591,20 @@ def planos():
             flash("Erro ao salvar alterações. Tente novamente.", "danger")
             return redirect(url_for("planos"))
 
-        flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
+        flash(f"Plano alterado para {get_plan_display_name(novo_plano)} com sucesso!", "success")
         return redirect(url_for("index"))
 
     # GET
     user_plano = get_user_plan(user_id) if user_id else "free"
-    return render_template("planos.html", planos=PLANOS, user_plano=user_plano)
 
-
-from flask import abort
-from markupsafe import escape
-
-@app.route("/alterar_plano", methods=["POST"])
-def alterar_plano():
-    # Requer login
-    if "credentials" not in session:
-        flash("Você precisa estar logado para alterar o plano.", "warning")
-        return redirect(url_for("authorize"))
-
-    user_info = session.get("user_info") or {}
-    user_id = user_info.get("id")
-    if not user_id:
-        flash("Usuário não identificado.", "danger")
-        return redirect(url_for("logout"))
-
-    # Anti-IDOR simples: sempre aplicar no próprio usuário da sessão
-    novo_plano = (request.form.get("plano") or "").strip()
-    if novo_plano not in PLANOS:
-        flash("Plano inválido.", "danger")
-        return redirect(url_for("planos"))
-
-    settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if not settings:
-        # Cria se não existir (mantém fluxo atual)
-        settings = UserSettings(user_id=user_id)
-        db.session.add(settings)
-
-    if settings.plano == novo_plano:
-        flash(f"Você já está no plano {PLANOS[novo_plano]['nome']}.", "info")
-        return redirect(url_for("planos"))
-
-    # Atualiza plano e validade
-    settings.plano = novo_plano
-    dias_validade = 365 if novo_plano.endswith("_anual") else (30 if novo_plano != "free" else None)
-    settings.plano_ate = (agora_brt() + timedelta(days=dias_validade)) if dias_validade else None
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        # Evita vazar detalhes internos
-        flash("Erro ao salvar alterações. Tente novamente em instantes.", "danger")
-        return redirect(url_for("planos"))
-
-    flash(f"Plano alterado para {PLANOS[novo_plano]['nome']} com sucesso!", "success")
-    return redirect(url_for("planos"))
-
+    # Passa o catálogo completo (com preços centralizados) para o template
+    # Cada item do catalog deve ter, por exemplo:
+    #   {"nome": "Pro", "period": "monthly", "price_cents": 9900, "features": {...}, ...}
+    return render_template(
+        "planos.html",
+        planos=catalog,
+        user_plano=user_plano,
+    )
 
 
 @app.route("/")
@@ -721,25 +694,47 @@ def ratelimit_handler(e):
         destino = url_for("index")
     return redirect(destino), 429
 
+@app.context_processor
+def inject_can():
+    def can(perm: str, mode: str = "read") -> bool:
+        """Usa a sessão para checar se o usuário atual possui a permissão."""
+        uid = (session.get("user_info") or {}).get("id")
+        if not uid:
+            return False
+        try:
+            return user_can(uid, perm, mode)
+        except Exception:
+            return False
+    return dict(can=can)
 
 
+from flask import url_for, session
 
 @app.context_processor
-def inject_user_flags():
-    user_info = session.get("user_info") or {}
-    email = (user_info.get("email") or "").strip().lower()
-    admin_emails_norm = [e.strip().lower() for e in ADMIN_EMAILS]
-    is_admin = email in admin_emails_norm
+def inject_admin_nav():
+    uid = (session.get("user_info") or {}).get("id")
+    links = []
+    if uid:
+        def add_link(perm, mode, url, icon, label):
+            try:
+                if user_can(uid, perm, mode):
+                    links.append({"url": url, "icon": icon, "label": label})
+            except Exception:
+                pass
 
-    # logado = tem credenciais e um id válido
-    logged_in = ("credentials" in session) and bool(user_info.get("id"))
+        # mapeie aqui suas telas ↔ permissões
+        add_link("dashboard.view", "read", url_for("admin.dashboard"), "bi-speedometer2", "Dashboard")  # NOVO
+        add_link("tickets.view", "read", url_for("admin.tickets_board"), "bi-life-preserver", "Tickets")
+        add_link("finance.view", "read", url_for("admin.dashboard"), "bi-cash-coin", "Financeiro")
+        add_link("emails.view", "read", url_for("admin.broadcast"), "bi-megaphone", "Disparo de E-mails")
+        add_link("access.manage_roles", "write", url_for("admin.access"), "bi-people-gear", "Papéis & Permissões")
+        add_link("pricing.view", "read", url_for("admin.pricing"), "bi-tags", "Pricing")
+        add_link("coupons.view", "read", url_for("admin.coupons"), "bi-ticket-perforated", "Cupons")
+        add_link("finance.view", "read", url_for("admin.finance_items"), "bi-receipt", "Impostos & Custos")
 
-    # Disponibiliza para TODOS os templates:
-    return dict(
-        is_admin=is_admin,
-        logged_in=logged_in,
-        user=user_info,        # use {{ user.name }}, {{ user.picture }}, etc.
-    )
+
+    # has_admin = True quando houver ao menos um link autorizado
+    return dict(admin_links=links, has_admin=bool(links))
 
 @app.context_processor
 def inject_user_flags():

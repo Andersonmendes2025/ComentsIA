@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Admin — Cupons{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    :root{
+      --card-border: rgba(143,164,255,.16);
+      --glass-top: rgba(255,255,255,.06);
+      --glass-bot: rgba(255,255,255,.03);
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --glass-top: rgba(0,0,0,.02);
+        --glass-bot: rgba(0,0,0,.01);
+        --card-border: rgba(0,0,0,.08);
+      }
+    }
+    .glass{
+      background: linear-gradient(180deg, var(--glass-top), var(--glass-bot));
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 18px;
+    }
+    .btn-neon{
+      border: 1px solid rgba(138,91,255,.5);
+      transition: box-shadow .2s, transform .06s;
+    }
+    .btn-neon:hover{ box-shadow: 0 0 24px 2px rgba(138,91,255,.25); }
+    .btn-neon:active{ transform: translateY(1px); }
+    .badge-soft{ background: rgba(0,0,0,.04); border: 1px solid var(--card-border); }
+    @media (prefers-color-scheme: dark){
+      .badge-soft{ background: rgba(255,255,255,.08); }
+    }
+  </style>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h5 m-0">Cupons</h1>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Dashboard
+      </a>
+      <button class="btn btn-sm btn-neon" data-bs-toggle="modal" data-bs-target="#couponModal">
+        <i class="bi bi-plus"></i> Novo cupom
+      </button>
+    </div>
+  </div>
+
+  <div class="glass">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Descrição</th>
+            <th>Tipo</th>
+            <th>Desconto</th>
+            <th>Válido</th>
+            <th>Usos</th>
+            <th>Recorrente</th>
+            <th>Status</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in coupons %}
+          <tr>
+            <td><span class="badge badge-soft rounded-pill px-2">{{ c.code }}</span></td>
+            <td class="text-truncate" style="max-width:280px">{{ c.description or '—' }}</td>
+            <td class="text-capitalize">{{ c.discount_type }}</td>
+            <td>
+              {% if c.discount_type == 'percent' %}
+                {{ c.discount_value|int }}%
+              {% else %}
+                R$ {{ ('{:.2f}'.format(((c.discount_value or 0)/100.0))).replace('.', ',') }}
+              {% endif %}
+            </td>
+            <td>
+              {% if c.valid_from %}{{ c.valid_from.strftime('%d/%m/%Y') }}{% else %}—{% endif %}
+              —
+              {% if c.valid_until %}{{ c.valid_until.strftime('%d/%m/%Y') }}{% else %}∞{% endif %}
+            </td>
+            <td>{{ c.uses_count or 0 }}/{{ c.max_uses or '∞' }}</td>
+            <td>{% if c.recurring %}<span class="badge text-bg-info">Sim</span>{% else %}<span class="badge text-bg-secondary">Não</span>{% endif %}</td>
+            <td>{% if c.active %}<span class="badge text-bg-success">Ativo</span>{% else %}<span class="badge text-bg-secondary">Inativo</span>{% endif %}</td>
+            <td class="text-end">
+              <a href="{{ url_for('admin.coupon_edit', coupon_id=c.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{{ url_for('admin.coupon_toggle', coupon_id=c.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-sm btn-outline-secondary">{{ 'Desativar' if c.active else 'Ativar' }}</button>
+              </form>
+              <form method="post" action="{{ url_for('admin.coupon_delete', coupon_id=c.id) }}" class="d-inline" onsubmit="return confirm('Remover este cupom?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="text-center text-muted py-4">Nenhum cupom criado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo Cupom -->
+<div class="modal fade" id="couponModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <!-- Pode postar em admin.coupon_create OU admin.coupons (POST) -->
+    <form class="modal-content" method="post" action="{{ url_for('admin.coupon_create') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="modal-header">
+        <h5 class="modal-title">Novo cupom</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Código</label>
+            <input name="code" class="form-control" required placeholder="PROMO10">
+          </div>
+          <div class="col-md-8">
+            <label class="form-label">Descrição</label>
+            <input name="description" class="form-control" placeholder="Texto visível no checkout (opcional)">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Tipo</label>
+            <select name="discount_type" class="form-select">
+              <option value="percent">Percentual (%)</option>
+              <option value="fixed">Fixo (centavos)</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Valor</label>
+            <input name="discount_value" class="form-control" placeholder="Ex.: 10 ou 990" required>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Máx. usos (0 = ilimitado)</label>
+            <input name="max_uses" type="number" class="form-control" min="0" value="0">
+          </div>
+
+          <div class="col-md-4 d-flex align-items-center">
+            <div class="form-check mt-4">
+              <input class="form-check-input" type="checkbox" id="recurring" name="recurring">
+              <label class="form-check-label" for="recurring">Recorrente</label>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Início</label>
+            <input type="datetime-local" name="valid_from" class="form-control">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Fim</label>
+            <input type="datetime-local" name="valid_until" class="form-control">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-check2-circle"></i> Criar cupom
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Admin — Preços{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    :root{
+      --ink:#0f172a; --ink-muted:#475569; --surface:#ffffff; --bg:#f8fafc;
+      --border:rgba(2,6,23,.12); --shadow:0 10px 24px rgba(2,6,23,.08);
+      --brand:#2563eb; --accent:#8b5cf6;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink:#e5edff; --ink-muted:#9fb0d3; --surface:#0f1629; --bg:#0b1020;
+        --border:rgba(143,164,255,.18); --shadow:0 14px 28px rgba(0,0,0,.35);
+      }
+    }
+    body{ background:var(--bg); }
+    .card-plan{
+      background:var(--surface); border:1px solid var(--border); border-radius:16px;
+      padding:16px; box-shadow:var(--shadow); height:100%;
+    }
+    .chip{
+      font-size:.8rem; color:var(--ink-muted);
+      border:1px solid var(--border); border-radius:999px; padding:.15rem .5rem;
+    }
+    .btn-neon{
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.04));
+      color:var(--ink);
+    }
+    .btn-neon:hover{ transform:translateY(-1px); box-shadow:var(--shadow); }
+    .price-preview{ font-weight:700; }
+    .form-text{ color:var(--ink-muted) !important; }
+    .muted{ color:var(--ink-muted); }
+  </style>
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h5 m-0">Catálogo de Planos</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-neon">
+      <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+  </div>
+
+  <!--
+    IMPORTANTE:
+    Teu admin.py salva apenas {plan_key}_cents.
+    Mantive esse name para não quebrar. Os demais campos aparecem como leitura.
+  -->
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="row g-3">
+      {% for key, plan in planos.items() %}
+      <div class="col-12 col-lg-6">
+        <div class="card-plan">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex align-items-center gap-2">
+              <h5 class="m-0">{{ plan.nome }}</h5>
+              <span class="chip">
+                {{ 'anual' if plan.duration_days >= 365 else ('mensal' if plan.duration_days >= 30 else 'livre') }}
+              </span>
+            </div>
+            <span class="muted">key: <code>{{ key }}</code></span>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label">Preço (centavos)</label>
+              <!-- COMPAT com admin.py: espera f"{plan_key}_cents" -->
+              <input type="number" class="form-control" name="{{ key }}_cents"
+                     value="{{ plan.price_cents|default(0) }}" min="0" step="1"
+                     oninput="this.closest('.card-plan').querySelector('.price-preview').textContent = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((this.value||0)/100)">
+              <div class="form-text">Prévia: <span class="price-preview">{{ ('R$ ' ~ ('%.2f' % (plan.price_cents/100.0))).replace('.', ',') }}</span></div>
+            </div>
+            <div class="col-5">
+              <label class="form-label">Moeda</label>
+              <input type="text" class="form-control" value="{{ plan.currency|default('BRL') }}" readonly>
+              <div class="form-text">Definido no sistema</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Duração (dias)</label>
+              <input type="number" class="form-control" value="{{ plan.duration_days|default(0) }}" readonly>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Status</label>
+              <input type="text" class="form-control" value="{{ 'Ativo' if plan.price_cents>0 or key=='free' else 'Inativo' }}" readonly>
+            </div>
+          </div>
+
+          {% if plan.features %}
+          <hr class="my-3">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Respostas/mês</label>
+              <input type="number" class="form-control" value="{{ plan.features.avaliacoes_mes }}" readonly>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Relatórios PDF/mês</label>
+              <input type="number" class="form-control" value="{{ plan.features.relatorio_pdf_mes }}" readonly>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Hiper/dia</label>
+              <input type="number" class="form-control" value="{{ plan.features.hiper_dia }}" readonly>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Considerações/dia</label>
+              <input type="number" class="form-control" value="{{ plan.features.consideracoes_dia }}" readonly>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+      <button class="btn btn-neon">
+        <i class="bi bi-save"></i> Salvar catálogo
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,97 +1,239 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Admin - ComentsIA{% endblock %}
-
+{% block title %}Admin — Dashboard{% endblock %}
 {% block content %}
-<div class="container py-5">
-  <h2 class="h4 mb-4"><i class="bi bi-shield-lock-fill text-danger"></i> Dashboard Admin</h2>
-  <div class="row mb-4">
-    <div class="col-md-3 mb-3">
-      <div class="card shadow rounded-4">
-        <div class="card-body text-center">
-          <div class="fs-2 fw-bold">{{ total_usuarios }}</div>
-          <div class="text-muted">Usuários cadastrados</div>
-        </div>
+<div class="container py-4">
+
+  <style>
+    /* Paleta adaptável (claro/escuro) */
+    :root{
+      --ink: #0f172a;            /* texto */
+      --ink-muted: #475569;      /* texto secundário */
+      --surface: #ffffff;        /* cartões */
+      --surface-soft: #f8fafc;   /* fundo */
+      --border: rgba(2,6,23,.12);
+      --brand: #2563eb;
+      --accent: #8b5cf6;
+      --accent-2:#f43f5e;
+      --shadow: 0 10px 24px rgba(2,6,23,.08);
+      --glass-top: rgba(255,255,255,.65);
+      --glass-bot: rgba(255,255,255,.50);
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --ink: #e5edff;
+        --ink-muted:#9fb0d3;
+        --surface:#0f1629;
+        --surface-soft:#0b1020;
+        --border: rgba(143,164,255,.18);
+        --shadow: 0 14px 28px rgba(0,0,0,.35);
+        --glass-top: rgba(255,255,255,.08);
+        --glass-bot: rgba(255,255,255,.04);
+      }
+    }
+
+    body{ background: var(--surface-soft); }
+    .title-gradient{
+      background: linear-gradient(90deg, var(--ink), var(--brand) 55%, var(--accent));
+      -webkit-background-clip:text; background-clip:text; color: transparent;
+    }
+
+    .glass{
+      background: linear-gradient(180deg, var(--glass-top), var(--glass-bot));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-soft{
+      border: 1px solid var(--border) !important;
+      background: var(--surface) !important;
+      color: var(--ink) !important;
+    }
+    .btn-soft:hover{ transform: translateY(-1px); box-shadow: var(--shadow); }
+
+    .stat{
+      display:flex; gap:12px; align-items:center;
+      padding:14px 16px; border-radius:14px;
+      background: var(--surface);
+      border:1px solid var(--border);
+      box-shadow: var(--shadow);
+      color: var(--ink);
+      height: 100%;
+    }
+    .stat i{ opacity:.9 }
+    .stat .k{ font-weight:700; font-size:1.25rem; line-height:1; }
+    .stat small{ color: var(--ink-muted); }
+
+    .band{ height:2px; border-radius:999px;
+      background: linear-gradient(90deg, transparent, var(--brand), var(--accent), var(--accent-2), transparent);
+      opacity:.35;
+    }
+
+    .card-plain{ background: var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow: var(--shadow); }
+
+    .table{ color: var(--ink); }
+    .table thead th{ border-color: var(--border); color: var(--ink); font-weight:600; }
+    .table tbody td{ border-color: var(--border); color: var(--ink); }
+
+    .badge-soft{
+      background: rgba(99,102,241,.08);
+      color: var(--ink);
+      border:1px solid var(--border);
+      border-radius:999px; padding:.15rem .5rem; font-size:.85rem;
+    }
+  </style>
+
+  <div class="mb-3 d-flex align-items-center justify-content-between">
+    <h1 class="h4 title-gradient m-0">Painel Administrativo</h1>
+    <div><a href="{{ url_for('index') }}" class="btn btn-sm btn-soft"><i class="bi bi-house"></i> Início</a></div>
+  </div>
+
+  <!-- Atalhos -->
+  <div class="glass mb-4">
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.pricing') }}"><i class="bi bi-tags"></i> Preços</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.finance_items') }}"><i class="bi bi-calculator"></i> Impostos &amp; Custos</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.coupons') }}"><i class="bi bi-percent"></i> Cupons</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.delinquent_list') }}"><i class="bi bi-exclamation-octagon"></i> Inadimplentes</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.broadcast') }}"><i class="bi bi-megaphone"></i> Campanhas</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.tickets_board') }}"><i class="bi bi-kanban"></i> Tickets</a>
+      <a class="btn btn-sm btn-soft" href="{{ url_for('admin.access') }}"><i class="bi bi-people-gear"></i> Acesso (Papéis)</a>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="stat">
+        <i class="bi bi-people fs-4"></i>
+        <div><div class="k">{{ ativos or 0 }}</div><small>Clientes ativos</small></div>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow rounded-4">
-        <div class="card-body text-center">
-          <div class="fs-2 fw-bold">{{ total_avaliacoes }}</div>
-          <div class="text-muted">Avaliações salvas</div>
-        </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat">
+        <i class="bi bi-exclamation-triangle fs-4"></i>
+        <div><div class="k">{{ inadimplentes or 0 }}</div><small>Inadimplentes</small></div>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow rounded-4">
-        <div class="card-body text-center">
-          <div class="fs-2 fw-bold">{{ total_respostas }}</div>
-          <div class="text-muted">Respostas geradas</div>
-        </div>
+    <div class="col-6 col-lg-3">
+      <div class="stat">
+        <i class="bi bi-bag-check fs-4"></i>
+        <div><div id="kpiGrossMTD" class="k">—</div><small>Receita MTD (bruta)</small></div>
       </div>
     </div>
-    <div class="col-md-3 mb-3">
-      <div class="card shadow rounded-4">
-        <div class="card-body text-center">
-          <div class="fs-2 fw-bold">{{ total_relatorios }}</div>
-          <div class="text-muted">Relatórios gerados</div>
+    <div class="col-6 col-lg-3">
+      <div class="stat">
+        <i class="bi bi-cash-coin fs-4"></i>
+        <div><div id="kpiNetMTD" class="k">—</div><small>Receita MTD (líquida)</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="band my-3"></div>
+
+  <!-- Gráfico 12 meses -->
+  <div class="card-plain mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="m-0">Receita 12 meses</h5>
+      <span id="todayTag" class="badge-soft"></span>
+    </div>
+    <canvas id="chart12m" height="80"></canvas>
+  </div>
+
+  <!-- Tabela por plano (MTD) + indicadores -->
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card-plain">
+        <h5 class="mb-2">Receita por Plano (MTD)</h5>
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Plano</th><th class="text-end">Bruto</th></tr></thead>
+          <tbody id="tblByPlan"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card-plain">
+        <h5 class="mb-2">Indicadores</h5>
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <div class="stat"><i class="bi bi-receipt"></i><div><div id="kpiAvgTicket" class="k">—</div><small>Average Ticket</small></div></div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="stat"><i class="bi bi-person-badge"></i><div><div id="kpiARPU" class="k">—</div><small>ARPU (mês)</small></div></div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="stat"><i class="bi bi-wallet2"></i><div><div id="kpiCPC" class="k">—</div><small>Custo por Cliente</small></div></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <h4 class="mb-3">Top Empresas Mais Ativas</h4>
-  <ul class="list-group mb-4">
-    {% for empresa, qtd in top_empresas %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        {{ empresa or "Sem nome" }}
-        <span class="badge bg-primary rounded-pill">{{ qtd }}</span>
-      </li>
-    {% else %}
-      <li class="list-group-item">Nenhuma empresa encontrada.</li>
-    {% endfor %}
-  </ul>
-
-  {% if usuarios_por_mes["meses"] %}
-    <h4 class="mb-3">Novos Usuários por Mês</h4>
-    <div class="mb-4">
-      <canvas id="usuariosPorMesChart" height="110"></canvas>
-    </div>
-  {% endif %}
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- libs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script>
-  const meses = {{ usuarios_por_mes["meses"] | tojson }};
-  const qtds = {{ usuarios_por_mes["qtds"] | tojson }};
-  if (meses.length > 0) {
-    const ctx = document.getElementById('usuariosPorMesChart').getContext('2d');
+document.addEventListener('DOMContentLoaded', async () => {
+  // data “Hoje” sem depender do backend
+  const today = new Date();
+  const fmt = new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  document.getElementById('todayTag').textContent = `Hoje: ${fmt.format(today)}`;
+
+  const brl = v => (v==null ? "—" : (new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})).format(v/100));
+
+  try{
+    const r = await fetch('{{ url_for("admin.metrics_json") }}', {headers:{'Accept':'application/json'}});
+    if(!r.ok) return;
+    const resp = await r.json();
+
+    // KPIs
+    document.getElementById('kpiGrossMTD').textContent = resp?.revenue?.mtd?.gross_fmt ?? '—';
+    document.getElementById('kpiNetMTD').textContent   = resp?.revenue?.mtd?.net_fmt   ?? '—';
+
+    document.getElementById('kpiAvgTicket').textContent = resp?.kpis?.avg_ticket?.mtd ?? '—';
+    document.getElementById('kpiARPU').textContent      = resp?.kpis?.arpu?.mtd       ?? '—';
+    document.getElementById('kpiCPC').textContent       = resp?.kpis?.cost_per_customer?.mtd ?? '—';
+
+    // Tabela por plano
+    const tbody = document.getElementById('tblByPlan');
+    tbody.innerHTML = '';
+    const byPlan = resp?.revenue?.by_plan_mtd || {};
+    Object.keys(byPlan).sort().forEach(plan => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${plan || '—'}</td><td class="text-end">${brl(byPlan[plan])}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Gráfico 12 meses
+    const labels = (resp.series_last12 || []).map(x => x.month);
+    const gross  = (resp.series_last12 || []).map(x => x.gross_cents || 0);
+    const net    = (resp.series_last12 || []).map(x => x.net_cents   || 0);
+
+    const ctx = document.getElementById('chart12m');
     new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: meses,
-        datasets: [{
-          label: 'Novos usuários',
-          data: qtds,
-          borderWidth: 2,
-          backgroundColor: 'rgba(0,123,255,0.6)'
-        }]
+        labels,
+        datasets: [
+          {label:'Bruto', data: gross, tension:.25},
+          {label:'Líquido', data: net, tension:.25}
+        ]
       },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false }
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{display:true},
+          tooltip:{ callbacks:{ label: (i)=> `${i.dataset.label}: ${brl(i.parsed.y)}` } }
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { precision: 0 }
-          }
+        scales:{
+          y:{ ticks:{ callback:(v)=> brl(v) } }
         }
       }
     });
-  }
+  }catch(e){ console.warn(e); }
+});
 </script>
 {% endblock %}
