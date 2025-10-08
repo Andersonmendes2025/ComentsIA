@@ -1,389 +1,390 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-  <!-- CSRF (Flask-WTF/CSRFProtect) -->
-  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+    <meta name="csrf-token" content="{{ csrf_token() }}"/>
 
-  <h2 class="mb-4">Avaliações Recebidas</h2>
+    <h2 class="mb-4">Avaliações Recebidas</h2>
 
-  <!-- Ações e filtros -->
-  <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
 
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
-        <i class="bi bi-robot me-1"></i>
-        Ativar Respostas Automáticas
-      </a>
-      {# Botão de Importar CSV (Booking) removido a pedido #}
-    </div>
-
-    <div class="d-flex flex-wrap align-items-end gap-3">
-      <div>
-        <label for="filtro-origem" class="form-label mb-1">Origem:</label>
-        <select id="filtro-origem" class="form-select form-select-sm">
-          <option value="todas">Todas</option>
-          <option value="google">Google</option>
-          <option value="booking">Booking</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="filtro-respondida" class="form-label mb-1">Responder:</label>
-        <select id="filtro-respondida" class="form-select form-select-sm">
-          <option value="todas">Todas</option>
-          <option value="sim">Respondidas</option>
-          <option value="nao">Não Respondidas</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="filtro-nota" class="form-label mb-1">Nota:</label>
-        <select id="filtro-nota" class="form-select form-select-sm">
-          <option value="todas">Todas</option>
-          <option value="5">5 estrelas</option>
-          <option value="4">4 estrelas</option>
-          <option value="3">3 estrelas</option>
-          <option value="2">2 estrelas</option>
-          <option value="1">1 estrela</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="filtro-texto" class="form-label mb-1">Buscar:</label>
-        <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
-      </div>
-    </div>
-  </div>
-
-  <!-- Paginação -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-    <div class="d-flex align-items-center gap-2">
-      <label for="itens-por-pagina" class="form-label mb-0">Itens por página:</label>
-      <select id="itens-por-pagina" class="form-select form-select-sm" style="width:auto;">
-        <option value="5">5</option>
-        <option value="10" selected>10</option>
-        <option value="15">15</option>
-        <option value="25">25</option>
-      </select>
-    </div>
-    <div class="d-flex align-items-center gap-2">
-      <button id="btn-prev" class="btn btn-outline-secondary btn-sm" disabled>&laquo; Anterior</button>
-      <span id="pagina-info" class="text-muted small">Página 1 de 1</span>
-      <button id="btn-next" class="btn btn-outline-secondary btn-sm" disabled>Próxima &raquo;</button>
-    </div>
-  </div>
-
-  <div id="reviews-container">
-  {% if reviews %}
-    {% for review in reviews %}
-      {% set origem = (review.source or review.platform or review.origin or review.provider or 'google')|lower %}
-      {% set nome   = review.reviewer_name or review.author_name or 'Cliente' %}
-      {% set texto  = review.text or review.content or review.comment or '' %}
-      {% set nota5  = review.rating %}
-      {% set nota10 = (review.original_rating | default(None)) %}
-      {% set escala = review.original_scale or '0-10' %}
-
-      <div class="card mb-3 review-card"
-           data-respondida="{{ 'sim' if review.replied else 'nao' }}"
-           data-nome="{{ (nome or '')|lower }}"
-           data-texto="{{ (texto or '')|lower }}"
-           data-nota="{{ nota5 if nota5 is not none else '' }}"
-           data-origem="{{ origem }}">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <h5 class="card-title mb-1">Avaliação de {{ nome }}</h5>
-            <span class="badge text-uppercase {% if origem=='booking' %}bg-warning text-dark{% else %}bg-success{% endif %}">
-              {{ origem }}
-            </span>
-          </div>
-
-          <h6 class="card-subtitle mb-2 text-muted">
-            {% if nota5 is not none %}⭐ Nota ponderada: {{ '%.1f'|format(nota5) }} / 5{% endif %}
-            {% if origem == 'booking' and nota10 is not none %}
-              &nbsp;•&nbsp;<i class="bi bi-bookmark-star"></i> Booking: {{ '%.1f'|format(nota10) }} / 10
-            {% endif %}
-            &nbsp;—&nbsp; Data: {{ review.date | formatar_data_brt }}
-          </h6>
-
-          <p class="card-text" id="review-text-{{ review.id }}">{{ texto }}</p>
-
-          {% if review.replied %}
-            <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
-              <div class="d-flex align-items-center mb-2 gap-2">
-                <i class="bi bi-check-circle text-primary" style="font-size:1.2rem"></i>
-                <span class="fw-bold">Resposta enviada</span>
-              </div>
-              <div style="white-space: pre-line;" class="ms-4">
-                {{ review.reply | safe }}
-              </div>
-            </div>
-          {% endif %}
-
-          <div class="form-group mt-2">
-            <label for="tone-{{ review.id }}">Tom da resposta:</label>
-            <select class="form-control" id="tone-{{ review.id }}">
-              <option value="profissional">Profissional</option>
-              <option value="amigavel">Amigável</option>
-              <option value="empatico">Empático</option>
-            </select>
-          </div>
-            <div class="d-flex flex-wrap gap-2 mt-3">
-            <button class="btn btn-primary btn-sm flex-fill" style="min-width: 160px;"
-                    onclick="generateReply({{ review.id }}, {{ review.rating }}, '{{ review.reviewer_name }}')">
-              Gerar sugestão
-            </button>
-            {% if review.replied %}
-              <button class="btn btn-warning btn-sm flex-fill" style="min-width:160px;"
-                      onclick="deleteReply({{ review.id }})">
-                Excluir resposta
-              </button>
-            {% endif %}
-            <button class="btn btn-danger btn-sm flex-fill" style="min-width:160px;"
-                    onclick="deleteReview({{ review.id }})">
-              Excluir avaliação
-            </button>
-            <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm flex-fill text-nowrap"
-               style="min-width:160px;">
-              + Adicionar Avaliação
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
+                <i class="bi bi-robot me-1"></i>
+                Ativar Respostas Automáticas
             </a>
-          </div>
-
-          <p id="loading-{{ review.id }}" class="mt-2" style="display:none;color:#555;">Gerando resposta...</p>
-
-          <!-- Sugestão gerada -->
-          <div id="suggestion-block-{{ review.id }}" style="display:none;">
-            <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
-              <div class="d-flex align-items-center mb-2 gap-2">
-                <i class="bi bi-magic text-primary" style="font-size:1.2rem"></i>
-                <span class="fw-bold">Sugestão de resposta</span>
-              </div>
-              <div id="suggestion-{{ review.id }}" style="white-space:pre-line;" class="ms-4"></div>
-              <div id="actions-{{ review.id }}" class="mt-2">
-                <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
-              </div>
-            </div>
-          </div>
+            {# Botão de Importar CSV (Booking) removido a pedido #}
         </div>
-      </div>
-    {% endfor %}
-  {% else %}
-    <p>Nenhuma avaliação disponível.</p>
-  {% endif %}
-  </div> <!-- /#reviews-container -->
-</div>
+
+        <div class="d-flex flex-wrap align-items-end gap-3">
+            <div>
+                <label for="filtro-origem" class="form-label mb-1">Origem:</label>
+                <select id="filtro-origem" class="form-select form-select-sm">
+                    <option value="todas">Todas</option>
+                    <option value="google">Google</option>
+                    <option value="booking">Booking</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="filtro-respondida" class="form-label mb-1">Responder:</label>
+                <select id="filtro-respondida" class="form-select form-select-sm">
+                    <option value="todas">Todas</option>
+                    <option value="sim">Respondidas</option>
+                    <option value="nao">Não Respondidas</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="filtro-nota" class="form-label mb-1">Nota:</label>
+                <select id="filtro-nota" class="form-select form-select-sm">
+                    <option value="todas">Todas</option>
+                    <option value="5">5 estrelas</option>
+                    <option value="4">4 estrelas</option>
+                    <option value="3">3 estrelas</option>
+                    <option value="2">2 estrelas</option>
+                    <option value="1">1 estrela</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="filtro-texto" class="form-label mb-1">Buscar:</label>
+                <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <label for="itens-por-pagina" class="form-label mb-0">Itens por página:</label>
+            <select id="itens-por-pagina" class="form-select form-select-sm" style="width:auto;">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+            </select>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button id="btn-prev" class="btn btn-outline-secondary btn-sm" disabled>&laquo; Anterior</button>
+            <span id="pagina-info" class="text-muted small">Página 1 de 1</span>
+            <button id="btn-next" class="btn btn-outline-secondary btn-sm" disabled>Próxima &raquo;</button>
+        </div>
+    </div>
+
+    <div id="reviews-container">
+    {% if reviews %}
+        {% for review in reviews %}
+        {% set origem = (review.source or review.platform or review.origin or review.provider or 'google')|lower %}
+        {% set nome   = review.reviewer_name or review.author_name or 'Cliente' %}
+        {% set texto  = review.text or review.content or review.comment or '' %}
+        {% set nota5  = review.rating %}
+        {% set nota10 = (review.original_rating | default(None)) %}
+        {% set escala = review.original_scale or '0-10' %}
+
+        <div class="card mb-3 review-card"
+            data-respondida="{{ 'sim' if review.replied else 'nao' }}"
+            data-nome="{{ (nome or '')|lower }}"
+            data-texto="{{ (texto or '')|lower }}"
+            data-nota="{{ nota5 if nota5 is not none else '' }}"
+            data-origem="{{ origem }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <h5 class="card-title mb-1">Avaliação de {{ nome }}</h5>
+                    <span class="badge text-uppercase {% if origem=='booking' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                        {{ origem }}
+                    </span>
+                </div>
+
+                <h6 class="card-subtitle mb-2 text-muted">
+                    {% if nota5 is not none %}⭐ Nota ponderada: {{ '%.1f'|format(nota5) }} / 5{% endif %}
+                    {% if origem == 'booking' and nota10 is not none %}
+                        &nbsp;•&nbsp;<i class="bi bi-bookmark-star"></i> Booking: {{ '%.1f'|format(nota10) }} / 10
+                    {% endif %}
+                    &nbsp;—&nbsp; Data: {{ review.date | formatar_data_brt }}
+                </h6>
+
+                <p class="card-text" id="review-text-{{ review.id }}">{{ texto }}</p>
+
+                {% if review.replied %}
+                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
+                        <div class="d-flex align-items-center mb-2 gap-2">
+                            <i class="bi bi-check-circle text-primary" style="font-size:1.2rem"></i>
+                            <span class="fw-bold">Resposta enviada</span>
+                        </div>
+                        <div style="white-space: pre-line;" class="ms-4">
+                            {{ review.reply | safe }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="form-group mt-2">
+                    <label for="tone-{{ review.id }}">Tom da resposta:</label>
+                    <select class="form-control" id="tone-{{ review.id }}">
+                        <option value="profissional">Profissional</option>
+                        <option value="amigavel">Amigável</option>
+                        <option value="empatico">Empático</option>
+                    </select>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-primary btn-sm flex-fill" style="min-width: 160px;"
+                            onclick="generateReply({{ review.id }}, {{ nota5 if nota5 is not none else '0' }}, '{{ (nome or '') | e }}')">
+                        Gerar sugestão
+                    </button>
+                    {% if review.replied %}
+                        <button class="btn btn-warning btn-sm flex-fill" style="min-width:160px;"
+                                onclick="deleteReply({{ review.id }})">
+                            Excluir resposta
+                        </button>
+                    {% endif %}
+                    <button class="btn btn-danger btn-sm flex-fill" style="min-width:160px;"
+                            onclick="deleteReview({{ review.id }})">
+                        Excluir avaliação
+                    </button>
+                    <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm flex-fill text-nowrap"
+                        style="min-width:160px;">
+                        + Adicionar Avaliação
+                    </a>
+                </div>
+
+                <p id="loading-{{ review.id }}" class="mt-2" style="display:none;color:#555;">Gerando resposta...</p>
+
+                <div id="suggestion-block-{{ review.id }}" style="display:none;">
+                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
+                        <div class="d-flex align-items-center mb-2 gap-2">
+                            <i class="bi bi-magic text-primary" style="font-size:1.2rem"></i>
+                            <span class="fw-bold">Sugestão de resposta</span>
+                        </div>
+                        <div id="suggestion-{{ review.id }}" style="white-space:pre-line;" class="ms-4"></div>
+                        <div id="actions-{{ review.id }}" class="mt-2">
+                            <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>Nenhuma avaliação disponível.</p>
+    {% endif %}
+    </div> </div>
 
 <script>
 // ===== Helpers =====
 function getCSRF() {
-  const m = document.querySelector('meta[name="csrf-token"]');
-  return m ? m.getAttribute('content') : null;
+    const m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.getAttribute('content') : null;
 }
 function showToast(msg, type) {
-  if (window.showToast) return window.showToast(msg, type);
-  console[(type==='danger'?'error':'log')](msg);
-  alert(msg);
+    if (window.showToast) return window.showToast(msg, type);
+    console[(type === 'danger' ? 'error' : 'log')](msg);
+    alert(msg);
 }
 function askConfirm(msg, cb) { if (confirm(msg)) cb(); }
 
 // ===== Filtros + Paginação =====
 document.addEventListener('DOMContentLoaded', function () {
-  const cards = Array.from(document.querySelectorAll('.review-card'));
-  const filtroOrigem = document.getElementById('filtro-origem');
-  const filtroRespondida = document.getElementById('filtro-respondida');
-  const filtroNota = document.getElementById('filtro-nota');
-  const filtroTexto = document.getElementById('filtro-texto');
+    const cards = Array.from(document.querySelectorAll('.review-card'));
+    const filtroOrigem = document.getElementById('filtro-origem');
+    const filtroRespondida = document.getElementById('filtro-respondida');
+    const filtroNota = document.getElementById('filtro-nota');
+    const filtroTexto = document.getElementById('filtro-texto');
 
-  const perPageSelect = document.getElementById('itens-por-pagina');
-  const btnPrev = document.getElementById('btn-prev');
-  const btnNext = document.getElementById('btn-next');
-  const paginaInfo = document.getElementById('pagina-info');
+    const perPageSelect = document.getElementById('itens-por-pagina');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const paginaInfo = document.getElementById('pagina-info');
 
-  let currentPage = 1;
-  let filtered = cards.slice();
+    let currentPage = 1;
+    let filtered = cards.slice();
 
-  function aplicaFiltros() {
-    const valorOrigem = filtroOrigem.value;
-    const valorRespondida = filtroRespondida.value;
-    const valorNota = filtroNota.value;
-    const textoBusca = (filtroTexto.value || '').toLowerCase();
+    function aplicaFiltros() {
+        const valorOrigem = filtroOrigem.value;
+        const valorRespondida = filtroRespondida.value;
+        const valorNota = filtroNota.value;
+        const textoBusca = (filtroTexto.value || '').toLowerCase();
 
-    filtered = cards.filter(card => {
-      const origem = (card.dataset.origem || '').toLowerCase();
-      const respondida = card.dataset.respondida;
-      const nome = card.dataset.nome || '';
-      const texto = card.dataset.texto || '';
-      const nota = parseFloat(card.dataset.nota || 'NaN');
+        filtered = cards.filter(card => {
+            const origem = (card.dataset.origem || '').toLowerCase();
+            const respondida = card.dataset.respondida;
+            const nome = card.dataset.nome || '';
+            const texto = card.dataset.texto || '';
+            const nota = parseFloat(card.dataset.nota || 'NaN');
 
-      const okOrigem = (valorOrigem === 'todas') || (valorOrigem === origem);
-      const okResp   = (valorRespondida === 'todas') || (valorRespondida === respondida);
+            const okOrigem = (valorOrigem === 'todas') || (valorOrigem === origem);
+            const okResp   = (valorRespondida === 'todas') || (valorRespondida === respondida);
 
-      let okNota = true;
-      if (valorNota !== 'todas' && !Number.isNaN(nota)) {
-        const alvo = parseInt(valorNota, 10);
-        okNota = Math.floor(nota) === alvo;
-      }
+            let okNota = true;
+            if (valorNota !== 'todas' && !Number.isNaN(nota)) {
+                const alvo = parseInt(valorNota, 10);
+                // Verifica se a nota ponderada corresponde à estrela principal (arredondada para baixo, geralmente)
+                okNota = Math.floor(nota) === alvo;
+            }
 
-      const okTexto = nome.includes(textoBusca) || texto.includes(textoBusca);
-      return okOrigem && okResp && okNota && okTexto;
-    });
+            const okTexto = nome.includes(textoBusca) || texto.includes(textoBusca);
+            return okOrigem && okResp && okNota && okTexto;
+        });
 
-    currentPage = 1;
-    renderPagina();
-  }
+        currentPage = 1;
+        renderPagina();
+    }
 
-  function renderPagina() {
-    const perPage = parseInt(perPageSelect.value, 10) || 10;
-    const total = filtered.length;
-    const totalPages = Math.max(1, Math.ceil(total / perPage));
-    currentPage = Math.min(currentPage, totalPages);
+    function renderPagina() {
+        const perPage = parseInt(perPageSelect.value, 10) || 10;
+        const total = filtered.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        currentPage = Math.min(currentPage, totalPages);
 
-    cards.forEach(c => c.style.display = 'none');
-    const start = (currentPage - 1) * perPage;
-    const end = start + perPage;
-    filtered.slice(start, end).forEach(c => c.style.display = '');
+        cards.forEach(c => c.style.display = 'none');
+        const start = (currentPage - 1) * perPage;
+        const end = start + perPage;
+        filtered.slice(start, end).forEach(c => c.style.display = '');
 
-    paginaInfo.textContent = `Página ${currentPage} de ${totalPages}`;
-    btnPrev.disabled = (currentPage <= 1);
-    btnNext.disabled = (currentPage >= totalPages);
-  }
+        paginaInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+        btnPrev.disabled = (currentPage <= 1);
+        btnNext.disabled = (currentPage >= totalPages);
+    }
 
-  [filtroOrigem, filtroRespondida, filtroNota].forEach(el => el.addEventListener('change', aplicaFiltros));
-  filtroTexto.addEventListener('input', aplicaFiltros);
-  perPageSelect.addEventListener('change', renderPagina);
-  btnPrev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPagina(); } });
-  btnNext.addEventListener('click', () => { currentPage++; renderPagina(); });
+    [filtroOrigem, filtroRespondida, filtroNota].forEach(el => el.addEventListener('change', aplicaFiltros));
+    filtroTexto.addEventListener('input', aplicaFiltros);
+    perPageSelect.addEventListener('change', renderPagina);
+    btnPrev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPagina(); } });
+    btnNext.addEventListener('click', () => { currentPage++; renderPagina(); });
 
-  aplicaFiltros();
+    aplicaFiltros();
 });
 
 // ===== Fetch util com tratamento de erro/JSON ou texto =====
 function _jsonFetch(url, bodyObj) {
-  const token = getCSRF();
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'X-Requested-With': 'XMLHttpRequest'
-  };
-  if (token) {
-    headers['X-CSRFToken'] = token;
-    headers['X-CSRF-Token'] = token; // alguns middlewares usam este nome
-  }
-  return fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(bodyObj || {}),
-    credentials: 'same-origin',
-  }).then(async (r) => {
-    const raw = await r.text(); // pega como texto primeiro
-    let data = null;
-    try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
-    if (!r.ok) {
-      const msg = (data && (data.error || data.message)) || raw || ('HTTP ' + r.status);
-      throw new Error(msg);
+    const token = getCSRF();
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    if (token) {
+        headers['X-CSRFToken'] = token;
+        headers['X-CSRF-Token'] = token; // alguns middlewares usam este nome
     }
-    return data || {};
-  });
+    return fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(bodyObj || {}),
+        credentials: 'same-origin',
+    }).then(async (r) => {
+        const raw = await r.text(); // pega como texto primeiro
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
+        if (!r.ok) {
+            const msg = (data && (data.error || data.message)) || raw || ('HTTP ' + r.status);
+            throw new Error(msg);
+        }
+        return data || {};
+    });
 }
 
 // ===== Ações (Gerar/Salvar/Excluir) =====
 function generateReply(id, rating, reviewerName) {
-  const textEl = document.getElementById('review-text-' + id);
-  const toneEl = document.getElementById('tone-' + id);
-  const loading = document.getElementById('loading-' + id);
-  const suggestionBlock = document.getElementById('suggestion-block-' + id);
-  const suggestion = document.getElementById('suggestion-' + id);
-  const actions = document.getElementById('actions-' + id);
+    const textEl = document.getElementById('review-text-' + id);
+    const toneEl = document.getElementById('tone-' + id);
+    const loading = document.getElementById('loading-' + id);
+    const suggestionBlock = document.getElementById('suggestion-block-' + id);
+    const suggestion = document.getElementById('suggestion-' + id);
+    const actions = document.getElementById('actions-' + id);
 
-  const text = textEl ? (textEl.innerText || textEl.textContent || '') : '';
-  const tone = (toneEl && toneEl.value) ? toneEl.value : 'profissional';
+    const text = textEl ? (textEl.innerText || textEl.textContent || '') : '';
+    const tone = (toneEl && toneEl.value) ? toneEl.value : 'profissional';
 
-  // força número: se vier null/NaN manda 0
-  const star = Number.parseFloat(rating);
-  const starRating = Number.isNaN(star) ? 0 : star;
+    // Garante que o rating seja um número, com fallback para 0
+    const star = Number.parseFloat(rating);
+    const starRating = Number.isNaN(star) ? 0 : star;
 
-  loading.style.display = 'block';
-  suggestionBlock.style.display = 'none';
+    loading.style.display = 'block';
+    suggestionBlock.style.display = 'none';
 
-  _jsonFetch('/suggest_reply', {
-    review_id: id,                 // <- envia o id também (algumas rotas usam)
-    review_text: text || '',
-    star_rating: starRating,       // <- sempre número
-    reviewer_name: reviewerName || '',
-    tone: tone
-  })
-  .then(data => {
-    loading.style.display = 'none';
-    if (data && data.success) {
-      suggestion.innerText = data.suggested_reply || '';
-      suggestionBlock.style.display = 'block';
-      actions.style.display = 'block';
-    } else {
-      const msg = (data && data.error) ? data.error : 'Falha ao gerar sugestão';
-      showToast('Erro: ' + msg, 'danger');
-      console.error('suggest_reply payload/resp:', data);
-    }
-  })
-  .catch(err => {
-    loading.style.display = 'none';
-    console.error('suggest_reply error:', err);
-    showToast('Erro de comunicação: ' + err.message, 'danger');
-  });
+    _jsonFetch('/suggest_reply', {
+        review_id: id,
+        review_text: text || '',
+        star_rating: starRating,
+        reviewer_name: reviewerName || '',
+        tone: tone
+    })
+    .then(data => {
+        loading.style.display = 'none';
+        if (data && data.success) {
+            suggestion.innerText = data.suggested_reply || '';
+            suggestionBlock.style.display = 'block';
+            // actions.style.display já está ok dentro do suggestion-block
+        } else {
+            const msg = (data && data.error) ? data.error : 'Falha ao gerar sugestão';
+            showToast('Erro: ' + msg, 'danger');
+            console.error('suggest_reply payload/resp:', data);
+        }
+    })
+    .catch(err => {
+        loading.style.display = 'none';
+        console.error('suggest_reply error:', err);
+        showToast('Erro de comunicação: ' + err.message, 'danger');
+    });
 }
 
 function saveReply(id) {
-  const replyText = (document.getElementById('suggestion-' + id) || {}).innerText || '';
-  _jsonFetch('/save_reply', { review_id: id, reply_text: replyText })
-  .then(data => {
-    if (data && data.success) {
-      showToast('Resposta salva com sucesso!');
-      location.reload();
-    } else {
-      showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao salvar resposta'), 'danger');
-      console.error('save_reply payload/resp:', data);
+    const replyText = (document.getElementById('suggestion-' + id) || {}).innerText || '';
+    if (!replyText) {
+        showToast('A sugestão está vazia. Gere uma sugestão antes de responder.', 'warning');
+        return;
     }
-  })
-  .catch(err => {
-    console.error('save_reply error:', err);
-    showToast('Erro de comunicação: ' + err.message, 'danger');
-  });
+    _jsonFetch('/save_reply', { review_id: id, reply_text: replyText })
+    .then(data => {
+        if (data && data.success) {
+            showToast('Resposta salva com sucesso!');
+            location.reload();
+        } else {
+            showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao salvar resposta'), 'danger');
+            console.error('save_reply payload/resp:', data);
+        }
+    })
+    .catch(err => {
+        console.error('save_reply error:', err);
+        showToast('Erro de comunicação: ' + err.message, 'danger');
+    });
 }
 
 function deleteReply(id) {
-  askConfirm('Tem certeza que deseja excluir a resposta?', function() {
-    _jsonFetch('/delete_reply', { review_id: id })
-    .then(data => {
-      if (data && data.success) {
-        showToast('Resposta excluída com sucesso!');
-        location.reload();
-      } else {
-        showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir'), 'danger');
-        console.error('delete_reply payload/resp:', data);
-      }
-    })
-    .catch(err => {
-      console.error('delete_reply error:', err);
-      showToast('Erro de comunicação: ' + err.message', 'danger');
+    askConfirm('Tem certeza que deseja excluir a resposta?', function() {
+        _jsonFetch('/delete_reply', { review_id: id })
+        .then(data => {
+            if (data && data.success) {
+                showToast('Resposta excluída com sucesso!');
+                location.reload();
+            } else {
+                showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir'), 'danger');
+                console.error('delete_reply payload/resp:', data);
+            }
+        })
+        .catch(err => {
+            console.error('delete_reply error:', err);
+            // CORREÇÃO: Removido o erro de sintaxe aqui (' ' faltava)
+            showToast('Erro de comunicação: ' + err.message, 'danger'); 
+        });
     });
-  });
 }
 
 function deleteReview(id) {
-  askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
-    _jsonFetch('/delete_review', { review_id: id })
-    .then(data => {
-      if (data && data.success) {
-        showToast('Avaliação excluída com sucesso!');
-        location.reload();
-      } else {
-        showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir avaliação'), 'danger');
-        console.error('delete_review payload/resp:', data);
-      }
-    })
-    .catch(err => {
-      console.error('delete_review error:', err);
-      showToast('Erro de comunicação: ' + err.message, 'danger');
+    askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
+        _jsonFetch('/delete_review', { review_id: id })
+        .then(data => {
+            if (data && data.success) {
+                showToast('Avaliação excluída com sucesso!');
+                location.reload();
+            } else {
+                showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir avaliação'), 'danger');
+                console.error('delete_review payload/resp:', data);
+            }
+        })
+        .catch(err => {
+            console.error('delete_review error:', err);
+            showToast('Erro de comunicação: ' + err.message, 'danger');
+        });
     });
-  });
 }
 </script>
 {% endblock %}

@@ -1,10 +1,9 @@
 {% extends "base.html" %}
-
 {% block title %}Relatórios de Avaliações - ComentsIA{% endblock %}
 
 {% block content %}
 <style>
-  /* HERO com contraste e legibilidade */
+  /* HERO */
   .hero-relatorios {
     position: relative;
     background: linear-gradient(135deg, #1b3fbf 0%, #1e74ff 45%, #6dd5ff 100%);
@@ -14,67 +13,49 @@
     box-shadow: 0 10px 28px rgba(28,87,255,0.25);
     overflow: hidden;
   }
-  .hero-relatorios::after{
-    content:"";
-    position:absolute; inset:0;
-    /* leve escurecimento p/ dar contraste ao texto pequeno */
+  .hero-relatorios::after {
+    content: "";
+    position: absolute; inset: 0;
     background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.10));
     border-radius: 22px;
-    pointer-events:none;
+    pointer-events: none;
   }
-  .hero-relatorios *{
+  .hero-relatorios * {
     position: relative; z-index: 1;
     text-shadow: 0 1px 2px rgba(0,0,0,.25);
   }
-  .hero-relatorios h2 { font-weight: 800; letter-spacing: .2px; }
-  .hero-relatorios p { opacity: .95; margin: 6px 0 0; }
 
-  /* Cards genéricos */
-  .card-soft { border: 0; border-radius: 18px; box-shadow: 0 10px 26px rgba(10, 22, 70, 0.06); }
-
-  /* Banners de plano */
-  .banner-grad-warning { background: linear-gradient(90deg,#fffbe7 0%,#fff3bf 100%); border-radius: 14px; }
-  .banner-grad-danger  { background: linear-gradient(90deg,#ffe7e7 0%,#ffd4cf 100%); border-radius: 14px; }
-
-  /* Métricas estilo home */
+  /* Métricas */
   .metric-tile {
     border: 0; border-radius: 20px; color:#fff;
     padding: 22px; height: 100%; box-shadow: 0 12px 26px rgba(0,0,0,.08);
   }
-  .metric-blue  { background: #2563eb; }   /* Avaliações */
-  .metric-green { background: #16a34a; }   /* Respondidas % */
-  .metric-amber { background: #f59e0b; }   /* Média */
-  .metric-cyan  { background: #06b6d4; }   /* Pendentes */
+  .metric-blue  { background: #2563eb; }
+  .metric-green { background: #16a34a; }
+  .metric-amber { background: #f59e0b; }
+  .metric-cyan  { background: #06b6d4; }
 
   .metric-title { font-size: .95rem; opacity: .95; margin-bottom: 6px; display:flex; align-items:center; gap:8px;}
   .metric-value { font-size: 2rem; font-weight: 800; line-height: 1; }
   .metric-sub   { font-size: .9rem; opacity: .95; }
+  .btn-pill { border-radius: 999px; }
 
-  /* Shimmer (carregando) */
-  .shimmer {
-    position: relative; overflow: hidden; border-radius: 14px; background: rgba(255,255,255,.25); min-height: 52px;
-  }
-  .shimmer::before {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(255,255,255,.2) 0%, rgba(255,255,255,.55) 50%, rgba(255,255,255,.2) 100%);
-    transform: translateX(-100%); animation: shimmerMove 1.4s infinite;
-  }
-  @keyframes shimmerMove { 100% { transform: translateX(100%); } }
-
-  /* Overlay permanente “Gerando relatório…” */
+  /* Overlay */
   #loader-overlay {
-    position: fixed; inset: 0; background: rgba(8, 12, 27, 0.55);
-    backdrop-filter: blur(2px); z-index: 1080; display: none; align-items: center; justify-content: center;
+    position: fixed; inset: 0;
+    background: rgba(8, 12, 27, 0.55);
+    backdrop-filter: blur(2px);
+    z-index: 1080;
+    display: none; align-items: center; justify-content: center;
   }
   #loader-card {
-    background: #0b1a43; color: #fff; border-radius: 16px; padding: 18px 20px; min-width: 280px;
+    background: #0b1a43; color: #fff;
+    border-radius: 16px; padding: 18px 20px; min-width: 280px;
     box-shadow: 0 12px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06) inset;
   }
   #loader-card .progress { height: 8px; border-radius: 10px; background: rgba(255,255,255,.15); }
   #loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
-  @keyframes progressPulse { 0% {transform:scaleX(.15)} 50% {transform:scaleX(1)} 100% {transform:scaleX(.15)} }
-
-  .btn-pill { border-radius: 999px; }
+  @keyframes progressPulse { 0%{transform:scaleX(.15)}50%{transform:scaleX(1)}100%{transform:scaleX(.15)} }
 </style>
 
 <div class="container mt-4 mt-md-5">
@@ -92,68 +73,79 @@
         </a>
       </div>
     </div>
-    <p class="bi bi-file-earmark-bar-graph me-2">
-      Gere relatórios completos com gráficos, análise profissional e resumo dos principais pontos.
-    </p>
+    <p>Gere relatórios completos com gráficos, análise profissional e resumo dos principais pontos.</p>
   </div>
 
-  <!-- MÉTRICAS (iguais à home, agora aqui) -->
-  <div class="row g-4 mb-4" id="metrics-row" aria-live="polite">
-    <!-- Avaliações -->
+  {# ---- MÉTRICAS CALCULADAS NO SERVIDOR ---- #}
+  {% set total = metrics.total if metrics and metrics.total is defined else 0 %}
+  {% set responded = metrics.respondidas if metrics and metrics.respondidas is defined else 0 %}
+  {% set pending = metrics.pendentes if metrics and metrics.pendentes is defined else (total - responded) %}
+  {% set avg = metrics.media if metrics and metrics.media is defined else 0 %}
+  {% set pct = metrics.percent_respondidas if metrics and metrics.percent_respondidas is defined else (responded / total * 100 if total > 0 else 0) %}
+
+  <div class="row g-4 mb-4" id="metrics-row">
     <div class="col-12 col-md-6 col-xl-3">
       <div class="metric-tile metric-blue">
         <div class="metric-title"><i class="bi bi-chat-left-text"></i> Avaliações</div>
-        <div class="metric-value" id="m-avaliacoes"><div class="shimmer"></div></div>
-        <div class="metric-sub" id="m-avaliacoes-sub">&nbsp;</div>
+        <div class="metric-value">{{ total }}</div>
+        <div class="metric-sub">&nbsp;</div>
       </div>
     </div>
-    <!-- Respondidas (%) -->
     <div class="col-12 col-md-6 col-xl-3">
       <div class="metric-tile metric-green">
         <div class="metric-title"><i class="bi bi-check-circle"></i> Respondidas (%)</div>
-        <div class="metric-value" id="m-respondidas"><div class="shimmer"></div></div>
-        <div class="metric-sub" id="m-respondidas-sub"><div class="shimmer"></div></div>
+        <div class="metric-value">{{ "%.1f"|format(pct|float) }}%</div>
+        <div class="metric-sub">{{ responded }} de {{ total }} respondidas</div>
       </div>
     </div>
-    <!-- Média -->
     <div class="col-12 col-md-6 col-xl-3">
       <div class="metric-tile metric-amber">
-        <div class="metric-title"><i class="bi bi-star-fill"></i> Média</div>
-        <div class="metric-value" id="m-media"><div class="shimmer"></div></div>
-        <div class="metric-sub" id="m-media-sub">de 5,0</div>
-      </div>
+      <div class="metric-title"><i class="bi bi-star-fill"></i> Média</div>
+      <div class="metric-value">{{ "%.1f"|format(avg|float) }}</div>
+      <div class="metric-sub">de 5,0</div>
     </div>
-    <!-- Pendentes -->
+    </div>
     <div class="col-12 col-md-6 col-xl-3">
       <div class="metric-tile metric-cyan">
         <div class="metric-title"><i class="bi bi-clock"></i> Pendentes</div>
-        <div class="metric-value" id="m-pendentes"><div class="shimmer"></div></div>
-        <div class="metric-sub" id="m-pendentes-sub">aguardando resposta</div>
+        <div class="metric-value">{{ pending }}</div>
+        <div class="metric-sub">aguardando resposta</div>
       </div>
     </div>
   </div>
 
   <!-- INFO DO PLANO -->
+  {% if user_plano %}
   <div id="plano-info" class="alert alert-info text-center card-soft py-3 mb-4">
-    Carregando informações do plano...
+    {% set plano = PLANOS[user_plano] %}
+    {% if plano.relatorio_pdf_mes %}
+      Você está no plano <strong>{{ plano.nome }}</strong>.
+      Relatórios PDF gerados este mês:
+      <strong>{{ metrics.relatorios_usados if metrics and metrics.relatorios_usados is defined else 0 }}</strong> /
+      <strong>{{ plano.relatorio_pdf_mes }}</strong>.
+    {% else %}
+      Você está no plano <strong>{{ plano.nome }}</strong>.
+      Relatórios PDF mensais <strong>ilimitados</strong>.
+    {% endif %}
   </div>
+  {% endif %}
 
   {% if user_plano == 'free' %}
-    <div class="banner-grad-warning py-3 px-4 mb-4 text-center card-soft">
-      <i class="bi bi-lock-fill fs-3 text-warning mb-2 d-block"></i>
-      <div class="fw-semibold mb-1" style="color:#6c5700">
-        O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
-      </div>
-      <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Veja os planos</a>
+  <div class="banner-grad-warning py-3 px-4 mb-4 text-center card-soft">
+    <i class="bi bi-lock-fill fs-3 text-warning mb-2 d-block"></i>
+    <div class="fw-semibold mb-1" style="color:#6c5700">
+      O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
     </div>
+    <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Veja os planos</a>
+  </div>
   {% elif limite_relatorio_atingido %}
-    <div class="banner-grad-danger py-3 px-4 mb-4 text-center card-soft">
-      <i class="bi bi-exclamation-triangle-fill fs-3 text-danger mb-2 d-block"></i>
-      <div class="fw-semibold mb-1" style="color:#7c3535">
-        Você atingiu o limite mensal de relatórios em PDF do seu plano.
-      </div>
-      <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Faça upgrade</a>
+  <div class="banner-grad-danger py-3 px-4 mb-4 text-center card-soft">
+    <i class="bi bi-exclamation-triangle-fill fs-3 text-danger mb-2 d-block"></i>
+    <div class="fw-semibold mb-1" style="color:#7c3535">
+      Você atingiu o limite mensal de relatórios em PDF do seu plano.
     </div>
+    <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Faça upgrade</a>
+  </div>
   {% endif %}
 
   <!-- FORM -->
@@ -209,7 +201,7 @@
   </div>
 </div>
 
-<!-- OVERLAY permanente -->
+<!-- OVERLAY -->
 <div id="loader-overlay" aria-hidden="true">
   <div id="loader-card" class="text-center">
     <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
@@ -217,126 +209,40 @@
       <strong>Gerando relatório…</strong>
     </div>
     <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
-    <div class="progress" role="progressbar" aria-label="Progresso de geração">
-      <div class="progress-bar bg-light"></div>
-    </div>
+    <div class="progress"><div class="progress-bar bg-light"></div></div>
   </div>
 </div>
 
 <script>
-  // ===== METRICS (troque a URL se sua API for outra) =====
-  async function carregarMetricas() {
-    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-
-    try {
-      const r = await fetch('/api/dashboard_metrics');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json();
-
-      // Esperado: { total: 1441, respondidas: 0, respondidas_pct: 0.0, media: 4.5, pendentes: 1441 }
-      set('m-avaliacoes', String(j.total ?? '-'));
-      set('m-avaliacoes-sub', '');
-
-      const pct = (j.respondidas_pct ?? 0);
-      set('m-respondidas', (Math.round(pct * 10) / 10) + '%');
-      set('m-respondidas-sub', `${j.respondidas ?? 0} de ${j.total ?? 0} respondidas`);
-
-      const media = (j.media ?? 0);
-      set('m-media', (Math.round(media * 10) / 10));
-
-      set('m-pendentes', String(j.pendentes ?? Math.max((j.total ?? 0) - (j.respondidas ?? 0), 0)));
-      set('m-pendentes-sub', 'aguardando resposta');
-    } catch (e) {
-      // fallback em caso de erro
-      ['m-avaliacoes','m-respondidas','m-media','m-pendentes'].forEach(id=> {
-        const el = document.getElementById(id);
-        if (el) el.innerHTML = '<span class="small">—</span>';
-      });
-      if (typeof showToast === 'function') showToast('Não foi possível carregar as métricas.', 'danger');
-    }
-  }
-
-  // ===== Plano / limites =====
-  function atualizarInfoPlano() {
-    fetch('/get_relatorios_count')
-      .then(res => res.json())
-      .then(data => {
-        const el = document.getElementById('plano-info'); if (!el) return;
-        if (data && data.success) {
-          const planoNome = "{{ PLANOS[user_plano].nome }}";
-          const limite = {{ PLANOS[user_plano].relatorio_pdf_mes or 'null' }};
-          let texto = `Você está no plano <strong>${planoNome}</strong>. `;
-          if (limite) texto += `Relatórios PDF gerados este mês: <strong>${data.usados}</strong> / <strong>${limite}</strong>.`;
-          else texto += 'Relatórios PDF mensais <strong>ilimitados</strong>.';
-          el.classList.remove('alert-danger','alert-info'); el.classList.add('alert-info'); el.innerHTML = texto;
+document.addEventListener('DOMContentLoaded', function () {
+  const btn = document.getElementById('btn-gerar-pdf');
+  const form = document.getElementById('form-relatorio');
+  if (btn && form) {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      document.getElementById('loader-overlay').style.display = 'flex';
+      btn.setAttribute('disabled', 'true');
+      try {
+        const res = await fetch(form.action || window.location.pathname, {
+          method: 'POST', body: new FormData(form)
+        });
+        if (res.ok && (res.headers.get('Content-Type') || '').includes('application/pdf')) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = "relatorio.pdf";
+          document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
+          if (typeof showToast === 'function') showToast('Relatório gerado com sucesso!', 'success');
         } else {
-          el.classList.remove('alert-info'); el.classList.add('alert-danger'); el.textContent = 'Erro ao carregar informações do plano.';
+          if (typeof showToast === 'function') showToast('Erro ao gerar relatório.', 'danger');
         }
-      })
-      .catch(() => {
-        const el = document.getElementById('plano-info'); if (!el) return;
-        el.classList.remove('alert-info'); el.classList.add('alert-danger'); el.textContent = 'Erro ao carregar informações do plano.';
-      });
+      } catch {
+        if (typeof showToast === 'function') showToast('Erro ao conectar ao servidor.', 'danger');
+      } finally {
+        document.getElementById('loader-overlay').style.display = 'none';
+        btn.removeAttribute('disabled');
+      }
+    });
   }
-
-  // ===== Overlay + botão loading =====
-  function toggleOverlay(show) {
-    const overlay = document.getElementById('loader-overlay');
-    if (!overlay) return;
-    overlay.style.display = show ? 'flex' : 'none';
-    overlay.setAttribute('aria-hidden', show ? 'false' : 'true');
-  }
-  function setButtonLoading(btn, loading) {
-    if (!btn) return;
-    const text = btn.querySelector('.btn-text');
-    const load = btn.querySelector('.btn-loading');
-    if (loading) {
-      btn.setAttribute('disabled', 'disabled');
-      if (text) text.classList.add('d-none');
-      if (load) load.classList.remove('d-none');
-    } else {
-      btn.removeAttribute('disabled');
-      if (text) text.classList.remove('d-none');
-      if (load) load.classList.add('d-none');
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    carregarMetricas();
-    atualizarInfoPlano();
-
-    const btnGerar = document.getElementById('btn-gerar-pdf');
-    const form = document.getElementById('form-relatorio');
-
-    if (btnGerar && !btnGerar.disabled && form) {
-      form.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        toggleOverlay(true);
-        setButtonLoading(btnGerar, true);
-
-        const formData = new FormData(form);
-        try {
-          const response = await fetch(form.action || window.location.pathname, { method: 'POST', body: formData });
-          if (response.ok && (response.headers.get('Content-Type') || '').includes('application/pdf')) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = "relatorio.pdf";
-            document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-            if (typeof showToast === 'function') showToast('Relatório concluído!', 'success');
-            atualizarInfoPlano();
-          } else {
-            let msg = 'Erro ao gerar relatório.';
-            try { const j = await response.json(); if (j && j.error) msg = j.error; } catch(_){}
-            if (typeof showToast === 'function') showToast(msg, 'danger');
-          }
-        } catch (err) {
-          if (typeof showToast === 'function') showToast('Erro ao conectar ao servidor.', 'danger');
-        } finally {
-          toggleOverlay(false);
-          setButtonLoading(btnGerar, false);
-        }
-      });
-    }
-  });
+});
 </script>
 {% endblock %}
