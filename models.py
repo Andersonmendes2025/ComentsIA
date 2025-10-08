@@ -3,7 +3,7 @@ from datetime import datetime
 import pytz
 from sqlalchemy import DateTime
 from sqlalchemy.orm import relationship
-
+from flask_login import UserMixin
 db = SQLAlchemy()
 
 def default_brt_now():
@@ -47,6 +47,9 @@ class UserSettings(db.Model):
     stripe_subscription_id = db.Column(db.String)  
     plano = db.Column(db.String(32), default='free')
     plano_ate = db.Column(db.DateTime, nullable=True)
+    gbp_tone = db.Column(db.String(32)) 
+    gbp_auto_enabled = db.Column(db.Boolean, default=False)
+    google_refresh_token = db.Column(db.String(255)) 
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -94,12 +97,12 @@ class FilialVinculo(db.Model):
 
     __table_args__ = (db.UniqueConstraint("parent_user_id", "child_user_id", name="uq_parent_child"),)
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.String(255), primary_key=True)  # ID do Google (email)
+    id = db.Column(db.String(255), primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     nome = db.Column(db.String(255))
-    foto_url = db.Column(db.String(512))  # opcional: para exibir avatar
+    foto_url = db.Column(db.String(512))
     criado_em = db.Column(db.DateTime(timezone=True), default=default_brt_now)
 
     def __repr__(self):

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Automação Google - ComentsIA{% endblock %}
+{% block content %}
+
+<div class="container mt-4">
+  <h2 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Automação Google</h2>
+
+  <form method="post">
+    <!-- CSRF token manual -->
+    <!-- Em qualquer form -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Status da Automação</h5>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="ativar" id="ativar" value="1"
+                 {% if settings.gbp_auto_enabled %}checked{% endif %}>
+          <label class="form-check-label" for="ativar">Automação ativada</label>
+        </div>
+        <small class="text-muted">Quando ativada, suas avaliações novas no Google serão monitoradas automaticamente.</small>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Tom das Respostas Automáticas</h5>
+        <select name="tone" class="form-select">
+          {% set tones = ['neutro', 'empático', 'profissional', 'informal', 'entusiasmado'] %}
+          {% for tone in tones %}
+          <option value="{{ tone }}" {% if settings.gbp_tone == tone %}selected{% endif %}>{{ tone|capitalize }}</option>
+          {% endfor %}
+        </select>
+        <small class="text-muted">Esse tom será usado nas respostas automáticas às novas avaliações.</small>
+      </div>
+    </div>
+
+    <div class="text-end">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Salvar configurações</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
