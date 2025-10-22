@@ -1,9 +1,12 @@
 # migrations/env.py
 from __future__ import annotations
+
+import os
+import sys
 from logging.config import fileConfig
+
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-import os, sys
 
 # --- garanta que a raiz do projeto está no PYTHONPATH ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -12,8 +15,8 @@ if BASE_DIR not in sys.path:
 
 # 1) Importe seu app e o db
 # Se você usa app "global" em main.py:
-from main import app            # <- ajuste se usa create_app()
-from models import db           # seu SQLAlchemy()
+from main import app  # <- ajuste se usa create_app()
+from models import db  # seu SQLAlchemy()
 
 # Se você usa factory:
 # from main import create_app
@@ -27,9 +30,11 @@ if config.config_file_name is not None:
 # 2) Metadados do SQLAlchemy para autogenerate
 target_metadata = db.metadata
 
+
 def get_url() -> str:
     # 3) Leia a URL direto da config do Flask
     return str(app.config["SQLALCHEMY_DATABASE_URI"])
+
 
 def run_migrations_offline():
     url = get_url()
@@ -45,6 +50,7 @@ def run_migrations_offline():
     with app.app_context():
         with context.begin_transaction():
             context.run_migrations()
+
 
 def run_migrations_online():
     with app.app_context():
@@ -63,6 +69,7 @@ def run_migrations_online():
             )
             with context.begin_transaction():
                 context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

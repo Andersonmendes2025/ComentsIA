@@ -6,15 +6,12 @@
     <h2 class="mb-4">Avaliações Recebidas</h2>
 
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
-
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
                 <i class="bi bi-robot me-1"></i>
                 Ativar Respostas Automáticas
             </a>
-            {# Botão de Importar CSV (Booking) removido a pedido #}
         </div>
-
         <div class="d-flex flex-wrap align-items-end gap-3">
             <div>
                 <label for="filtro-origem" class="form-label mb-1">Origem:</label>
@@ -24,7 +21,6 @@
                     <option value="booking">Booking</option>
                 </select>
             </div>
-
             <div>
                 <label for="filtro-respondida" class="form-label mb-1">Responder:</label>
                 <select id="filtro-respondida" class="form-select form-select-sm">
@@ -33,7 +29,6 @@
                     <option value="nao">Não Respondidas</option>
                 </select>
             </div>
-
             <div>
                 <label for="filtro-nota" class="form-label mb-1">Nota:</label>
                 <select id="filtro-nota" class="form-select form-select-sm">
@@ -45,7 +40,6 @@
                     <option value="1">1 estrela</option>
                 </select>
             </div>
-
             <div>
                 <label for="filtro-texto" class="form-label mb-1">Buscar:</label>
                 <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
@@ -73,19 +67,25 @@
     <div id="reviews-container">
     {% if reviews %}
         {% for review in reviews %}
-        {% set origem = (review.source or review.platform or review.origin or review.provider or 'google')|lower %}
-        {% set nome   = review.reviewer_name or review.author_name or 'Cliente' %}
-        {% set texto  = review.text or review.content or review.comment or '' %}
-        {% set nota5  = review.rating %}
+        {% set origem = (review.source or review.platform or review.origin or review.provider or 'local')|lower %} 
+        {% set nome   = review.reviewer_name or review.author_name or 'Cliente' %}
+        {% set texto  = review.text or review.content or review.comment or '' %}
+        {% set nota5  = review.rating %}
         {% set nota10 = (review.original_rating | default(None)) %}
         {% set escala = review.original_scale or '0-10' %}
 
-        <div class="card mb-3 review-card"
+        {# CORREÇÃO DA TRADUÇÃO #}
+        {% set texto_limpo = texto | replace('(Translated by Google)', '') | replace('It was very good', '') | trim %}
+        
+
+        <div class="card mb-3 review-card review-block" id="review-{{ review.id }}"
             data-respondida="{{ 'sim' if review.replied else 'nao' }}"
             data-nome="{{ (nome or '')|lower }}"
-            data-texto="{{ (texto or '')|lower }}"
+            data-texto="{{ (texto_limpo or '')|lower }}"
             data-nota="{{ nota5 if nota5 is not none else '' }}"
-            data-origem="{{ origem }}">
+            data-origem="{{ origem }}"
+            data-id-externo="{{ review.external_id or '' }}" 
+            data-id-interno="{{ review.id }}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <h5 class="card-title mb-1">Avaliação de {{ nome }}</h5>
@@ -102,16 +102,28 @@
                     &nbsp;—&nbsp; Data: {{ review.date | formatar_data_brt }}
                 </h6>
 
-                <p class="card-text" id="review-text-{{ review.id }}">{{ texto }}</p>
+                <p class="card-text" id="review-text-{{ review.id }}">{{ texto_limpo }}</p>
 
                 {% if review.replied %}
-                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
+                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;" id="reply-card-{{ review.id }}">
                         <div class="d-flex align-items-center mb-2 gap-2">
                             <i class="bi bi-check-circle text-primary" style="font-size:1.2rem"></i>
                             <span class="fw-bold">Resposta enviada</span>
                         </div>
-                        <div style="white-space: pre-line;" class="ms-4">
+                        <div style="white-space: pre-line;" class="ms-4" id="reply-text-{{ review.id }}">
                             {{ review.reply | safe }}
+                        </div>
+                        
+                        <div class="d-flex gap-2 mt-3" id="reply-actions-{{ review.id }}">
+                             <button class="btn btn-sm btn-outline-secondary" 
+                                     onclick="enableReplyEdit('{{ review.id }}')">
+                                 <i class="bi bi-pencil me-1"></i> Editar Resposta
+                             </button>
+                             
+                             <button class="btn btn-sm btn-outline-danger" 
+                                     onclick="deleteReply('{{ review.id }}', '{{ origem }}', '{{ review.external_id or '' }}')">
+                                 <i class="bi bi-trash me-1"></i> Excluir Resposta
+                             </button>
                         </div>
                     </div>
                 {% endif %}
@@ -126,19 +138,15 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button class="btn btn-primary btn-sm flex-fill" style="min-width: 160px;"
-                            onclick="generateReply({{ review.id }}, {{ nota5 if nota5 is not none else '0' }}, '{{ (nome or '') | e }}')">
+                            onclick="generateReply('{{ review.id }}', {{ nota5 if nota5 is not none else '0' }}, '{{ (nome or '') | e }}')">
                         Gerar sugestão
                     </button>
-                    {% if review.replied %}
-                        <button class="btn btn-warning btn-sm flex-fill" style="min-width:160px;"
-                                onclick="deleteReply({{ review.id }})">
-                            Excluir resposta
+                    {% if origem != 'google' %}
+                        <button class="btn btn-danger btn-sm flex-fill" style="min-width:160px;"
+                                onclick="deleteReview('{{ review.id }}')">
+                            Excluir avaliação (Local)
                         </button>
                     {% endif %}
-                    <button class="btn btn-danger btn-sm flex-fill" style="min-width:160px;"
-                            onclick="deleteReview({{ review.id }})">
-                        Excluir avaliação
-                    </button>
                     <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm flex-fill text-nowrap"
                         style="min-width:160px;">
                         + Adicionar Avaliação
@@ -151,11 +159,17 @@
                     <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
                         <div class="d-flex align-items-center mb-2 gap-2">
                             <i class="bi bi-magic text-primary" style="font-size:1.2rem"></i>
-                            <span class="fw-bold">Sugestão de resposta</span>
+                            <span class="fw-bold">Sugestão de resposta / Editor</span>
                         </div>
-                        <div id="suggestion-{{ review.id }}" style="white-space:pre-line;" class="ms-4"></div>
-                        <div id="actions-{{ review.id }}" class="mt-2">
-                            <button class="btn btn-success btn-sm" onclick="saveReply({{ review.id }})">Responder</button>
+                        {# Área de texto editável #}
+                        <textarea id="reply-editor-{{ review.id }}" class="form-control mb-2" rows="5"></textarea>
+                        
+                        <div id="actions-{{ review.id }}" class="mt-2 d-flex gap-2">
+                             <button class="btn btn-success btn-sm" 
+                                    onclick="saveReply('{{ review.id }}', '{{ origem }}', '{{ review.external_id or '' }}')">
+                                Publicar / Atualizar Resposta
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="hideSuggestion('{{ review.id }}')">Cancelar</button>
                         </div>
                     </div>
                 </div>
@@ -168,7 +182,7 @@
     </div> </div>
 
 <script>
-// ===== Helpers =====
+// ===== Helpers (Globais) =====
 function getCSRF() {
     const m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.getAttribute('content') : null;
@@ -180,7 +194,227 @@ function showToast(msg, type) {
 }
 function askConfirm(msg, cb) { if (confirm(msg)) cb(); }
 
-// ===== Filtros + Paginação =====
+// --- Visibilidade da Sugestão / Edição ---
+function hideSuggestion(id) {
+    document.getElementById('suggestion-block-' + id).style.display = 'none';
+    const replyCard = document.getElementById('reply-card-' + id);
+    if(replyCard) replyCard.style.display = 'block'; 
+}
+
+function enableReplyEdit(id) {
+    const replyTextEl = document.getElementById('reply-text-' + id);
+    const suggestionBlock = document.getElementById('suggestion-block-' + id);
+    const editor = document.getElementById('reply-editor-' + id);
+    
+    // Move o texto atual da resposta para o editor
+    if (replyTextEl && editor) {
+        editor.value = replyTextEl.textContent.trim();
+    }
+    
+    // Exibe o bloco de edição
+    suggestionBlock.style.display = 'block';
+    // Esconde o card de resposta enviada
+    const replyCard = document.getElementById('reply-card-' + id);
+    if(replyCard) replyCard.style.display = 'none'; 
+}
+
+// ===== Fetch util com tratamento de erro/JSON ou texto =====
+function _jsonFetch(url, bodyObj, method='POST') { 
+    const token = getCSRF();
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+    if (token) {
+        headers['X-CSRFToken'] = token;
+        headers['X-CSRF-Token'] = token;
+    }
+    
+    let fetchOptions = {
+        method: method,
+        headers,
+        credentials: 'same-origin',
+    };
+    // Body só é necessário para POST/PUT, e deve ser omitido para GET/DELETE se não houver payload
+    if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && bodyObj) {
+        fetchOptions.body = JSON.stringify(bodyObj);
+    } else if (method.toUpperCase() === 'DELETE' && bodyObj && Object.keys(bodyObj).length > 0) {
+        // Para DELETE com payload, forçamos o POST, ou passamos o body se o backend aceitar
+        fetchOptions.body = JSON.stringify(bodyObj);
+    } else {
+        delete fetchOptions.headers['Content-Type']; // Omitir Content-Type para GET/DELETE sem body
+    }
+
+    return fetch(url, fetchOptions).then(async (r) => {
+        const raw = await r.text(); 
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
+        
+        if (!r.ok) {
+            const msg = (data && (data.error || data.message)) || raw || ('HTTP ' + r.status);
+            throw new Error(msg);
+        }
+        return data || {};
+    });
+}
+
+// ===== Ações (Gerar/Salvar/Excluir) - Escopo Global =====
+
+function generateReply(id, rating, reviewerName) {
+    const textEl = document.getElementById('review-text-' + id);
+    const toneEl = document.getElementById('tone-' + id);
+    const loading = document.getElementById('loading-' + id);
+    const suggestionBlock = document.getElementById('suggestion-block-' + id);
+    const editor = document.getElementById('reply-editor-' + id); 
+
+    const text = textEl ? (textEl.innerText || textEl.textContent || '') : '';
+    const tone = (toneEl && toneEl.value) ? toneEl.value : 'profissional';
+
+    const star = Number.parseFloat(rating);
+    const starRating = Number.isNaN(star) ? 0 : star;
+
+    // Se já existe uma resposta enviada, esconde o card dela
+    const replyCard = document.getElementById('reply-card-' + id);
+    if(replyCard) replyCard.style.display = 'none';
+
+    // Garante que os elementos existam antes de manipular estilos
+    if (loading && suggestionBlock) {
+        loading.style.display = 'block';
+        suggestionBlock.style.display = 'none';
+    } else {
+        showToast('Erro: Elementos da review não encontrados (ID: ' + id + ')', 'danger');
+        return;
+    }
+
+    _jsonFetch('/suggest_reply', {
+        review_id: id,
+        review_text: text || '',
+        star_rating: starRating,
+        reviewer_name: reviewerName || '',
+        tone: tone
+    })
+    .then(data => {
+        loading.style.display = 'none';
+        if (data && data.success) {
+            // Insere a sugestão no editor
+            editor.value = data.suggested_reply || ''; 
+            suggestionBlock.style.display = 'block';
+        } else {
+            const msg = (data && data.error) ? data.error : 'Falha ao gerar sugestão';
+            showToast('Erro: ' + msg, 'danger');
+        }
+    })
+    .catch(err => {
+        loading.style.display = 'none';
+        showToast('Erro de comunicação: ' + err.message, 'danger');
+    });
+}
+
+/**
+ * Salva ou Atualiza uma resposta, roteando para a rota local ou Google Auto.
+ * Se for Google, usa o endpoint de edição que serve para criar ou atualizar.
+ */
+function saveReply(idInterno, source, externalId) {
+    const replyText = (document.getElementById('reply-editor-' + idInterno) || {}).value || ''; 
+    
+    if (!replyText.trim()) {
+        showToast('A resposta não pode estar vazia.', 'warning');
+        return;
+    }
+    
+    let endpoint;
+    let payload = { reply_text: replyText }; 
+    let method = 'POST';
+
+    if (source === 'google') {
+        if (!externalId) {
+             showToast('❌ ID Externo ausente. Não é possível publicar no Google.', 'danger');
+             return;
+        }
+        // Endpoint Google Auto para edição/criação
+        endpoint = `/auto/editar_reply/${externalId}`;
+    } else {
+        // Endpoint Local para outras fontes
+        endpoint = '/save_reply';
+        payload.review_id = idInterno; 
+    }
+
+    _jsonFetch(endpoint, payload, method)
+    .then(data => {
+        if (data && data.success) {
+            showToast('Resposta salva e publicada com sucesso! Recarregando...', 'success');
+            location.reload(); 
+        } else {
+            const msg = (data && data.message) ? data.message : (data && data.error ? data.error : 'Falha ao salvar resposta');
+            showToast('Erro: ' + msg, 'danger');
+        }
+    })
+    .catch(err => {
+        showToast('Erro de comunicação: ' + err.message, 'danger');
+    });
+}
+
+/**
+ * Exclui uma resposta, roteando para a rota local ou Google Auto.
+ */
+function deleteReply(idInterno, source, externalId) {
+    askConfirm('Tem certeza que deseja excluir a resposta? Esta ação removerá a resposta permanentemente.', function() {
+        
+        let endpoint;
+        let payload = {};
+        let method = 'POST'; 
+
+        if (source === 'google') {
+            if (!externalId) {
+                 showToast('❌ ID Externo ausente. Não é possível excluir do Google.', 'danger');
+                 return;
+            }
+            // Endpoint Google Auto para exclusão
+            endpoint = `/auto/excluir_reply/${externalId}`;
+            method = 'DELETE'; // DELETE é o método REST correto para exclusão
+            
+        } else {
+            // Endpoint Local para exclusão
+            endpoint = '/delete_reply';
+            payload.review_id = idInterno; 
+        }
+
+        _jsonFetch(endpoint, payload, method)
+        .then(data => {
+            if (data && data.success) {
+                showToast('Resposta excluída com sucesso! Recarregando...', 'success');
+                location.reload();
+            } else {
+                const msg = (data && data.message) ? data.message : (data && data.error ? data.error : 'Falha ao excluir resposta');
+                showToast('Erro: ' + msg, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('Erro de comunicação: ' + err.message, 'danger'); 
+        });
+    });
+}
+
+function deleteReview(id) {
+    askConfirm('Tem certeza que deseja excluir esta avaliação permanentemente do seu painel? (Isso não afeta a fonte original, apenas o seu registro local.)', function() {
+        _jsonFetch('/delete_review', { review_id: id })
+        .then(data => {
+            if (data && data.success) {
+                showToast('Avaliação excluída com sucesso! Recarregando...', 'success');
+                location.reload();
+            } else {
+                const msg = (data && data.error) ? data.error : 'Falha ao excluir avaliação';
+                showToast('Erro: ' + msg, 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('Erro de comunicação: ' + err.message, 'danger');
+        });
+    });
+}
+
+// ===== Filtros + Paginação (Mantido e garantido no escopo global) =====
 document.addEventListener('DOMContentLoaded', function () {
     const cards = Array.from(document.querySelectorAll('.review-card'));
     const filtroOrigem = document.getElementById('filtro-origem');
@@ -210,12 +444,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const nota = parseFloat(card.dataset.nota || 'NaN');
 
             const okOrigem = (valorOrigem === 'todas') || (valorOrigem === origem);
-            const okResp   = (valorRespondida === 'todas') || (valorRespondida === respondida);
+            const okResp   = (valorRespondida === 'todas') || (valorRespondida === respondida);
 
             let okNota = true;
             if (valorNota !== 'todas' && !Number.isNaN(nota)) {
                 const alvo = parseInt(valorNota, 10);
-                // Verifica se a nota ponderada corresponde à estrela principal (arredondada para baixo, geralmente)
                 okNota = Math.floor(nota) === alvo;
             }
 
@@ -251,140 +484,5 @@ document.addEventListener('DOMContentLoaded', function () {
 
     aplicaFiltros();
 });
-
-// ===== Fetch util com tratamento de erro/JSON ou texto =====
-function _jsonFetch(url, bodyObj) {
-    const token = getCSRF();
-    const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-    };
-    if (token) {
-        headers['X-CSRFToken'] = token;
-        headers['X-CSRF-Token'] = token; // alguns middlewares usam este nome
-    }
-    return fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(bodyObj || {}),
-        credentials: 'same-origin',
-    }).then(async (r) => {
-        const raw = await r.text(); // pega como texto primeiro
-        let data = null;
-        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
-        if (!r.ok) {
-            const msg = (data && (data.error || data.message)) || raw || ('HTTP ' + r.status);
-            throw new Error(msg);
-        }
-        return data || {};
-    });
-}
-
-// ===== Ações (Gerar/Salvar/Excluir) =====
-function generateReply(id, rating, reviewerName) {
-    const textEl = document.getElementById('review-text-' + id);
-    const toneEl = document.getElementById('tone-' + id);
-    const loading = document.getElementById('loading-' + id);
-    const suggestionBlock = document.getElementById('suggestion-block-' + id);
-    const suggestion = document.getElementById('suggestion-' + id);
-    const actions = document.getElementById('actions-' + id);
-
-    const text = textEl ? (textEl.innerText || textEl.textContent || '') : '';
-    const tone = (toneEl && toneEl.value) ? toneEl.value : 'profissional';
-
-    // Garante que o rating seja um número, com fallback para 0
-    const star = Number.parseFloat(rating);
-    const starRating = Number.isNaN(star) ? 0 : star;
-
-    loading.style.display = 'block';
-    suggestionBlock.style.display = 'none';
-
-    _jsonFetch('/suggest_reply', {
-        review_id: id,
-        review_text: text || '',
-        star_rating: starRating,
-        reviewer_name: reviewerName || '',
-        tone: tone
-    })
-    .then(data => {
-        loading.style.display = 'none';
-        if (data && data.success) {
-            suggestion.innerText = data.suggested_reply || '';
-            suggestionBlock.style.display = 'block';
-            // actions.style.display já está ok dentro do suggestion-block
-        } else {
-            const msg = (data && data.error) ? data.error : 'Falha ao gerar sugestão';
-            showToast('Erro: ' + msg, 'danger');
-            console.error('suggest_reply payload/resp:', data);
-        }
-    })
-    .catch(err => {
-        loading.style.display = 'none';
-        console.error('suggest_reply error:', err);
-        showToast('Erro de comunicação: ' + err.message, 'danger');
-    });
-}
-
-function saveReply(id) {
-    const replyText = (document.getElementById('suggestion-' + id) || {}).innerText || '';
-    if (!replyText) {
-        showToast('A sugestão está vazia. Gere uma sugestão antes de responder.', 'warning');
-        return;
-    }
-    _jsonFetch('/save_reply', { review_id: id, reply_text: replyText })
-    .then(data => {
-        if (data && data.success) {
-            showToast('Resposta salva com sucesso!');
-            location.reload();
-        } else {
-            showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao salvar resposta'), 'danger');
-            console.error('save_reply payload/resp:', data);
-        }
-    })
-    .catch(err => {
-        console.error('save_reply error:', err);
-        showToast('Erro de comunicação: ' + err.message, 'danger');
-    });
-}
-
-function deleteReply(id) {
-    askConfirm('Tem certeza que deseja excluir a resposta?', function() {
-        _jsonFetch('/delete_reply', { review_id: id })
-        .then(data => {
-            if (data && data.success) {
-                showToast('Resposta excluída com sucesso!');
-                location.reload();
-            } else {
-                showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir'), 'danger');
-                console.error('delete_reply payload/resp:', data);
-            }
-        })
-        .catch(err => {
-            console.error('delete_reply error:', err);
-            // CORREÇÃO: Removido o erro de sintaxe aqui (' ' faltava)
-            showToast('Erro de comunicação: ' + err.message, 'danger'); 
-        });
-    });
-}
-
-function deleteReview(id) {
-    askConfirm('Tem certeza que deseja excluir a avaliação?', function() {
-        _jsonFetch('/delete_review', { review_id: id })
-        .then(data => {
-            if (data && data.success) {
-                showToast('Avaliação excluída com sucesso!');
-                location.reload();
-            } else {
-                showToast('Erro: ' + (data && data.error ? data.error : 'Falha ao excluir avaliação'), 'danger');
-                console.error('delete_review payload/resp:', data);
-            }
-        })
-        .catch(err => {
-            console.error('delete_review error:', err);
-            showToast('Erro de comunicação: ' + err.message, 'danger');
-        });
-    });
-}
 </script>
 {% endblock %}

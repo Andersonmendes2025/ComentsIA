@@ -1,18 +1,18 @@
-import os
 import io
+import os
 import re
-import unicodedata
 import tempfile
+import unicodedata
 from datetime import datetime
 
+# --- Matplotlib sem GUI (evita Tkinter) ---
+import matplotlib
 import pandas as pd
 import pytz
 from fpdf import FPDF
 from openai import OpenAI
 from PIL import Image
 
-# --- Matplotlib sem GUI (evita Tkinter) ---
-import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
@@ -20,15 +20,19 @@ from matplotlib import pyplot as plt
 def limpa_markdown(texto: str) -> str:
     if not isinstance(texto, str):
         return ""
-    texto = re.sub(r'^\s*#+\s*', '', texto, flags=re.MULTILINE)
-    texto = re.sub(r'\*\*([^*]+)\*\*', r'\1', texto)
-    texto = re.sub(r'^[\-\*]\s+', '', texto, flags=re.MULTILINE)
-    texto = re.sub(r'^\d+\.\s+', '', texto, flags=re.MULTILINE)
-    texto = re.sub(r'^---+', '', texto, flags=re.MULTILINE)
-    texto = re.sub(r'\n{3,}', '\n\n', texto)
-    texto = texto.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
-    texto = texto.replace('–', '-').replace('—', '-')
-    texto = unicodedata.normalize('NFKD', texto).encode('ASCII', 'ignore').decode('ASCII')
+    texto = re.sub(r"^\s*#+\s*", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"\*\*([^*]+)\*\*", r"\1", texto)
+    texto = re.sub(r"^[\-\*]\s+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"^\d+\.\s+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"^---+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"\n{3,}", "\n\n", texto)
+    texto = (
+        texto.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+    )
+    texto = texto.replace("–", "-").replace("—", "-")
+    texto = (
+        unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII")
+    )
     return texto.strip()
 
 
@@ -36,14 +40,16 @@ class RelatorioAvaliacoes:
     def __init__(self, avaliacoes, media_atual=None, analises=None, settings=None):
         # Garante chaves mínimas
         safe = []
-        for a in (avaliacoes or []):
-            safe.append({
-                "data": a.get("data"),
-                "nota": a.get("nota"),
-                "texto": a.get("texto") or a.get("text") or "",
-                "respondida": a.get("respondida", 0),
-                "tags": a.get("tags", ""),
-            })
+        for a in avaliacoes or []:
+            safe.append(
+                {
+                    "data": a.get("data"),
+                    "nota": a.get("nota"),
+                    "texto": a.get("texto") or a.get("text") or "",
+                    "respondida": a.get("respondida", 0),
+                    "tags": a.get("tags", ""),
+                }
+            )
         self.df = pd.DataFrame(safe)
         self.media_atual = media_atual
         self.analises = analises
@@ -62,8 +68,8 @@ class RelatorioAvaliacoes:
             self.df["nota"] = None
         notas_por_mes = (
             self.df.dropna(subset=["data_local_naive"])
-                   .groupby(self.df["data_local_naive"].dt.to_period("M"))["nota"]
-                   .mean()
+            .groupby(self.df["data_local_naive"].dt.to_period("M"))["nota"]
+            .mean()
         )
 
         plt.figure(figsize=(9, 4))
@@ -108,7 +114,9 @@ class RelatorioAvaliacoes:
                     px_to_mm = 25.4 / dpi
                     img_width_mm = img.width * px_to_mm
                     img_height_mm = img.height * px_to_mm
-                    ratio = min(max_width_mm / img_width_mm, max_height_mm / img_height_mm, 1)
+                    ratio = min(
+                        max_width_mm / img_width_mm, max_height_mm / img_height_mm, 1
+                    )
                     w = img_width_mm * ratio
                     h = img_height_mm * ratio
                     x_pos = (pdf.w - w) / 2
@@ -137,20 +145,30 @@ class RelatorioAvaliacoes:
             pdf.cell(0, 10, f"Media de nota: {media_nota:.2f}", ln=True)
             if self.media_atual is not None:
                 try:
-                    pdf.cell(0, 10, f"Media Atual: {float(self.media_atual):.2f}", ln=True)
+                    pdf.cell(
+                        0, 10, f"Media Atual: {float(self.media_atual):.2f}", ln=True
+                    )
                 except Exception:
                     pdf.cell(0, 10, "Media Atual: --", ln=True)
             pdf.ln(5)
 
             # Normaliza 'data_local' (pode ser util em outras secoes)
             try:
-                self.df["data"] = pd.to_datetime(self.df.get("data"), errors="coerce", utc=True)
-                self.df["data_local"] = self.df["data"].dt.tz_convert("America/Sao_Paulo").dt.strftime("%d/%m/%Y %H:%M")
+                self.df["data"] = pd.to_datetime(
+                    self.df.get("data"), errors="coerce", utc=True
+                )
+                self.df["data_local"] = (
+                    self.df["data"]
+                    .dt.tz_convert("America/Sao_Paulo")
+                    .dt.strftime("%d/%m/%Y %H:%M")
+                )
             except Exception:
                 pass
 
             manager_name = self.settings.get("manager_name") or ""
-            manager_str = f'O gerente responsavel e "{manager_name}".' if manager_name else ""
+            manager_str = (
+                f'O gerente responsavel e "{manager_name}".' if manager_name else ""
+            )
 
             # --- ANÁLISE DA IA ---
             # Garante colunas para o prompt
@@ -210,10 +228,13 @@ DADOS DAS AVALIACOES:
                 completion = client.chat.completions.create(
                     model="gpt-4.1",
                     messages=[
-                        {"role": "system", "content": "Voce e um assistente especializado em analise de satisfacao do cliente."},
-                        {"role": "user", "content": prompt}
+                        {
+                            "role": "system",
+                            "content": "Voce e um assistente especializado em analise de satisfacao do cliente.",
+                        },
+                        {"role": "user", "content": prompt},
                     ],
-                    timeout=60
+                    timeout=60,
                 )
                 analise_gerada = (completion.choices[0].message.content or "").strip()
                 analise_limpa = limpa_markdown(analise_gerada)

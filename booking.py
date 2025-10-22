@@ -3,45 +3,50 @@
 from __future__ import annotations
 
 import csv
+import hashlib
+import html
 import io
+import json
 import os
 import re
-import json
-import html
 import time as time_mod
 import unicodedata
-import hashlib
 from datetime import datetime
-from time import time
 from functools import wraps
-from typing import Dict, Any, List, Optional, Iterable, Iterator, Tuple
-
-from flask import Blueprint, request, jsonify, render_template, session, current_app
-from sqlalchemy.exc import IntegrityError
-from werkzeug.utils import secure_filename
+from time import time
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 # Scheduler para processar em segundo plano
 from apscheduler.schedulers.background import BackgroundScheduler
+from flask import Blueprint, current_app, jsonify, render_template, request, session
+from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
 
 # CSRF (validação manual opcional, além do CSRFProtect global se houver)
 try:
     from flask_wtf.csrf import validate_csrf
+
     _HAS_WTF_CSRF = True
 except Exception:
     _HAS_WTF_CSRF = False
 
 # >>> importe TODOS os models apenas daqui:
-from models import db, Review, ReservationIndex, UploadLog
+from models import ReservationIndex, Review, UploadLog, db
 
 # ======= Helpers de data/timezone =======
 try:
     import pytz
+
     BRT = pytz.timezone("America/Sao_Paulo")
+
     def agora_brt():
         return datetime.now(BRT)
+
 except Exception:
+
     def agora_brt():
         return datetime.now()
+
 
 booking_bp = Blueprint("booking", __name__, url_prefix="/booking")
 
@@ -52,33 +57,39 @@ ALLOWED_MIMETYPES = {
     "application/vnd.ms-excel",
     "text/plain",
 }
-MAX_FILE_BYTES = 2_000_000  # ~2MB (apenas para upload imediato; processamento é em stream)
+MAX_FILE_BYTES = (
+    2_000_000  # ~2MB (apenas para upload imediato; processamento é em stream)
+)
 MAX_CSV_LINES = 100_000
 MAX_ERRORS_RETURNED = 10
 BOOKING_SOURCE = "booking"
 
 # processamento em background
 CHUNK_BYTES = 150 * 1024  # 150 KB
-BATCH_ROWS = 400          # insere/commita a cada 400 linhas válidas (ajuda na RAM)
+BATCH_ROWS = 400  # insere/commita a cada 400 linhas válidas (ajuda na RAM)
 SLEEP_BETWEEN_CHUNKS = 0.05  # descanso curto entre blocos, suaviza CPU/RAM
 
 # -------- Normalizadores ----------
 _ws_re = re.compile(r"\s+", re.UNICODE)
 _punct_re = re.compile(r"[^\w\s]", re.UNICODE)
 
+
 def _norm_text(s: Optional[str]) -> str:
-    if not s: return ""
+    if not s:
+        return ""
     s = str(s)
     s = unicodedata.normalize("NFKD", s)
     s = "".join(ch for ch in s if not unicodedata.combining(ch))
     s = _ws_re.sub(" ", s.strip())
     return s
 
+
 def _norm_header(h: str) -> str:
     s = _norm_text(h).lower()
     s = _punct_re.sub(" ", s)
     s = _ws_re.sub(" ", s).strip()
     return s
+
 
 def _neutralize_excel_formula(s: Optional[str]) -> Optional[str]:
     if not s:
@@ -88,17 +99,21 @@ def _neutralize_excel_formula(s: Optional[str]) -> Optional[str]:
         return "'" + st
     return st
 
+
 def _sanitize_errmsg(msg: Any) -> str:
     return html.escape(str(msg), quote=True)
+
 
 # -------- utilidades básicas ----------
 def _filename_ok(filename: str) -> bool:
     return bool(filename) and any(filename.lower().endswith(ext) for ext in ALLOWED_EXT)
 
+
 def _mimetype_ok(mt: Optional[str]) -> bool:
     if not mt:
         return False
     return mt.lower() in ALLOWED_MIMETYPES
+
 
 def _to_float(val: Any) -> Optional[float]:
     if val is None:
@@ -108,6 +123,7 @@ def _to_float(val: Any) -> Optional[float]:
     except Exception:
         return None
 
+
 def _first_not_empty(*vals: Any) -> Optional[str]:
     for v in vals:
         s = ("" if v is None else str(v)).strip()
@@ -115,29 +131,78 @@ def _first_not_empty(*vals: Any) -> Optional[str]:
             return s
     return None
 
+
 def _detect_fields(headers: List[str]) -> Dict[str, str]:
     norm2orig: Dict[str, str] = {_norm_header(h): h for h in headers}
+
     def pick(*syns: str) -> str:
         for s in syns:
             s_norm = _norm_header(s)
             if s_norm in norm2orig:
                 return norm2orig[s_norm]
         return ""
+
     return {
-        "name": pick("nome do hospede", "hospede", "guest name", "reviewer name", "name", "autor", "author"),
+        "name": pick(
+            "nome do hospede",
+            "hospede",
+            "guest name",
+            "reviewer name",
+            "name",
+            "autor",
+            "author",
+        ),
         "title": pick("titulo da avaliacao", "review title", "title", "titulo"),
-        "text_pos": pick("avaliacao positiva", "positive", "pros", "comentario positivo"),
-        "text_neg": pick("avaliacao negativa", "negative", "cons", "comentario negativo"),
-        "rating": pick("nota de avaliacao", "score", "rating", "nota", "overall score", "overall", "puntuacion", "pontuacao"),
-        "date": pick("data da avaliacao", "submission date", "date", "data", "review date", "created", "created at"),
-        "external_id": pick("numero da reserva", "número da reserva", "review id", "booking id", "id", "reviewid"),
+        "text_pos": pick(
+            "avaliacao positiva", "positive", "pros", "comentario positivo"
+        ),
+        "text_neg": pick(
+            "avaliacao negativa", "negative", "cons", "comentario negativo"
+        ),
+        "rating": pick(
+            "nota de avaliacao",
+            "score",
+            "rating",
+            "nota",
+            "overall score",
+            "overall",
+            "puntuacion",
+            "pontuacao",
+        ),
+        "date": pick(
+            "data da avaliacao",
+            "submission date",
+            "date",
+            "data",
+            "review date",
+            "created",
+            "created at",
+        ),
+        "external_id": pick(
+            "numero da reserva",
+            "número da reserva",
+            "review id",
+            "booking id",
+            "id",
+            "reviewid",
+        ),
     }
 
+
 def _parse_date(val: Any) -> Optional[datetime]:
-    if not val: return None
+    if not val:
+        return None
     s = str(val).strip()
-    fmts = ["%Y-%m-%d %H:%M:%S","%Y-%m-%d","%d/%m/%Y %H:%M:%S","%d/%m/%Y",
-            "%d-%m-%Y %H:%M","%d-%m-%Y","%m/%d/%Y %H:%M:%S","%m/%d/%Y"]
+    fmts = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y",
+        "%d-%m-%Y %H:%M",
+        "%d-%m-%Y",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y",
+    ]
     for f in fmts:
         try:
             return datetime.strptime(s, f)
@@ -145,35 +210,47 @@ def _parse_date(val: Any) -> Optional[datetime]:
             pass
     return None
 
+
 def _convert_to_five_scale(x: Optional[float]) -> Optional[float]:
-    if x is None: return None
+    if x is None:
+        return None
     v = float(x)
-    if 0 <= v <= 5: return round(v, 1)
-    if 0 <= v <= 10: return round(v/2.0, 1)
-    if 0 <= v <= 100: return round((v/100.0)*5.0, 1)
+    if 0 <= v <= 5:
+        return round(v, 1)
+    if 0 <= v <= 10:
+        return round(v / 2.0, 1)
+    if 0 <= v <= 100:
+        return round((v / 100.0) * 5.0, 1)
     return 0.0 if v < 0 else 5.0
 
+
 def _is_valid_extid(extid: Optional[str]) -> bool:
-    if not extid: return False
+    if not extid:
+        return False
     s = str(extid).strip()
     return s.isdigit() and 6 <= len(s) <= 16
 
+
 def _set_if_attr(obj: Any, field: str, value: Any) -> None:
     if hasattr(obj, field):
-        try: setattr(obj, field, value)
-        except Exception: pass
+        try:
+            setattr(obj, field, value)
+        except Exception:
+            pass
+
 
 def _get_current_user_id() -> Optional[str]:
     info = session.get("user_info") or {}
     return info.get("id")
 
+
 def _require_login() -> bool:
     return "credentials" in session and bool(_get_current_user_id())
 
-def _sanitize_name(name: Optional[str],
-                   title: Optional[str],
-                   pos: Optional[str],
-                   neg: Optional[str]) -> Optional[str]:
+
+def _sanitize_name(
+    name: Optional[str], title: Optional[str], pos: Optional[str], neg: Optional[str]
+) -> Optional[str]:
     s = (name or "").strip()
     if not s:
         return None
@@ -193,8 +270,11 @@ def _sanitize_name(name: Optional[str],
             return None
     return s
 
+
 # ---------- Rate limiting (fallback em memória) ----------
 _rate_store: Dict[str, List[float]] = {}
+
+
 def _rate_limit(scope: str, max_calls: int, window_seconds: int):
     def decorator(fn):
         @wraps(fn)
@@ -204,12 +284,21 @@ def _rate_limit(scope: str, max_calls: int, window_seconds: int):
             now = time()
             buf = [t for t in _rate_store.get(key, []) if now - t < window_seconds]
             if len(buf) >= max_calls:
-                return jsonify(success=False, error="Limite de requisições atingido. Tente mais tarde."), 429
+                return (
+                    jsonify(
+                        success=False,
+                        error="Limite de requisições atingido. Tente mais tarde.",
+                    ),
+                    429,
+                )
             buf.append(now)
             _rate_store[key] = buf
             return fn(*args, **kwargs)
+
         return wrapper
+
     return decorator
+
 
 # ---------- Helpers batch ----------
 def _chunked(it: Iterable[Any], n: int = 900) -> Iterable[List[Any]]:
@@ -222,6 +311,7 @@ def _chunked(it: Iterable[Any], n: int = 900) -> Iterable[List[Any]]:
     if buf:
         yield buf
 
+
 def _prefetch_existing_by_ext(user_id: str, ext_ids: List[str]) -> set[str]:
     """Busca no índice/tabela os external_id já existentes para este usuário/fonte."""
     found: set[str] = set()
@@ -230,11 +320,15 @@ def _prefetch_existing_by_ext(user_id: str, ext_ids: List[str]) -> set[str]:
     # 1) ReservationIndex (mais barato)
     for chunk in _chunked(ext_ids):
         try:
-            rows = db.session.query(ReservationIndex.external_id).filter(
-                ReservationIndex.user_id == user_id,
-                ReservationIndex.source == BOOKING_SOURCE,
-                ReservationIndex.external_id.in_(chunk)
-            ).all()
+            rows = (
+                db.session.query(ReservationIndex.external_id)
+                .filter(
+                    ReservationIndex.user_id == user_id,
+                    ReservationIndex.source == BOOKING_SOURCE,
+                    ReservationIndex.external_id.in_(chunk),
+                )
+                .all()
+            )
             found.update(str(r[0]) for r in rows if r[0] is not None)
         except Exception:
             found = set()
@@ -243,15 +337,20 @@ def _prefetch_existing_by_ext(user_id: str, ext_ids: List[str]) -> set[str]:
     if not found:
         for chunk in _chunked(ext_ids):
             try:
-                rows = db.session.query(Review.external_id).filter(
-                    Review.user_id == user_id,
-                    Review.source == BOOKING_SOURCE,
-                    Review.external_id.in_(chunk)
-                ).all()
+                rows = (
+                    db.session.query(Review.external_id)
+                    .filter(
+                        Review.user_id == user_id,
+                        Review.source == BOOKING_SOURCE,
+                        Review.external_id.in_(chunk),
+                    )
+                    .all()
+                )
                 found.update(str(r[0]) for r in rows if r[0] is not None)
             except Exception:
                 return set()
     return found
+
 
 # ---------- Streaming CSV (150 KB) ----------
 def _iter_lines_from_file(path: str, chunk_bytes: int = CHUNK_BYTES) -> Iterator[str]:
@@ -279,6 +378,7 @@ def _iter_lines_from_file(path: str, chunk_bytes: int = CHUNK_BYTES) -> Iterator
                 except Exception:
                     yield ln.decode("latin-1", errors="replace")
 
+
 def _build_dict_reader(lines_iter: Iterator[str]) -> Tuple[csv.DictReader, List[str]]:
     """
     Consome a primeira linha (cabeçalho), detecta delimitador e cria um DictReader
@@ -302,8 +402,10 @@ def _build_dict_reader(lines_iter: Iterator[str]) -> Tuple[csv.DictReader, List[
     reader = csv.DictReader(lines_iter, fieldnames=headers, dialect=dialect)
     return reader, headers
 
+
 # ---------- Scheduler global (daemon) ----------
 _scheduler: Optional[BackgroundScheduler] = None
+
 
 def _get_scheduler() -> BackgroundScheduler:
     global _scheduler
@@ -312,8 +414,11 @@ def _get_scheduler() -> BackgroundScheduler:
         _scheduler.start()
     return _scheduler
 
+
 # ---------- Worker em segundo plano ----------
-def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, user_id: str) -> None:
+def _process_booking_file_bg(
+    app_import_path: str, log_id: int, file_path: str, user_id: str
+) -> None:
     """
     Worker: processa o CSV em 150 KB por vez, insere em lotes, atualiza UploadLog.
     app_import_path: caminho para importar a app Flask (ex: 'main:app' ou 'main')
@@ -337,7 +442,9 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
             if log:
                 log.status = "error"
                 log.finished_at = agora_brt()
-                log.errors_json = json.dumps(["Falha ao inicializar contexto da aplicação."])
+                log.errors_json = json.dumps(
+                    ["Falha ao inicializar contexto da aplicação."]
+                )
                 db.session.commit()
         except Exception:
             db.session.rollback()
@@ -377,7 +484,9 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
             for row in reader:
                 line_num += 1
                 if line_num > MAX_CSV_LINES:
-                    errors.append(f"Limite de {MAX_CSV_LINES} linhas excedido. Processamento interrompido.")
+                    errors.append(
+                        f"Limite de {MAX_CSV_LINES} linhas excedido. Processamento interrompido."
+                    )
                     break
 
                 try:
@@ -386,19 +495,27 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                     if not _is_valid_extid(extid):
                         skipped += 1
                         if len(errors) < MAX_ERRORS_RETURNED:
-                            errors.append(f"Linha {line_num}: 'Número da reserva' ausente ou inválido.")
+                            errors.append(
+                                f"Linha {line_num}: 'Número da reserva' ausente ou inválido."
+                            )
                         continue
                     if extid in seen_in_file:
                         duplicates += 1
                         if len(errors) < MAX_ERRORS_RETURNED:
-                            errors.append(f"Linha {line_num}: 'Número da reserva' repetido no arquivo ({extid}).")
+                            errors.append(
+                                f"Linha {line_num}: 'Número da reserva' repetido no arquivo ({extid})."
+                            )
                         continue
                     seen_in_file.add(extid)
                     extids_batch.append(extid)
 
                     title = row.get(fieldmap["title"]) if fieldmap["title"] else None
-                    pos   = row.get(fieldmap["text_pos"]) if fieldmap["text_pos"] else None
-                    neg   = row.get(fieldmap["text_neg"]) if fieldmap["text_neg"] else None
+                    pos = (
+                        row.get(fieldmap["text_pos"]) if fieldmap["text_pos"] else None
+                    )
+                    neg = (
+                        row.get(fieldmap["text_neg"]) if fieldmap["text_neg"] else None
+                    )
                     raw_name = row.get(fieldmap["name"]) if fieldmap["name"] else None
 
                     text_joined = _first_not_empty((pos or ""), (neg or "")) or ""
@@ -406,24 +523,41 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                         text_joined = f"Positivo: {pos}\nNegativo: {neg}".strip()
                     text_joined = _neutralize_excel_formula(_norm_text(text_joined))
 
-                    title = _neutralize_excel_formula(_norm_text(title)) if title else None
+                    title = (
+                        _neutralize_excel_formula(_norm_text(title)) if title else None
+                    )
 
-                    name = _sanitize_name(raw_name, title, pos, neg) or "Hóspede Booking"
+                    name = (
+                        _sanitize_name(raw_name, title, pos, neg) or "Hóspede Booking"
+                    )
                     name = _neutralize_excel_formula(name)
 
-                    rating_10 = _to_float(row.get(fieldmap["rating"])) if fieldmap["rating"] else None
-                    rating_5  = _convert_to_five_scale(rating_10)
+                    rating_10 = (
+                        _to_float(row.get(fieldmap["rating"]))
+                        if fieldmap["rating"]
+                        else None
+                    )
+                    rating_5 = _convert_to_five_scale(rating_10)
 
-                    raw_date_val = row.get(fieldmap["date"]) if fieldmap["date"] else None
+                    raw_date_val = (
+                        row.get(fieldmap["date"]) if fieldmap["date"] else None
+                    )
                     parsed_dt = _parse_date(raw_date_val)
                     dt_to_save = parsed_dt or agora_brt()
 
-                    batch_rows.append(dict(
-                        external_id=extid, name=name, title=title,
-                        pos=pos, neg=neg, text=text_joined,
-                        rating_10=rating_10, rating_5=rating_5,
-                        dt_save=dt_to_save
-                    ))
+                    batch_rows.append(
+                        dict(
+                            external_id=extid,
+                            name=name,
+                            title=title,
+                            pos=pos,
+                            neg=neg,
+                            text=text_joined,
+                            rating_10=rating_10,
+                            rating_5=rating_5,
+                            dt_save=dt_to_save,
+                        )
+                    )
 
                     # quando atinge um lote, processa/insere
                     if len(batch_rows) >= BATCH_ROWS:
@@ -436,7 +570,11 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                                 duplicates += 1
                                 continue
                             try:
-                                idx = ReservationIndex(user_id=user_id, source=BOOKING_SOURCE, external_id=extid_i)
+                                idx = ReservationIndex(
+                                    user_id=user_id,
+                                    source=BOOKING_SOURCE,
+                                    external_id=extid_i,
+                                )
                                 db.session.add(idx)
                                 db.session.flush()
                             except IntegrityError:
@@ -459,7 +597,11 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                             _set_if_attr(review, "source", BOOKING_SOURCE)
                             _set_if_attr(review, "external_id", extid_i)
                             try:
-                                fp = hashlib.sha256(f"{user_id}|{BOOKING_SOURCE}|{extid_i}".encode("utf-8")).hexdigest()
+                                fp = hashlib.sha256(
+                                    f"{user_id}|{BOOKING_SOURCE}|{extid_i}".encode(
+                                        "utf-8"
+                                    )
+                                ).hexdigest()
                                 _set_if_attr(review, "fingerprint", fp)
                             except Exception:
                                 pass
@@ -481,7 +623,11 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                             log.duplicates = duplicates
                             log.skipped = skipped
                             # mantemos só alguns erros para não inchar
-                            log.errors_json = json.dumps(errors[:MAX_ERRORS_RETURNED]) if errors else None
+                            log.errors_json = (
+                                json.dumps(errors[:MAX_ERRORS_RETURNED])
+                                if errors
+                                else None
+                            )
                             db.session.commit()
 
                         # limpa buffers do lote
@@ -505,7 +651,9 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                         duplicates += 1
                         continue
                     try:
-                        idx = ReservationIndex(user_id=user_id, source=BOOKING_SOURCE, external_id=extid_i)
+                        idx = ReservationIndex(
+                            user_id=user_id, source=BOOKING_SOURCE, external_id=extid_i
+                        )
                         db.session.add(idx)
                         db.session.flush()
                     except IntegrityError:
@@ -528,7 +676,9 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                     _set_if_attr(review, "source", BOOKING_SOURCE)
                     _set_if_attr(review, "external_id", extid_i)
                     try:
-                        fp = hashlib.sha256(f"{user_id}|{BOOKING_SOURCE}|{extid_i}".encode("utf-8")).hexdigest()
+                        fp = hashlib.sha256(
+                            f"{user_id}|{BOOKING_SOURCE}|{extid_i}".encode("utf-8")
+                        ).hexdigest()
                         _set_if_attr(review, "fingerprint", fp)
                     except Exception:
                         pass
@@ -549,7 +699,9 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
                 log.inserted = inserted
                 log.duplicates = duplicates
                 log.skipped = skipped
-                log.errors_json = json.dumps(errors[:MAX_ERRORS_RETURNED]) if errors else None
+                log.errors_json = (
+                    json.dumps(errors[:MAX_ERRORS_RETURNED]) if errors else None
+                )
                 db.session.commit()
 
         except Exception as e:
@@ -571,6 +723,7 @@ def _process_booking_file_bg(app_import_path: str, log_id: int, file_path: str, 
             # liberação de sessão para o worker
             db.session.remove()
 
+
 # ======= Views =======
 @booking_bp.route("/", methods=["GET"])
 @_rate_limit("form_upload", 120, 60)
@@ -579,17 +732,20 @@ def form_upload():
         return ("Não autenticado.", 401)
     return render_template("booking_upload.html")
 
+
 @booking_bp.route("/uploads", methods=["GET"])
 @_rate_limit("list_uploads", 240, 60)
 def list_uploads():
     if not _require_login():
         return jsonify(success=False, error="Não autenticado."), 401
     user_id = _get_current_user_id()
-    logs = (UploadLog.query
-            .filter_by(user_id=user_id, source=BOOKING_SOURCE)
-            .order_by(UploadLog.started_at.desc())
-            .limit(100)
-            .all())
+    logs = (
+        UploadLog.query.filter_by(user_id=user_id, source=BOOKING_SOURCE)
+        .order_by(UploadLog.started_at.desc())
+        .limit(100)
+        .all()
+    )
+
     def to_dict(u: UploadLog) -> Dict[str, Any]:
         return dict(
             id=u.id,
@@ -601,9 +757,11 @@ def list_uploads():
             duplicates=u.duplicates,
             skipped=u.skipped,
             status=u.status,
-            errors=json.loads(u.errors_json) if u.errors_json else []
+            errors=json.loads(u.errors_json) if u.errors_json else [],
         )
+
     return jsonify(success=True, uploads=[to_dict(u) for u in logs])
+
 
 @booking_bp.route("/uploads/<int:log_id>", methods=["DELETE"])
 @_rate_limit("delete_upload_log", 30, 3600)
@@ -620,7 +778,9 @@ def delete_upload_log(log_id: int):
             return jsonify(success=False, error="CSRF inválido."), 400
 
     user_id = _get_current_user_id()
-    log = UploadLog.query.filter_by(id=log_id, user_id=user_id, source=BOOKING_SOURCE).first()
+    log = UploadLog.query.filter_by(
+        id=log_id, user_id=user_id, source=BOOKING_SOURCE
+    ).first()
     if not log:
         return jsonify(success=False, error="Registro não encontrado."), 404
     try:
@@ -630,6 +790,7 @@ def delete_upload_log(log_id: int):
     except Exception:
         db.session.rollback()
         return jsonify(success=False, error="Falha ao excluir."), 400
+
 
 @booking_bp.route("/upload", methods=["POST"])
 @_rate_limit("upload_csv", 10, 3600)
@@ -692,22 +853,35 @@ def upload_csv():
 
     # Log inicial (status queued)
     upload_log = UploadLog(
-        user_id=user_id, source=BOOKING_SOURCE,
+        user_id=user_id,
+        source=BOOKING_SOURCE,
         filename=safe_name,
         filesize=os.path.getsize(tmp_path),
-        status="queued", started_at=agora_brt(),
+        status="queued",
+        started_at=agora_brt(),
     )
     _set_if_attr(upload_log, "ip", request.remote_addr)
-    _set_if_attr(upload_log, "user_agent", request.user_agent.string if request.user_agent else None)
+    _set_if_attr(
+        upload_log,
+        "user_agent",
+        request.user_agent.string if request.user_agent else None,
+    )
     db.session.add(upload_log)
     db.session.commit()
 
     # agenda job em background
-    app_import_path = os.environ.get("FLASK_APP_IMPORT", "main:app")  # configure se usar outro nome
+    app_import_path = os.environ.get(
+        "FLASK_APP_IMPORT", "main:app"
+    )  # configure se usar outro nome
     scheduler = _get_scheduler()
     scheduler.add_job(
         _process_booking_file_bg,
-        kwargs=dict(app_import_path=app_import_path, log_id=upload_log.id, file_path=tmp_path, user_id=user_id),
+        kwargs=dict(
+            app_import_path=app_import_path,
+            log_id=upload_log.id,
+            file_path=tmp_path,
+            user_id=user_id,
+        ),
         # usa id único para não duplicar
         id=f"booking_upload_{upload_log.id}",
         replace_existing=True,
@@ -719,8 +893,9 @@ def upload_csv():
         success=True,
         status="queued",
         message="Arquivo recebido. Processamento iniciado em segundo plano.",
-        upload_id=upload_log.id
+        upload_id=upload_log.id,
     )
+
 
 @booking_bp.route("/count", methods=["GET"])
 @_rate_limit("count_booking_reviews", 240, 60)

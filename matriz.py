@@ -1,18 +1,26 @@
-import pytz
 import json
+import os
 from datetime import datetime
 from functools import wraps
-from flask import (
-    Blueprint, render_template, request, redirect,
-    url_for, session, flash, jsonify
-)
-from sqlalchemy import func
-from models import db, Review, UserSettings, FilialVinculo
-from utils.crypto import decrypt
-from openai import OpenAI
+
+import pytz
 from dotenv import load_dotenv
-import os
-from models import UserSettings
+from flask import (
+    Blueprint,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from openai import OpenAI
+from sqlalchemy import func
+
+from models import FilialVinculo, Review, UserSettings, db
+from utils.crypto import decrypt
+
 load_dotenv()
 
 matriz_bp = Blueprint("matriz", __name__, url_prefix="/matriz")
@@ -21,11 +29,12 @@ BRT = pytz.timezone("America/Sao_Paulo")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-
 # ---------- FUNÇÕES DE UTILIDADE ----------
+
 
 def agora_brt():
     return datetime.now(BRT)
+
 
 def login_required(f):
     @wraps(f)
@@ -33,7 +42,9 @@ def login_required(f):
         if "credentials" not in session:
             return redirect(url_for("login"))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 def require_login():
     if "credentials" not in session or "user_info" not in session:
@@ -41,29 +52,37 @@ def require_login():
         return False
     return True
 
+
 def get_current_user_id():
     ui = session.get("user_info") or {}
     return ui.get("id", "").lower()
 
+
 def get_context_user_id():
     return session.get("viewing_filial") or get_current_user_id()
+
 
 def is_parent_of(parent_user_id: str, child_user_id: str) -> bool:
     return (
         FilialVinculo.query.filter_by(
             parent_user_id=parent_user_id, child_user_id=child_user_id
-        ).first() is not None
+        ).first()
+        is not None
     )
+
 
 def get_filiais_ids(parent_user_id: str):
     return [
         v.child_user_id
-        for v in FilialVinculo.query.filter_by(parent_user_id=parent_user_id, status="aceito").all()
+        for v in FilialVinculo.query.filter_by(
+            parent_user_id=parent_user_id, status="aceito"
+        ).all()
     ]
 
 
 def get_user_settings_safe(user_id: str):
     return UserSettings.query.filter_by(user_id=user_id).first() or None
+
 
 def get_business_display_name(user_id: str) -> str:
     s = UserSettings.query.filter_by(user_id=user_id).first()
@@ -81,6 +100,7 @@ def get_business_display_name(user_id: str) -> str:
 
 # ---------- MÉTRICAS ----------
 
+
 def compute_metrics_for_user(user_id: str):
     q = Review.query.filter_by(user_id=user_id)
     total = q.count()
@@ -94,13 +114,18 @@ def compute_metrics_for_user(user_id: str):
             "last_review_at": None,
         }
 
-    avg_rating = db.session.query(func.avg(Review.rating)).filter(
-        Review.user_id == user_id
-    ).scalar() or 0.0
+    avg_rating = (
+        db.session.query(func.avg(Review.rating))
+        .filter(Review.user_id == user_id)
+        .scalar()
+        or 0.0
+    )
     responded = q.filter(Review.replied.is_(True)).count()
     response_rate = (responded / total) * 100 if total else 0.0
     last_review = q.order_by(Review.date.desc()).first()
-    last_dt = last_review.date.astimezone(BRT) if last_review and last_review.date else None
+    last_dt = (
+        last_review.date.astimezone(BRT) if last_review and last_review.date else None
+    )
 
     return {
         "user_id": user_id,
@@ -110,6 +135,7 @@ def compute_metrics_for_user(user_id: str):
         "response_rate": round(response_rate, 1),
         "last_review_at": last_dt,
     }
+
 
 def compute_aggregate_metrics(user_ids):
     total_reviews = 0
@@ -140,9 +166,11 @@ def compute_aggregate_metrics(user_ids):
 
 # ---------- ROTAS PRINCIPAIS ----------
 
+
 @matriz_bp.route("/")
 def matriz_home():
     return redirect(url_for("matriz.dashboard"))
+
 
 @matriz_bp.route("/dashboard")
 def dashboard():
@@ -159,11 +187,15 @@ def dashboard():
     filiais_info = []
     for fid in filiais_ids:
         nome = get_business_display_name(fid)
-        filiais_info.append({
-            "user_id": fid,
-            "display_name": nome or fid,
-            "metrics": next((m for m in aggregate["per_branch"] if m["user_id"] == fid), None),
-        })
+        filiais_info.append(
+            {
+                "user_id": fid,
+                "display_name": nome or fid,
+                "metrics": next(
+                    (m for m in aggregate["per_branch"] if m["user_id"] == fid), None
+                ),
+            }
+        )
 
     return render_template(
         "matriz_dashboard.html",
@@ -171,7 +203,7 @@ def dashboard():
         aggregate=aggregate,
         filiais=filiais_info,
         matriz_metrics=matriz_metrics,
-        now=agora_brt()
+        now=agora_brt(),
     )
 
 
@@ -187,16 +219,25 @@ def filiais():
     filiais_info = []
     for fid in filiais_ids:
         nome = get_business_display_name(fid)
-        filiais_info.append({
-            "user_id": fid,
-            "display_name": nome or fid,
-            "metrics": compute_metrics_for_user(fid),
-        })
+        filiais_info.append(
+            {
+                "user_id": fid,
+                "display_name": nome or fid,
+                "metrics": compute_metrics_for_user(fid),
+            }
+        )
 
-    return render_template("matriz_filiais.html", parent_id=parent_id, aggregate=aggregate, filiais=filiais_info, now=agora_brt())
+    return render_template(
+        "matriz_filiais.html",
+        parent_id=parent_id,
+        aggregate=aggregate,
+        filiais=filiais_info,
+        now=agora_brt(),
+    )
 
 
 # ---------- VÍNCULO E ACESSO ----------
+
 
 @matriz_bp.route("/entrar/<path:filial_id>", methods=["POST", "GET"])
 def entrar_filial(filial_id):
@@ -214,6 +255,7 @@ def entrar_filial(filial_id):
     flash(f"Você está visualizando a filial {session['filial_name']}.", "info")
     return redirect(url_for("index"))
 
+
 @matriz_bp.route("/sair-filial", methods=["POST", "GET"])
 def sair_filial():
     session.pop("viewing_filial", None)
@@ -221,6 +263,7 @@ def sair_filial():
     session.pop("matriz_back_url", None)
     flash("Você voltou para a conta matriz.", "success")
     return redirect(url_for("matriz.dashboard"))
+
 
 @matriz_bp.route("/vincular", methods=["POST"])
 def vincular_filial():
@@ -237,16 +280,27 @@ def vincular_filial():
 
     # 🔒 Verifica se a conta da filial existe
     from models import User
+
     child_user = User.query.get(child_id)
     if not child_user:
-        return jsonify(success=False, error="Essa conta ainda não existe. Peça para o responsável fazer login primeiro."), 400
+        return (
+            jsonify(
+                success=False,
+                error="Essa conta ainda não existe. Peça para o responsável fazer login primeiro.",
+            ),
+            400,
+        )
 
     # 🔄 Verifica se já houve vínculo anterior
-    vinc = FilialVinculo.query.filter_by(parent_user_id=parent_id, child_user_id=child_id).first()
+    vinc = FilialVinculo.query.filter_by(
+        parent_user_id=parent_id, child_user_id=child_id
+    ).first()
 
     if vinc:
         if vinc.status == "pendente":
-            return jsonify(success=True, message="Convite já enviado. Aguardando aceite da filial.")
+            return jsonify(
+                success=True, message="Convite já enviado. Aguardando aceite da filial."
+            )
         elif vinc.status == "aceito":
             return jsonify(success=True, message="Filial já vinculada.")
         else:
@@ -260,7 +314,7 @@ def vincular_filial():
             parent_user_id=parent_id,
             child_user_id=child_id,
             status="pendente",
-            data_convite=agora_brt()
+            data_convite=agora_brt(),
         )
         db.session.add(novo_vinculo)
         db.session.commit()
@@ -278,10 +332,15 @@ def desvincular_filial():
     if not child_id:
         return jsonify(success=False, error="Informe o ID da filial."), 400
 
-    vinc = FilialVinculo.query.filter_by(parent_user_id=parent_id, child_user_id=child_id).first()
+    vinc = FilialVinculo.query.filter_by(
+        parent_user_id=parent_id, child_user_id=child_id
+    ).first()
 
-    if not vinc or vinc.status != 'aceito':
-        return jsonify(success=False, error="Essa filial ainda não está vinculada."), 400
+    if not vinc or vinc.status != "aceito":
+        return (
+            jsonify(success=False, error="Essa filial ainda não está vinculada."),
+            400,
+        )
 
     # Em vez de deletar, marca como desvinculado
     vinc.status = "desvinculado"
@@ -291,6 +350,7 @@ def desvincular_filial():
 
 
 # ---------- ANÁLISE COM IA ----------
+
 
 @matriz_bp.route("/analyze_reviews", methods=["POST"])
 def analyze_reviews_filial():
@@ -302,15 +362,19 @@ def analyze_reviews_filial():
         return jsonify({"success": False, "error": "ID da filial não informado."})
 
     if not is_parent_of(matriz_id, filial_id):
-        return jsonify({"success": False, "error": "Filial não vinculada a esta conta matriz."})
+        return jsonify(
+            {"success": False, "error": "Filial não vinculada a esta conta matriz."}
+        )
 
-    user_reviews = Review.query.filter_by(user_id=filial_id).order_by(Review.date.desc()).all()
+    user_reviews = (
+        Review.query.filter_by(user_id=filial_id).order_by(Review.date.desc()).all()
+    )
     if not user_reviews:
         return jsonify({"success": False, "error": "A filial não possui avaliações."})
 
-    resumo = "\n".join([
-        f"{r.reviewer_name} ({r.rating} estrelas): {r.text}" for r in user_reviews
-    ])
+    resumo = "\n".join(
+        [f"{r.reviewer_name} ({r.rating} estrelas): {r.text}" for r in user_reviews]
+    )
 
     prompt = f"""
 Você é um analista de satisfação do cliente. Analise as avaliações abaixo e gere um resumo útil para gestores.
@@ -329,7 +393,10 @@ Avaliações:
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Você é um analista de avaliações de clientes."},
+                {
+                    "role": "system",
+                    "content": "Você é um analista de avaliações de clientes.",
+                },
                 {"role": "user", "content": prompt},
             ],
         )
@@ -341,6 +408,7 @@ Avaliações:
 
 
 # ---------- CONTEXT PROCESSOR ----------
+
 
 @matriz_bp.app_context_processor
 def inject_globals_matriz():
@@ -355,6 +423,7 @@ def inject_globals_matriz():
         now=agora_brt(),
     )
 
+
 @matriz_bp.route("/convites")
 def ver_convites():
     if not require_login():
@@ -362,11 +431,16 @@ def ver_convites():
 
     user_id = get_current_user_id()
 
-    convites_raw = FilialVinculo.query.filter_by(child_user_id=user_id, status='pendente').all()
-    historico_raw = FilialVinculo.query.filter(
-        FilialVinculo.child_user_id == user_id,
-        FilialVinculo.status != 'pendente'
-    ).order_by(FilialVinculo.data_convite.desc()).all()
+    convites_raw = FilialVinculo.query.filter_by(
+        child_user_id=user_id, status="pendente"
+    ).all()
+    historico_raw = (
+        FilialVinculo.query.filter(
+            FilialVinculo.child_user_id == user_id, FilialVinculo.status != "pendente"
+        )
+        .order_by(FilialVinculo.data_convite.desc())
+        .all()
+    )
 
     convites = []
     historico = []
@@ -375,36 +449,47 @@ def ver_convites():
         parent_id = convite.parent_user_id
         settings = UserSettings.query.filter_by(user_id=parent_id).first()
         try:
-            nome_matriz = decrypt(settings.business_name) if settings and settings.business_name else parent_id
+            nome_matriz = (
+                decrypt(settings.business_name)
+                if settings and settings.business_name
+                else parent_id
+            )
         except Exception:
             nome_matriz = parent_id
 
-        convites.append({
-            "id": convite.id,
-            "nome_matriz": nome_matriz,
-            "data_convite": convite.data_convite,
-            "parent_user_id": parent_id,
-        })
+        convites.append(
+            {
+                "id": convite.id,
+                "nome_matriz": nome_matriz,
+                "data_convite": convite.data_convite,
+                "parent_user_id": parent_id,
+            }
+        )
 
     for h in historico_raw:
         parent_id = h.parent_user_id
         settings = UserSettings.query.filter_by(user_id=parent_id).first()
         try:
-            nome_matriz = decrypt(settings.business_name) if settings and settings.business_name else parent_id
+            nome_matriz = (
+                decrypt(settings.business_name)
+                if settings and settings.business_name
+                else parent_id
+            )
         except Exception:
             nome_matriz = parent_id
 
-        historico.append({
-            "id": h.id,
-            "nome_matriz": nome_matriz,
-            "data_convite": h.data_convite,
-            "data_aceite": h.data_aceite,
-            "status": h.status,
-            "parent_user_id": parent_id,
-        })
+        historico.append(
+            {
+                "id": h.id,
+                "nome_matriz": nome_matriz,
+                "data_convite": h.data_convite,
+                "data_aceite": h.data_aceite,
+                "status": h.status,
+                "parent_user_id": parent_id,
+            }
+        )
 
     return render_template("convites.html", convites=convites, historico=historico)
-
 
 
 @matriz_bp.route("/convites/aceitar/<int:vinculo_id>")
@@ -419,19 +504,15 @@ def aceitar_convite(vinculo_id):
         flash("Você não tem permissão para aceitar este convite.", "danger")
         return redirect(url_for("matriz.ver_convites"))
 
-
     if convite.status == "aceito":
         flash("Você já aceitou esse convite anteriormente.", "info")
         return redirect(url_for("matriz.ver_convites"))
 
-
-    convite.status = 'aceito'
+    convite.status = "aceito"
     convite.data_aceite = agora_brt()
     db.session.commit()
     flash("Convite aceito com sucesso!", "success")
     return redirect(url_for("matriz.ver_convites"))
-
-
 
 
 @matriz_bp.route("/convites/recusar/<int:vinculo_id>", methods=["POST"])

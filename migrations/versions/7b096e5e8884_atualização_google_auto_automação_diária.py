@@ -1,17 +1,17 @@
-"""Atualiza UserSettings com campos GBP
+"""atualização google_auto automação diária
 
-Revision ID: 25a36cff3838
-Revises: a35eb2341fc5
-Create Date: 2025-10-08 11:29:12.994215
+Revision ID: 7b096e5e8884
+Revises: 6f399cd7fc92
+Create Date: 2025-10-22 14:08:12.005259
 
 """
-
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
-revision = "25a36cff3838"
-down_revision = "a35eb2341fc5"
+revision = '7b096e5e8884'
+down_revision = '6f399cd7fc92'
 branch_labels = None
 depends_on = None
 

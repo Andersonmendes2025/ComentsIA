@@ -1,11 +1,11 @@
 """add colunas usadas no main.py"""
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-revision = 'manual_add_cols_001'
-down_revision = '92c1091975c7'
+revision = "manual_add_cols_001"
+down_revision = "92c1091975c7"
 branch_labels = None
 depends_on = None
 
@@ -31,7 +31,12 @@ def upgrade():
     ]
     for name, coltype, nullable, *default in user_settings_cols:
         if not column_exists(inspector, "user_settings", name):
-            col = sa.Column(name, coltype, nullable=nullable, server_default=default[0] if default else None)
+            col = sa.Column(
+                name,
+                coltype,
+                nullable=nullable,
+                server_default=default[0] if default else None,
+            )
             op.add_column("user_settings", col)
 
     # ========== REVIEW ==========
@@ -51,9 +56,16 @@ def upgrade():
             sa.Column("id", sa.Integer(), primary_key=True),
             sa.Column("user_id", sa.String(length=255), nullable=False),
             sa.Column("data_uso", sa.Date(), nullable=False),
-            sa.Column("quantidade_usos", sa.Integer(), server_default="0", nullable=False),
+            sa.Column(
+                "quantidade_usos", sa.Integer(), server_default="0", nullable=False
+            ),
         )
-        op.create_index("ix_resposta_especial_uso_user_data", "resposta_especial_uso", ["user_id", "data_uso"], unique=True)
+        op.create_index(
+            "ix_resposta_especial_uso_user_data",
+            "resposta_especial_uso",
+            ["user_id", "data_uso"],
+            unique=True,
+        )
 
     # ========== TABELA consideracoes_uso ==========
     if "consideracoes_uso" not in inspector.get_table_names():
@@ -62,18 +74,34 @@ def upgrade():
             sa.Column("id", sa.Integer(), primary_key=True),
             sa.Column("user_id", sa.String(length=255), nullable=False),
             sa.Column("data_uso", sa.Date(), nullable=False),
-            sa.Column("quantidade_usos", sa.Integer(), server_default="0", nullable=False),
+            sa.Column(
+                "quantidade_usos", sa.Integer(), server_default="0", nullable=False
+            ),
         )
-        op.create_index("ix_consideracoes_uso_user_data", "consideracoes_uso", ["user_id", "data_uso"], unique=True)
+        op.create_index(
+            "ix_consideracoes_uso_user_data",
+            "consideracoes_uso",
+            ["user_id", "data_uso"],
+            unique=True,
+        )
 
     # ========== RELATORIO_HISTORICO ==========
     for col in ["arquivo_pdf", "data_criacao"]:
         if not column_exists(inspector, "relatorio_historico", col):
             with op.batch_alter_table("relatorio_historico") as batch_op:
                 if col == "arquivo_pdf":
-                    batch_op.add_column(sa.Column("arquivo_pdf", sa.LargeBinary(), nullable=True))
+                    batch_op.add_column(
+                        sa.Column("arquivo_pdf", sa.LargeBinary(), nullable=True)
+                    )
                 elif col == "data_criacao":
-                    batch_op.add_column(sa.Column("data_criacao", sa.DateTime(timezone=True), server_default=sa.text("CURRENT_TIMESTAMP"), nullable=True))
+                    batch_op.add_column(
+                        sa.Column(
+                            "data_criacao",
+                            sa.DateTime(timezone=True),
+                            server_default=sa.text("CURRENT_TIMESTAMP"),
+                            nullable=True,
+                        )
+                    )
 
 
 def downgrade():
@@ -84,7 +112,10 @@ def downgrade():
             except Exception:
                 pass
 
-    for table, index in [("consideracoes_uso", "ix_consideracoes_uso_user_data"), ("resposta_especial_uso", "ix_resposta_especial_uso_user_data")]:
+    for table, index in [
+        ("consideracoes_uso", "ix_consideracoes_uso_user_data"),
+        ("resposta_especial_uso", "ix_resposta_especial_uso_user_data"),
+    ]:
         try:
             op.drop_index(index, table_name=table)
         except Exception:
@@ -102,8 +133,14 @@ def downgrade():
                 pass
 
     for col in [
-        "logo", "plano_ate", "plano", "email_boas_vindas_enviado", "terms_accepted",
-        "manager_name", "contact_info", "business_name"
+        "logo",
+        "plano_ate",
+        "plano",
+        "email_boas_vindas_enviado",
+        "terms_accepted",
+        "manager_name",
+        "contact_info",
+        "business_name",
     ]:
         try:
             op.drop_column("user_settings", col)

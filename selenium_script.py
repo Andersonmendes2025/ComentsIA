@@ -1,14 +1,16 @@
 import time
-import requests
+
 import chromedriver_autoinstaller
+import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
+
 def iniciar_bot_google(user_info=None):
     # Instala automaticamente o ChromeDriver
     chromedriver_autoinstaller.install()
-    
+
     # Configurações do navegador
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
@@ -33,16 +35,20 @@ def iniciar_bot_google(user_info=None):
 
     # Etapa 3 – Captura e envia avaliações
     try:
-        reviews = driver.find_elements(By.CSS_SELECTOR, '[data-review-id]')
+        reviews = driver.find_elements(By.CSS_SELECTOR, "[data-review-id]")
         print(f"📋 {len(reviews)} avaliações encontradas.")
 
         for r in reviews:
             try:
-                nome = r.find_element(By.CSS_SELECTOR, '.TSUbDb').text
-                nota_element = r.find_element(By.CSS_SELECTOR, '[aria-label*="estrela"]')
+                nome = r.find_element(By.CSS_SELECTOR, ".TSUbDb").text
+                nota_element = r.find_element(
+                    By.CSS_SELECTOR, '[aria-label*="estrela"]'
+                )
                 nota = nota_element.get_attribute("aria-label").split()[0]
-                texto = r.find_element(By.CSS_SELECTOR, '.review-full-text, .Jtu6Td').text
-                data = r.find_element(By.CSS_SELECTOR, '.dehysf').text
+                texto = r.find_element(
+                    By.CSS_SELECTOR, ".review-full-text, .Jtu6Td"
+                ).text
+                data = r.find_element(By.CSS_SELECTOR, ".dehysf").text
 
                 print("\n🗣️ Avaliação capturada:")
                 print(f"👤 Nome: {nome}")
@@ -51,18 +57,18 @@ def iniciar_bot_google(user_info=None):
                 print(f"💬 Texto: {texto}")
 
                 # Envia para o backend Flask
-                payload = {
-                    'reviewer_name': nome,
-                    'rating': int(nota),
-                    'text': texto
-                }
+                payload = {"reviewer_name": nome, "rating": int(nota), "text": texto}
 
                 try:
-                    response = requests.post("http://localhost:8000/add_review", data=payload)
+                    response = requests.post(
+                        "http://localhost:8000/add_review", data=payload
+                    )
                     if response.status_code == 200:
                         print("✅ Enviado com sucesso para o backend.")
                     else:
-                        print(f"⚠️ Falha ao enviar: {response.status_code} - {response.text}")
+                        print(
+                            f"⚠️ Falha ao enviar: {response.status_code} - {response.text}"
+                        )
                 except Exception as req_err:
                     print("❌ Erro na requisição para o backend:", req_err)
 
@@ -74,6 +80,8 @@ def iniciar_bot_google(user_info=None):
 
     print("✅ Fim da execução do robô.")
     return driver
+
+
 def executar_robo_com_google_login(email):
     print(f"🔄 Iniciando robô com login automático para o e-mail: {email}")
-    return iniciar_bot_google({'id': email})
+    return iniciar_bot_google({"id": email})

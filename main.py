@@ -1,66 +1,130 @@
 # --- std/3rd-party ---
-import os, json, logging, base64, io
-from functools import wraps
+# --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
+import logging
+import sys
+
+
+class ColorFormatter(logging.Formatter):
+    COLORS = {
+        "DEBUG": "\033[37m",  # cinza
+        "INFO": "\033[36m",  # ciano
+        "WARNING": "\033[33m",  # amarelo
+        "ERROR": "\033[31m",  # vermelho
+        "CRITICAL": "\033[41m",  # vermelho fundo
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, self.RESET)
+        message = super().format(record)
+        return f"{color}{message}{self.RESET}"
+
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(
+    ColorFormatter("%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
+)
+
+logging.basicConfig(level=logging.DEBUG, handlers=[handler], force=True)
+sys.stdout.reconfigure(line_buffering=True)
+
+import base64
+import io
+import json
+import logging
+import os
+import sys
 from collections import Counter
 from datetime import datetime, timedelta
-from google_auto import google_auto_bp, register_gbp_cron
-from apscheduler.schedulers.background import BackgroundScheduler
-import flask
-import pytz
-from flask_login import LoginManager, login_user
-import numpy as np
-import pandas as pd
-from admin import user_can 
-from sqlalchemy import or_, desc
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from flask import session
-from google_auto import google_auto_bp  
-from flask import (
-    Flask, render_template, request, redirect, url_for,
-    session, jsonify, flash, send_file, g
-)
-from flask_wtf.csrf import generate_csrf
-from flask_login import current_user
-from flask_login import logout_user
-from flask_login import LoginManager
-from flask_sqlalchemy import SQLAlchemy   # (se não usar diretamente, pode remover)
-from flask_migrate import Migrate, upgrade
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_wtf.csrf import CSRFProtect, CSRFError, generate_csrf
-from flask_talisman import Talisman
+from functools import wraps
 
-from dotenv import load_dotenv
-from markupsafe import Markup
-import sentry_sdk
-from sentry_sdk.integrations.flask import FlaskIntegration
+import flask
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from google_auto import google_auto_bp, register_gbp_cron
+
+sys.stdout.reconfigure(line_buffering=True)
+
+import logging
 
 # Google / OpenAI
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
+import numpy as np
+import pandas as pd
+import pytz
+import sentry_sdk
+from dotenv import load_dotenv
+from flask import (
+    Flask,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_login import LoginManager, current_user, login_user, logout_user
+from flask_migrate import Migrate, upgrade
+from flask_sqlalchemy import SQLAlchemy  # (se não usar diretamente, pode remover)
+from flask_talisman import Talisman
+from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from googleapiclient.discovery import build
+from markupsafe import Markup
 from openai import OpenAI
+from sentry_sdk.integrations.flask import FlaskIntegration
+from sqlalchemy import desc, or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 # --- app modules ---
-from admin import admin_bp, get_plan_prices, seed_roles_permissions
-from admin import get_pricing_catalog, get_plan_display_name, get_plan_duration_days
-from routes_metrics import metrics_bp
+from admin import (
+    admin_bp,
+    get_plan_display_name,
+    get_plan_duration_days,
+    get_plan_prices,
+    get_pricing_catalog,
+    seed_roles_permissions,
+    user_can,
+)
+from auto_reply_setup import auto_reply_bp
+from email_utils import (
+    enviar_email,
+    montar_email_boas_vindas,
+    montar_email_conta_apagada,
+)
+from matriz import matriz_bp
 from models import (
-    db, User, Review, UserSettings, RelatorioHistorico,
-    FilialVinculo, RespostaEspecialUso, ConsideracoesUso
+    ConsideracoesUso,
+    FilialVinculo,
+    RelatorioHistorico,
+    RespostaEspecialUso,
+    Review,
+    User,
+    UserSettings,
+    db,
 )
 from relatorio import RelatorioAvaliacoes
-from utils.crypto import encrypt, decrypt
-from email_utils import montar_email_conta_apagada, montar_email_boas_vindas, enviar_email
-from matriz import matriz_bp
-from auto_reply_setup import auto_reply_bp
-
+from routes_metrics import metrics_bp
+from utils.crypto import decrypt, encrypt
 
 # -------------------------------------------------------------------
 # LOG / ENV
 # -------------------------------------------------------------------
-logging.basicConfig(level=logging.DEBUG)
-load_dotenv()
+
+
+# Exibir tudo no console em tempo real
+logging.basicConfig(
+    level=logging.DEBUG,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+sys.stdout.reconfigure(line_buffering=True)
+
 
 # -------------------------------------------------------------------
 # SENTRY (sem PII por padrão)
@@ -68,16 +132,19 @@ load_dotenv()
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     integrations=[FlaskIntegration()],
-    send_default_pii=False,          # 🔒 não enviar PII por padrão
-    traces_sample_rate=0.2,          # redução razoável em dev
+    send_default_pii=False,  # 🔒 não enviar PII por padrão
+    traces_sample_rate=0.2,  # redução razoável em dev
 )
 
 # -------------------------------------------------------------------
 # FLASK APP
 # -------------------------------------------------------------------
 app = Flask(__name__)
+
+
 if os.getenv("WORKER_ROLE") == "1":
     from booking import _get_scheduler
+
     _get_scheduler()
 
 # Sessão e DB
@@ -93,7 +160,7 @@ app.config.update(
     # Cookies de sessão seguros
     SESSION_COOKIE_SECURE=(os.getenv("FLASK_ENV") == "production"),
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",   # bom para OAuth
+    SESSION_COOKIE_SAMESITE="Lax",  # bom para OAuth
 )
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -101,13 +168,16 @@ login_manager = LoginManager(app)
 login_manager.login_view = "authorize"
 from flask_login import current_user
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(user_id)
 
+
 @login_manager.unauthorized_handler
 def _unauth():
     return redirect(url_for("authorize"))
+
 
 # 👉 primeiro inicializa DB e Migrate
 db.init_app(app)
@@ -132,7 +202,7 @@ with app.app_context():
     else:
         app.logger.info("Seed pulado: tabela 'roles' ainda não existe.")
 
- 
+
 # CSRF global
 csrf = CSRFProtect(app)
 
@@ -155,14 +225,16 @@ csp_policy = {
         "'unsafe-inline'",  # se usa <style> inline/Bootstrap
     ],
     "img-src": [
-        "'self'", "data:", "https://lh3.googleusercontent.com",
-        "https://www.google-analytics.com"
+        "'self'",
+        "data:",
+        "https://lh3.googleusercontent.com",
+        "https://www.google-analytics.com",
     ],
     "font-src": ["'self'", "https://cdn.jsdelivr.net"],
     "connect-src": ["'self'", "https://www.google-analytics.com"],
     "frame-ancestors": "'none'",
 }
-use_https = (os.getenv("FLASK_ENV") == "production")
+use_https = os.getenv("FLASK_ENV") == "production"
 Talisman(
     app,
     content_security_policy=csp_policy,
@@ -269,6 +341,7 @@ ACCOUNT_MGMT = ("mybusinessaccountmanagement", "v1")
 BUSINESS_INFO = ("mybusinessbusinessinformation", "v1")
 VERIFICATIONS = ("mybusinessverifications", "v1")
 
+
 # -------------------------------------------------------------------
 # Rate Limiter unificado (com fallback sem Redis)
 # -------------------------------------------------------------------
@@ -278,6 +351,7 @@ def get_user_or_ip():
         return f"user:{user_info['id']}"
     return get_remote_address()
 
+
 storage_uri = os.getenv("REDIS_URL", "memory://")
 limiter = Limiter(
     key_func=get_user_or_ip,
@@ -286,11 +360,13 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"],
 )
 
+
 # -------------------------------------------------------------------
 # Helpers iniciais
 # -------------------------------------------------------------------
 def agora_brt():
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
+
 
 def analisar_pontos_mais_mencionados(comentarios):
     if not comentarios:
@@ -301,16 +377,21 @@ def analisar_pontos_mais_mencionados(comentarios):
     contagem = {k: v for k, v in contagem.items() if k.lower() not in stop}
     return Counter(contagem).most_common(5)
 
+
 def is_pro(user_id):
     return get_user_plan(user_id) in PLANO_EQUIVALENTES["pro"]
+
 
 def is_business(user_id):
     return get_user_plan(user_id) in PLANO_EQUIVALENTES["business"]
 
+
 def calcular_media(avaliacoes):
     return round(sum(avaliacoes) / len(avaliacoes), 2) if avaliacoes else 0.0
 
+
 # --- HARDENED HELPERS (seguro e resiliente) ---
+
 
 # Função para confirmar aceitação dos termos
 def require_terms_accepted(f):
@@ -333,6 +414,7 @@ def require_terms_accepted(f):
             )
             return redirect(url_for("settings"))
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -454,6 +536,7 @@ def require_plano_ativo(f):
             flash("Seu plano venceu! Renove para continuar usando.", "warning")
             return redirect(url_for("planos"))
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -466,7 +549,9 @@ def calcular_projecao(notas, datas):
             base = [d for d in datas if d is not None]
             if not base:
                 return calcular_media(notas)
-            x = np.array([(d - primeira_data).days for d in base], dtype=float).reshape(-1, 1)
+            x = np.array([(d - primeira_data).days for d in base], dtype=float).reshape(
+                -1, 1
+            )
             y = np.array(notas, dtype=float)
 
             # sanity check
@@ -482,20 +567,20 @@ def calcular_projecao(notas, datas):
         logging.warning(f"[projection] falha na projeção: {e}")
     return calcular_media(notas)
 
+
 def _build_services(credentials):
     acct_api = build(*ACCOUNT_MGMT, credentials=credentials)
     info_api = build(*BUSINESS_INFO, credentials=credentials)
-    rev_api  = build(*VERIFICATIONS, credentials=credentials)
+    rev_api = build(*VERIFICATIONS, credentials=credentials)
     return acct_api, info_api, rev_api
+
 
 def get_user_reviews(user_id):
     """Avaliações do usuário (mais recentes primeiro)."""
     return (
-        Review.query
-        .filter(Review.user_id == user_id)
-        .order_by(desc(Review.date))
-        .all()
+        Review.query.filter(Review.user_id == user_id).order_by(desc(Review.date)).all()
     )
+
 
 def get_user_settings(user_id):
     """Configurações do usuário com defaults estáveis e descriptografia segura."""
@@ -517,25 +602,37 @@ def get_user_settings(user_id):
 
     try:
         return {
-            "business_name": decrypt(settings.business_name) if settings.business_name else "",
-            "default_greeting": settings.default_greeting or defaults["default_greeting"],
+            "business_name": (
+                decrypt(settings.business_name) if settings.business_name else ""
+            ),
+            "default_greeting": settings.default_greeting
+            or defaults["default_greeting"],
             "default_closing": settings.default_closing or defaults["default_closing"],
-            "contact_info": decrypt(settings.contact_info) if settings.contact_info else defaults["contact_info"],
+            "contact_info": (
+                decrypt(settings.contact_info)
+                if settings.contact_info
+                else defaults["contact_info"]
+            ),
             "terms_accepted": bool(settings.terms_accepted),
             "logo": settings.logo,
-            "manager_name": decrypt(settings.manager_name) if settings.manager_name else "",
+            "manager_name": (
+                decrypt(settings.manager_name) if settings.manager_name else ""
+            ),
             "gbp_tone": settings.gbp_tone or "neutro",  # 👈 adicione esta linha
         }
     except Exception as e:
-        logging.warning(f"[decrypt] erro ao descriptografar settings de user {user_id}: {e}")
+        logging.warning(
+            f"[decrypt] erro ao descriptografar settings de user {user_id}: {e}"
+        )
         return defaults
 
 
-from markupsafe import escape
 from flask_wtf import CSRFProtect
+from markupsafe import escape
 
 # Certifique-se de inicializar no setup do app:
 # csrf = CSRFProtect(app)
+
 
 def save_user_settings(user_id, settings_data):
     from utils.crypto import encrypt  # seguro no escopo
@@ -585,7 +682,9 @@ def planos():
     user_id = user_info.get("id") if user_info else None
 
     # Catálogo centralizado de planos (inclui preços para o template)
-    catalog = get_pricing_catalog()  # ex.: {"free": {...}, "pro": {...}, "pro_anual": {...}, ...}
+    catalog = (
+        get_pricing_catalog()
+    )  # ex.: {"free": {...}, "pro": {...}, "pro_anual": {...}, ...}
 
     if request.method == "POST":
         if not user_id:
@@ -613,7 +712,9 @@ def planos():
 
         # validade centralizada (0 = sem validade para 'free')
         dias_validade = get_plan_duration_days(novo_plano)
-        settings.plano_ate = None if dias_validade == 0 else agora_brt() + timedelta(days=dias_validade)
+        settings.plano_ate = (
+            None if dias_validade == 0 else agora_brt() + timedelta(days=dias_validade)
+        )
 
         try:
             db.session.commit()
@@ -622,7 +723,10 @@ def planos():
             flash("Erro ao salvar alterações. Tente novamente.", "danger")
             return redirect(url_for("planos"))
 
-        flash(f"Plano alterado para {get_plan_display_name(novo_plano)} com sucesso!", "success")
+        flash(
+            f"Plano alterado para {get_plan_display_name(novo_plano)} com sucesso!",
+            "success",
+        )
         return redirect(url_for("index"))
 
     # GET
@@ -636,9 +740,12 @@ def planos():
         planos=catalog,
         user_plano=user_plano,
     )
+
+
 # main.py (Adicione esta função, por exemplo, após calcular_projecao)
 
 # ... (restante dos helpers)
+
 
 def calcular_metricas_reviews(reviews: list) -> dict:
     """
@@ -656,13 +763,13 @@ def calcular_metricas_reviews(reviews: list) -> dict:
 
     responded = 0
     ratings = []
-    
+
     for review in reviews:
-        if getattr(review, 'replied', False):
+        if getattr(review, "replied", False):
             responded += 1
-        
+
         # Coleta apenas ratings numéricos válidos
-        rating_value = getattr(review, 'rating', None)
+        rating_value = getattr(review, "rating", None)
         if rating_value is not None:
             try:
                 ratings.append(float(rating_value))
@@ -670,7 +777,7 @@ def calcular_metricas_reviews(reviews: list) -> dict:
                 pass
 
     pendentes = total - responded
-    
+
     # Média robusta (arredondada para 1 casa decimal para exibição)
     total_validos = len(ratings)
     avg_rating = round(sum(ratings) / total_validos, 1) if total_validos > 0 else 0.0
@@ -682,9 +789,10 @@ def calcular_metricas_reviews(reviews: list) -> dict:
         "total": total,
         "respondidas": responded,
         "pendentes": pendentes,
-        "media": f"{avg_rating:.1f}", # Formato string para 1 casa decimal
+        "media": f"{avg_rating:.1f}",  # Formato string para 1 casa decimal
         "percent_respondidas": f"{percent_respondidas:.1f}",
     }
+
 
 @app.route("/")
 def index():
@@ -702,9 +810,11 @@ def index():
     user_settings = get_user_settings(user_id)
 
     # Verificar preenchimento obrigatório + termos
-    if (not user_settings.get("business_name")
+    if (
+        not user_settings.get("business_name")
         or not user_settings.get("contact_info")
-        or not user_settings.get("terms_accepted", False)):
+        or not user_settings.get("terms_accepted", False)
+    ):
         return redirect(url_for("settings"))
 
     user_reviews = get_user_reviews(user_id)
@@ -713,7 +823,11 @@ def index():
     total_reviews = len(user_reviews)
     responded_reviews = sum(1 for review in user_reviews if review.replied)
     pending_reviews = total_reviews - responded_reviews
-    avg_rating = round(sum((r.rating or 0) for r in user_reviews) / total_reviews, 1) if total_reviews else 0.0
+    avg_rating = (
+        round(sum((r.rating or 0) for r in user_reviews) / total_reviews, 1)
+        if total_reviews
+        else 0.0
+    )
 
     return render_template(
         "index.html",
@@ -727,7 +841,6 @@ def index():
         pending_reviews=pending_reviews,
         avg_rating=avg_rating,
     )
-
 
 
 @app.route("/get_avaliacoes_count")
@@ -763,15 +876,27 @@ def get_relatorios_count():
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
-    if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html:
-        return jsonify(error="Você está fazendo requisições rápidas demais. Tente novamente em instantes."), 429
+    if (
+        request.accept_mimetypes.accept_json
+        and not request.accept_mimetypes.accept_html
+    ):
+        return (
+            jsonify(
+                error="Você está fazendo requisições rápidas demais. Tente novamente em instantes."
+            ),
+            429,
+        )
 
-    flash("Você está fazendo ações rápidas demais. Aguarde um pouco e tente novamente.", "warning")
+    flash(
+        "Você está fazendo ações rápidas demais. Aguarde um pouco e tente novamente.",
+        "warning",
+    )
     # Evita redirect em cascata se não houver referrer
     destino = request.referrer
     if not destino:
         destino = url_for("index")
     return redirect(destino), 429
+
 
 @app.context_processor
 def inject_can():
@@ -784,16 +909,19 @@ def inject_can():
             return user_can(uid, perm, mode)
         except Exception:
             return False
+
     return dict(can=can)
 
 
-from flask import url_for, session
+from flask import session, url_for
+
 
 @app.context_processor
 def inject_admin_nav():
     uid = (session.get("user_info") or {}).get("id")
     links = []
     if uid:
+
         def add_link(perm, mode, url, icon, label):
             try:
                 if user_can(uid, perm, mode):
@@ -802,18 +930,60 @@ def inject_admin_nav():
                 pass
 
         # mapeie aqui suas telas ↔ permissões
-        add_link("dashboard.view", "read", url_for("admin.dashboard"), "bi-speedometer2", "Dashboard")  # NOVO
-        add_link("tickets.view", "read", url_for("admin.tickets_board"), "bi-life-preserver", "Tickets")
-        add_link("finance.view", "read", url_for("admin.dashboard"), "bi-cash-coin", "Financeiro")
-        add_link("emails.view", "read", url_for("admin.broadcast"), "bi-megaphone", "Disparo de E-mails")
-        add_link("access.manage_roles", "write", url_for("admin.access"), "bi-people-gear", "Papéis & Permissões")
+        add_link(
+            "dashboard.view",
+            "read",
+            url_for("admin.dashboard"),
+            "bi-speedometer2",
+            "Dashboard",
+        )  # NOVO
+        add_link(
+            "tickets.view",
+            "read",
+            url_for("admin.tickets_board"),
+            "bi-life-preserver",
+            "Tickets",
+        )
+        add_link(
+            "finance.view",
+            "read",
+            url_for("admin.dashboard"),
+            "bi-cash-coin",
+            "Financeiro",
+        )
+        add_link(
+            "emails.view",
+            "read",
+            url_for("admin.broadcast"),
+            "bi-megaphone",
+            "Disparo de E-mails",
+        )
+        add_link(
+            "access.manage_roles",
+            "write",
+            url_for("admin.access"),
+            "bi-people-gear",
+            "Papéis & Permissões",
+        )
         add_link("pricing.view", "read", url_for("admin.pricing"), "bi-tags", "Pricing")
-        add_link("coupons.view", "read", url_for("admin.coupons"), "bi-ticket-perforated", "Cupons")
-        add_link("finance.view", "read", url_for("admin.finance_items"), "bi-receipt", "Impostos & Custos")
-
+        add_link(
+            "coupons.view",
+            "read",
+            url_for("admin.coupons"),
+            "bi-ticket-perforated",
+            "Cupons",
+        )
+        add_link(
+            "finance.view",
+            "read",
+            url_for("admin.finance_items"),
+            "bi-receipt",
+            "Impostos & Custos",
+        )
 
     # has_admin = True quando houver ao menos um link autorizado
     return dict(admin_links=links, has_admin=bool(links))
+
 
 @app.context_processor
 def inject_user_flags():
@@ -855,9 +1025,6 @@ def debug_historico():
         for h in historicos
     ]
     return "\n".join(linhas), 200, {"Content-Type": "text/plain; charset=utf-8"}
-
-
-
 
 
 @app.route("/admin")
@@ -916,25 +1083,30 @@ def admin_dashboard():
         now=datetime.now(),
     )
 
+
 @app.route("/privacy-policy")
 def privacy_policy():
     return render_template("privacy-policy.html")
+
 
 @app.route("/quem-somos")
 def quem_somos():
     return render_template("quem-somos.html")
 
 
-
 from math import isnan
+
+
 def get_current_user_id():
     return (session.get("user_info") or {}).get("id")
+
 
 # main.py
 
 # IMPORTANTE: Garanta que a função calcular_metricas_reviews(reviews)
 # e as funções auxiliares (como get_user_reviews, get_user_plan, etc.)
 # estejam definidas ANTES desta função.
+
 
 @app.route("/relatorio", methods=["GET", "POST"])
 @require_terms_accepted
@@ -962,45 +1134,53 @@ def gerar_relatorio():
     # Cálculo do limite (necessário para o GET e POST)
     limite_atingido = False
     if relatorio_limite is not None and relatorio_limite > 0:
-        inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        inicio_mes = agora_brt().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         rels_mes = RelatorioHistorico.query.filter(
             RelatorioHistorico.user_id == user_id,
             RelatorioHistorico.data_criacao >= inicio_mes,
         ).count()
         if rels_mes >= relatorio_limite:
             limite_atingido = True
-    
+
     logging.debug("[RELATÓRIO] user_id=%s, plano=%s", user_id, plano)
 
     # --- 2. MÉTODO GET (VISUALIZAÇÃO DA PÁGINA) ---
     if request.method == "GET":
         # 1. Busca os dados brutos (Reviews)
-        user_reviews = get_user_reviews(user_id) 
-        
+        user_reviews = get_user_reviews(user_id)
+
         # 2. Calcula as métricas
         # ASSUMINDO que calcular_metricas_reviews está definida
-        metrics = calcular_metricas_reviews(user_reviews) 
+        metrics = calcular_metricas_reviews(user_reviews)
 
         return render_template(
-            "relatorio.html", 
-            PLANOS=PLANOS, 
-            user_plano=plano, 
+            "relatorio.html",
+            PLANOS=PLANOS,
+            user_plano=plano,
             user_settings=user_settings,
-            reviews=user_reviews, 
-            metrics=metrics, 
-            limite_relatorio_atingido=limite_atingido
+            reviews=user_reviews,
+            metrics=metrics,
+            limite_relatorio_atingido=limite_atingido,
         )
 
     # --- 3. MÉTODO POST (GERAÇÃO DE PDF) ---
     # O código abaixo é executado APENAS se request.method == "POST"
-    
+
     # Validação do limite/plano
     if relatorio_limite == 0:
-        flash("Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.", "warning")
+        flash(
+            "Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.",
+            "warning",
+        )
         return redirect(url_for("relatorio"))
-    
+
     if limite_atingido:
-        flash(f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).", "warning")
+        flash(
+            f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).",
+            "warning",
+        )
         return redirect(url_for("relatorio"))
 
     # Filtros (com whitelists)
@@ -1016,7 +1196,12 @@ def gerar_relatorio():
         flash("Parâmetros de filtro inválidos.", "danger")
         return redirect(url_for("relatorio"))
 
-    logging.info("[RELATÓRIO] Filtros: periodo=%s, nota=%s, respondida=%s", periodo, nota, respondida)
+    logging.info(
+        "[RELATÓRIO] Filtros: periodo=%s, nota=%s, respondida=%s",
+        periodo,
+        nota,
+        respondida,
+    )
 
     # Busca e normaliza timezone
     avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
@@ -1026,7 +1211,8 @@ def gerar_relatorio():
     agora = agora_brt()
     for av in avaliacoes_query:
         data_av = av.date
-        if not data_av: continue
+        if not data_av:
+            continue
 
         if data_av.tzinfo is None:
             data_av = data_av.replace(tzinfo=agora.tzinfo)
@@ -1036,20 +1222,28 @@ def gerar_relatorio():
         diff_days = (agora - data_av).days
 
         # Lógica de filtro re-aplicada (APENAS para o PDF)
-        if nota != "todas" and str(av.rating) != nota: continue
-        if respondida == "sim" and not av.replied: continue
-        if respondida == "nao" and av.replied: continue
-        if periodo == "90dias" and diff_days > 90: continue
-        if periodo == "6meses" and diff_days > 180: continue
-        if periodo == "1ano" and diff_days > 365: continue
+        if nota != "todas" and str(av.rating) != nota:
+            continue
+        if respondida == "sim" and not av.replied:
+            continue
+        if respondida == "nao" and av.replied:
+            continue
+        if periodo == "90dias" and diff_days > 90:
+            continue
+        if periodo == "6meses" and diff_days > 180:
+            continue
+        if periodo == "1ano" and diff_days > 365:
+            continue
 
-        avaliacoes.append({
-            "data": data_av,
-            "nota": av.rating,
-            "texto": av.text or "",
-            "respondida": 1 if av.replied else 0,
-            "tags": getattr(av, "tags", "") or "",
-        })
+        avaliacoes.append(
+            {
+                "data": data_av,
+                "nota": av.rating,
+                "texto": av.text or "",
+                "respondida": 1 if av.replied else 0,
+                "tags": getattr(av, "tags", "") or "",
+            }
+        )
 
     logging.debug("[RELATÓRIO] Avaliações após filtro: %d", len(avaliacoes))
 
@@ -1058,12 +1252,16 @@ def gerar_relatorio():
         return redirect(url_for("relatorio"))
 
     # Média robusta (cálculo de média para o corpo do PDF)
-    notas = [a.get("nota") for a in avaliacoes if isinstance(a.get("nota"), (int, float))]
+    notas = [
+        a.get("nota") for a in avaliacoes if isinstance(a.get("nota"), (int, float))
+    ]
     media_atual = calcular_media(notas) if notas else 0.0
     if isinstance(media_atual, float) and isnan(media_atual):
         media_atual = 0.0
 
-    rel = RelatorioAvaliacoes(avaliacoes, media_atual=media_atual, settings=user_settings)
+    rel = RelatorioAvaliacoes(
+        avaliacoes, media_atual=media_atual, settings=user_settings
+    )
 
     nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     br_tz = pytz.timezone("America/Sao_Paulo")
@@ -1086,7 +1284,9 @@ def gerar_relatorio():
         )
         db.session.add(historico)
         db.session.commit()
-        logging.info("[RELATÓRIO] Histórico salvo ID=%s arquivo=%s", historico.id, nome_arquivo)
+        logging.info(
+            "[RELATÓRIO] Histórico salvo ID=%s arquivo=%s", historico.id, nome_arquivo
+        )
 
         # Download
         return send_file(
@@ -1123,12 +1323,18 @@ def delete_account():
     try:
         if email_destino:
             html = montar_email_conta_apagada(user_info.get("name") or email_destino)
-            enviar_email(destinatario=email_destino,
-                         assunto="Sua conta no ComentsIA foi excluída",
-                         corpo_html=html)
-            logging.info("Delete account: e-mail de exclusão emitido para %s", email_destino)
+            enviar_email(
+                destinatario=email_destino,
+                assunto="Sua conta no ComentsIA foi excluída",
+                corpo_html=html,
+            )
+            logging.info(
+                "Delete account: e-mail de exclusão emitido para %s", email_destino
+            )
     except Exception:
-        logging.warning("Falha ao enviar e-mail de exclusão para %s", email_destino, exc_info=True)
+        logging.warning(
+            "Falha ao enviar e-mail de exclusão para %s", email_destino, exc_info=True
+        )
 
     # Deleta dados do usuário (somente do próprio user_id da sessão)
     try:
@@ -1139,12 +1345,16 @@ def delete_account():
     except Exception:
         db.session.rollback()
         logging.exception("Falha ao excluir dados do usuário %s", user_id)
-        return jsonify({"success": False, "error": "Não foi possível concluir a exclusão. Tente novamente."})
+        return jsonify(
+            {
+                "success": False,
+                "error": "Não foi possível concluir a exclusão. Tente novamente.",
+            }
+        )
 
     # Limpa sessão
     session.clear()
     return jsonify({"success": True})
-
 
 
 @app.route("/historico_relatorios")
@@ -1161,8 +1371,7 @@ def historico_relatorios():
 
     brt = pytz.timezone("America/Sao_Paulo")
     historicos = (
-        RelatorioHistorico.query
-        .filter_by(user_id=user_id)
+        RelatorioHistorico.query.filter_by(user_id=user_id)
         .order_by(RelatorioHistorico.id.desc())
         .all()
     )
@@ -1183,8 +1392,8 @@ def historico_relatorios():
     return render_template("historico_relatorios.html", historicos=historicos)
 
 
-
 from werkzeug.exceptions import NotFound
+
 
 @app.route("/download_relatorio/<int:relatorio_id>")
 @limiter.limit("10/minute")
@@ -1246,14 +1455,15 @@ def deletar_relatorio(relatorio_id: int):
 
     return redirect(url_for("historico_relatorios"))
 
+
 @app.route("/robots.txt")
 def robots():
     return app.send_static_file("robots.txt")
 
+
 @app.route("/sitemap.xml")
 def sitemap():
     return app.send_static_file("sitemap.xml")
-
 
 
 @app.route("/terms", methods=["GET", "POST"])
@@ -1267,7 +1477,9 @@ def terms():
 
         terms_accepted = request.form.get("terms_accepted")
         if not terms_accepted:
-            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
+            flash(
+                "Você precisa aceitar os Termos e Condições para continuar.", "warning"
+            )
             return redirect(url_for("terms"))
 
         try:
@@ -1277,7 +1489,10 @@ def terms():
             session["terms_accepted"] = True
         except Exception:
             logging.exception("Falha ao salvar aceitação de termos para %s", user_id)
-            flash("Não foi possível registrar sua aceitação agora. Tente novamente.", "danger")
+            flash(
+                "Não foi possível registrar sua aceitação agora. Tente novamente.",
+                "danger",
+            )
             return redirect(url_for("terms"))
 
         return redirect(url_for("settings"))
@@ -1322,11 +1537,14 @@ def authorize():
 
 
 from booking import booking_bp
+
 app.register_blueprint(booking_bp)
+
+
 @app.template_filter("initial")
 def initial_filter(value):
     s = (value or "").strip()
-    return (s[0].upper() if s else "C")  # "C" de Cliente
+    return s[0].upper() if s else "C"  # "C" de Cliente
 
 
 @app.route("/delete_review", methods=["POST"])
@@ -1362,37 +1580,85 @@ def delete_review():
 
 
 # Deleta respostas
+# main.py
+
+
 @app.route("/delete_reply", methods=["POST"])
 @limiter.limit("30/minute")
 def delete_reply():
-    if "credentials" not in flask.session:
-        return jsonify({"success": False, "error": "Usuário não autenticado"})
-
     user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
-        return jsonify({"success": False, "error": "Usuário não identificado"})
+        return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
     data = request.get_json(silent=True) or {}
     review_id = data.get("review_id")
     try:
         review_id = int(review_id)
     except (TypeError, ValueError):
-        return jsonify({"success": False, "error": "ID da avaliação inválido"})
+        return jsonify({"success": False, "error": "ID da avaliação inválido"}), 400
 
     review = Review.query.filter_by(id=review_id, user_id=user_id).first()
     if not review:
-        return jsonify({"success": False, "error": "Avaliação não encontrada"})
+        return jsonify({"success": False, "error": "Avaliação não encontrada"}), 404
+
+    # 🚨 LÓGICA PRINCIPAL: Tentar excluir no Google PRIMEIRO
+
+    # Verifica se é uma review sincronizada do Google e se já tem resposta
+    if review.source == "google" and review.external_id and review.replied:
+
+        # NOTE: Assumimos que gbp_excluir_resposta está disponível e recebe o user_id e external_id
+        from google_auto import gbp_excluir_resposta
+
+        logging.info(
+            "Tentando deletar resposta no Google para review %s", review.external_id
+        )
+
+        try:
+            excluido_no_google = gbp_excluir_resposta(user_id, review.external_id)
+        except Exception:
+            logging.exception("Erro ao chamar gbp_excluir_resposta")
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Erro interno ao tentar comunicação com Google.",
+                    }
+                ),
+                500,
+            )
+
+        if not excluido_no_google:
+            # Se a API do Google falhar (400, 403, etc.), não altera localmente.
+            logging.warning(
+                "Falha na exclusão da resposta do Google. Permissão negada ou erro de API."
+            )
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Falha na exclusão no Google Business Profile (GBP). Verifique as permissões da conta.",
+                    }
+                ),
+                500,
+            )
+
+    review.reply = ""
+    review.replied = False
 
     try:
-        review.reply = ""
-        review.replied = False
         db.session.commit()
-        return jsonify({"success": True})
+        logging.info("Resposta localmente excluída para review %s", review_id)
+        return jsonify({"success": True, "message": "Resposta excluída com sucesso."})
     except Exception:
         db.session.rollback()
-        logging.exception("Falha ao limpar reply da review %s do user %s", review_id, user_id)
-        return jsonify({"success": False, "error": "Erro ao remover resposta"})
+        logging.exception("delete_reply: erro ao persistir exclusão localmente")
+        return (
+            jsonify(
+                {"success": False, "error": "Erro ao limpar a resposta localmente."}
+            ),
+            500,
+        )
 
 
 @app.route("/suggest_reply", methods=["POST"])
@@ -1468,17 +1734,27 @@ Instruções:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente."},
+                {
+                    "role": "system",
+                    "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
+                },
                 {"role": "user", "content": prompt},
             ],
         )
         suggested_reply = (completion.choices[0].message.content or "").strip()
         if not suggested_reply:
-            return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
+            return jsonify(
+                {"success": False, "error": "Não foi possível gerar a resposta agora."}
+            )
         return jsonify({"success": True, "suggested_reply": suggested_reply})
     except Exception:
         logging.exception("Erro na API OpenAI em suggest_reply")
-        return jsonify({"success": False, "error": "Erro ao gerar a resposta. Tente novamente mais tarde."})
+        return jsonify(
+            {
+                "success": False,
+                "error": "Erro ao gerar a resposta. Tente novamente mais tarde.",
+            }
+        )
 
 
 @app.template_filter("formatar_data_brt")
@@ -1496,7 +1772,6 @@ def formatar_data_brt(data):
     except Exception:
         logging.exception("Falha ao formatar data: %r", data)
         return ""
-
 
 
 @app.route("/get_hiper_count")
@@ -1529,7 +1804,6 @@ def get_hiper_count():
         return jsonify(success=False, error="Falha ao obter contagem.")
 
 
-
 @app.template_filter("b64encode")
 def b64encode_filter(data):
     try:
@@ -1537,9 +1811,10 @@ def b64encode_filter(data):
             return ""
         return Markup(base64.b64encode(data).decode("utf-8"))
     except Exception:
-        logging.exception("Falha ao b64encode dados (len=%s)", getattr(data, "__len__", lambda: "?")())
+        logging.exception(
+            "Falha ao b64encode dados (len=%s)", getattr(data, "__len__", lambda: "?")()
+        )
         return ""
-
 
 
 def usuario_pode_usar_consideracoes(user_id):
@@ -1570,6 +1845,8 @@ def registrar_uso_consideracoes(user_id):
     except Exception:
         db.session.rollback()
         logging.exception("Falha ao registrar uso de considerações para %s", user_id)
+
+
 @app.route("/oauth2callback")
 @app.route("/oauth2callback")
 def oauth2callback():
@@ -1661,7 +1938,9 @@ def oauth2callback():
             settings.business_name = ""
             settings.default_greeting = "Olá,"
             settings.default_closing = "Agradecemos seu feedback!"
-            settings.contact_info = "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com"
+            settings.contact_info = (
+                "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com"
+            )
             db.session.add(settings)
 
         # ✅ salva o refresh_token se existir
@@ -1678,6 +1957,7 @@ def oauth2callback():
     # 6) Done
     return redirect(url_for("reviews"))
 
+
 def build_flow(state=None, redirect_uri=None):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -1691,7 +1971,9 @@ def build_flow(state=None, redirect_uri=None):
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [redirect_uri or "https://comentsia.com.br/oauth2callback"],
+            "redirect_uris": [
+                redirect_uri or "https://comentsia.com.br/oauth2callback"
+            ],
         }
     }
 
@@ -1701,6 +1983,8 @@ def build_flow(state=None, redirect_uri=None):
         state=state,
         redirect_uri=redirect_uri or "https://comentsia.com.br/oauth2callback",
     )
+
+
 def ativar_ou_alterar_plano(user_id, novo_plano):
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if not settings:
@@ -1717,24 +2001,32 @@ def ativar_ou_alterar_plano(user_id, novo_plano):
         db.session.rollback()
         logging.exception("Falha ao ativar/alterar plano para %s", user_id)
         raise
+
+
 def credentials_to_dict(credentials):
     """Converte credenciais em dict minimizado para sessão (sem client_secret)."""
     return {
         "token": credentials.token,
         "refresh_token": credentials.refresh_token,
         "token_uri": credentials.token_uri,
-        "scopes": list(credentials.scopes) if getattr(credentials, "scopes", None) else [],
+        "scopes": (
+            list(credentials.scopes) if getattr(credentials, "scopes", None) else []
+        ),
         # não armazenamos client_id/secret na sessão (estão no servidor via env)
-        "expiry": getattr(credentials, "expiry", None).isoformat() if getattr(credentials, "expiry", None) else None,
+        "expiry": (
+            getattr(credentials, "expiry", None).isoformat()
+            if getattr(credentials, "expiry", None)
+            else None
+        ),
     }
-    
+
+
 # --- helper: reatribui reviews do Booking que ficaram sem dono para o usuário atual ---
 def claim_booking_anonymous_for(user_id: str) -> int:
     if not user_id:
         return 0
     q = Review.query.filter(
-        (Review.source == "booking") &
-        (Review.user_id.in_([None, "anonymous"]))
+        (Review.source == "booking") & (Review.user_id.in_([None, "anonymous"]))
     )
     updated = q.update({Review.user_id: user_id}, synchronize_session=False)
     db.session.commit()
@@ -1771,10 +2063,13 @@ def get_user_info(credentials):
     except Exception as e:
         raise RuntimeError(f"Erro ao obter informações do usuário: {e}")
 
+
 @app.context_processor
 def inject_csrf_token():
     # permite usar {{ csrf_token() }} em qualquer template
     return dict(csrf_token=generate_csrf)
+
+
 @app.route("/logout")
 def logout():
     """Encerra a sessão do usuário."""
@@ -1807,15 +2102,26 @@ def reviews():
     try:
         adotadas = claim_booking_anonymous_for(user_id)
         if adotadas:
-            app.logger.info("Booking: %s avaliações adotadas para user_id=%s", adotadas, user_id)
+            app.logger.info(
+                "Booking: %s avaliações adotadas para user_id=%s", adotadas, user_id
+            )
     except Exception as e:
         app.logger.warning("Falha ao adotar reviews anônimas do Booking: %s", e)
-
 
     user_reviews = get_user_reviews(user_id)
     logging.debug("reviews: qnt_avaliacoes=%d", len(user_reviews))
 
-    return render_template("reviews.html", reviews=user_reviews, user=user_info, now=datetime.now())
+    # 🚨 CORREÇÃO: DEFINIR user_plano ANTES DE USÁ-LO
+    user_plano = get_user_plan(user_id)
+
+    return render_template(
+        "reviews.html",
+        reviews=user_reviews,
+        user=user_info,
+        now=datetime.now(),
+        PLANOS=PLANOS,
+        user_plano=user_plano,  # Agora 'user_plano' está definido
+    )
 
 
 # -- quem é o usuário atual (para blueprints como o booking.py) --
@@ -1823,9 +2129,11 @@ def get_current_user_id():
     info = session.get("user_info") or {}
     return info.get("id")
 
+
 # -- usado em booking.py para barrar acesso de quem não está logado --
 def require_login():
     return ("credentials" in session) and bool(get_current_user_id())
+
 
 @app.route("/get_consideracoes_count")
 @limiter.limit("10 per minute")
@@ -1855,6 +2163,7 @@ def get_consideracoes_count():
     except Exception:
         logging.exception("Erro ao calcular consideracoes_count para %s", user_id)
         return jsonify(success=False, error="Falha ao obter contagem.")
+
 
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
@@ -1897,9 +2206,11 @@ def add_review():
     if len(text) > 5000:
         text = text[:5000]
 
-    hiper_compreensiva = (
-        str(payload.get("hiper_compreensiva", "")).lower() in {"on", "true", "1"}
-    )
+    hiper_compreensiva = str(payload.get("hiper_compreensiva", "")).lower() in {
+        "on",
+        "true",
+        "1",
+    }
     consideracoes = (payload.get("consideracoes") or "").strip()
     if len(consideracoes) > 1500:
         consideracoes = consideracoes[:1500]
@@ -1940,7 +2251,7 @@ def add_review():
 
     # Monta prompt com campos estritamente necessários
     prompt = (
-        f'Você é um assistente especializado em atendimento ao cliente e deve escrever '
+        f"Você é um assistente especializado em atendimento ao cliente e deve escrever "
         f'uma resposta personalizada para uma avaliação recebida por "{business}".\n'
         f"Avaliação recebida:\n"
         f"- Nome do cliente: {reviewer_name}\n"
@@ -1989,7 +2300,7 @@ def add_review():
                     "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
                 },
                 {"role": "user", "content": prompt},
-            ], # defensivo
+            ],  # defensivo
         )
         resposta_gerada = (completion.choices[0].message.content or "").strip()
     except Exception:
@@ -2016,12 +2327,17 @@ def add_review():
             registrar_uso_resposta_especial(user_id)
 
         db.session.commit()
-        logging.info("add_review: review salva (user=%s, replied=%s)", user_id, replied_flag)
+        logging.info(
+            "add_review: review salva (user=%s, replied=%s)", user_id, replied_flag
+        )
     except SQLAlchemyError:
         db.session.rollback()
         logging.exception("add_review: erro ao salvar avaliação")
         if request.is_json:
-            return jsonify({"success": False, "error": "Erro ao salvar a avaliação."}), 500
+            return (
+                jsonify({"success": False, "error": "Erro ao salvar a avaliação."}),
+                500,
+            )
         flash("Erro ao salvar a avaliação.", "danger")
         return redirect(url_for("reviews"))
 
@@ -2120,8 +2436,12 @@ def dashboard():
         except (TypeError, ValueError):
             continue
 
-    responded_reviews = sum(1 for r in user_reviews if bool(getattr(r, "replied", False)))
-    percent_responded = (responded_reviews * 100.0 / total_reviews) if total_reviews else 0.0
+    responded_reviews = sum(
+        1 for r in user_reviews if bool(getattr(r, "replied", False))
+    )
+    percent_responded = (
+        (responded_reviews * 100.0 / total_reviews) if total_reviews else 0.0
+    )
 
     rating_distribution_values = [
         rating_distribution[1],
@@ -2145,14 +2465,23 @@ def dashboard():
         now=datetime.now(),
     )
 
+
 from flask_wtf.csrf import CSRFError
+
 
 @app.errorhandler(CSRFError)
 def handle_csrf(e):
     if request.accept_mimetypes.accept_json:
-        return jsonify(success=False, error="CSRF inválido ou sessão expirada. Recarregue a página e tente novamente."), 400
+        return (
+            jsonify(
+                success=False,
+                error="CSRF inválido ou sessão expirada. Recarregue a página e tente novamente.",
+            ),
+            400,
+        )
     flash("Sua sessão expirou. Recarregue a página e tente novamente.", "warning")
     return redirect(request.referrer or url_for("index"))
+
 
 @app.route("/analyze_reviews", methods=["POST"])
 def analyze_reviews():
@@ -2164,7 +2493,10 @@ def analyze_reviews():
 
     user_reviews = get_user_reviews(user_id)
     if not user_reviews:
-        return jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}), 400
+        return (
+            jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}),
+            400,
+        )
 
     # Constrói resumo, mas limita tamanho para não estourar tokens
     lines = [
@@ -2196,7 +2528,10 @@ Responda apenas os seguintes campos:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Você é um analista de avaliações de clientes."},
+                {
+                    "role": "system",
+                    "content": "Você é um analista de avaliações de clientes.",
+                },
                 {"role": "user", "content": prompt},
             ],  # defensivo
         )
@@ -2210,7 +2545,10 @@ Responda apenas os seguintes campos:
             return jsonify({"success": True, "raw_analysis": response_text})
     except Exception as e:
         logging.exception("analyze_reviews: falha na IA")
-        return jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}), 500
+        return (
+            jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}),
+            500,
+        )
 
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -2227,12 +2565,15 @@ def settings():
 
     if request.method == "POST":
         # Coleta dados do formulário com limites defensivos
-        def cap(s, n): return (s or "").strip()[:n]
+        def cap(s, n):
+            return (s or "").strip()[:n]
 
         settings_data = {
             "business_name": cap(request.form.get("company_name"), 200),
-            "default_greeting": cap(request.form.get("default_greeting"), 120) or "Olá,",
-            "default_closing": cap(request.form.get("default_closing"), 240) or "Agradecemos seu feedback!",
+            "default_greeting": cap(request.form.get("default_greeting"), 120)
+            or "Olá,",
+            "default_closing": cap(request.form.get("default_closing"), 240)
+            or "Agradecemos seu feedback!",
             "contact_info": cap(request.form.get("contact_info"), 500),
             "terms_accepted": request.form.get("terms_accepted"),
             "manager_name": cap(request.form.get("manager_name"), 200),
@@ -2244,7 +2585,10 @@ def settings():
         MAX_LOGO_SIZE = 500 * 1024  # 500 KB
 
         def allowed_file(filename):
-            return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+            return (
+                "." in filename
+                and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+            )
 
         logo_file = request.files.get("logo")
         logo_bytes = None
@@ -2265,7 +2609,9 @@ def settings():
         settings_data["logo"] = logo_bytes
 
         if not settings_data["terms_accepted"]:
-            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
+            flash(
+                "Você precisa aceitar os Termos e Condições para continuar.", "warning"
+            )
             return redirect(url_for("settings"))
 
         # Salva as configurações com try/except
@@ -2280,7 +2626,9 @@ def settings():
         # Envia e-mail de boas-vindas (idempotente)
         try:
             existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
-            if existing_settings and not getattr(existing_settings, "email_boas_vindas_enviado", False):
+            if existing_settings and not getattr(
+                existing_settings, "email_boas_vindas_enviado", False
+            ):
                 nome_do_usuario = (
                     (existing_settings.manager_name or "")
                     or (existing_settings.business_name or "")
@@ -2300,7 +2648,9 @@ def settings():
                         db.session.commit()
                     except Exception:
                         db.session.rollback()
-                        logging.exception("settings: falha ao enviar e-mail de boas-vindas")
+                        logging.exception(
+                            "settings: falha ao enviar e-mail de boas-vindas"
+                        )
         except Exception:
             logging.exception("settings: erro ao marcar e-mail de boas-vindas")
 
@@ -2315,7 +2665,6 @@ def settings():
         user=user_info,
         now=datetime.now(),
     )
-
 
 
 @app.route("/logo")
@@ -2348,12 +2697,14 @@ def logo():
 
     # ETag simples baseada no tamanho e primeiros bytes (evita recalcular hash grande)
     etag = f'W/"{len(logo_bytes)}-{logo_bytes[:8].hex()}"'
-    resp = flask.make_response(send_file(
-        io.BytesIO(logo_bytes),
-        mimetype=mimetype,
-        as_attachment=False,
-        download_name=f"logo.{ext}",
-    ))
+    resp = flask.make_response(
+        send_file(
+            io.BytesIO(logo_bytes),
+            mimetype=mimetype,
+            as_attachment=False,
+            download_name=f"logo.{ext}",
+        )
+    )
     resp.headers["ETag"] = etag
     # Cache curto do lado do cliente; ajuste conforme sua política
     resp.headers["Cache-Control"] = "private, max-age=300"
@@ -2403,6 +2754,7 @@ def apply_template():
 
 import os
 
+
 # Aplica as migrações automaticamente no Render (RENDER=true)
 # Aplica as migrações automaticamente no Render (RENDER=true)
 def aplicar_migracoes():
@@ -2415,10 +2767,24 @@ def aplicar_migracoes():
         except Exception as e:
             logging.exception("⚠️ Erro ao aplicar migrações: %s", e)
 
+
 # Executa upgrade automaticamente se estiver no Render
 # Executa upgrade automaticamente se estiver no Render
 if os.environ.get("RENDER") == "true" and __name__ == "__main__":
     aplicar_migracoes()
+
+import atexit
+
+
+def _flush_logs():
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+    except Exception:
+        pass
+
+
+atexit.register(_flush_logs)
 
 if __name__ == "__main__":
     # Ambiente local
@@ -2430,4 +2796,4 @@ if __name__ == "__main__":
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
 
     print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
-    app.run(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=False, use_reloader=False)
