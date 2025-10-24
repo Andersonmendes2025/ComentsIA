@@ -2,8 +2,7 @@
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
 import sys
-
-
+from flask_apscheduler import APScheduler
 class ColorFormatter(logging.Formatter):
     COLORS = {
         "DEBUG": "\033[37m",  # cinza
@@ -189,9 +188,10 @@ scheduler.start()
 app.register_blueprint(google_auto_bp)
 # 👉 depois registra os blueprints
 app.register_blueprint(admin_bp)
+scheduler = APScheduler()
+scheduler.init_app(app)
 
-register_gbp_cron(scheduler)
-
+register_gbp_cron(scheduler, app)
 # 👉 só então roda o seed (dentro do app_context)
 from sqlalchemy import inspect
 
@@ -1522,11 +1522,12 @@ def terms():
 def authorize():
     try:
         redirect_uri = url_for("oauth2callback", _external=True)
-        flow = build_flow(redirect_uri=redirect_uri)  # não passe state aqui
+        flow = build_flow(redirect_uri=redirect_uri)
+        # 👇 aqui é onde forçamos sempre gerar novo refresh_token
         authorization_url, state = flow.authorization_url(
-            access_type="offline",
-            include_granted_scopes="true",
-            prompt="consent",  # força refresh_token quando necessário
+            access_type="offline",            # pede refresh_token
+            include_granted_scopes="true",    # mantém escopos já concedidos
+            prompt="consent"                  # força reconsentimento
         )
         session["state"] = state
         return redirect(authorization_url)
@@ -1534,11 +1535,6 @@ def authorize():
         logging.exception("Falha ao iniciar OAuth")
         flash("Não foi possível iniciar o login no momento. Tente novamente.", "danger")
         return redirect(url_for("index"))
-
-
-from booking import booking_bp
-
-app.register_blueprint(booking_bp)
 
 
 @app.template_filter("initial")
@@ -2787,6 +2783,10 @@ def _flush_logs():
 atexit.register(_flush_logs)
 
 if __name__ == "__main__":
+    import pytz
+    import atexit
+    from apscheduler.schedulers.background import BackgroundScheduler
+
     # Ambiente local
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
     aplicar_migracoes()
@@ -2795,5 +2795,21 @@ if __name__ == "__main__":
     port = int(os.getenv("FLASK_RUN_PORT", "8000"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
 
+    # --- Inicia o scheduler (cron diário do Google) ---
+    scheduler = BackgroundScheduler(timezone=pytz.timezone("America/Sao_Paulo"))
+    scheduler.start()
+
+    try:
+        from google_auto import register_gbp_cron
+        register_gbp_cron(scheduler, app)
+        print("[gbp] ⏰ Job diário do Google registrado com sucesso!")
+    except Exception as e:
+        import logging
+        logging.exception(f"[gbp] Falha ao registrar job diário: {e}")
+
+    # Fecha o scheduler ao encerrar o app
+    atexit.register(lambda: scheduler.shutdown(wait=False))
+
+    # --- Executa o servidor Flask ---
     print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
     app.run(host=host, port=port, debug=False, use_reloader=False)

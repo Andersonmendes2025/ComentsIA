@@ -96,7 +96,10 @@ def _make_auth_headers(creds: Credentials) -> dict:
 
 
 def _first_account_name(creds: Credentials) -> Optional[str]:
-    """Obtém a conta principal do Google Business, priorizando LOCATION_GROUP (contas de grupo)."""
+    """
+    Obtém a conta principal do Google Business, priorizando LOCATION_GROUP (contas de grupo).
+    Mantém compatibilidade com o fluxo atual, mas com logs e tratamento aprimorados.
+    """
     try:
         headers = _make_auth_headers(creds)
         url = "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"
@@ -111,32 +114,47 @@ def _first_account_name(creds: Credentials) -> Optional[str]:
         data = resp.json()
         accounts = data.get("accounts", [])
         if not accounts:
-            logging.warning("[gbp] Nenhuma conta encontrada.")
+            logging.warning("[gbp] Nenhuma conta retornada pela API Google Business.")
             return None
 
-        # Prioriza contas de grupo (LOCATION_GROUP), onde geralmente ficam as fichas reais
+        # Separa as contas por tipo
         location_groups = [a for a in accounts if a.get("type") == "LOCATION_GROUP"]
         personal_accounts = [a for a in accounts if a.get("type") == "USER_ACCOUNT"]
 
+        # Loga todas as contas encontradas para depuração
+        todas = ", ".join(
+            f"{a.get('accountName', 'Sem nome')} ({a.get('type', '?')})"
+            for a in accounts
+        )
+        logging.info(f"[gbp] Contas detectadas: {todas}")
+
+        # Prioriza conta de grupo (LOCATION_GROUP)
         if location_groups:
             selected = location_groups[0]
             logging.info(
-                f"[gbp] Conta de grupo detectada: {selected.get('name')} ({selected.get('accountName')})"
+                f"[gbp] ✅ Conta de grupo selecionada: {selected.get('accountName')} "
+                f"→ {selected.get('name')}"
             )
             return selected.get("name")
 
+        # Caso não tenha grupo, usa a conta pessoal
         if personal_accounts:
             selected = personal_accounts[0]
             logging.info(
-                f"[gbp] Conta pessoal detectada: {selected.get('name')} ({selected.get('accountName')})"
+                f"[gbp] ⚙️ Conta pessoal selecionada: {selected.get('accountName')} "
+                f"→ {selected.get('name')}"
             )
             return selected.get("name")
 
+        # Nenhuma válida
         logging.warning("[gbp] Nenhuma conta válida encontrada.")
         return None
 
+    except requests.RequestException as e:
+        logging.warning(f"[gbp] Erro de conexão com API Google: {e}")
+        return None
     except Exception:
-        logging.exception("[gbp] Falha ao obter conta principal")
+        logging.exception("[gbp] Falha inesperada ao obter conta principal")
         return None
 
 
@@ -212,6 +230,42 @@ def _first_location_name(creds: Credentials, account_name: str) -> Optional[str]
         logging.exception("[gbp] Erro ao obter locationId")
         return None
 
+def _list_all_accounts(creds: Credentials) -> List[str]:
+    """
+    Retorna uma lista com TODAS as contas do Google Business disponíveis
+    (LOCATION_GROUP e USER_ACCOUNT), priorizando as de grupo.
+    """
+    try:
+        headers = _make_auth_headers(creds)
+        url = "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"
+        resp = requests.get(url, headers=headers, timeout=10)
+
+        if resp.status_code != 200:
+            logging.warning(f"[gbp] Erro ao buscar contas ({resp.status_code}): {resp.text}")
+            return []
+
+        data = resp.json()
+        accounts = data.get("accounts", [])
+        if not accounts:
+            logging.warning("[gbp] Nenhuma conta retornada pela API Google Business.")
+            return []
+
+        # Separa tipos
+        location_groups = [a for a in accounts if a.get("type") == "LOCATION_GROUP"]
+        personal_accounts = [a for a in accounts if a.get("type") == "USER_ACCOUNT"]
+        ordered_accounts = location_groups + personal_accounts
+
+        logging.info(
+            f"[gbp] {len(ordered_accounts)} contas detectadas: "
+            + ", ".join(a.get("accountName", "Sem nome") for a in ordered_accounts)
+        )
+
+        # Retorna os nomes de recurso (ex: "accounts/1234567890123456789")
+        return [a.get("name") for a in ordered_accounts if a.get("name")]
+
+    except Exception:
+        logging.exception("[gbp] Falha ao listar contas do Google Business")
+        return []
 
 def _list_reviews(
     creds: Credentials, account_name: str, location_name: Optional[str]
@@ -489,24 +543,20 @@ Responda começando com: "{settings['default_greeting']} {reviewer_name},"
 # google_auto.py (Função run_sync_for_user - CORRIGIDA)
 
 
+# google_auto.py (Função run_sync_for_user - OTIMIZADA PARA MULTI-LOCATION)
+
 def run_sync_for_user(user_id: str) -> int:
     """Executa sincronização completa, pegando apenas as avaliações do dia atual (BRT)."""
-
+    
     try:
         from main import (
             registrar_uso_resposta_especial,
             usuario_pode_usar_resposta_especial,
         )
     except ImportError:
-        logging.error(
-            "As funções de limite (hiper_compreensiva) não foram encontradas em main.py."
-        )
-
-        def usuario_pode_usar_resposta_especial(uid):
-            return False
-
-        def registrar_uso_resposta_especial(uid):
-            pass
+        logging.error("Funções de limite (hiper_compreensiva) não encontradas em main.py.")
+        def usuario_pode_usar_resposta_especial(uid): return False
+        def registrar_uso_resposta_especial(uid): pass
 
     print(f"\n--- [GBP SYNC START] Iniciando sync para user={user_id} ---\n")
 
@@ -515,78 +565,84 @@ def run_sync_for_user(user_id: str) -> int:
         print(f"WARN [gbp] Sem credenciais válidas para {user_id}")
         return 0
 
-    account_name = _first_account_name(creds)
-    location_name = _first_location_name(creds, account_name) if account_name else None
-
-    if not location_name:
-        print(f"FAIL [gbp] Nenhuma ficha encontrada para {user_id}")
+    # 1. Busca TODAS as contas (Grupos e Pessoais)
+    accounts = _list_all_accounts(creds)
+    if not accounts:
+        print(f"[gbp] Nenhuma conta retornada para {user_id}")
+        return 0
+        
+    # 2. Busca TODAS as fichas (locations) em TODAS as contas
+    all_locations_data = _list_all_locations(creds, accounts)
+    
+    if not all_locations_data:
+        print(f"FAIL [gbp] Nenhuma ficha (location) encontrada para {user_id} em nenhuma conta.")
         return 0
 
-    reviews = _list_reviews(creds, account_name, location_name)
-    if not reviews:
-        print(f"[gbp] Nenhuma avaliação nova.")
-        return 0
-
-    # 🕓 Define o início do dia atual em BRT para filtro
     tz_brt = pytz.timezone("America/Sao_Paulo")
     agora = datetime.now(tz_brt)
     inicio_dia = agora.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    print(
-        f"[gbp] ⏱️ Filtro: apenas avaliações publicadas a partir de {inicio_dia.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-    )
+    print(f"[gbp] ⏱️ Filtro: apenas avaliações publicadas após {inicio_dia.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    total_processadas = 0
 
-    count = 0
-    for r in reviews:
-        rid = r.get("reviewId")
-        if not rid:
+    # 3. Itera por TODAS as fichas encontradas
+    for location_data in all_locations_data:
+        account_name = location_data['account_name']
+        location_name = location_data['location_name']
+        location_title = location_data['location_title']
+
+        print(f"\n[gbp] ➡️ Sincronizando ficha: {location_title} ({location_name})")
+
+        # 4. Lista reviews para ESTA ficha e ESTA conta
+        # Note que a URL de reviews (v4) funciona com accounts/{accountID}/locations/{locationID}/reviews
+        # O par account_name/location_name precisa ser consistente.
+        reviews = _list_reviews(creds, account_name, location_name)
+        if not reviews:
+            print(f"[gbp] Nenhuma avaliação encontrada na ficha {location_title}.")
             continue
 
-        # 1. OTIMIZAÇÃO: Verifica no BD primeiro. Se já foi salva, ignora a data e o resto.
-        if _already_saved(user_id, rid):
-            continue
+        for r in reviews:
+            rid = r.get("reviewId")
+            if not rid or _already_saved(user_id, rid):
+                continue
+            
+            # FILTRO DE TEMPO 
+            create_time_str = r.get("createTime")
+            if create_time_str:
+                try:
+                    dt_utc = datetime.fromisoformat(create_time_str.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    
+                    if dt_brt < inicio_dia:
+                        print(f"[gbp] ⏩ Ignorando {rid} ({dt_brt.strftime('%d/%m %H:%M')}) — anterior a hoje.")
+                        continue
+                except Exception:
+                    logging.exception(f"[gbp] Erro ao processar data da avaliação {rid}. Processando sem filtro de tempo.")
+                    
+            # PROCESSAMENTO
+            stars = converter_nota_gbp_para_int(r.get("starRating"))
+            text = r.get("comment") or ""
+            name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
 
-        # 2. FILTRO DE TEMPO (Apenas para reviews que AINDA NÃO FORAM SALVAS)
-        create_time_str = r.get("createTime")
-        if create_time_str:
-            try:
-                # Converte o timestamp UTC do Google para o objeto datetime BRT
-                dt_utc = datetime.fromisoformat(create_time_str.replace("Z", "+00:00"))
-                dt_brt = dt_utc.astimezone(tz_brt)
+            is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
+            reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
 
-                # Compara com o início do dia BRT
-                if dt_brt < inicio_dia:
-                    print(
-                        f"[gbp] ⏩ Ignorando {rid} ({dt_brt.strftime('%d/%m %H:%M')}) — anterior a hoje."
-                    )
-                    continue
-            except Exception:
-                # Se falhar ao processar a data, processa a review para evitar perda
-                logging.exception(
-                    f"[gbp] Erro ao processar data da avaliação {rid}. Processando sem filtro de tempo."
-                )
+            # Salva no BD local
+            _upsert_review(user_id, r, reply) 
+            
+            # Publica no Google
+            ok = _publish_reply(creds, account_name, location_name, rid, reply)
+            
+            if ok:
+                # Atualiza status local para refletir publicação e registra uso Hiper
+                _update_local_reply_status(user_id, rid, reply, True)
+                if is_hiper:
+                    registrar_uso_resposta_especial(user_id) 
 
-        # 3. PROCESSAMENTO (Apenas reviews NOVAS e DE HOJE)
-        stars = converter_nota_gbp_para_int(r.get("starRating"))
-        text = r.get("comment") or ""
-        name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
+            total_processadas += 1
 
-        is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
-        reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
-
-        _upsert_review(user_id, r, reply)
-        ok = _publish_reply(creds, account_name, location_name, rid, reply)
-        if ok:
-            _update_local_reply_status(user_id, rid, reply, True)
-        if is_hiper and ok:
-            registrar_uso_resposta_especial(user_id)
-
-        count += 1
-
-    print(
-        f"\n--- [GBP SYNC END] ✅ {count} avaliações novas processadas (somente de hoje). ---\n"
-    )
-    return count
+    print(f"\n--- [GBP SYNC END] ✅ Total: {total_processadas} avaliações processadas ---\n")
+    return total_processadas
 
 
 def _update_local_reply_status(
@@ -627,18 +683,35 @@ def _update_local_reply_status(
 
 
 # --- Cron diário ---
-def register_gbp_cron(scheduler):
+def register_gbp_cron(scheduler, app):
+    """Registra o job diário do Google Business Profile (roda às 01:00 BRT)."""
+    import pytz
 
-    @scheduler.scheduled_job(
-        "cron", hour=1, minute=0, timezone=pytz.timezone("America/Sao_Paulo")
-    )
     def _gbp_job():
-        try:
-            enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
-            for s in enabled:
-                run_sync_for_user(s.user_id)
-        except Exception:
-            logging.exception("[gbp] Job diário falhou")
+        with app.app_context():
+            try:
+                enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
+                logging.info(f"[gbp] 🕐 Job diário iniciado — {len(enabled)} contas habilitadas.")
+                for s in enabled:
+                    logging.info(f"[gbp] ▶️ Rodando sync para user_id={s.user_id}")
+                    run_sync_for_user(s.user_id)
+                logging.info("[gbp] ✅ Job diário concluído com sucesso.")
+            except Exception:
+                logging.exception("[gbp] 💥 Job diário falhou.")
+
+    # 👉 Usa add_job() em vez do decorador
+    scheduler.add_job(
+        id="gbp_daily_sync",
+        func=_gbp_job,
+        trigger="cron",
+        hour=00,
+        minute=00,
+        timezone=pytz.timezone("America/Sao_Paulo"),
+        replace_existing=True,
+    )
+
+    logging.info("[gbp] ⏰ Job diário GBP registrado com sucesso.")
+
 
 
 # --- Rotas Flask ---
@@ -874,3 +947,223 @@ def gbp_excluir_resposta(user_id: str, external_review_id: str) -> bool:
     except Exception:
         logging.exception("[gbp] Falha na função gbp_excluir_resposta.")
         return False
+@google_auto_bp.route("/debug-reviews")
+def debug_reviews():
+    """Rota temporária para testar listagem direta de reviews da conta atual."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return "Sem usuário logado", 401
+
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        return "Sem credenciais válidas.", 401
+
+    account_name = _first_account_name(creds)
+    if not account_name:
+        return "Nenhuma conta detectada.", 404
+
+    location_name = _first_location_name(creds, account_name)
+    if not location_name:
+        return "Nenhuma ficha encontrada.", 404
+
+    headers = _make_auth_headers(creds)
+    account_id = account_name.split("/")[-1]
+    location_id = location_name.split("/")[-1]
+
+    url = f"https://mybusiness.googleapis.com/v4/accounts/{account_id}/locations/{location_id}/reviews"
+    resp = requests.get(url, headers=headers, timeout=10)
+    return f"<h3>Status {resp.status_code}</h3><pre>{resp.text}</pre>"
+
+# google_auto.py (Rota Flask)
+
+@google_auto_bp.route("/test-cron-all")
+def test_cron_all():
+    """Força a execução do job GBP para todos os usuários, sincronizando as últimas 48 horas."""
+    from flask import current_app, session
+
+    # Requer login para evitar acesso anônimo à rota de testes
+    user_info = session.get("user_info") or {}
+    if not user_info.get("id"):
+        return "Acesso não autorizado.", 401
+
+    with current_app.app_context():
+        try:
+            enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
+            if not enabled:
+                return "Nenhum usuário com automação ativa.", 200
+
+            print(f"\n[gbp] ⚡ Rodando TESTE GLOBAL (ÚLTIMAS 48h)\n")
+            total_geral = 0
+            for s in enabled:
+                print(f"\n--- [TESTE] Rodando para {s.user_id} ---")
+                
+                # 🎯 CHAMA A NOVA FUNÇÃO DE TESTE DE 48H
+                total = run_sync_last_48h(s.user_id) 
+                
+                print(f"[gbp] ✅ {s.user_id}: {total} avaliações processadas.\n")
+                total_geral += total
+
+            return f"Teste de 48h concluído! Total de avaliações processadas: {total_geral}", 200
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return f"Erro ao rodar teste global: {e}", 500
+# google_auto.py
+
+# ... (restante das funções auxiliares de API, como _list_reviews, etc.) ...
+
+def _list_all_locations(creds: Credentials, accounts: List[str]) -> List[Dict]:
+    """
+    Busca todas as fichas (locations) sob todas as contas fornecidas.
+    Retorna uma lista de dicionários contendo 'account_name', 'location_name' e 'location_title'
+    para simplificar a iteração de reviews.
+    """
+    all_locations = []
+    
+    for account_name in accounts:
+        account_id = account_name.split("/")[-1]
+        
+        # 1️⃣ Tenta Nova API Business Information (V1)
+        url_v1 = f"https://mybusinessbusinessinformation.googleapis.com/v1/{account_name}/locations"
+        params = {"readMask": "name,title"} 
+        headers = _make_auth_headers(creds)
+        
+        try:
+            resp = requests.get(url_v1, headers=headers, params=params, timeout=10)
+            data = resp.json()
+            locs = data.get("locations", [])
+            
+            if locs:
+                logging.info(f"[gbp] Encontradas {len(locs)} fichas via V1 em {account_name}.")
+                for loc in locs:
+                    all_locations.append({
+                        'account_name': account_name,
+                        'location_name': loc.get("name"), 
+                        'location_title': loc.get("title")
+                    })
+                continue # Se encontrou via V1, não precisa de V4
+            
+        except requests.RequestException:
+            logging.warning(f"[gbp] Falha na API V1 para {account_name}. Tentando V4.")
+        
+        # 2️⃣ Tenta Fallback para a API V4 de Management
+        url_v4 = f"https://mybusiness.googleapis.com/v4/accounts/{account_id}/locations"
+        try:
+            resp2 = requests.get(url_v4, headers=headers, timeout=10)
+            data2 = resp2.json()
+            locs2 = data2.get("locations", [])
+            
+            if locs2:
+                logging.info(f"[gbp] Encontradas {len(locs2)} fichas via V4 em {account_name}.")
+                for loc in locs2:
+                    all_locations.append({
+                        'account_name': account_name,
+                        'location_name': loc.get("name"), 
+                        'location_title': loc.get("locationName") 
+                    })
+            
+        except requests.RequestException:
+            logging.error(f"[gbp] Falha ao listar fichas via V4 em {account_name}.")
+
+    # Remove duplicatas baseadas em location_name, se houver
+    unique_locations = {loc['location_name']: loc for loc in all_locations}.values()
+
+    return list(unique_locations)
+# google_auto.py (Nova Função para Teste de 48 Horas)
+
+def run_sync_last_48h(user_id: str) -> int:
+    """Executa sincronização completa do Google Business, pegando avaliações das ÚLTIMAS 48 horas."""
+    
+    try:
+        from main import (
+            registrar_uso_resposta_especial,
+            usuario_pode_usar_resposta_especial,
+        )
+    except ImportError:
+        logging.error("Funções de limite (hiper_compreensiva) não encontradas em main.py.")
+        def usuario_pode_usar_resposta_especial(uid): return False
+        def registrar_uso_resposta_especial(uid): pass
+
+    print(f"\n--- [GBP SYNC START] Iniciando sync (ÚLTIMAS 48H) para user={user_id} ---\n")
+
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        print(f"WARN [gbp] Sem credenciais válidas para {user_id}")
+        return 0
+
+    # 1. Busca TODAS as contas
+    accounts = _list_all_accounts(creds)
+    if not accounts:
+        print(f"[gbp] Nenhuma conta retornada para {user_id}")
+        return 0
+        
+    # 2. Busca TODAS as fichas
+    all_locations_data = _list_all_locations(creds, accounts)
+    
+    if not all_locations_data:
+        print(f"FAIL [gbp] Nenhuma ficha (location) encontrada para {user_id} em nenhuma conta.")
+        return 0
+
+    tz_brt = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(tz_brt)
+    
+    # 🎯 NOVO FILTRO: 48 horas atrás (filtro flutuante)
+    limite_tempo = agora - timedelta(hours=48) 
+
+    print(f"[gbp] ⏱️ Filtro: apenas avaliações publicadas após {limite_tempo.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    total_processadas = 0
+
+    # 3. Itera por TODAS as fichas encontradas
+    for location_data in all_locations_data:
+        account_name = location_data['account_name']
+        location_name = location_data['location_name']
+        location_title = location_data['location_title']
+
+        print(f"\n[gbp] ➡️ Sincronizando ficha: {location_title} ({location_name})")
+
+        reviews = _list_reviews(creds, account_name, location_name)
+        if not reviews:
+            print(f"[gbp] Nenhuma avaliação encontrada na ficha {location_title}.")
+            continue
+
+        for r in reviews:
+            rid = r.get("reviewId")
+            if not rid or _already_saved(user_id, rid):
+                continue
+            
+            # FILTRO DE TEMPO (usando o limite de 48h)
+            create_time_str = r.get("createTime")
+            if create_time_str:
+                try:
+                    dt_utc = datetime.fromisoformat(create_time_str.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    
+                    if dt_brt < limite_tempo: # Compara com o limite flutuante de 48h
+                        print(f"[gbp] ⏩ Ignorando {rid} ({dt_brt.strftime('%d/%m %H:%M')}) — anterior a 48h.")
+                        continue
+                except Exception:
+                    logging.exception(f"[gbp] Erro ao processar data da avaliação {rid}. Processando sem filtro de tempo.")
+                    
+            # PROCESSAMENTO
+            stars = converter_nota_gbp_para_int(r.get("starRating"))
+            text = r.get("comment") or ""
+            name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
+
+            is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
+            reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
+
+            _upsert_review(user_id, r, reply) 
+            
+            ok = _publish_reply(creds, account_name, location_name, rid, reply)
+            
+            if ok:
+                _update_local_reply_status(user_id, rid, reply, True)
+                if is_hiper:
+                    registrar_uso_resposta_especial(user_id) 
+
+            total_processadas += 1
+
+    print(f"\n--- [GBP SYNC END] ✅ Total: {total_processadas} avaliações processadas (Últimas 48h) ---\n")
+    return total_processadas
