@@ -704,8 +704,8 @@ def register_gbp_cron(scheduler, app):
         id="gbp_daily_sync",
         func=_gbp_job,
         trigger="cron",
-        hour=00,
-        minute=00,
+        hour=12,
+        minute=35,
         timezone=pytz.timezone("America/Sao_Paulo"),
         replace_existing=True,
     )
