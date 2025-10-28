@@ -312,7 +312,7 @@ def _already_saved(user_id: str, review_id: str) -> bool:
 # Substitua a sua função _upsert_review por esta:
 
 
-def _upsert_review(user_id: str, r: Dict, reply_text: str) -> None:
+def _upsert_review(user_id: str, r: Dict, reply_text: str, location_name: Optional[str] = None) -> None: # ⬅️ ADICIONADO location_name
     """Salva ou atualiza uma avaliação automática do Google no banco,
     já marcando com etiqueta de automação (source='google', is_auto=True)."""
 
@@ -346,6 +346,10 @@ def _upsert_review(user_id: str, r: Dict, reply_text: str) -> None:
             existing.reply = reply_text
             existing.replied = bool(reply_text)
             existing.source = "google"
+            
+            if location_name:
+                existing.location_name = location_name # ⬅️ SALVANDO LOCATION ID
+            
             if hasattr(existing, "is_auto"):
                 existing.is_auto = True
             if hasattr(existing, "auto_origin"):
@@ -367,6 +371,7 @@ def _upsert_review(user_id: str, r: Dict, reply_text: str) -> None:
                 "reply": reply_text,
                 "replied": bool(reply_text),
                 "date": dt,
+                "location_name": location_name, # ⬅️ SALVANDO LOCATION ID
             }
 
             # Campos opcionais se existirem no modelo
@@ -385,7 +390,6 @@ def _upsert_review(user_id: str, r: Dict, reply_text: str) -> None:
     except Exception as e:
         db.session.rollback()
         logging.exception(f"[gbp] ❌ Erro ao salvar review automática {rid}: {e}")
-
 
 # NOTA: A função run_sync_for_user deve ser ajustada para passar 4 argumentos para esta função.
 def _publish_reply(
@@ -547,7 +551,7 @@ Responda começando com: "{settings['default_greeting']} {reviewer_name},"
 
 def run_sync_for_user(user_id: str) -> int:
     """Executa sincronização completa, pegando apenas as avaliações do dia atual (BRT)."""
-    
+
     try:
         from main import (
             registrar_uso_resposta_especial,
@@ -594,8 +598,6 @@ def run_sync_for_user(user_id: str) -> int:
         print(f"\n[gbp] ➡️ Sincronizando ficha: {location_title} ({location_name})")
 
         # 4. Lista reviews para ESTA ficha e ESTA conta
-        # Note que a URL de reviews (v4) funciona com accounts/{accountID}/locations/{locationID}/reviews
-        # O par account_name/location_name precisa ser consistente.
         reviews = _list_reviews(creds, account_name, location_name)
         if not reviews:
             print(f"[gbp] Nenhuma avaliação encontrada na ficha {location_title}.")
@@ -627,8 +629,8 @@ def run_sync_for_user(user_id: str) -> int:
             is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
             reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
 
-            # Salva no BD local
-            _upsert_review(user_id, r, reply) 
+            # Salva no BD local - PASSANDO location_name!
+            _upsert_review(user_id, r, reply, location_name=location_name) # ⬅️ CORRIGIDO
             
             # Publica no Google
             ok = _publish_reply(creds, account_name, location_name, rid, reply)
@@ -643,7 +645,6 @@ def run_sync_for_user(user_id: str) -> int:
 
     print(f"\n--- [GBP SYNC END] ✅ Total: {total_processadas} avaliações processadas ---\n")
     return total_processadas
-
 
 def _update_local_reply_status(
     user_id: str, external_id: str, reply_text: Optional[str], is_auto: bool = True
@@ -704,8 +705,8 @@ def register_gbp_cron(scheduler, app):
         id="gbp_daily_sync",
         func=_gbp_job,
         trigger="cron",
-        hour=12,
-        minute=35,
+        hour=10,
+        minute=15,
         timezone=pytz.timezone("America/Sao_Paulo"),
         replace_existing=True,
     )
@@ -801,33 +802,38 @@ def editar_reply_auto(external_id):
     if not reply_text:
         return jsonify({"success": False, "message": "Texto de resposta ausente"}), 400
 
-    data = _get_location_and_account(user_id)
-    if not data:
+    # 1. Obtém credenciais, conta e localização CORRETA (salva no BD)
+    # CHAMA A NOVA FUNÇÃO AQUI:
+    creds, account_name, location_name = _get_review_data_for_action(user_id, external_id)
+    
+    # Se credenciais, conta ou Location ID não foram encontrados no BD
+    if not creds: 
         return (
-            jsonify({"success": False, "message": "Falha ao obter dados da conta."}),
+            jsonify({"success": False, "message": "Falha ao obter dados da ficha correta. A avaliação pode ter sido removida do BD ou as credenciais inválidas."}),
             400,
         )
 
-    creds, account_name, location_name = data
-
-    # 1. Tenta publicar/editar no Google (Assumindo que _publish_reply retorna True em sucesso)
+    # 2. Tenta publicar/editar no Google (usando a location_name correta)
     publicado = _publish_reply(
         creds, account_name, location_name, external_id, reply_text
     )
 
     if not publicado:
-        # Se a publicação falhar no Google (400, 403, etc.)
+        # Se a publicação falhar (404, 403, etc.)
         return (
             jsonify(
                 {
                     "success": False,
-                    "message": "Falha na publicação do Google. Resposta não salva.",
+                    # Mensagem genérica para falha de API/permissão
+                    "message": "Falha na publicação do Google. A avaliação pode ter sido removida ou as credenciais estão inválidas.",
                 }
             ),
             500,
         )
 
-    # 2. Atualiza localmente APENAS se a publicação foi bem-sucedida
+    # 3. Atualiza localmente APENAS se a publicação foi bem-sucedida
+    # Nota: _update_local_reply_status deve ser ajustada para não buscar a location_name
+    # pois a edição manual não recebe a location_name no payload.
     if not _update_local_reply_status(user_id, external_id, reply_text, True):
         logging.warning(
             f"[gbp] Falha ao atualizar BD local após editar reply {external_id}."
@@ -841,30 +847,52 @@ def editar_reply_auto(external_id):
 
     return jsonify({"success": True, "message": "Resposta atualizada com sucesso!"})
 
-
-def _get_location_and_account(user_id: str) -> Optional[tuple[Credentials, str, str]]:
-    """Obtém credenciais, conta e localização para operações diretas (editar/excluir resposta)."""
+def _get_review_data_for_action(user_id: str, external_id: str) -> Optional[tuple[Credentials, str, str]]:
+    """
+    Obtém Credenciais, Account Name e o Location Name CORRETO (salvo no BD)
+    para operações de PUT/DELETE na API do Google, consultando a Review pelo external_id.
+    
+    Esta função substitui _get_location_and_account.
+    """
     try:
+        # 1. Busca a Review no BD local para obter o Location ID salvo (location_name)
+        review = Review.query.filter_by(
+            user_id=user_id, external_id=external_id
+        ).first()
+
+        # Verifica se a review e o ID da Localização foram encontrados
+        if not review or not review.location_name:
+            logging.warning(
+                f"[gbp] Review (external_id={external_id}) ou Location ID ausente no BD local. Falha ao identificar a ficha correta."
+            )
+            return None, None, None
+
+        # 2. Obtém Credenciais e a Conta (Credenciais são necessárias para todas as fichas)
         creds = _get_persisted_credentials(user_id) or _get_session_credentials()
         if not creds:
-            logging.warning("[gbp] Nenhuma credencial encontrada para o usuário.")
-            return None
+            logging.warning("[gbp] Nenhuma credencial válida para o usuário.")
+            return None, None, None
 
+        # 3. Obtém o Account Name (Necessário para montar a URL da API V4/PUT/DELETE)
+        # Reusamos _first_account_name, pois o Account ID geralmente é o mesmo para todas as fichas do usuário.
         account_name = _first_account_name(creds)
         if not account_name:
-            logging.warning("[gbp] Conta principal não encontrada.")
-            return None
+            logging.warning("[gbp] Conta principal (Account Name) não encontrada.")
+            return None, None, None
 
-        location_name = _first_location_name(creds, account_name)
-        if not location_name:
-            logging.warning("[gbp] Localização não encontrada.")
-            return None
-
-        return creds, account_name, location_name
+        # O location_name correto é o que salvamos no BD (o campo 'location_name' no objeto review)
+        correct_location_name = review.location_name 
+        
+        logging.info(
+            f"[gbp] ✅ Location ID para ação encontrado no BD: {correct_location_name}"
+        )
+            
+        # Retorna credenciais, o ID da conta e o ID da ficha CORRETO
+        return creds, account_name, correct_location_name
+    
     except Exception:
-        logging.exception("[gbp] Erro ao obter location/account.")
-        return None
-
+        logging.exception("[gbp] Erro ao obter dados para ação (BD/Credenciais).")
+        return None, None, None
 
 def _delete_reply(
     creds: Credentials, account_name: str, location_name: str, review_id: str
@@ -918,19 +946,25 @@ def _delete_reply(
 
 
 def gbp_excluir_resposta(user_id: str, external_review_id: str) -> bool:
-    """Tenta excluir a resposta no Google. Retorna True em caso de sucesso."""
+    """Tenta excluir a resposta no Google, utilizando o Location ID salvo no BD.
+    Retorna True em caso de sucesso ou se a resposta já foi excluída (404).
+    """
     try:
-        # 1️⃣ Obtém credenciais, conta e localização
-        data = _get_location_and_account(user_id)
-        if not data:
+        # 1️⃣ Obtém credenciais, conta e localização CORRETA do BD
+        # CHAMA A NOVA FUNÇÃO AQUI:
+        data = _get_review_data_for_action(user_id, external_review_id)
+        
+        # O data[0] é o objeto credenciais. Se não houver creds, Location ID, ou Account ID, falha.
+        if not data or not data[0]:
             logging.warning(
-                f"[gbp] ⚠️ Nenhuma credencial ou conta válida encontrada para user_id={user_id}"
+                f"[gbp] ⚠️ Nenhuma credencial ou dados de ficha válidos (BD) encontrados para user_id={user_id}. Exclusão abortada."
             )
             return False
 
         creds, account_name, location_name = data
 
         # 2️⃣ Chama a função core para exclusão
+        # Esta função core agora usa o location_name CORRETO.
         ok = _delete_reply(creds, account_name, location_name, external_review_id)
 
         if ok:
@@ -939,14 +973,15 @@ def gbp_excluir_resposta(user_id: str, external_review_id: str) -> bool:
             )
         else:
             logging.error(
-                f"[gbp] ❌ Falha ao excluir resposta para review {external_review_id} no Google."
+                f"[gbp] ❌ Falha ao excluir resposta para review {external_review_id} no Google (API error)."
             )
 
         return ok
 
     except Exception:
-        logging.exception("[gbp] Falha na função gbp_excluir_resposta.")
+        logging.exception("[gbp] Falha na função gbp_excluir_resposta (erro inesperado).")
         return False
+    
 @google_auto_bp.route("/debug-reviews")
 def debug_reviews():
     """Rota temporária para testar listagem direta de reviews da conta atual."""
@@ -1109,7 +1144,7 @@ def run_sync_last_48h(user_id: str) -> int:
     tz_brt = pytz.timezone("America/Sao_Paulo")
     agora = datetime.now(tz_brt)
     
-    # 🎯 NOVO FILTRO: 48 horas atrás (filtro flutuante)
+    # 🎯 FILTRO: 48 horas atrás
     limite_tempo = agora - timedelta(hours=48) 
 
     print(f"[gbp] ⏱️ Filtro: apenas avaliações publicadas após {limite_tempo.strftime('%Y-%m-%d %H:%M:%S %Z')}")
@@ -1154,8 +1189,10 @@ def run_sync_last_48h(user_id: str) -> int:
             is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
             reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
 
-            _upsert_review(user_id, r, reply) 
+            # Salva no BD local - PASSANDO location_name!
+            _upsert_review(user_id, r, reply, location_name=location_name) # ⬅️ CORREÇÃO
             
+            # Publica no Google
             ok = _publish_reply(creds, account_name, location_name, rid, reply)
             
             if ok:

@@ -20,6 +20,7 @@ class Review(db.Model):
     user_id = db.Column(db.String(255), nullable=False)
     reviewer_name = db.Column(db.String(255))
     rating = db.Column(db.Integer)
+    location_name = db.Column(db.String(255), nullable=True)
     text = db.Column(db.Text)
     date = db.Column(DateTime(timezone=True), default=default_brt_now)
     reply = db.Column(db.Text)
