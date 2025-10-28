@@ -1,31 +1,44 @@
 import logging
-import time
+import sys
+from main import app
+from google_auto import UserSettings, run_sync_last_48h
 
-# CORREÇÃO: Importa 'app' (o objeto Flask real) em vez de 'create_app'
-from main import app, register_gbp_cron, scheduler # ⬅️ MUDANÇA AQUI!
-
-# Configuração básica de log para vermos o output no Render
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s: %(message)s')
+# Configura logs no Render
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# 1. Cria a aplicação (REMOVER A CHAMADA DA FUNÇÃO INEXISTENTE)
-# app = create_app() # ⬅️ REMOVER ESSA LINHA!
+def executar_fluxo():
+    """Executa o fluxo de sincronização do GBP para todos os usuários ativos."""
+    with app.app_context():
+        try:
+            enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
+            if not enabled:
+                logger.info("⚠️ Nenhum usuário com automação ativa. Encerrando.")
+                return
 
-# 2. Inicia o contexto da aplicação (obrigatório para DB e GBP)
-with app.app_context(): # ⬅️ AGORA FUNCIONA
-    # 3. Registra os jobs
-    register_gbp_cron(scheduler, app)
-    
-    # 4. Inicia o agendador
-    try:
-        scheduler.start()
-        logger.info("✅ APScheduler iniciado e rodando em Background.")
-    except Exception as e:
-        logger.error(f"❌ Falha ao iniciar APScheduler: {e}")
+            total_global = 0
+            logger.info(f"🚀 Iniciando sincronização GBP (últimas 48h) para {len(enabled)} usuários...")
 
-    # 5. Mantém o processo do worker rodando 24/7
-    try:
-        while True:
-            time.sleep(1)
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Worker desligado.")
+            for s in enabled:
+                logger.info(f"▶️ Executando sync para user_id={s.user_id}")
+                total = run_sync_last_48h(s.user_id)
+                total_global += total
+                logger.info(f"✅ {s.user_id}: {total} avaliações processadas.")
+
+            logger.info(f"🎯 Execução concluída. Total geral: {total_global} avaliações processadas.")
+        except Exception as e:
+            logger.exception(f"💥 Erro durante execução do worker: {e}")
+
+if __name__ == "__main__":
+    modo = sys.argv[1] if len(sys.argv) > 1 else "auto"
+
+    if modo == "auto":
+        logger.info("🕐 Rodando em modo automático (Render Cron Job diário).")
+        executar_fluxo()
+
+    elif modo == "manual":
+        logger.info("⚡ Execução manual iniciada.")
+        executar_fluxo()
+
+    else:
+        logger.warning(f"❓ Modo '{modo}' não reconhecido. Use 'manual' ou 'auto'.")
