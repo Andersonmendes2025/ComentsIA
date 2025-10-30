@@ -233,39 +233,112 @@ def _first_location_name(creds: Credentials, account_name: str) -> Optional[str]
 def _list_all_accounts(creds: Credentials) -> List[str]:
     """
     Retorna uma lista com TODAS as contas do Google Business disponíveis
-    (LOCATION_GROUP e USER_ACCOUNT), priorizando as de grupo.
+    (LOCATION_GROUP e USER_ACCOUNT), priorizando as de grupo,
+    com fallback para V4 userAccounts e, por fim, /v4/accounts (perfil pessoal).
     """
+    headers = _make_auth_headers(creds)
+    url_v1 = "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"
+
     try:
-        headers = _make_auth_headers(creds)
-        url = "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"
-        resp = requests.get(url, headers=headers, timeout=10)
+        # 1️⃣ API principal (AccountManagement)
+        resp = requests.get(url_v1, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            accounts = data.get("accounts", [])
+            if accounts:
+                location_groups = [a for a in accounts if a.get("type") == "LOCATION_GROUP"]
+                personal_accounts = [a for a in accounts if a.get("type") == "USER_ACCOUNT"]
+                ordered_accounts = location_groups + personal_accounts
 
-        if resp.status_code != 200:
-            logging.warning(f"[gbp] Erro ao buscar contas ({resp.status_code}): {resp.text}")
-            return []
+                todas = ", ".join(
+                    f"{a.get('accountName', 'Sem nome')} ({a.get('type', '?')})"
+                    for a in ordered_accounts
+                )
+                logging.info(f"[gbp] Contas detectadas via V1: {todas}")
+                return [a.get("name") for a in ordered_accounts if a.get("name")]
 
-        data = resp.json()
-        accounts = data.get("accounts", [])
-        if not accounts:
-            logging.warning("[gbp] Nenhuma conta retornada pela API Google Business.")
-            return []
+            # --- Fallback V4 (userAccounts) ------------------------------------
+            logging.warning("[gbp] Nenhuma conta retornada pela API AccountManagement. Tentando fallback V4 (userAccounts)...")
+            url_fallback = "https://mybusiness.googleapis.com/v4/userAccounts"
+            resp2 = requests.get(url_fallback, headers=headers, timeout=10)
+            if resp2.status_code == 200:
+                data2 = resp2.json()
+                accs2 = data2.get("accounts", [])
+                if accs2:
+                    user_account_names = [a.get("name") for a in accs2 if a.get("name")]
+                    user_account_names = [
+                        n if n.startswith("userAccounts/") else f"userAccounts/{n.split('/')[-1]}"
+                        for n in user_account_names
+                    ]
+                    logging.info(f"[gbp] ✅ Contas pessoais detectadas via fallback V4: {len(user_account_names)}")
+                    return user_account_names
+                else:
+                    logging.warning("[gbp] Nenhuma conta retornada no fallback userAccounts.")
+            else:
+                logging.warning(f"[gbp] Fallback userAccounts falhou ({resp2.status_code}): {resp2.text[:200]}")
 
-        # Separa tipos
-        location_groups = [a for a in accounts if a.get("type") == "LOCATION_GROUP"]
-        personal_accounts = [a for a in accounts if a.get("type") == "USER_ACCOUNT"]
-        ordered_accounts = location_groups + personal_accounts
+        else:
+            logging.warning(f"[gbp] Erro ao buscar contas V1 ({resp.status_code}): {resp.text[:200]}")
 
-        logging.info(
-            f"[gbp] {len(ordered_accounts)} contas detectadas: "
-            + ", ".join(a.get("accountName", "Sem nome") for a in ordered_accounts)
-        )
-
-        # Retorna os nomes de recurso (ex: "accounts/1234567890123456789")
-        return [a.get("name") for a in ordered_accounts if a.get("name")]
-
+    except requests.RequestException as e:
+        logging.warning(f"[gbp] Erro de conexão com API Google: {e}")
     except Exception:
-        logging.exception("[gbp] Falha ao listar contas do Google Business")
-        return []
+        logging.exception("[gbp] Falha inesperada ao obter contas")
+
+    # 3️⃣ Último fallback — tenta buscar fichas diretamente do usuário autenticado
+    try:
+        logging.warning("[gbp] Nenhuma conta encontrada — tentando fallback direto no endpoint /v4/accounts (perfil pessoal)...")
+        url_direct = "https://mybusiness.googleapis.com/v4/accounts"
+        resp3 = requests.get(url_direct, headers=headers, timeout=10)
+        if resp3.status_code == 200:
+            data3 = resp3.json()
+            accs3 = data3.get("accounts", [])
+            if accs3:
+                direct_accounts = [a.get("name") for a in accs3 if a.get("name")]
+                direct_accounts = [
+                    n if n.startswith("userAccounts/") else f"userAccounts/{n.split('/')[-1]}"
+                    for n in direct_accounts
+                ]
+                logging.info(f"[gbp] ✅ Contas pessoais detectadas via fallback direto: {len(direct_accounts)}")
+                return direct_accounts
+        else:
+            logging.warning(f"[gbp] Fallback direto falhou ({resp3.status_code}): {resp3.text[:200]}")
+    except Exception as e:
+        logging.warning(f"[gbp] Erro no fallback direto: {e}")
+
+    # Nenhum método retornou resultados
+    return []
+
+@google_auto_bp.route("/debug-accounts")
+def debug_accounts():
+    """Testa todos os fallbacks de listagem de contas GBP."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return "Usuário não autenticado", 401
+
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        return "Sem credenciais válidas", 401
+
+    headers = _make_auth_headers(creds)
+    results = {}
+
+    for label, url in [
+        ("v1", "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"),
+        ("v4_userAccounts", "https://mybusiness.googleapis.com/v4/userAccounts"),
+        ("v4_accounts", "https://mybusiness.googleapis.com/v4/accounts"),
+    ]:
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            results[label] = {
+                "status": r.status_code,
+                "text": r.text[:300],
+            }
+        except Exception as e:
+            results[label] = {"error": str(e)}
+
+    return jsonify(results)
 
 def _list_reviews(
     creds: Credentials, account_name: str, location_name: Optional[str]
@@ -1048,65 +1121,75 @@ def test_cron_all():
 # google_auto.py
 
 # ... (restante das funções auxiliares de API, como _list_reviews, etc.) ...
-
 def _list_all_locations(creds: Credentials, accounts: List[str]) -> List[Dict]:
     """
-    Busca todas as fichas (locations) sob todas as contas fornecidas.
-    Retorna uma lista de dicionários contendo 'account_name', 'location_name' e 'location_title'
-    para simplificar a iteração de reviews.
+    Busca todas as fichas (locations) sob todas as contas fornecidas, 
+    usando o endpoint correto para LOCATION_GROUP (V1/V4) e USER_ACCOUNT (V4 userAccounts).
     """
     all_locations = []
-    
+    headers = _make_auth_headers(creds)
+
     for account_name in accounts:
         account_id = account_name.split("/")[-1]
-        
-        # 1️⃣ Tenta Nova API Business Information (V1)
-        url_v1 = f"https://mybusinessbusinessinformation.googleapis.com/v1/{account_name}/locations"
-        params = {"readMask": "name,title"} 
-        headers = _make_auth_headers(creds)
-        
+
+        # 🔍 Detecta tipo da conta: Se o nome do recurso começar com "userAccounts/", é pessoal.
+        is_user_account = account_name.startswith("userAccounts/") 
+
+        # =======================================================
+        # 1️⃣ Tenta Nova API Business Information (V1) → Grupos (Melhor performance)
+        # =======================================================
+        if not is_user_account:
+            url_v1 = f"https://mybusinessbusinessinformation.googleapis.com/v1/{account_name}/locations"
+            params = {"readMask": "name,title"}
+
+            try:
+                resp = requests.get(url_v1, headers=headers, params=params, timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    locs = data.get("locations", [])
+                    if locs:
+                        logging.info(f"[gbp] Encontradas {len(locs)} fichas via V1 em {account_name} (Grupo).")
+                        for loc in locs:
+                            all_locations.append({
+                                'account_name': account_name,
+                                'location_name': loc.get("name"),
+                                'location_title': loc.get("title")
+                            })
+                        continue  # Já encontrou com sucesso, pula para próxima conta
+                    else:
+                        logging.warning(f"[gbp] Falha V1 {resp.status_code}: {resp.text[:200]}")
+                else:
+                    logging.warning(f"[gbp] Falha V1 {resp.status_code}: {resp.text[:200]}")
+            except Exception as e:
+                logging.warning(f"[gbp] Erro V1 para {account_name}: {e}")
+
+        # =======================================================
+        # 2️⃣ Tenta API V4 genérica (Cobre USER_ACCOUNT e fallback de LOCATION_GROUP)
+        # =======================================================
         try:
-            resp = requests.get(url_v1, headers=headers, params=params, timeout=10)
-            data = resp.json()
-            locs = data.get("locations", [])
-            
-            if locs:
-                logging.info(f"[gbp] Encontradas {len(locs)} fichas via V1 em {account_name}.")
-                for loc in locs:
-                    all_locations.append({
-                        'account_name': account_name,
-                        'location_name': loc.get("name"), 
-                        'location_title': loc.get("title")
-                    })
-                continue # Se encontrou via V1, não precisa de V4
-            
-        except requests.RequestException:
-            logging.warning(f"[gbp] Falha na API V1 para {account_name}. Tentando V4.")
-        
-        # 2️⃣ Tenta Fallback para a API V4 de Management
-        url_v4 = f"https://mybusiness.googleapis.com/v4/accounts/{account_id}/locations"
-        try:
+            # O Google aceita o nome do recurso completo aqui (accounts/... ou userAccounts/...)
+            url_v4 = f"https://mybusiness.googleapis.com/v4/{account_name}/locations"
             resp2 = requests.get(url_v4, headers=headers, timeout=10)
-            data2 = resp2.json()
-            locs2 = data2.get("locations", [])
-            
-            if locs2:
-                logging.info(f"[gbp] Encontradas {len(locs2)} fichas via V4 em {account_name}.")
-                for loc in locs2:
-                    all_locations.append({
-                        'account_name': account_name,
-                        'location_name': loc.get("name"), 
-                        'location_title': loc.get("locationName") 
-                    })
-            
-        except requests.RequestException:
-            logging.error(f"[gbp] Falha ao listar fichas via V4 em {account_name}.")
+            if resp2.status_code == 200:
+                data2 = resp2.json()
+                locs2 = data2.get("locations", [])
+                if locs2:
+                    logging.info(f"[gbp] Encontradas {len(locs2)} fichas via V4 em {account_name}.")
+                    for loc in locs2:
+                        all_locations.append({
+                            'account_name': account_name,
+                            'location_name': loc.get("name"),
+                            'location_title': loc.get("title") or loc.get("locationName")
+                        })
+            else:
+                # Falha V4 (que pode ser a conta pessoal sem fichas ou erro de permissão)
+                logging.warning(f"[gbp] Falha V4 {resp2.status_code}: {resp2.text[:200]}")
+        except Exception as e:
+            logging.error(f"[gbp] Erro ao listar fichas via V4 em {account_name}: {e}")
 
-    # Remove duplicatas baseadas em location_name, se houver
+    # 🧹 Remove duplicatas por location_name
     unique_locations = {loc['location_name']: loc for loc in all_locations}.values()
-
     return list(unique_locations)
-# google_auto.py (Nova Função para Teste de 48 Horas)
 
 def run_sync_last_48h(user_id: str) -> int:
     """Executa sincronização completa do Google Business, pegando avaliações das ÚLTIMAS 48 horas."""
@@ -1204,3 +1287,136 @@ def run_sync_last_48h(user_id: str) -> int:
 
     print(f"\n--- [GBP SYNC END] ✅ Total: {total_processadas} avaliações processadas (Últimas 48h) ---\n")
     return total_processadas
+
+
+def run_sync_historical(user_id: str, period: str) -> int:
+    """
+    Busca e responde avaliações retroativas (30, 60, 90, 180 dias ou todas).
+    """
+    try:
+        # Importa funções de limite (hiper_compreensiva)
+        from main import (
+            registrar_uso_resposta_especial,
+            usuario_pode_usar_resposta_especial,
+        )
+    except ImportError:
+        logging.error("Funções hiper_compreensiva não encontradas, usando fallback.")
+        def usuario_pode_usar_resposta_especial(uid): return False
+        def registrar_uso_resposta_especial(uid): pass
+
+    print(f"\n--- [GBP HISTÓRICO] Iniciando sync retroativa ({period}) para user={user_id} ---\n")
+
+    # Obtém Credenciais
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        print(f"[gbp] ⚠️ Sem credenciais válidas para {user_id}")
+        return 0
+
+    # Busca Contas e Localizações (usa as funções robustas de Multi-Location)
+    accounts = _list_all_accounts(creds)
+    if not accounts:
+        print(f"[gbp] Nenhuma conta retornada para {user_id}")
+        return 0
+
+    all_locations_data = _list_all_locations(creds, accounts)
+    if not all_locations_data:
+        print(f"[gbp] ❌ Nenhuma ficha encontrada para {user_id}.")
+        return 0
+
+    tz_brt = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(tz_brt)
+
+    # Calcula limite de tempo
+    dias = None if period == "all" else int(period)
+    limite_tempo = agora - timedelta(days=dias) if dias else None
+
+    if limite_tempo:
+        print(f"[gbp] ⏱️ Buscando avaliações após {limite_tempo.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    else:
+        print(f"[gbp] 🕰️ Buscando TODAS as avaliações disponíveis...")
+
+    total_processadas = 0
+
+    for loc in all_locations_data:
+        account_name = loc["account_name"]
+        location_name = loc["location_name"]
+        location_title = loc["location_title"]
+
+        print(f"\n[gbp] ➡️ Sincronizando ficha: {location_title}")
+
+        reviews = _list_reviews(creds, account_name, location_name)
+        if not reviews:
+            print(f"[gbp] Nenhuma avaliação na ficha {location_title}.")
+            continue
+
+        for r in reviews:
+            rid = r.get("reviewId")
+            if not rid or _already_saved(user_id, rid):
+                continue
+
+            # Filtro de tempo (aplica apenas se não for ALL)
+            create_time_str = r.get("createTime")
+            if create_time_str and limite_tempo:
+                try:
+                    dt_utc = datetime.fromisoformat(create_time_str.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    if dt_brt < limite_tempo:
+                        continue
+                except Exception:
+                    pass
+
+            # Geração e publicação
+            stars = converter_nota_gbp_para_int(r.get("starRating"))
+            text = r.get("comment") or ""
+            name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
+
+            is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
+            reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
+
+            # Salva no BD local - PASSANDO location_name!
+            _upsert_review(user_id, r, reply, location_name=location_name)
+            ok = _publish_reply(creds, account_name, location_name, rid, reply)
+
+            if ok:
+                _update_local_reply_status(user_id, rid, reply, True)
+                if is_hiper:
+                    registrar_uso_resposta_especial(user_id)
+
+            total_processadas += 1
+
+    print(f"\n--- [GBP HISTÓRICO] ✅ Total de avaliações processadas: {total_processadas} ---\n")
+    return total_processadas
+# --- SINCRONIZAÇÃO HISTÓRICA: ROTA PARA EXECUÇÃO MANUAL ---
+@google_auto_bp.route("/sync_historical/<period>", methods=["POST"])
+def sync_historical(period):
+    """
+    Executa sincronização retroativa de avaliações (30, 60, 90, 180 dias ou todas)
+    apenas para o usuário logado.
+    """
+    # --- Autenticação de sessão ---
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"success": False, "message": "Usuário não autenticado."}), 401
+
+    # --- Validação do parâmetro ---
+    valid_periods = ["30", "60", "90", "180", "all"]
+    if period not in valid_periods:
+        return jsonify({"success": False, "message": "Período inválido."}), 400
+
+    # --- Modo teste: libera geral (sem Stripe ainda) ---
+    logging.info(f"[TESTE] Liberando execução manual da sync_historical para {user_id}, período {period}")
+
+    try:
+        total = run_sync_historical(user_id, period)
+        return jsonify({
+            "success": True,
+            "message": f"Sincronização de {period} dias concluída com sucesso!",
+            "total_processadas": total
+        })
+    except Exception as e:
+        logging.exception(f"[gbp] Erro ao executar sync_historical para {user_id}: {e}")
+        return jsonify({
+            "success": False,
+            "message": "Erro interno durante a sincronização."
+        }), 500

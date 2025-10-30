@@ -5,11 +5,8 @@
 <div class="container mt-4">
   <h2 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Automação Google</h2>
 
-  <form method="post">
-    <!-- CSRF token manual -->
-    <!-- Em qualquer form -->
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    
+  <form method="post" id="configForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token_field">
 
     <div class="card shadow-sm mb-4">
       <div class="card-body">
@@ -23,23 +20,177 @@
       </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Tom das Respostas Automáticas</h5>
-        <select name="tone" class="form-select">
-          {% set tones = ['neutro', 'empático', 'profissional', 'informal', 'entusiasmado'] %}
-          {% for tone in tones %}
-          <option value="{{ tone }}" {% if settings.gbp_tone == tone %}selected{% endif %}>{{ tone|capitalize }}</option>
-          {% endfor %}
-        </select>
-        <small class="text-muted">Esse tom será usado nas respostas automáticas às novas avaliações.</small>
-      </div>
-    </div>
-
-    <div class="text-end">
+    <div class="text-end mb-4">
       <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Salvar configurações</button>
     </div>
   </form>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title mb-3">
+        <i class="bi bi-arrow-repeat me-2"></i>Sincronizar Avaliações Antigas
+      </h5>
+
+      <button id="toggleHistoricBtn" class="btn btn-outline-primary w-100">
+        <i class="bi bi-calendar-range me-1"></i> Mostrar opções de sincronização
+      </button>
+
+      <div id="historicOptions" class="mt-3 collapse">
+        <div class="d-flex flex-wrap gap-2 justify-content-center">
+          {% for dias in [30,60,90,180] %}
+            <button class="btn btn-outline-secondary sync-btn" data-period="{{ dias }}">
+              {{ dias }} dias
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Overlay de carregamento -->
+<div id="loader-overlay" aria-hidden="true" style="display:none;">
+  <div id="loader-card" class="text-center">
+    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+      <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+      <strong>Sincronizando avaliações...</strong>
+    </div>
+    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
+    <div class="progress"><div class="progress-bar bg-light"></div></div>
+  </div>
+</div>
+
+<!-- Modal de confirmação -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmSyncLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmSyncLabel"><i class="bi bi-calendar-check me-2"></i>Confirmação de Sincronização</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Você tem certeza que deseja iniciar a sincronização para o período de <strong><span id="periodDisplay"></span></strong>?
+        <p class="text-danger small mt-2">Este processo pode ser demorado e consumirá recursos de IA.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="confirmSyncBtn" data-period="">
+          <i class="bi bi-cloud-upload"></i> Sim, Sincronizar!
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(message, type) {
+  const toast = document.createElement("div");
+  toast.className = "toast align-items-center text-white border-0 position-fixed top-0 end-0 m-3 show fade";
+  toast.style.zIndex = 1055;
+  toast.style.minWidth = "280px";
+  toast.style.transition = "opacity 0.3s ease-in-out";
+
+  if (type === "success") toast.classList.add("bg-success");
+  else if (type === "error") toast.classList.add("bg-danger");
+  else toast.classList.add("bg-warning");
+
+  toast.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body" aria-live="polite">${message}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>`;
+
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 6000);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const periodDisplay = document.getElementById('periodDisplay');
+  const confirmSyncBtn = document.getElementById('confirmSyncBtn');
+  const loaderOverlay = document.getElementById('loader-overlay');
+  const csrfToken = document.getElementById("csrf_token_field").value;
+  const modalElement = document.getElementById('confirmationModal');
+  let confirmationModal = typeof bootstrap !== 'undefined' && modalElement ? new bootstrap.Modal(modalElement) : null;
+
+  document.querySelectorAll(".sync-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const period = btn.dataset.period;
+      const displayText = `últimos ${period} dias`;
+      periodDisplay.textContent = displayText;
+      confirmSyncBtn.dataset.period = period;
+      confirmationModal ? confirmationModal.show() : confirmAndFetch(period);
+    });
+  });
+
+  async function confirmAndFetch(period) {
+    loaderOverlay.style.display = 'flex';
+    document.querySelectorAll(".sync-btn").forEach(b => b.disabled = true);
+    showToast("🕒 Sincronização em andamento. Não feche a página...", "loading");
+
+    try {
+      const response = await fetch(`/auto/sync_historical/${period}`, {
+        method: "POST",
+        headers: { "X-CSRFToken": csrfToken }
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        showToast(`✅ ${data.message}`, "success");
+      } else {
+        showToast(`❌ ${data.message || "Erro durante a sincronização."}`, "error");
+      }
+    } catch {
+      showToast("❌ Falha na conexão com o servidor.", "error");
+    } finally {
+      loaderOverlay.style.display = 'none';
+      document.querySelectorAll(".sync-btn").forEach(b => b.disabled = false);
+    }
+  }
+
+  confirmSyncBtn.addEventListener("click", () => {
+    const period = confirmSyncBtn.dataset.period;
+    confirmationModal && confirmationModal.hide();
+    confirmAndFetch(period);
+  });
+
+  document.getElementById("toggleHistoricBtn").addEventListener("click", () => {
+    document.getElementById("historicOptions").classList.toggle("show");
+  });
+});
+</script>
+
+<style>
+#loader-overlay {
+  position: fixed; inset: 0;
+  background: rgba(8,12,27,0.55);
+  backdrop-filter: blur(2px);
+  z-index: 1080;
+  display: flex; align-items: center; justify-content: center;
+}
+#loader-card {
+  background: #0b1a43; color: #fff;
+  border-radius: 16px; padding: 18px 20px; min-width: 280px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06) inset;
+}
+#loader-card .progress { height: 8px; border-radius: 10px; background: rgba(255,255,255,.15); }
+#loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
+@keyframes progressPulse { 0%{transform:scaleX(.15)}50%{transform:scaleX(1)}100%{transform:scaleX(.15)} }
+
+#historicOptions.collapse {
+  display: none;
+  transition: all 0.3s ease-in-out;
+}
+#historicOptions.show {
+  display: block;
+  animation: slideDown 0.4s ease forwards;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
 
 {% endblock %}
