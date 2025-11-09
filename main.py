@@ -618,7 +618,8 @@ def get_user_settings(user_id):
             "manager_name": (
                 decrypt(settings.manager_name) if settings.manager_name else ""
             ),
-            "gbp_tone": settings.gbp_tone or "neutro",  # 👈 adicione esta linha
+            "gbp_tone": settings.gbp_tone or "neutro", 
+            "contexto_personalizado": settings.contexto_personalizado or "", # 👈 adicione esta linha
         }
     except Exception as e:
         logging.warning(
@@ -656,6 +657,10 @@ def save_user_settings(user_id, settings_data):
         existing.contact_info = encrypted_contact
         existing.terms_accepted = terms_accepted
         existing.manager_name = encrypted_manager
+        existing.contexto_personalizado = settings_data.get(
+            "contexto_personalizado", ""
+        )[:500]
+
         # Atualiza logo apenas se for string/bytes válidos
         if settings_data.get("logo"):
             existing.logo = settings_data["logo"]
@@ -671,9 +676,11 @@ def save_user_settings(user_id, settings_data):
             terms_accepted=terms_accepted,
             logo=settings_data.get("logo"),
             manager_name=encrypted_manager,
+            contexto_personalizado=settings_data.get("contexto_personalizado", "")[:500],
         )
         db.session.add(new_settings)
     db.session.commit()
+
 
 
 @app.route("/planos", methods=["GET", "POST"])
@@ -1704,7 +1711,21 @@ def suggest_reply():
     business = (settings.get("business_name") or "").strip()
     assinatura = f"{business}\n{manager}" if manager else business
 
-    prompt = f"""
+    # 1. 📝 INICIALIZAÇÃO E INCLUSÃO DO CONTEXTO PERSONALIZADO (CMNTS)
+    prompt = "" # Inicializa a variável prompt
+    
+    if settings.get("contexto_personalizado"):
+        contexto = settings["contexto_personalizado"].strip()
+        prompt += "####\n"
+        prompt += "🚨 INSTRUÇÃO CRÍTICA (CONTEXTO DA EMPRESA - CMNTS):\n"
+        prompt += "VOCÊ DEVE USAR ESTA INFORMAÇÃO COM PRIORIDADE ABSOLUTA. ELA DEFINE O TOM (INFORMAL) E O ALCANCE DOS SERVIÇOS (SOMENTE PEÇAS/NÃO MANUTENÇÃO).\n"
+        prompt += f"CONTEXTO ESPECÍFICO: {contexto}\n"
+        prompt += "####\n\n"
+        # Adiciona o contexto e uma instrução forte para a IA
+        prompt += f"INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\nContexto da empresa: {contexto}\n\n"
+    
+    # 2. 📝 Adiciona o restante das instruções e dados
+    prompt += f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
 
 Avaliação recebida:
@@ -1723,7 +1744,7 @@ Instruções:
 - Assine ao final exatamente assim, cada item em uma linha:
 {assinatura}
 - Não use cargos, não use "Atenciosamente", apenas os nomes.
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas
+- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas, trevessao ou cacteres especiais, deve ser a mais proxima de uma escrita Humana possivel.
 """
 
     try:
@@ -2131,36 +2152,6 @@ def require_login():
     return ("credentials" in session) and bool(get_current_user_id())
 
 
-@app.route("/get_consideracoes_count")
-@limiter.limit("10 per minute")
-def get_consideracoes_count():
-    if "credentials" not in session:
-        return jsonify(success=False, error="Não autenticado.")
-
-    user_info = session.get("user_info") or {}
-    user_id = user_info.get("id")
-    if not user_id:
-        return jsonify(success=False, error="Usuário não identificado.")
-
-    plano = get_user_plan(user_id)
-    try:
-        cons_limite = PLANOS.get(plano, {}).get("consideracoes_dia")
-        # None = ilimitado
-        if cons_limite is None:
-            return jsonify(success=True, usos_restantes_consideracoes=None)
-
-        usos_hoje = ConsideracoesUso.query.filter_by(
-            user_id=user_id, data_uso=get_data_hoje_brt()
-        ).first()
-
-        usados = usos_hoje.quantidade_usos if usos_hoje else 0
-        restantes = max(0, int(cons_limite) - int(usados))
-        return jsonify(success=True, usos_restantes_consideracoes=restantes)
-    except Exception:
-        logging.exception("Erro ao calcular consideracoes_count para %s", user_id)
-        return jsonify(success=False, error="Falha ao obter contagem.")
-
-
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
 @require_terms_accepted
@@ -2245,8 +2236,19 @@ def add_review():
     business = (settings.get("business_name") or "").strip()
     assinatura = f"{business}\n{manager}".strip() if manager else business
 
-    # Monta prompt com campos estritamente necessários
-    prompt = (
+    # 1. ✅ CORREÇÃO: Inicializa o prompt e adiciona o contexto PRIMEIRO
+    prompt = ""
+
+    if settings.get("contexto_personalizado"):
+        contexto = settings["contexto_personalizado"].strip()
+        # Adiciona o contexto no INÍCIO do prompt com uma instrução forte
+        prompt += "🚨 INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\n"
+        prompt += f"Contexto da empresa: {contexto}\n\n"
+        prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA."
+        prompt += "\n\n"
+    # 2. ✅ Continua o prompt com o texto principal, usando +=
+    # O restante do prompt agora usa += para garantir que o contexto não seja apagado.
+    prompt += (
         f"Você é um assistente especializado em atendimento ao cliente e deve escrever "
         f'uma resposta personalizada para uma avaliação recebida por "{business}".\n'
         f"Avaliação recebida:\n"
@@ -2275,7 +2277,7 @@ def add_review():
         "\n- Assine ao final exatamente assim, cada item em uma linha:"
         f"\n{assinatura}"
         '\n- Não use cargos, não use "Atenciosamente", apenas os nomes.'
-        "\n- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas."
+        "\n- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas, uso de travessoes e texto com caracteriscas mais humanas possiveis."
     )
 
     if hiper_compreensiva:
@@ -2342,8 +2344,7 @@ def add_review():
     else:
         flash("Avaliação adicionada com sucesso!", "success")
         return redirect(url_for("reviews"))
-
-
+    
 @app.route("/save_reply", methods=["POST"])
 @limiter.limit("10 per minute")
 def save_reply():
@@ -2486,6 +2487,13 @@ def analyze_reviews():
 
     user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
+    
+    # 1. Busca settings AQUI
+    settings = get_user_settings(user_id)
+    
+    # Validação do ID (Melhoria de segurança/lógica)
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
     user_reviews = get_user_reviews(user_id)
     if not user_reviews:
@@ -2503,23 +2511,41 @@ def analyze_reviews():
     if len(resumo) > 8000:
         resumo = resumo[:8000]
 
-    prompt = f"""
+    # 2. 💡 CORREÇÃO: Inicializa 'prompt' e adiciona o contexto ANTES
+    prompt = "" 
+
+    if settings.get("contexto_personalizado"):
+        contexto = settings["contexto_personalizado"].strip()
+        # Adiciona a caixa de contexto na frente
+        prompt += f"INFORMAÇÃO CRÍTICA: Use o seguinte contexto da empresa para guiar sua análise:\nContexto da empresa: {contexto}\n\n" 
+
+    # 3. Adiciona as instruções principais (sem redefinir 'prompt = f"""')
+    prompt += f"""
 Você é um analista de satisfação do cliente. Analise as avaliações abaixo e gere um resumo útil para gestores.
 
 Tarefas:
- Primeiro paragrafo liste os principais elogios em PONTOS POSITIVOS .
- Segundo paragrafo recorrentes ou oportunidades de melhoria em PONTOS NEGATIVOS .
- Escreva um parágrafo claro em ANALISE GERAL, com tom profissional, respeitoso e construtivo.
- Escreva cada topico em uma linha.
+    Primeiro paragrafo liste os principais elogios em PONTOS POSITIVOS .
+    Segundo paragrafo recorrentes ou oportunidades de melhoria em PONTOS NEGATIVOS .
+    Escreva um parágrafo claro em ANALISE GERAL, com tom profissional, respeitoso e construtivo.
+    Escreva cada topico em uma linha.
+    Revise cuidadosamente a ortografia, acentuação e gramática do texto antes de finalizar.
+Use português formal e fluente, sem erros nem regionalismos.
+
+Evite qualquer caractere especial como travessões (—), aspas curvas (“ ”) ou reticências estilizadas (…).
+Use apenas caracteres simples (por exemplo, '-' em vez de '—').
+
+Garanta que todo o texto siga normas ortográficas do português do Brasil (novo acordo ortográfico)
+e mantenha formatação limpa, sem símbolos estranhos ou emojis.
 Avaliações:
 {resumo}
 
 Responda apenas os seguintes campos:
- Nao cite todos os comentarios, apenas os mais importantes e com palavras diferentes ou mais profissionais do que foram usadas no comentario. 
- Sem caracteres especiais, um texto de facil compreenção mas completo.
- Escolhe os tres pontos principais e diga o primeiro segundo e terceiro em grau de importancia na interveçao
+    Nao cite todos os comentarios, apenas os mais importantes e com palavras diferentes ou mais profissionais do que foram usadas no comentario. 
+    Sem caracteres especiais, um texto de facil compreenção mas completo.
+    Escolhe os tres pontos principais e diga o primeiro segundo e terceiro em grau de importancia na interveçao
 """
-
+    # ... (restante do código que chama a API da OpenAI)
+    
     try:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
@@ -2529,8 +2555,9 @@ Responda apenas os seguintes campos:
                     "content": "Você é um analista de avaliações de clientes.",
                 },
                 {"role": "user", "content": prompt},
-            ],  # defensivo
+            ],
         )
+        # ... (tratamento da resposta)
         response_text = (completion.choices[0].message.content or "").strip()
 
         # Tenta JSON; se falhar, retorna como texto
@@ -2547,6 +2574,7 @@ Responda apenas os seguintes campos:
         )
 
 
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     """Configurações do aplicativo."""
@@ -2561,15 +2589,12 @@ def settings():
 
     if request.method == "POST":
         # Coleta dados do formulário com limites defensivos
-        def cap(s, n):
-            return (s or "").strip()[:n]
+        def cap(s, n): return (s or "").strip()[:n]
 
         settings_data = {
             "business_name": cap(request.form.get("company_name"), 200),
-            "default_greeting": cap(request.form.get("default_greeting"), 120)
-            or "Olá,",
-            "default_closing": cap(request.form.get("default_closing"), 240)
-            or "Agradecemos seu feedback!",
+            "default_greeting": cap(request.form.get("default_greeting"), 120) or "Olá,",
+            "default_closing": cap(request.form.get("default_closing"), 240) or "Agradecemos seu feedback!",
             "contact_info": cap(request.form.get("contact_info"), 500),
             "terms_accepted": request.form.get("terms_accepted"),
             "manager_name": cap(request.form.get("manager_name"), 200),
@@ -2581,10 +2606,7 @@ def settings():
         MAX_LOGO_SIZE = 500 * 1024  # 500 KB
 
         def allowed_file(filename):
-            return (
-                "." in filename
-                and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-            )
+            return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
         logo_file = request.files.get("logo")
         logo_bytes = None
@@ -2605,9 +2627,7 @@ def settings():
         settings_data["logo"] = logo_bytes
 
         if not settings_data["terms_accepted"]:
-            flash(
-                "Você precisa aceitar os Termos e Condições para continuar.", "warning"
-            )
+            flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for("settings"))
 
         # Salva as configurações com try/except
@@ -2622,9 +2642,7 @@ def settings():
         # Envia e-mail de boas-vindas (idempotente)
         try:
             existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
-            if existing_settings and not getattr(
-                existing_settings, "email_boas_vindas_enviado", False
-            ):
+            if existing_settings and not getattr(existing_settings, "email_boas_vindas_enviado", False):
                 nome_do_usuario = (
                     (existing_settings.manager_name or "")
                     or (existing_settings.business_name or "")
@@ -2644,9 +2662,7 @@ def settings():
                         db.session.commit()
                     except Exception:
                         db.session.rollback()
-                        logging.exception(
-                            "settings: falha ao enviar e-mail de boas-vindas"
-                        )
+                        logging.exception("settings: falha ao enviar e-mail de boas-vindas")
         except Exception:
             logging.exception("settings: erro ao marcar e-mail de boas-vindas")
 
@@ -2661,7 +2677,55 @@ def settings():
         user=user_info,
         now=datetime.now(),
     )
+@app.route("/settings/contexto", methods=["POST"])
+@require_terms_accepted
+@require_plano_ativo
+def salvar_contexto_ia():
+    """Salva o Contexto da IA (somente planos Pro e Business)."""
+    if "credentials" not in flask.session:
+        return redirect(url_for("authorize"))
 
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"error": "Sessão inválida. Faça login novamente."}), 401
+
+    # 🔹 Determina o plano real via função central
+    plano = get_user_plan(user_id)
+    plano_normalizado = (plano or "").strip().lower()
+
+    # 🔹 Usa tua própria tabela de equivalentes
+    planos_pro = PLANO_EQUIVALENTES.get("pro", [])
+    planos_business = PLANO_EQUIVALENTES.get("business", [])
+
+    # 🔒 Bloqueia apenas se o plano atual não estiver entre os planos pagos
+    if plano_normalizado not in planos_pro + planos_business:
+        return jsonify({
+            "error": "🔒 Este recurso está disponível apenas nos planos Pro e Business."
+        }), 403
+
+    # 🔹 Captura e valida o texto do contexto
+    contexto = (request.form.get("contexto_personalizado") or "").strip()[:500]
+    if not contexto:
+        return jsonify({"error": "O campo de contexto não pode estar vazio."}), 400
+
+    # 🔹 Atualiza no banco de dados
+    try:
+        settings = UserSettings.query.filter_by(user_id=user_id).first()
+        if not settings:
+            settings = UserSettings(user_id=user_id)
+            db.session.add(settings)
+
+        settings.contexto_personalizado = contexto
+        db.session.commit()
+
+        logging.info(f"[IA CONTEXTO] Contexto salvo com sucesso para user_id={user_id}")
+        return jsonify({"success": True, "message": "Contexto salvo com sucesso!"})
+
+    except Exception as e:
+        db.session.rollback()
+        logging.exception(f"[IA CONTEXTO] Erro ao salvar contexto para user_id={user_id}: {e}")
+        return jsonify({"error": "Erro ao salvar contexto. Tente novamente mais tarde."}), 500
 
 @app.route("/logo")
 def logo():

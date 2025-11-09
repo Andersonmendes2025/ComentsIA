@@ -176,13 +176,21 @@ class RelatorioAvaliacoes:
                 self.df["texto"] = ""
             if "nota" not in self.df.columns:
                 self.df["nota"] = None
+            
 
             try:
                 dados_prompt = self.df[["nota", "texto"]].to_dict(orient="records")
             except Exception:
+                
                 dados_prompt = []
+            # Adiciona o contexto personalizado da empresa no prompt, se existir
+            contexto_personalizado = (self.settings.get("contexto_personalizado") or "").strip()
+            prompt += "🚨 INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\n"
+            prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA."
+            prompt += "\n\n"
+            contexto_extra = f"\nContexto da empresa: {contexto_personalizado}\n" if contexto_personalizado else ""
 
-            prompt = f"""
+            prompt = f"""{contexto_extra}
 Voce e um analista senior de satisfacao do cliente. Gere um relatorio analitico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando analise de sentimentos e metricas relevantes. Nao cite diretamente comentarios. Nao repita palavras.
 {manager_str}
 
@@ -216,6 +224,14 @@ ORIENTACOES ADICIONAIS:
 - Nao use negrito, italico ou sublinhado: apenas destaque cada topico com o TITULO EM MAIUSCULAS no inicio de cada secao.
 - Nao repita palavras, nao cite comentarios literais.
 - O relatorio deve ser claro, bem detalhado, objetivo, sem repeticao e com extensao entre 2 e 5 paginas.
+-Revise cuidadosamente a ortografia, acentuação e gramática do texto antes de finalizar.
+Use português formal e fluente, sem erros nem regionalismos.
+
+Evite qualquer caractere especial como travessões (—), aspas curvas (“ ”) ou reticências estilizadas (…).
+Use apenas caracteres simples (por exemplo, '-' em vez de '—').
+
+Garanta que todo o texto siga normas ortográficas do português do Brasil (novo acordo ortográfico)
+e mantenha formatação limpa, sem símbolos estranhos ou emojis.
 
 Siga exatamente esse roteiro, mantendo os titulos dos topicos conforme o exemplo acima.
 

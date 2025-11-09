@@ -3,13 +3,22 @@
 {% block title %}Configurações - Gerenciador de Avaliações Google{% endblock %}
 
 {% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <style>
-    .settings-card { border-left: 4px solid #007bff; }
-    .preview-card { background-color: #f8f9fa; border: 2px dashed #dee2e6; }
-    .form-floating textarea { min-height: 100px; }
-    .terms-conditions { margin-top: 20px; padding: 10px; background-color: #f1f1f1; border-radius: 5px; border: 1px solid #007bff; font-size: 1rem; }
-    .terms-conditions a { color: #007bff; text-decoration: none; }
-    .terms-conditions a:hover { text-decoration: underline; }
+  .settings-card { border-left: 4px solid #007bff; }
+  .preview-card { background-color: #f8f9fa; border: 2px dashed #dee2e6; }
+  .form-floating textarea { min-height: 100px; }
+  .terms-conditions {
+    margin-top: 20px; padding: 10px;
+    background-color: #f1f1f1; border-radius: 5px;
+    border: 1px solid #007bff; font-size: 1rem;
+  }
+  .terms-conditions a { color: #007bff; text-decoration: none; }
+  .terms-conditions a:hover { text-decoration: underline; }
+  .modal-backdrop.show {
+    opacity: 0.4 !important;
+    backdrop-filter: blur(5px);
+  }
 </style>
 {% endblock %}
 
@@ -48,7 +57,7 @@
                 <div class="mb-4">
                   <div class="form-floating">
                     <input type="text" class="form-control" id="company_name" name="company_name"
-                           value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
+                      value="{{ settings.business_name }}" placeholder="Nome do seu negócio" required>
                     <label for="company_name"><i class="bi bi-building me-1"></i> Nome da Empresa</label>
                   </div>
                   <div class="form-text">Nome da sua empresa ou negócio (obrigatório)</div>
@@ -58,7 +67,7 @@
                 <div class="mb-4">
                   <div class="form-floating">
                     <input type="text" class="form-control" id="manager_name" name="manager_name"
-                           value="{{ settings.manager_name or '' }}" placeholder="Nome do gerente">
+                      value="{{ settings.manager_name or '' }}" placeholder="Nome do gerente">
                     <label for="manager_name"><i class="bi bi-person-badge me-1"></i> Nome do Gerente</label>
                   </div>
                   <div class="form-text">Nome do responsável pela empresa. Usado nas respostas e relatórios.</div>
@@ -68,7 +77,7 @@
                 <div class="mb-4">
                   <div class="form-floating">
                     <input type="text" class="form-control" id="contact_info" name="contact_info"
-                           value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
+                      value="{{ settings.contact_info }}" placeholder="Informações de Contato" required>
                     <label for="contact_info"><i class="bi bi-telephone me-1"></i> Informações de Contato</label>
                   </div>
                   <div class="form-text">Suas informações de contato para incluir nas respostas (obrigatório)</div>
@@ -78,15 +87,12 @@
                 <div class="terms-conditions">
                   <label for="terms_accepted" style="font-weight: normal;">
                     <input type="checkbox" class="form-check-input" id="terms_accepted" name="terms_accepted"
-                           value="on" {% if settings.terms_accepted %}checked{% endif %} required>
+                      value="on" {% if settings.terms_accepted %}checked{% endif %} required>
                     Eu li e aceito integralmente os
                     <a href="{{ url_for('terms') }}" target="_blank">Termos de Uso</a> e a
                     <a href="{{ url_for('privacy_policy') }}" target="_blank">Política de Privacidade</a>
                     do ComentsIA.
                   </label>
-                  <div class="form-text" style="margin-top: .5em;">
-                    Ao marcar esta opção, você concorda com todas as regras de uso, proteção e tratamento de dados da plataforma, conforme LGPD, Marco Civil da Internet e diretrizes do Google.
-                  </div>
                 </div>
 
                 <!-- Logo -->
@@ -96,18 +102,17 @@
                   <div class="mt-2">
                     <strong>Logo atual:</strong><br>
                     <img id="logo-preview-img"
-                         src="{% if settings.logo %}data:image/png;base64,{{ settings.logo|b64encode }}{% endif %}"
-                         alt="Logo da empresa"
-                         style="max-height:80px;border-radius:8px;border:1px solid #eee;box-shadow:0 1px 6px #0001;{% if not settings.logo %}display:none;{% endif %}">
+                      src="{% if settings.logo %}data:image/png;base64,{{ settings.logo|b64encode }}{% endif %}"
+                      alt="Logo da empresa"
+                      style="max-height:80px;border-radius:8px;border:1px solid #eee;box-shadow:0 1px 6px #0001;{% if not settings.logo %}display:none;{% endif %}">
                   </div>
-                  <div class="form-text">Apenas PNG ou JPG. Tamanho máximo: 500KB.</div>
                 </div>
 
                 <!-- Saudação -->
                 <div class="mb-4">
                   <div class="form-floating">
                     <input type="text" class="form-control" id="default_greeting" name="default_greeting"
-                           value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
+                      value="{{ settings.default_greeting }}" placeholder="Saudação Padrão" required>
                     <label for="default_greeting">Saudação Padrão</label>
                   </div>
                 </div>
@@ -116,7 +121,7 @@
                 <div class="mb-4">
                   <div class="form-floating">
                     <textarea class="form-control" id="default_closing" name="default_closing"
-                              placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
+                      placeholder="Encerramento Padrão" required>{{ settings.default_closing }}</textarea>
                     <label for="default_closing">Encerramento Padrão</label>
                   </div>
                 </div>
@@ -149,6 +154,16 @@
               <small class="text-muted mt-2 d-block">Esta é uma prévia de como suas respostas aparecerão com as configurações atuais.</small>
             </div>
           </div>
+
+          <!-- Caixa de Contexto da IA -->
+          <div class="text-center mt-4">
+            <button type="button" class="btn btn-primary px-4 py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalContextoIA">
+              💬 Caixa de Contexto da IA
+            </button>
+            <p class="text-muted small mt-2">
+              Com a <strong>Caixa de Contexto</strong>, você pode dar o seu tom à IA descreva sua história, missão, valores e palavras que devem ser evitadas.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -163,55 +178,69 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Caixa de Contexto -->
+<div class="modal fade" id="modalContextoIA" tabindex="-1" aria-labelledby="modalContextoIALabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0 rounded-4">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title fw-bold" id="modalContextoIALabel">💬 Contexto da Empresa (IA Personalizada)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        {% if is_free_plan %}
+          <div class="alert alert-warning text-center mb-0">
+            🔒 Este recurso está disponível apenas nos planos <strong>Pro</strong> e <strong>Business</strong>.
+          </div>
+        {% else %}
+          <p class="text-muted small mb-2">
+            Descreva brevemente a história, missão, valores e estilo da sua empresa. Você também pode indicar palavras que a IA deve evitar.
+          </p>
+          <form id="formContextoIA">
+            <textarea class="form-control" name="contexto_personalizado" id="contexto_personalizado" maxlength="500" rows="5"
+              placeholder="Ex: Fundada em 2015, nossa empresa prioriza agilidade, confiança e atendimento próximo. Evite palavras como 'barato' ou 'promoção'.">{{ settings.contexto_personalizado or '' }}</textarea>
+          </form>
+          <small class="text-muted d-block mt-2">Esse texto será usado para personalizar as respostas automáticas da IA.</small>
+        {% endif %}
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+        {% if not is_free_plan %}
+          <button id="btnSalvarContexto" type="button" class="btn btn-primary px-4 fw-semibold">Salvar</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-// --- Prévia em tempo real ---
+// --- Atualiza prévia ---
 document.addEventListener('DOMContentLoaded', function () {
   const greetingInput = document.getElementById('default_greeting');
-  const closingInput  = document.getElementById('default_closing');
-  const contactInput  = document.getElementById('contact_info');
-
+  const closingInput = document.getElementById('default_closing');
+  const contactInput = document.getElementById('contact_info');
   const previewGreeting = document.getElementById('preview-greeting');
-  const previewClosing  = document.getElementById('preview-closing');
-  const previewContact  = document.getElementById('preview-contact');
+  const previewClosing = document.getElementById('preview-closing');
+  const previewContact = document.getElementById('preview-contact');
 
   function updatePreview() {
     previewGreeting.textContent = greetingInput.value || 'Olá,';
-    previewClosing.textContent  = closingInput.value  || 'Agradecemos seu feedback!';
-    previewContact.textContent  = contactInput.value  || 'Entre em contato conosco';
+    previewClosing.textContent = closingInput.value || 'Agradecemos seu feedback!';
+    previewContact.textContent = contactInput.value || 'Entre em contato conosco';
   }
+
   greetingInput.addEventListener('input', updatePreview);
   closingInput.addEventListener('input', updatePreview);
   contactInput.addEventListener('input', updatePreview);
 });
 
-// --- Reset padrão ---
-function resetToDefaults() {
-  if (!confirm('Tem certeza que deseja restaurar as configurações padrão?')) return;
-  document.getElementById('company_name').value = '';
-  document.getElementById('default_greeting').value = 'Olá,';
-  document.getElementById('default_closing').value = 'Agradecemos seu feedback!';
-  document.getElementById('contact_info').value = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-  document.getElementById('preview-greeting').textContent = 'Olá,';
-  document.getElementById('preview-closing').textContent = 'Agradecemos seu feedback!';
-  document.getElementById('preview-contact').textContent = 'Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com';
-}
-
-// --- Preview do logo ---
-document.getElementById('logo').addEventListener('change', function (evt) {
-  const [file] = evt.target.files;
-  const img = document.getElementById('logo-preview-img');
-  if (file) { img.src = URL.createObjectURL(file); img.style.display = "inline"; }
-  else { img.src = ""; img.style.display = "none"; }
-});
-
-// --- Toast persistente genérico (usa showToast do base.html) ---
+// --- Funções Toasts ---
 function showPersistentToast(message, type = 'info') {
   const toastId = 'toast-' + Math.floor(Math.random() * 1e6);
   const colorClass = type === 'success' ? 'bg-success'
-                   : type === 'danger'  ? 'bg-danger'
+                   : type === 'danger' ? 'bg-danger'
                    : type === 'warning' ? 'bg-warning' : 'bg-info';
   const toast = document.createElement('div');
   toast.className = `toast align-items-center text-white ${colorClass} border-0 show`;
@@ -229,61 +258,88 @@ function showPersistentToast(message, type = 'info') {
 }
 function removePersistentToast(id){ const t=document.getElementById(id); if(t) t.remove(); }
 
-// --- Salvar configurações com feedback ---
+// --- Salvar Configurações ---
 document.getElementById('settingsForm').onsubmit = async function (e) {
   e.preventDefault();
   const toastId = showPersistentToast(
-    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Salvando configurações...',
+    '<span class="spinner-border spinner-border-sm me-2" role="status"></span> Salvando configurações...',
     'info'
   );
   const formData = new FormData(this);
   try {
-    const response = await fetch(this.action || window.location.pathname, { method: 'POST', body: formData, credentials: 'same-origin' });
+    const response = await fetch(this.action || window.location.pathname, { method: 'POST', body: formData });
+    removePersistentToast(toastId);
     if (response.redirected) window.location.href = response.url;
-    else { removePersistentToast(toastId); showToast('Erro ao salvar configurações.', 'danger'); }
+    else showToast('Erro ao salvar configurações.', 'danger');
   } catch (err) {
     removePersistentToast(toastId);
     showToast('Erro ao conectar ao servidor.', 'danger');
   }
 };
 
-// ================== APAGAR CONTA (com CSRF) ==================
+// --- Salvar Caixa de Contexto ---
+// --- Helper pra pegar token do meta ---
 function getCSRF() {
   const m = document.querySelector('meta[name="csrf-token"]');
-  return m ? m.getAttribute('content') : null;
+  return m ? m.getAttribute('content') : '';
 }
 
-document.getElementById('btn-delete-account').addEventListener('click', function () {
-  if (!confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
+// --- Salvar Caixa de Contexto com CSRF ---
+document.getElementById('btnSalvarContexto')?.addEventListener('click', async function () {
+  const contexto = document.getElementById('contexto_personalizado').value.trim();
+  if (!contexto) return showToast('O campo de contexto não pode estar vazio.', 'warning');
 
-  const toastId = showPersistentToast(
-    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Excluindo conta...',
-    'danger'
-  );
+  const toastId = showPersistentToast('<span class="spinner-border spinner-border-sm me-2"></span> Salvando contexto...', 'info');
+  
+  try {
+    const response = await fetch('/settings/contexto', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRFToken': getCSRF()
+      },
+      body: new URLSearchParams({ contexto_personalizado: contexto })
+    });
 
-  fetch('{{ url_for("delete_account") }}', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-CSRFToken': getCSRF() || ''
-    },
-    body: JSON.stringify({}),
-    credentials: 'same-origin'
-  })
-  .then(r => r.json())
-  .then(data => {
+    const data = await response.json();
     removePersistentToast(toastId);
     if (data.success) {
-      window.location.href = '{{ url_for("index") }}';
+      showToast('Contexto salvo com sucesso!', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modalContextoIA')).hide();
+    } else {
+      showToast(data.error || 'Erro ao salvar contexto.', 'danger');
+    }
+  } catch (err) {
+    removePersistentToast(toastId);
+    showToast('Erro de comunicação: ' + err.message, 'danger');
+  }
+});
+
+
+// --- Excluir Conta ---
+document.getElementById('btn-delete-account').addEventListener('click', async function () {
+  if (!confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
+
+  const toastId = showPersistentToast('<span class="spinner-border spinner-border-sm me-2"></span> Excluindo conta...', 'danger');
+
+  try {
+    const response = await fetch('{{ url_for("delete_account") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await response.json();
+    removePersistentToast(toastId);
+    if (data.success) {
+      showToast('Conta excluída com sucesso!', 'success');
+      setTimeout(() => window.location.href = '{{ url_for("index") }}', 1500);
     } else {
       showToast(data.error || 'Não foi possível excluir a conta.', 'danger');
     }
-  })
-  .catch(err => {
+  } catch (err) {
     removePersistentToast(toastId);
     showToast('Erro de comunicação: ' + err.message, 'danger');
-  });
+  }
 });
 </script>
 {% endblock %}

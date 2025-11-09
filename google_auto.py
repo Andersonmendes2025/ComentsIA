@@ -69,25 +69,55 @@ def _get_session_credentials() -> Optional[Credentials]:
 
 
 def _get_persisted_credentials(user_id: str) -> Optional[Credentials]:
+    # Importação do DB é necessária aqui, assumindo que já está importado ou acessível.
+    # Ex: from models import UserSettings, db 
+    # Ex: from google.auth.transport.requests import Request (Se não estiver importado no escopo)
+    
     try:
+        # 1. Busca as configurações E o token armazenado
         settings = UserSettings.query.filter_by(user_id=user_id).first()
-        refresh_token = getattr(settings, "google_refresh_token", None)
-        if not refresh_token:
+        refresh_token_antigo = getattr(settings, "google_refresh_token", None)
+        
+        if not settings or not refresh_token_antigo:
             return None
+        
+        # 2. Constrói o objeto Credentials com o Refresh Token antigo
         creds = Credentials(
             token=None,
-            refresh_token=refresh_token,
+            refresh_token=refresh_token_antigo,
             token_uri="https://oauth2.googleapis.com/token",
             client_id=os.getenv("GOOGLE_CLIENT_ID"),
             client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
             scopes=[GBP_SCOPE],
         )
+        
+        # 3. Tenta renovar o token de acesso (Refresh Token pode mudar aqui!)
         creds.refresh(Request())
+        
+        # 4. 🔑 LÓGICA DE ROTAÇÃO: Verifica se o Refresh Token foi atualizado
+        if creds.refresh_token and creds.refresh_token != refresh_token_antigo:
+            settings.google_refresh_token = creds.refresh_token
+            # Garante que a transação seja salva
+            # Nota: O db.session deve estar no escopo da função ou da aplicação.
+            db.session.commit() 
+            logging.info(f"[gbp] ✅ NOVO Refresh Token capturado e salvo para {user_id}.")
+            
         return creds
+        
     except Exception:
-        logging.exception("[gbp] Falha ao reconstruir credenciais persistidas")
+        logging.exception("[gbp] Falha ao reconstruir/renovar credenciais persistidas. Token pode ter expirado ou revogado.")
+        
+        # 🚨 Limpeza: Se a renovação falhar, remove o token antigo para forçar novo login
+        # Usa 'settings' que foi definida no try:
+        try:
+            if 'settings' in locals() and settings:
+                 settings.google_refresh_token = None
+                 db.session.commit()
+                 logging.warning(f"[gbp] 🗑️ RT antigo removido para {user_id}. Novo login é necessário.")
+        except Exception:
+             pass
+             
         return None
-
 
 def _make_auth_headers(creds: Credentials) -> dict:
     if creds and creds.valid and creds.token:
@@ -381,13 +411,13 @@ def _already_saved(user_id: str, review_id: str) -> bool:
     )
 
 
-# google_auto.py (Função _upsert_review)
-# Substitua a sua função _upsert_review por esta:
 
-
-def _upsert_review(user_id: str, r: Dict, reply_text: str, location_name: Optional[str] = None) -> None: # ⬅️ ADICIONADO location_name
-    """Salva ou atualiza uma avaliação automática do Google no banco,
-    já marcando com etiqueta de automação (source='google', is_auto=True)."""
+def _upsert_review(user_id: str, r: Dict, reply_text: str, location_name: Optional[str] = None) -> None:
+    """Salva ou atualiza uma avaliação automática do Google no banco.
+    
+    CRÍTICO: Preserva respostas existentes (existing.reply) e só atualiza reply_text
+    se a review localmente não tinha resposta, mas uma nova foi gerada pelo sync.
+    """
 
     rid = r.get("reviewId")
     if not rid:
@@ -413,27 +443,34 @@ def _upsert_review(user_id: str, r: Dict, reply_text: str, location_name: Option
         existing = Review.query.filter_by(user_id=user_id, external_id=rid).first()
 
         if existing:
-            # Atualiza review existente (mantém automação)
+            # ✅ PRESERVAÇÃO: Atualiza apenas o rating e texto da review do Google.
+            # As colunas reply e replied SÓ são atualizadas se a review local não tinha resposta
+            # e a função de sincronização gerou uma nova (reply_text != "").
+
             existing.rating = stars
             existing.text = text
-            existing.reply = reply_text
-            existing.replied = bool(reply_text)
             existing.source = "google"
             
+            # 💡 CORREÇÃO CRÍTICA: Só atualiza REPLY se a review LOCALMENTE NÃO TEM RESPOSTA.
+            if not existing.replied and reply_text:
+                existing.reply = reply_text
+                existing.replied = True
+            
             if location_name:
-                existing.location_name = location_name # ⬅️ SALVANDO LOCATION ID
+                existing.location_name = location_name
             
             if hasattr(existing, "is_auto"):
                 existing.is_auto = True
             if hasattr(existing, "auto_origin"):
                 existing.auto_origin = "gbp"
+            
             db.session.commit()
             logging.info(
-                f"[gbp] 🔄 Review {rid} atualizada no BD com etiqueta de automação."
+                f"[gbp] 🔄 Review {rid} atualizada no BD. Reply {'PRESERVADA' if existing.replied else 'ADICIONADA'}."
             )
 
         else:
-            # Insere nova review automática
+            # Insere nova review automática (aqui a resposta gerada é sempre salva)
             review_data = {
                 "user_id": user_id,
                 "source": "google",
@@ -444,7 +481,7 @@ def _upsert_review(user_id: str, r: Dict, reply_text: str, location_name: Option
                 "reply": reply_text,
                 "replied": bool(reply_text),
                 "date": dt,
-                "location_name": location_name, # ⬅️ SALVANDO LOCATION ID
+                "location_name": location_name,
             }
 
             # Campos opcionais se existirem no modelo
@@ -1291,7 +1328,8 @@ def run_sync_last_48h(user_id: str) -> int:
 
 def run_sync_historical(user_id: str, period: str) -> int:
     """
-    Busca e responde avaliações retroativas (30, 60, 90, 180 dias ou todas).
+    Busca e responde avaliações retroativas (30, 60, 90, 180 dias ou todas),
+    pulando reviews que já possuem resposta no Google ou localmente.
     """
     try:
         # Importa funções de limite (hiper_compreensiva)
@@ -1351,19 +1389,44 @@ def run_sync_historical(user_id: str, period: str) -> int:
 
         for r in reviews:
             rid = r.get("reviewId")
-            if not rid or _already_saved(user_id, rid):
+            if not rid:
                 continue
 
-            # Filtro de tempo (aplica apenas se não for ALL)
+            # 1. Checa o estado da review localmente
+            review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
+            
+            # 2. Checa se já está respondida no Google (payload da API)
+            has_google_reply = r.get("reviewReply") and r.get("reviewReply", {}).get("comment")
+            
+            # 💡 REGRA DE PULOS CORRIGIDA: PULA se já foi respondida no App local OU no Google.
+            if (review_local and review_local.replied) or has_google_reply:
+                
+                # Log para saber o que está sendo pulado
+                motivo = "localmente" if (review_local and review_local.replied) else "no Google"
+                print(f"[gbp] ⏩ Ignorando {rid} — Já respondida {motivo}.")
+                
+                # Sincroniza a review sem gerar resposta (apenas para registro local, se necessário)
+                # Se for uma review respondida no Google que não existe localmente, salva apenas para registro.
+                if not review_local and has_google_reply:
+                    google_reply_text = r["reviewReply"]["comment"]
+                    # Aqui, _upsert_review SALVA a review com a resposta do Google, mas NÃO tenta gerar uma nova.
+                    _upsert_review(user_id, r, google_reply_text, location_name=location_name)
+                    
+                continue # Pula para a próxima review
+
+            # 3. Filtro de tempo (aplica apenas se a review AINDA NÃO FOI RESPONDIDA)
             create_time_str = r.get("createTime")
             if create_time_str and limite_tempo:
                 try:
                     dt_utc = datetime.fromisoformat(create_time_str.replace("Z", "+00:00"))
                     dt_brt = dt_utc.astimezone(tz_brt)
                     if dt_brt < limite_tempo:
+                        print(f"[gbp] ⏩ Ignorando {rid} — anterior ao limite de {period} dias.")
                         continue
                 except Exception:
                     pass
+
+            # A PARTIR DAQUI, SABEMOS QUE: A review está dentro do limite de tempo E não foi respondida.
 
             # Geração e publicação
             stars = converter_nota_gbp_para_int(r.get("starRating"))
@@ -1371,13 +1434,17 @@ def run_sync_historical(user_id: str, period: str) -> int:
             name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
 
             is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
+            # Gera a resposta
             reply = _generate_reply_for(user_id, stars, text, name, is_hiper)
 
-            # Salva no BD local - PASSANDO location_name!
+            # Salva no BD local (Cria ou atualiza com a nova resposta)
             _upsert_review(user_id, r, reply, location_name=location_name)
+            
+            # Publica no Google
             ok = _publish_reply(creds, account_name, location_name, rid, reply)
 
             if ok:
+                # Atualiza o status local para refletir a publicação
                 _update_local_reply_status(user_id, rid, reply, True)
                 if is_hiper:
                     registrar_uso_resposta_especial(user_id)

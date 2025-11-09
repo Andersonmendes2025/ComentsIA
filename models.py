@@ -43,6 +43,7 @@ class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False, unique=True)
     business_name = db.Column(db.String(255))
+    contexto_personalizado = db.Column(db.String(500))
     default_greeting = db.Column(db.String(255))
     default_closing = db.Column(db.String(255))
     contact_info = db.Column(db.String(255))
