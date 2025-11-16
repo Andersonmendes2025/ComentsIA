@@ -1487,3 +1487,29 @@ def sync_historical(period):
             "success": False,
             "message": "Erro interno durante a sincronização."
         }), 500
+@google_auto_bp.route("/cron/run_gbp_daily/<token>", methods=["GET", "POST"])
+def cron_run_gbp_daily(token):
+    """Rota pública protegida por token para uso no CRON do Render."""
+
+    expected = os.getenv("CRON_SECRET_TOKEN")
+
+    # Token inválido → bloqueia
+    if not expected or token != expected:
+        return jsonify({"success": False, "error": "Acesso não autorizado"}), 403
+
+    # Roda para todos habilitados
+    try:
+        enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
+        total = 0
+        for s in enabled:
+            total += run_sync_for_user(s.user_id)
+
+        return jsonify({
+            "success": True,
+            "message": f"Execução concluída. Total processadas: {total}",
+            "total": total
+        })
+
+    except Exception as e:
+        logging.exception("[CRON] Erro ao rodar sincronização pública.")
+        return jsonify({"success": False, "error": str(e)}), 500
