@@ -648,37 +648,39 @@ def save_user_settings(user_id, settings_data):
     encrypted_manager = encrypt(settings_data.get("manager_name") or "")
 
     existing = UserSettings.query.filter_by(user_id=user_id).first()
+
     if existing:
+
+        # Campos SEMPRE enviados
         existing.business_name = encrypted_name
         existing.default_greeting = settings_data.get("default_greeting", "Olá,")
-        existing.default_closing = settings_data.get(
-            "default_closing", "Agradecemos seu feedback!"
-        )
+        existing.default_closing = settings_data.get("default_closing", "Agradecemos seu feedback!")
         existing.contact_info = encrypted_contact
         existing.terms_accepted = terms_accepted
         existing.manager_name = encrypted_manager
-        existing.contexto_personalizado = settings_data.get(
-            "contexto_personalizado", ""
-        )[:500]
 
-        # Atualiza logo apenas se for string/bytes válidos
-        if settings_data.get("logo"):
+        # Apenas atualiza SE o campo foi enviado no POST
+        if "contexto_personalizado" in settings_data:
+            existing.contexto_personalizado = (settings_data["contexto_personalizado"] or "")[:500]
+
+        # Atualiza logo apenas se vier no POST
+        if "logo" in settings_data and settings_data["logo"]:
             existing.logo = settings_data["logo"]
+
     else:
         new_settings = UserSettings(
             user_id=user_id,
             business_name=encrypted_name,
             default_greeting=settings_data.get("default_greeting", "Olá,"),
-            default_closing=settings_data.get(
-                "default_closing", "Agradecemos seu feedback!"
-            ),
+            default_closing=settings_data.get("default_closing", "Agradecemos seu feedback!"),
             contact_info=encrypted_contact,
             terms_accepted=terms_accepted,
             logo=settings_data.get("logo"),
             manager_name=encrypted_manager,
-            contexto_personalizado=settings_data.get("contexto_personalizado", "")[:500],
+            contexto_personalizado=(settings_data.get("contexto_personalizado") or "")[:500],
         )
         db.session.add(new_settings)
+
     db.session.commit()
 
 

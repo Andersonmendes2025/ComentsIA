@@ -20,19 +20,17 @@ from matplotlib import pyplot as plt
 def limpa_markdown(texto: str) -> str:
     if not isinstance(texto, str):
         return ""
-    texto = re.sub(r"^\s*#+\s*", "", texto, flags=re.MULTILINE)
-    texto = re.sub(r"\*\*([^*]+)\*\*", r"\1", texto)
-    texto = re.sub(r"^[\-\*]\s+", "", texto, flags=re.MULTILINE)
-    texto = re.sub(r"^\d+\.\s+", "", texto, flags=re.MULTILINE)
-    texto = re.sub(r"^---+", "", texto, flags=re.MULTILINE)
-    texto = re.sub(r"\n{3,}", "\n\n", texto)
-    texto = (
-        texto.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
-    )
+    texto = re.sub(r"^\s*#+\s*", "", texto, flags=re.MULTILINE)  # remove títulos markdown
+    texto = re.sub(r"\*\*([^*]+)\*\*", r"\1", texto)            # remove bold
+    texto = re.sub(r"^[\-\*]\s+", "", texto, flags=re.MULTILINE) # remove bullets
+    texto = re.sub(r"^\d+\.\s+", "", texto, flags=re.MULTILINE)  # remove listas 1,2,3
+    texto = re.sub(r"^---+", "", texto, flags=re.MULTILINE)      # remove separadores
+    texto = re.sub(r"\n{3,}", "\n\n", texto)                      # normaliza quebras de linha
+
+    texto = texto.replace("“", '"').replace("”", '"')
+    texto = texto.replace("‘", "'").replace("’", "'")
     texto = texto.replace("–", "-").replace("—", "-")
-    texto = (
-        unicodedata.normalize("NFKD", texto).encode("ASCII", "ignore").decode("ASCII")
-    )
+
     return texto.strip()
 
 
@@ -185,12 +183,16 @@ class RelatorioAvaliacoes:
                 dados_prompt = []
             # Adiciona o contexto personalizado da empresa no prompt, se existir
             contexto_personalizado = (self.settings.get("contexto_personalizado") or "").strip()
+
+            # 🔥 CORREÇÃO: inicializa o prompt ANTES de usar +=
+            prompt = ""
+
             prompt += "🚨 INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\n"
-            prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA."
-            prompt += "\n\n"
+            prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA.\n\n"
+
             contexto_extra = f"\nContexto da empresa: {contexto_personalizado}\n" if contexto_personalizado else ""
 
-            prompt = f"""{contexto_extra}
+            prompt += f"""{contexto_extra}
 Voce e um analista senior de satisfacao do cliente. Gere um relatorio analitico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando analise de sentimentos e metricas relevantes. Nao cite diretamente comentarios. Nao repita palavras.
 {manager_str}
 

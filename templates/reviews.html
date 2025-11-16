@@ -316,85 +316,125 @@ function generateReply(id, rating, reviewerName) {
  * Se for Google, usa o endpoint de edição que serve para criar ou atualizar.
  */
 function saveReply(idInterno, source, externalId) {
-    const replyText = (document.getElementById('reply-editor-' + idInterno) || {}).value || ''; 
-    
+    const btn = document.querySelector(`#actions-${idInterno} .btn-success`);
+    const replyText = (document.getElementById('reply-editor-' + idInterno) || {}).value || '';
+
     if (!replyText.trim()) {
         showToast('A resposta não pode estar vazia.', 'warning');
         return;
     }
-    
+
+    // ===== Ativa Loading =====
+    btn.disabled = true;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        Publicando...
+    `;
+
     let endpoint;
-    let payload = { reply_text: replyText }; 
+    let payload = { reply_text: replyText };
     let method = 'POST';
 
     if (source === 'google') {
         if (!externalId) {
-             showToast('❌ ID Externo ausente. Não é possível publicar no Google.', 'danger');
-             return;
+            showToast('❌ ID Externo ausente. Não é possível publicar no Google.', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            return;
         }
-        // Endpoint Google Auto para edição/criação
         endpoint = `/auto/editar_reply/${externalId}`;
     } else {
-        // Endpoint Local para outras fontes
         endpoint = '/save_reply';
-        payload.review_id = idInterno; 
+        payload.review_id = idInterno;
     }
 
     _jsonFetch(endpoint, payload, method)
-    .then(data => {
-        if (data && data.success) {
-            showToast('Resposta salva e publicada com sucesso! Recarregando...', 'success');
-            location.reload(); 
-        } else {
-            const msg = (data && data.message) ? data.message : (data && data.error ? data.error : 'Falha ao salvar resposta');
-            showToast('Erro: ' + msg, 'danger');
-        }
-    })
-    .catch(err => {
-        showToast('Erro de comunicação: ' + err.message, 'danger');
-    });
-}
-
-/**
- * Exclui uma resposta, roteando para a rota local ou Google Auto.
- */
-function deleteReply(idInterno, source, externalId) {
-    askConfirm('Tem certeza que deseja excluir a resposta? Esta ação removerá a resposta permanentemente.', function() {
-        
-        let endpoint;
-        let payload = {};
-        let method = 'POST'; 
-
-        if (source === 'google') {
-            if (!externalId) {
-                 showToast('❌ ID Externo ausente. Não é possível excluir do Google.', 'danger');
-                 return;
-            }
-            // Endpoint Google Auto para exclusão
-            endpoint = `/auto/excluir_reply/${externalId}`;
-            method = 'DELETE'; // DELETE é o método REST correto para exclusão
-            
-        } else {
-            // Endpoint Local para exclusão
-            endpoint = '/delete_reply';
-            payload.review_id = idInterno; 
-        }
-
-        _jsonFetch(endpoint, payload, method)
         .then(data => {
             if (data && data.success) {
-                showToast('Resposta excluída com sucesso! Recarregando...', 'success');
-                location.reload();
+                btn.innerHTML = `
+                    <i class="bi bi-check-circle me-1"></i> Publicado!
+                `;
+                showToast('Resposta publicada com sucesso!', 'success');
+
+                setTimeout(() => {
+                    location.reload();
+                }, 600);
             } else {
-                const msg = (data && data.message) ? data.message : (data && data.error ? data.error : 'Falha ao excluir resposta');
+                const msg = (data && (data.message || data.error)) || 'Falha ao salvar resposta';
                 showToast('Erro: ' + msg, 'danger');
+
+                // Volta ao normal
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
             }
         })
         .catch(err => {
-            showToast('Erro de comunicação: ' + err.message, 'danger'); 
+            showToast('Erro de comunicação: ' + err.message, 'danger');
+
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
         });
+}
+
+
+function deleteReply(idInterno, source, externalId) {
+    askConfirm('Tem certeza que deseja excluir a resposta? Esta ação removerá a resposta permanentemente.', function () {
+
+        const btn = document.querySelector(`#reply-actions-${idInterno} .btn-outline-danger`);
+        const originalHTML = btn.innerHTML;
+
+        // Ativa loading
+        btn.disabled = true;
+        btn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Excluindo...
+        `;
+
+        let endpoint;
+        let payload = {};
+        let method = "POST";
+
+        if (source === "google") {
+            if (!externalId) {
+                showToast("❌ ID Externo ausente. Não é possível excluir do Google.", "danger");
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                return;
+            }
+            endpoint = `/auto/excluir_reply/${externalId}`;
+            method = "DELETE";
+        } else {
+            endpoint = "/delete_reply";
+            payload.review_id = idInterno;
+        }
+
+        _jsonFetch(endpoint, payload, method)
+            .then(data => {
+                if (data && data.success) {
+                    btn.innerHTML = `
+                        <i class="bi bi-check-circle me-1"></i> Excluído!
+                    `;
+                    showToast("Resposta excluída com sucesso!", "success");
+
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    const msg = (data && (data.message || data.error)) || "Falha ao excluir resposta";
+                    showToast("Erro: " + msg, "danger");
+
+                    btn.disabled = false;
+                    btn.innerHTML = originalHTML;
+                }
+            })
+            .catch(err => {
+                showToast("Erro de comunicação: " + err.message, "danger");
+
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            });
     });
 }
+
 
 function deleteReview(id) {
     askConfirm('Tem certeza que deseja excluir esta avaliação permanentemente do seu painel? (Isso não afeta a fonte original, apenas o seu registro local.)', function() {

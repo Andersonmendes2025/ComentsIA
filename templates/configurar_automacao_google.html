@@ -5,6 +5,7 @@
 <div class="container mt-4">
   <h2 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Automação Google</h2>
 
+  <!-- FORMULÁRIO DE CONFIGURAÇÃO -->
   <form method="post" id="configForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token_field">
 
@@ -21,10 +22,13 @@
     </div>
 
     <div class="text-end mb-4">
-      <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Salvar configurações</button>
+      <button type="submit" class="btn btn-primary" id="saveConfigBtn">
+        <i class="bi bi-save me-1"></i>Salvar configurações
+      </button>
     </div>
   </form>
 
+  <!-- CARD DE SINCRONIZAÇÃO -->
   <div class="card shadow-sm">
     <div class="card-body">
       <h5 class="card-title mb-3">
@@ -48,7 +52,15 @@
   </div>
 </div>
 
-<!-- Overlay de carregamento -->
+<!-- OVERLAY DE CARREGAMENTO DO SALVAR CONFIG -->
+<div id="save-loader-overlay" style="display:none;">
+  <div id="save-loader-card" class="text-center">
+    <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
+    <div><strong>Salvando configurações...</strong></div>
+  </div>
+</div>
+
+<!-- OVERLAY DE SINCRONIZAÇÃO -->
 <div id="loader-overlay" aria-hidden="true" style="display:none;">
   <div id="loader-card" class="text-center">
     <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
@@ -56,17 +68,20 @@
       <strong>Sincronizando avaliações...</strong>
     </div>
     <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
-    <div class="progress"><div class="progress-bar bg-light"></div></div>
+
+    <div class="progress">
+      <div class="progress-bar bg-light"></div>
+    </div>
   </div>
 </div>
 
-<!-- Modal de confirmação -->
+<!-- MODAL -->
 <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmSyncLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="confirmSyncLabel"><i class="bi bi-calendar-check me-2"></i>Confirmação de Sincronização</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         Você tem certeza que deseja iniciar a sincronização para o período de <strong><span id="periodDisplay"></span></strong>?
@@ -108,6 +123,7 @@ function showToast(message, type) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+
   const periodDisplay = document.getElementById('periodDisplay');
   const confirmSyncBtn = document.getElementById('confirmSyncBtn');
   const loaderOverlay = document.getElementById('loader-overlay');
@@ -115,11 +131,24 @@ document.addEventListener('DOMContentLoaded', function () {
   const modalElement = document.getElementById('confirmationModal');
   let confirmationModal = typeof bootstrap !== 'undefined' && modalElement ? new bootstrap.Modal(modalElement) : null;
 
+  // --- ANIMAÇÃO DO SALVAR CONFIGURAÇÕES ---
+  const saveBtn = document.getElementById("saveConfigBtn");
+  const saveOverlay = document.getElementById("save-loader-overlay");
+
+  document.getElementById("configForm").addEventListener("submit", function () {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2"></span>
+      Salvando...
+    `;
+    saveOverlay.style.display = "flex";
+  });
+
+  // BOTÕES DE SYNC
   document.querySelectorAll(".sync-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const period = btn.dataset.period;
-      const displayText = `últimos ${period} dias`;
-      periodDisplay.textContent = displayText;
+      periodDisplay.textContent = `últimos ${period} dias`;
       confirmSyncBtn.dataset.period = period;
       confirmationModal ? confirmationModal.show() : confirmAndFetch(period);
     });
@@ -128,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
   async function confirmAndFetch(period) {
     loaderOverlay.style.display = 'flex';
     document.querySelectorAll(".sync-btn").forEach(b => b.disabled = true);
-    showToast("🕒 Sincronização em andamento. Não feche a página...", "loading");
+    showToast("🕒 Sincronização em andamento...", "loading");
 
     try {
       const response = await fetch(`/auto/sync_historical/${period}`, {
@@ -159,10 +188,31 @@ document.addEventListener('DOMContentLoaded', function () {
   document.getElementById("toggleHistoricBtn").addEventListener("click", () => {
     document.getElementById("historicOptions").classList.toggle("show");
   });
+
 });
 </script>
 
 <style>
+/* Overlay salvar config */
+#save-loader-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  display: none;
+  z-index: 2000;
+  align-items: center; justify-content: center;
+}
+
+#save-loader-card {
+  background: #0b1a43;
+  padding: 18px 25px;
+  color: #fff;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+
+/* Overlay sync */
 #loader-overlay {
   position: fixed; inset: 0;
   background: rgba(8,12,27,0.55);
@@ -170,6 +220,8 @@ document.addEventListener('DOMContentLoaded', function () {
   z-index: 1080;
   display: flex; align-items: center; justify-content: center;
 }
+
+/* Loader card */
 #loader-card {
   background: #0b1a43; color: #fff;
   border-radius: 16px; padding: 18px 20px; min-width: 280px;
@@ -179,18 +231,10 @@ document.addEventListener('DOMContentLoaded', function () {
 #loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
 @keyframes progressPulse { 0%{transform:scaleX(.15)}50%{transform:scaleX(1)}100%{transform:scaleX(.15)} }
 
-#historicOptions.collapse {
-  display: none;
-  transition: all 0.3s ease-in-out;
-}
-#historicOptions.show {
-  display: block;
-  animation: slideDown 0.4s ease forwards;
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+/* Slide do histórico */
+#historicOptions.collapse { display: none; transition: all 0.3s ease-in-out; }
+#historicOptions.show { display: block; animation: slideDown 0.4s ease forwards; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 {% endblock %}
