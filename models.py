@@ -37,9 +37,16 @@ class Review(db.Model):
         index=True,
         nullable=True,
     )
+class HistoricalSyncPrice(db.Model):
+    __tablename__ = "historical_sync_prices"
 
+    id = db.Column(db.Integer, primary_key=True)
+    period = db.Column(db.String(10), unique=True, nullable=False)  # 30, 60, 90, 180
+    price_cents = db.Column(db.Integer, nullable=False, default=0)
+    currency = db.Column(db.String(8), default="BRL")
 
 class UserSettings(db.Model):
+    __tablename__ = "user_settings"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False, unique=True)
     business_name = db.Column(db.String(255))
@@ -52,14 +59,14 @@ class UserSettings(db.Model):
     manager_name = db.Column(db.String(255))
     created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
     email_boas_vindas_enviado = db.Column(db.Boolean, default=False)
-    stripe_customer_id = db.Column(db.String)
-    stripe_subscription_id = db.Column(db.String)
     plano = db.Column(db.String(32), default="free")
     plano_ate = db.Column(db.DateTime, nullable=True)
     gbp_tone = db.Column(db.String(32))
     gbp_auto_enabled = db.Column(db.Boolean, default=False)
     google_refresh_token = db.Column(db.String(512))
-
+    stripe_customer_id = db.Column(db.String(255), nullable=True)
+    stripe_subscription_id = db.Column(db.String(255), nullable=True)
+    stripe_subscription_item_id = db.Column(db.String(255), nullable=True)
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -16,7 +16,7 @@
       }
     }
     body{ background:var(--bg); }
-    .card-plan{
+    .card-plan, .card-sync{
       background:var(--surface); border:1px solid var(--border); border-radius:16px;
       padding:16px; box-shadow:var(--shadow); height:100%;
     }
@@ -42,11 +42,7 @@
     </a>
   </div>
 
-  <!--
-    IMPORTANTE:
-    Teu admin.py salva apenas {plan_key}_cents.
-    Mantive esse name para não quebrar. Os demais campos aparecem como leitura.
-  -->
+  <!-- ===================== PLANOS NORMAIS ===================== -->
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
@@ -67,48 +63,69 @@
           <div class="row g-2">
             <div class="col-7">
               <label class="form-label">Preço (centavos)</label>
-              <!-- COMPAT com admin.py: espera f"{plan_key}_cents" -->
               <input type="number" class="form-control" name="{{ key }}_cents"
                      value="{{ plan.price_cents|default(0) }}" min="0" step="1"
                      oninput="this.closest('.card-plan').querySelector('.price-preview').textContent = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((this.value||0)/100)">
-              <div class="form-text">Prévia: <span class="price-preview">{{ ('R$ ' ~ ('%.2f' % (plan.price_cents/100.0))).replace('.', ',') }}</span></div>
+              <div class="form-text">
+                Prévia:
+                <span class="price-preview">
+                  {{ ('R$ ' ~ ('%.2f' % (plan.price_cents/100.0))).replace('.', ',') }}
+                </span>
+              </div>
             </div>
+
             <div class="col-5">
               <label class="form-label">Moeda</label>
               <input type="text" class="form-control" value="{{ plan.currency|default('BRL') }}" readonly>
               <div class="form-text">Definido no sistema</div>
             </div>
+
             <div class="col-6">
               <label class="form-label">Duração (dias)</label>
               <input type="number" class="form-control" value="{{ plan.duration_days|default(0) }}" readonly>
             </div>
+
             <div class="col-6">
               <label class="form-label">Status</label>
-              <input type="text" class="form-control" value="{{ 'Ativo' if plan.price_cents>0 or key=='free' else 'Inativo' }}" readonly>
+              <input type="text" class="form-control"
+                     value="{{ 'Ativo' if plan.price_cents>0 or key=='free' else 'Inativo' }}"
+                     readonly>
             </div>
           </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
 
-          {% if plan.features %}
-          <hr class="my-3">
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label">Respostas/mês</label>
-              <input type="number" class="form-control" value="{{ plan.features.avaliacoes_mes }}" readonly>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Relatórios PDF/mês</label>
-              <input type="number" class="form-control" value="{{ plan.features.relatorio_pdf_mes }}" readonly>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Hiper/dia</label>
-              <input type="number" class="form-control" value="{{ plan.features.hiper_dia }}" readonly>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Considerações/dia</label>
-              <input type="number" class="form-control" value="{{ plan.features.consideracoes_dia }}" readonly>
-            </div>
+    <div class="d-flex justify-content-end mt-3 mb-5">
+      <button class="btn btn-neon">
+        <i class="bi bi-save"></i> Salvar catálogo
+      </button>
+    </div>
+  </form>
+
+
+  <!-- ===================== PREÇOS DE SINCRONIZAÇÃO RETROATIVA ===================== -->
+  <h1 class="h5 mt-4 mb-3">Preços — Sincronização Retroativa Google</h1>
+
+  <form method="post" action="{{ url_for('admin.admin_historical_pricing') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="row g-3">
+      {% for period, p in historical.items() %}
+      <div class="col-6 col-lg-3">
+        <div class="card-sync">
+          <h6 class="mb-2">{{ period }} dias</h6>
+
+          <label class="form-label">Preço (R$)</label>
+          <input type="number" step="0.01" min="0" class="form-control"
+                 name="price_{{ period }}"
+                 value="{{ '%.2f' % (p.price_cents/100) }}">
+          
+          <div class="form-text">
+            Valor atual: R$
+            {{ '%.2f' % (p.price_cents/100) }}
           </div>
-          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -116,9 +133,10 @@
 
     <div class="d-flex justify-content-end mt-3">
       <button class="btn btn-neon">
-        <i class="bi bi-save"></i> Salvar catálogo
+        <i class="bi bi-save"></i> Salvar preços
       </button>
     </div>
   </form>
+
 </div>
 {% endblock %}

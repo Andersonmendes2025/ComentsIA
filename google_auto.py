@@ -4,7 +4,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-
+from admin import get_historical_sync_prices
 import pytz
 import requests
 from flask import (
@@ -574,6 +574,11 @@ def configurar_automacao_google():
         return redirect(url_for("authorize"))
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
+    # 🚫 **NOVO BLOQUEIO PARA PLANO FREE**
+    if settings.plano == "free":
+        flash("Seu plano atual é Gratuito e não inclui automação do Google. Atualize seu plano para acessar esta funcionalidade.", "danger")
+        return redirect(url_for("planos"))  # ajuste conforme sua rota real
+
     if not settings:
         settings = UserSettings(user_id=user_id)
         db.session.add(settings)
@@ -586,7 +591,13 @@ def configurar_automacao_google():
         flash("Configuração atualizada com sucesso!", "success")
         return redirect(url_for("google_auto.configurar_automacao_google"))
 
-    return render_template("configurar_automacao_google.html", settings=settings)
+    historical = get_historical_sync_prices()
+
+    return render_template(
+        "configurar_automacao_google.html",
+        settings=settings,
+        historical=historical,   # ⭐ AGORA O HTML TEM A VARIÁVEL
+    )
 
 
 # google_auto.py (Função _generate_reply_for atualizada)
@@ -1453,40 +1464,44 @@ def run_sync_historical(user_id: str, period: str) -> int:
 
     print(f"\n--- [GBP HISTÓRICO] ✅ Total de avaliações processadas: {total_processadas} ---\n")
     return total_processadas
-# --- SINCRONIZAÇÃO HISTÓRICA: ROTA PARA EXECUÇÃO MANUAL ---
 @google_auto_bp.route("/sync_historical/<period>", methods=["POST"])
 def sync_historical(period):
     """
-    Executa sincronização retroativa de avaliações (30, 60, 90, 180 dias ou todas)
-    apenas para o usuário logado.
+    Executa sincronização retroativa de avaliações (30, 60, 90, 180 dias)
+    apenas para o usuário logado — SEM cobrança, apenas usando preços para exibir no HTML.
     """
-    # --- Autenticação de sessão ---
+    # Autenticação
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
         return jsonify({"success": False, "message": "Usuário não autenticado."}), 401
 
-    # --- Validação do parâmetro ---
-    valid_periods = ["30", "60", "90", "180", "all"]
-    if period not in valid_periods:
+    # Validação
+    prices = get_historical_sync_prices()
+
+    # Validação
+    if period not in prices:
         return jsonify({"success": False, "message": "Período inválido."}), 400
 
-    # --- Modo teste: libera geral (sem Stripe ainda) ---
-    logging.info(f"[TESTE] Liberando execução manual da sync_historical para {user_id}, período {period}")
+    # Preço só para exibição no botão
+    price_cents = prices[period]["price_cents"]
+
+
+    logging.info(f"[HIST-SYNC] Rodando sync histórica de {period} dias para {user_id}")
 
     try:
         total = run_sync_historical(user_id, period)
         return jsonify({
             "success": True,
             "message": f"Sincronização de {period} dias concluída com sucesso!",
-            "total_processadas": total
+            "total_processadas": total,
+            "price_cents": price_cents
         })
     except Exception as e:
-        logging.exception(f"[gbp] Erro ao executar sync_historical para {user_id}: {e}")
-        return jsonify({
-            "success": False,
-            "message": "Erro interno durante a sincronização."
-        }), 500
+        logging.exception(f"[HIST-SYNC] erro: {e}")
+        return jsonify({"success": False, "message": "Erro interno."}), 500
+
+
 @google_auto_bp.route("/cron/run_gbp_48h/<token>", methods=["GET", "POST"])
 def cron_run_gbp_48h(token):
     """Rota pública para cron do Render — sincroniza para TODOS os usuários (últimas 48h)."""

@@ -3,19 +3,26 @@
 
 {% block extra_head %}
 <style>
-  /* ====== PALETA DARK NEON (igual à home não-logada) ====== */
-  :root{
-    --bg:#0b1020;            /* fundo principal */
-    --panel:#0f1630;         /* painéis */
-    --ink:#eaf1ff;           /* texto primário */
-    --muted:#9cbce5;         /* texto secundário */
-    --brand:#2f7bff;         /* azul */
-    --neon:#8a5bff;          /* roxo */
-    --hot:#ff4fb5;           /* rosa acento */
-    --ok:#22c55e;            /* verde */
-    --warn:#f59e0b;          /* amarelo */
+  .plans-grid .col {
+    display: flex;
+    align-items: stretch;
   }
-
+  .plans-grid .glass {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  :root{
+    --bg:#0b1020;
+    --panel:#0f1630;
+    --ink:#eaf1ff;
+    --muted:#9cbce5;
+    --brand:#2f7bff;
+    --neon:#8a5bff;
+    --hot:#ff4fb5;
+    --ok:#22c55e;
+    --warn:#f59e0b;
+  }
   body.plans-dark {
     background:
       radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
@@ -23,8 +30,6 @@
       linear-gradient(180deg, #0a0f1e 0%, #0b1020 60%);
     color: var(--ink);
   }
-
-  /* HERO/FAIXA DOS PLANOS */
   .plans-band{
     background:
       radial-gradient(1200px 700px at 8% -15%, rgba(47,123,255,.18), transparent 60%),
@@ -37,13 +42,14 @@
   }
   .plans-title{
     background: linear-gradient(90deg, #fff, #cfe1ff 30%, #eabfff 60%, #fff);
-    -webkit-background-clip:text;background-clip:text; color:transparent;
-    background-size:200% auto; animation:shine 6s linear infinite;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    background-size:200% auto;
+    animation:shine 6s linear infinite;
     letter-spacing:-.01em;
   }
   @keyframes shine{0%{background-position:0 0}100%{background-position:200% 0}}
-
-  /* CARD GLASS */
   .glass{
     background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
     backdrop-filter: blur(8px);
@@ -55,147 +61,260 @@
     height:100%;
     position:relative;
   }
-  .glass:hover{ transform: translateY(-6px); border-color: rgba(143,164,255,.28); box-shadow:0 18px 60px rgba(0,0,0,.45); }
-
-  /* HEADER DO PLANO + “badge” */
-  .plan-head{
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;
+  .glass:hover{
+    transform: translateY(-6px);
+    border-color: rgba(143,164,255,.28);
+    box-shadow:0 18px 60px rgba(0,0,0,.45);
   }
-  .plan-name{ font-size:1.25rem; font-weight:800; color:#fff; }
+  .plan-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+  }
+  .plan-name{
+    font-size:1.25rem;
+    font-weight:800;
+    color:#fff;
+  }
   .badge-top{
     background: linear-gradient(135deg, var(--hot), var(--neon));
-    color:#fff; border:none; font-weight:700; letter-spacing:.2px;
-    padding:.35rem .7rem; border-radius:999px; font-size:.78rem;
+    color:#fff;
+    border:none;
+    font-weight:700;
+    padding:.35rem .7rem;
+    border-radius:999px;
+    font-size:.78rem;
   }
   .badge-tier{
-    background: transparent; color:#cfe1ff; border:1px solid rgba(143,164,255,.25);
-    padding:.28rem .55rem; border-radius:999px; font-size:.72rem;
+    background: transparent;
+    color:#cfe1ff;
+    border:1px solid rgba(143,164,255,.25);
+    padding:.28rem .55rem;
+    border-radius:999px;
+    font-size:.72rem;
   }
-
-  .price{ font-size:1.6rem; font-weight:900; color:#fff; margin-top:.2rem; }
-  .price small{ font-size:.9rem; font-weight:600; color:var(--muted); }
-
-  .features{ list-style:none; padding-left:0; margin:14px 0 0; color:var(--muted); }
-  .features li{ margin:.45rem 0; display:flex; gap:.5rem; align-items:flex-start; }
-  .features li { align-items: baseline; flex-wrap: wrap; }
-  .features li strong { white-space: nowrap; }
-  .features i{ color:#79b7ff; }
-
-  /* BOTÕES */
+  .price{
+    font-size:1.6rem;
+    font-weight:900;
+    color:#fff;
+    margin-top:.2rem;
+  }
+  .price small{
+    font-size:.9rem;
+    color:var(--muted);
+  }
+  .price-note{
+    font-size:.8rem;
+    color:var(--muted);
+    margin-top:4px;
+  }
+  .features{
+    list-style:none;
+    padding-left:0;
+    margin:14px 0 0;
+    color:var(--muted);
+  }
+  .features li{
+    margin:.45rem 0;
+    display:flex;
+    gap:.5rem;
+    align-items:flex-start;
+  }
+  .features i{
+    color:#79b7ff;
+    margin-top:2px;
+  }
   .btn-neon{
     background: linear-gradient(135deg, var(--brand), var(--neon));
-    border:none; color:#fff; border-radius:14px; padding:.9rem 1rem; font-weight:800;
+    border:none;
+    color:#fff;
+    border-radius:14px;
+    padding:.9rem 1rem;
+    font-weight:800;
     width:100%;
-    box-shadow:0 10px 30px rgba(47,123,255,.35), 0 0 0 1px rgba(143,164,255,.18) inset;
-    transition: transform .2s, box-shadow .2s;
+    box-shadow:0 10px 30px rgba(47,123,255,.35);
   }
-  .btn-neon:hover{ transform: translateY(-2px) rotateX(6deg); box-shadow:0 18px 42px rgba(138,91,255,.42); }
-
   .btn-ghost{
     border:1.5px solid rgba(143,164,255,.35);
-    color:#cfe1ff; border-radius:14px; padding:.9rem 1rem; font-weight:800; width:100%;
+    color:#cfe1ff;
+    border-radius:14px;
+    padding:.9rem 1rem;
+    font-weight:800;
+    width:100%;
     background:transparent;
   }
-
-  /* ESTADOS */
-  .plan-selected{ outline:2px solid #2f7bff; box-shadow:0 0 0 4px rgba(47,123,255,.16); }
-  .btn-selected{ background:rgba(47,123,255,.15); color:#cfe1ff; border:1px solid rgba(47,123,255,.45); cursor:default; }
-
-  /* GRID */
-  .plans-grid .col{ display:flex; }
+  .btn-selected{
+    background:rgba(47,123,255,.15);
+    color:#cfe1ff;
+    border:1px solid rgba(47,123,255,.45);
+    cursor:default;
+  }
+  .plan-selected{
+    outline:2px solid #2f7bff;
+    box-shadow:0 0 0 4px rgba(47,123,255,.16);
+  }
+  .pill-label{
+    font-size:.75rem;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.18);
+    padding:2px 8px;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    color:var(--muted);
+    margin-top:4px;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+
 <div class="container my-4 plans-page">
-  {# força fundo dark nesta página #}
   <script>document.body.classList.add('plans-dark');</script>
+
+  {% set current_tier = user_plano if user_plano else 'guest' %}
 
   <section class="plans-band mb-4">
     <div class="text-center mb-3">
       <h2 class="plans-title fw-extrabold m-0">Planos ComentsIA</h2>
-      <p class="text-neon mt-2 mb-0">Escolha o melhor para o seu momento. Você pode alterar quando quiser.</p>
+      <p class="text-neon mt-2 mb-0">Comece grátis, evolua para o Pro ou Business quando fizer sentido.</p>
     </div>
 
     <div class="row g-3 plans-grid">
+
       <!-- FREE -->
-      <div class="col-12 col-md-4">
-        <div class="glass {% if user_plano == 'free' %}plan-selected{% endif %}">
-          <div class="plan-head">
-            <span class="badge-tier">Início</span>
-            {% if user_plano == 'free' %}<span class="badge-top">Atual</span>{% endif %}
-          </div>
-          <div class="plan-name">Free</div>
-          <div class="price">R$ 0 <small>/mês</small></div>
-
-          <ul class="features">
-            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>{{ planos['free'].avaliacoes_mes }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia:
-              <strong>{% if planos['free'].hiper_dia == 0 %}Não disponível{% elif planos['free'].hiper_dia is none %}Ilimitado{% else %}{{ planos['free'].hiper_dia }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia:
-              <strong>{% if planos['free'].consideracoes_dia == 0 %}Não disponível{% elif planos['free'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['free'].consideracoes_dia }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês:
-              <strong>{% if planos['free'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['free'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['free'].relatorio_pdf_mes }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['free'].suporte|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['free'].dashboard|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['free'].marca_dagua else 'Não' }}</strong></li>
-          </ul>
-
-          <div class="mt-3">
-            {% if user_plano == 'free' %}
-              <button class="btn btn-ghost btn-selected w-100" disabled>Plano Atual</button>
-            {% else %}
-              <form method="post" action="{{ url_for('planos') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="plano" value="free">
-                <button type="submit" class="btn btn-ghost w-100">Começar grátis</button>
-              </form>
-            {% endif %}
-          </div>
+    <div class="col-12 col-md-4">
+      <div class="glass {% if user_plano == 'free' %}plan-selected{% endif %}">
+        <div class="plan-head">
+          <span class="badge-tier">Começo</span>
+          {% if user_plano == 'free' %}
+            <span class="badge-top">Plano Atual</span>
+          {% endif %}
         </div>
+
+        <div class="plan-name">Free</div>
+
+        <div class="price">
+          R$ 0 <small>/mês</small>
+        </div>
+
+        <ul class="features">
+          <li><i class="bi bi-check2-circle"></i> Até <strong>{{ planos['free'].avaliacoes_mes }}</strong> avaliações/mês.</li>
+          <li><i class="bi bi-x-circle text-danger"></i> Sem resposta hiper compreensiva.</li>
+          <li><i class="bi bi-x-circle text-danger"></i> Sem caixa de contexto.</li>
+          <li><i class="bi bi-x-circle text-danger"></i> Sem automação Google.</li>
+          <li><i class="bi bi-x-circle text-danger"></i> Sem PDF.</li>
+          <li><i class="bi bi-check2-circle"></i> Suporte {{ planos['free'].suporte }}.</li>
+        </ul>
+
+        <div class="mt-3">
+          {% if user_plano == 'free' %}
+            <button class="btn btn-ghost btn-selected w-100" disabled>
+              Você já está no Free
+            </button>
+
+          {% elif current_tier in ['pro','business','business_anual','pro_anual'] %}
+            <button class="btn btn-ghost w-100" disabled>
+              Indisponível (downgrade)
+            </button>
+
+          {% elif current_tier == 'guest' %}
+            <button class="btn btn-ghost w-100" onclick="window.location.href='{{ url_for('authorize') }}'">
+              Faça login para assinar o Free
+            </button>
+
+          {% else %}
+            <form method="post" action="{{ url_for('planos') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="plano" value="free">
+              <button type="submit" class="btn btn-ghost w-100">Voltar para Free</button>
+            </form>
+          {% endif %}
+        </div>
+
       </div>
+    </div>
+
 
       <!-- PRO -->
       <div class="col-12 col-md-4">
         <div class="glass {% if user_plano in ['pro','pro_anual'] %}plan-selected{% endif %}">
           <div class="plan-head">
             <span class="badge-tier">Profissional</span>
-            <span class="badge-top">Recomendado</span>
-          </div>
-          <div class="plan-name">Pro</div>
-          <div class="price">
-            R$ {{ '%.2f'|format(((planos['pro'].price_cents or 0)/100.0))|replace('.', ',') }} <small>/mês</small>
-            <div><small>ou R$ {{ '%.2f'|format(((planos['pro_anual'].price_cents or 0)/100.0))|replace('.', ',') }}/ano</small></div>
+            <span class="badge-top">Mais escolhido</span>
           </div>
 
+          <div class="plan-name">Pro</div>
+
+          <div class="price">
+            R$ {{ '%.2f'|format(planos['pro'].preco)|replace('.', ',') }}
+            <small>/mês</small>
+            <div><small>ou R$ {{ '%.2f'|format(planos['pro_anual'].preco)|replace('.', ',') }} /ano</small></div>
+          </div>
+
+          <div class="price-note">Para empresas que querem profissionalizar respostas.</div>
+
           <ul class="features">
-            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>{{ planos['pro'].avaliacoes_mes }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia:
-              <strong>{% if planos['pro'].hiper_dia == 0 %}Não disponível{% elif planos['pro'].hiper_dia is none %}Ilimitado{% else %}{{ planos['pro'].hiper_dia }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia:
-              <strong>{% if planos['pro'].consideracoes_dia == 0 %}Não disponível{% elif planos['pro'].consideracoes_dia is none %}Ilimitado{% else %}{{ planos['pro'].consideracoes_dia }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês:
-              <strong>{% if planos['pro'].relatorio_pdf_mes == 0 %}Não disponível{% elif planos['pro'].relatorio_pdf_mes is none %}Ilimitado{% else %}{{ planos['pro'].relatorio_pdf_mes }}{% endif %}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['pro'].suporte|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['pro'].dashboard|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['pro'].marca_dagua else 'Não' }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].avaliacoes_mes }} avaliações/mês.</li>
+            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].hiper_dia }} hiper/dia.</li>
+            <li><i class="bi bi-check2-circle"></i> Caixa de contexto incluída.</li>
+            <li><i class="bi bi-check2-circle"></i> Considerações por avaliação.</li>
+            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].relatorio_pdf_mes }} PDF/mês.</li>
+            <li><i class="bi bi-check2-circle"></i> Dashboard completo.</li>
+            <li><i class="bi bi-check2-circle"></i> Automação Google disponível.</li>
+            <li><i class="bi bi-x-circle text-danger"></i> Não inclui filiais.</li>
           </ul>
 
           <div class="mt-3 d-grid gap-2">
-            <form method="post" action="{{ url_for('planos') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="plano" value="pro">
-              <button type="submit" class="btn btn-neon {% if user_plano=='pro' %}btn-selected{% endif %}" {% if user_plano=='pro' %}disabled{% endif %}>
-                Mensal {% if user_plano=='pro' %}(Plano Atual){% endif %}
-              </button>
-            </form>
-            <form method="post" action="{{ url_for('planos') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="plano" value="pro_anual">
-              <button type="submit" class="btn btn-neon {% if user_plano=='pro_anual' %}btn-selected{% endif %}" {% if user_plano=='pro_anual' %}disabled{% endif %}>
-                Anual {% if user_plano=='pro_anual' %}(Plano Atual){% endif %}
-              </button>
-            </form>
+
+            {% set is_guest = current_tier in ['guest', None] %}
+            {% set can_checkout_pro = current_tier in ['guest','free'] %}
+            {% set can_upgrade_to_pro = current_tier in ['pro_anual'] %}
+            {% set is_downgrade_from_business = current_tier in ['business','business_anual'] %}
+
+            <!-- PRO Mensal -->
+            <button type="button"
+              class="btn btn-neon {% if user_plano=='pro' %}btn-selected{% endif %}"
+              data-plan="pro_mensal"
+              data-stripe-action="
+                {% if is_guest %}login
+                {% elif can_checkout_pro %}checkout
+                {% elif can_upgrade_to_pro %}upgrade
+                {% else %}none
+                {% endif %}
+              "
+              {% if is_downgrade_from_business or user_plano=='pro' %}disabled{% endif %}>
+              {% if is_guest %}Faça login para assinar
+              {% elif user_plano=='pro' %}Pro Mensal (Atual)
+              {% elif is_downgrade_from_business %}Indisponível (downgrade)
+              {% else %}Assinar Pro Mensal
+              {% endif %}
+            </button>
+
+            <!-- PRO Anual -->
+            <button type="button"
+              class="btn btn-neon {% if user_plano=='pro_anual' %}btn-selected{% endif %}"
+              data-plan="pro_anual"
+              data-stripe-action="
+                {% if is_guest %}login
+                {% elif can_checkout_pro %}checkout
+                {% elif can_upgrade_to_pro %}upgrade
+                {% else %}none
+                {% endif %}
+              "
+              {% if is_downgrade_from_business or user_plano=='pro_anual' %}disabled{% endif %}>
+              {% if is_guest %}Faça login para assinar
+              {% elif user_plano=='pro_anual' %}Pro Anual (Atual)
+              {% elif is_downgrade_from_business %}Indisponível (downgrade)
+              {% else %}Assinar Pro Anual
+              {% endif %}
+            </button>
+
+            <div class="price-note">
+              <span class="pill-label"><i class="bi bi-clock-history"></i> Pro Anual inclui sincronização gratuita de 3 meses.</span>
+            </div>
+
           </div>
         </div>
       </div>
@@ -204,40 +323,80 @@
       <div class="col-12 col-md-4">
         <div class="glass {% if user_plano in ['business','business_anual'] %}plan-selected{% endif %}">
           <div class="plan-head">
-            <span class="badge-tier">Escala</span>
-            {% if user_plano in ['business','business_anual'] %}<span class="badge-top">Atual</span>{% endif %}
-          </div>
-          <div class="plan-name">Business Pro</div>
-          <div class="price">
-            R$ {{ '%.2f'|format(((planos['business'].price_cents or 0)/100.0))|replace('.', ',') }} <small>/mês</small>
-            <div><small>ou R$ {{ '%.2f'|format(((planos['business_anual'].price_cents or 0)/100.0))|replace('.', ',') }}/ano</small></div>
+            <span class="badge-tier">Escala & Rede</span>
+            {% if user_plano in ['business','business_anual'] %}
+              <span class="badge-top">Plano Atual</span>
+            {% endif %}
           </div>
 
+          <div class="plan-name">Business Pro</div>
+
+          <div class="price">
+            R$ {{ '%.2f'|format(planos['business'].preco)|replace('.', ',') }}
+            <small>/mês</small>
+            <div><small>ou R$ {{ '%.2f'|format(planos['business_anual'].preco)|replace('.', ',') }} /ano</small></div>
+          </div>
+
+          <div class="price-note">Para redes, hotéis, clínicas e multiunidades.</div>
+
           <ul class="features">
-            <li><i class="bi bi-check2-circle"></i> Avaliações/mês: <strong>Ilimitado</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Respostas hiper compreensivas/dia: <strong>Ilimitado</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Considerações para IA/dia: <strong>Ilimitado</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Relatórios PDF/mês: <strong>Ilimitado</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Suporte: <strong>{{ planos['business'].suporte|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Dashboard: <strong>{{ planos['business'].dashboard|capitalize }}</strong></li>
-            <li><i class="bi bi-check2-circle"></i> Marca d'água: <strong>{{ 'Sim' if planos['business'].marca_dagua else 'Não' }}</strong></li>
+            <li><i class="bi bi-check2-circle"></i> Avaliações ilimitadas.</li>
+            <li><i class="bi bi-check2-circle"></i> Hiper ilimitadas.</li>
+            <li><i class="bi bi-check2-circle"></i> Contexto ilimitado.</li>
+            <li><i class="bi bi-check2-circle"></i> PDFs ilimitados.</li>
+            <li><i class="bi bi-check2-circle"></i> Dashboard avançado.</li>
+            <li><i class="bi bi-check2-circle"></i> Automação Google incluída.</li>
+            <li><i class="bi bi-diagram-3"></i> Matriz + Filiais ilimitadas.</li>
+            <li><i class="bi bi-headset"></i> Suporte VIP.</li>
           </ul>
 
           <div class="mt-3 d-grid gap-2">
-            <form method="post" action="{{ url_for('planos') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="plano" value="business">
-              <button type="submit" class="btn btn-ghost {% if user_plano=='business' %}btn-selected{% endif %}" {% if user_plano=='business' %}disabled{% endif %}>
-                Mensal {% if user_plano=='business' %}(Plano Atual){% endif %}
-              </button>
-            </form>
-            <form method="post" action="{{ url_for('planos') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="plano" value="business_anual">
-              <button type="submit" class="btn btn-ghost {% if user_plano=='business_anual' %}btn-selected{% endif %}" {% if user_plano=='business_anual' %}disabled{% endif %}>
-                Anual {% if user_plano=='business_anual' %}(Plano Atual){% endif %}
-              </button>
-            </form>
+
+            {% set is_guest = current_tier in ['guest', None] %}
+            {% set can_checkout_business = current_tier in ['guest','free','pro','pro_anual'] %}
+            {% set can_upgrade_to_business = current_tier in ['business'] %}
+            {% set is_downgrade_business = current_tier in ['business_anual'] %}
+
+            <!-- BUSINESS Mensal -->
+            <button type="button"
+              class="btn btn-ghost {% if user_plano=='business' %}btn-selected{% endif %}"
+              data-plan="business_mensal"
+              data-stripe-action="
+                {% if is_guest %}login
+                {% elif can_checkout_business %}checkout
+                {% elif can_upgrade_to_business %}upgrade
+                {% else %}none
+                {% endif %}
+              "
+              {% if user_plano=='business' %}disabled{% endif %}>
+              {% if is_guest %}Faça login para assinar
+              {% elif user_plano=='business' %}Business Mensal (Atual)
+              {% else %}Assinar Business Mensal
+              {% endif %}
+            </button>
+
+            <!-- BUSINESS Anual -->
+            <button type="button"
+              class="btn btn-ghost {% if user_plano=='business_anual' %}btn-selected{% endif %}"
+              data-plan="business_anual"
+              data-stripe-action="
+                {% if is_guest %}login
+                {% elif can_checkout_business %}checkout
+                {% elif can_upgrade_to_business %}upgrade
+                {% else %}none
+                {% endif %}
+              "
+              {% if user_plano=='business_anual' %}disabled{% endif %}>
+              {% if is_guest %}Faça login para assinar
+              {% elif user_plano=='business_anual' %}Business Anual (Atual)
+              {% else %}Assinar Business Anual
+              {% endif %}
+            </button>
+
+            <div class="price-note">
+              <span class="pill-label"><i class="bi bi-clock-history"></i> Business Anual inclui sincronização gratuita de 3 meses.</span>
+            </div>
+
           </div>
         </div>
       </div>
@@ -245,4 +404,82 @@
     </div>
   </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const csrfToken = "{{ csrf_token() }}";
+  const isAuthenticated = {{ 'true' if user_plano is not none else 'false' }};
+  const currentTier = "{{ current_tier }}";
+  const loginUrl = "{{ url_for('authorize') }}";
+
+  function showToast(message, type = 'error') {
+    if (window.showToast) window.showToast(message, type);
+    else alert(message);
+  }
+
+  document.querySelectorAll('[data-stripe-action]').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      if (btn.disabled) return;
+
+      const action = btn.getAttribute('data-stripe-action');
+      const product = btn.getAttribute('data-plan');
+
+      if (action === "login") {
+        const next = encodeURIComponent(window.location.pathname);
+        return window.location.href = `${loginUrl}?next=${next}`;
+      }
+
+      if (action === "none") {
+        showToast("Este plano não está disponível para seu plano atual.", "error");
+        return;
+      }
+
+      if (!isAuthenticated) {
+        const next = encodeURIComponent(window.location.pathname);
+        return window.location.href = `${loginUrl}?next=${next}`;
+      }
+
+      btn.disabled = true;
+      const original = btn.innerHTML;
+      btn.innerHTML = 'Processando...';
+
+      const url = action === "upgrade"
+        ? `/stripe/upgrade/${product}`
+        : `/stripe/checkout/${product}`;
+
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken
+          },
+          body: "{}"
+        });
+
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          showToast(data.message || "Erro ao processar.", "error");
+          btn.disabled = false;
+          btn.innerHTML = original;
+          return;
+        }
+
+        if (data.checkout_url) {
+          window.location.href = data.checkout_url;
+        } else {
+          showToast("Plano atualizado com sucesso!", "success");
+          window.location.reload();
+        }
+
+      } catch (err) {
+        showToast("Erro ao comunicar com o servidor.", "error");
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    });
+  });
+});
+</script>
+
 {% endblock %}

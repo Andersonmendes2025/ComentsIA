@@ -41,18 +41,41 @@
 
       <div id="historicOptions" class="mt-3 collapse">
         <div class="d-flex flex-wrap gap-2 justify-content-center">
+
           {% for dias in [30,60,90,180] %}
-            <button class="btn btn-outline-secondary sync-btn" data-period="{{ dias }}">
-              {{ dias }} dias
-            </button>
+            {% set p = historical[dias|string] %}
+            {% set valor = "%.2f"|format(p.price_cents / 100) %}
+
+            <div class="d-flex flex-column align-items-center border rounded p-3 shadow-sm"
+                 style="min-width:140px; background:#f8faff;">
+
+              <strong>{{ dias }} dias</strong>
+              <span class="text-success fw-bold mb-2">R$ {{ valor }}</span>
+
+              <!-- BOTÃO DE PAGAMENTO -->
+              <button class="btn btn-outline-primary w-100 mb-2 pay-btn"
+                      data-stripe-key="retro_{{ dias }}"
+                      data-period="{{ dias }}">
+                <i class="bi bi-credit-card"></i> Pagar
+              </button>
+
+              <!-- BOTÃO DE SINCRONIZAR DEPOIS DO PAGAMENTO -->
+              <button class="btn btn-success w-100 sync-after-btn d-none"
+                      data-period="{{ dias }}">
+                <i class="bi bi-cloud-upload"></i> Sincronizar agora
+              </button>
+
+            </div>
           {% endfor %}
+
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- OVERLAY DE CARREGAMENTO DO SALVAR CONFIG -->
+
+<!-- LOADER DAS CONFIG -->
 <div id="save-loader-overlay" style="display:none;">
   <div id="save-loader-card" class="text-center">
     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
@@ -75,27 +98,6 @@
   </div>
 </div>
 
-<!-- MODAL -->
-<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmSyncLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="confirmSyncLabel"><i class="bi bi-calendar-check me-2"></i>Confirmação de Sincronização</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        Você tem certeza que deseja iniciar a sincronização para o período de <strong><span id="periodDisplay"></span></strong>?
-        <p class="text-danger small mt-2">Este processo pode ser demorado e consumirá recursos de IA.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-warning" id="confirmSyncBtn" data-period="">
-          <i class="bi bi-cloud-upload"></i> Sim, Sincronizar!
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
 function showToast(message, type) {
@@ -103,7 +105,6 @@ function showToast(message, type) {
   toast.className = "toast align-items-center text-white border-0 position-fixed top-0 end-0 m-3 show fade";
   toast.style.zIndex = 1055;
   toast.style.minWidth = "280px";
-  toast.style.transition = "opacity 0.3s ease-in-out";
 
   if (type === "success") toast.classList.add("bg-success");
   else if (type === "error") toast.classList.add("bg-danger");
@@ -111,80 +112,105 @@ function showToast(message, type) {
 
   toast.innerHTML = `
     <div class="d-flex">
-      <div class="toast-body" aria-live="polite">${message}</div>
+      <div class="toast-body">${message}</div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>`;
 
   document.body.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => toast.remove(), 300);
-  }, 6000);
+  setTimeout(() => { toast.remove(); }, 6000);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-
-  const periodDisplay = document.getElementById('periodDisplay');
-  const confirmSyncBtn = document.getElementById('confirmSyncBtn');
-  const loaderOverlay = document.getElementById('loader-overlay');
   const csrfToken = document.getElementById("csrf_token_field").value;
-  const modalElement = document.getElementById('confirmationModal');
-  let confirmationModal = typeof bootstrap !== 'undefined' && modalElement ? new bootstrap.Modal(modalElement) : null;
 
-  // --- ANIMAÇÃO DO SALVAR CONFIGURAÇÕES ---
-  const saveBtn = document.getElementById("saveConfigBtn");
-  const saveOverlay = document.getElementById("save-loader-overlay");
+  // =============================
+  // 🔥 PAGAMENTO STRIPE
+  // =============================
+    async function checkoutStripe(productKey, period) {
+        const response = await fetch(`/stripe/checkout/${productKey}`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",  // 🔥 obrigatório
+            "X-CSRFToken": csrfToken 
+          }
+        });
 
-  document.getElementById("configForm").addEventListener("submit", function () {
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = `
-      <span class="spinner-border spinner-border-sm me-2"></span>
-      Salvando...
-    `;
-    saveOverlay.style.display = "flex";
-  });
+        const data = await response.json();
 
-  // BOTÕES DE SYNC
-  document.querySelectorAll(".sync-btn").forEach(btn => {
+        console.log("DEBUG CHECKOUT STRIPE:", data);  // 🔥 mostra o erro real no console
+
+    if (data.success) {
+      // Salva no localStorage pra saber qual período ativar depois do pagamento
+      localStorage.setItem("retro_sync_period", period);
+      window.location.href = data.checkout_url;
+
+    } else {
+      showToast("Erro ao iniciar pagamento Stripe", "error");
+    }
+  }
+
+  // BOTÕES DE PAGAMENTO
+  document.querySelectorAll(".pay-btn").forEach(btn => {
     btn.addEventListener("click", () => {
+      const key = btn.dataset.stripeKey;
       const period = btn.dataset.period;
-      periodDisplay.textContent = `últimos ${period} dias`;
-      confirmSyncBtn.dataset.period = period;
-      confirmationModal ? confirmationModal.show() : confirmAndFetch(period);
+      checkoutStripe(key, period);
     });
   });
 
-  async function confirmAndFetch(period) {
-    loaderOverlay.style.display = 'flex';
-    document.querySelectorAll(".sync-btn").forEach(b => b.disabled = true);
-    showToast("🕒 Sincronização em andamento...", "loading");
+  // =============================
+  // 🔥 APÓS PAGAMENTO – LIBERA BOTÃO "SINCRONIZAR"
+  // =============================
+  async function checkPaid() {
+    const period = localStorage.getItem("retro_sync_period");
+    if (!period) return;
 
-    try {
+    const r = await fetch(`/stripe/check_paid/${period}`);
+    const data = await r.json();
+
+    if (data.paid) {
+      const btn = document.querySelector(`.sync-after-btn[data-period="${period}"]`);
+      if (btn) btn.classList.remove("d-none");
+    }
+  }
+
+  checkPaid();
+
+  // =============================
+  // 🔥 SINCRONIZAR DEPOIS DO PAGAMENTO
+  // =============================
+  document.querySelectorAll(".sync-after-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const period = btn.dataset.period;
+
+      document.getElementById("loader-overlay").style.display = "flex";
+
       const response = await fetch(`/auto/sync_historical/${period}`, {
         method: "POST",
         headers: { "X-CSRFToken": csrfToken }
       });
+
       const data = await response.json();
+      document.getElementById("loader-overlay").style.display = "none";
 
-      if (response.ok && data.success) {
-        showToast(`✅ ${data.message}`, "success");
+      if (data.success) {
+        showToast(`Sincronização de ${period} dias concluída!`, "success");
       } else {
-        showToast(`❌ ${data.message || "Erro durante a sincronização."}`, "error");
+        showToast(data.message || "Erro durante sincronização", "error");
       }
-    } catch {
-      showToast("❌ Falha na conexão com o servidor.", "error");
-    } finally {
-      loaderOverlay.style.display = 'none';
-      document.querySelectorAll(".sync-btn").forEach(b => b.disabled = false);
-    }
-  }
-
-  confirmSyncBtn.addEventListener("click", () => {
-    const period = confirmSyncBtn.dataset.period;
-    confirmationModal && confirmationModal.hide();
-    confirmAndFetch(period);
+    });
   });
 
+  // ANIMAÇÃO DO SALVAR CONFIG
+  const saveBtn = document.getElementById("saveConfigBtn");
+  const saveOverlay = document.getElementById("save-loader-overlay");
+  document.getElementById("configForm").addEventListener("submit", function () {
+    saveBtn.disabled = true;
+    saveOverlay.style.display = "flex";
+    saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Salvando...`;
+  });
+
+  // Mostrar/ocultar opções
   document.getElementById("toggleHistoricBtn").addEventListener("click", () => {
     document.getElementById("historicOptions").classList.toggle("show");
   });
@@ -192,8 +218,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+
 <style>
-/* Overlay salvar config */
 #save-loader-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.45);
@@ -202,39 +228,24 @@ document.addEventListener('DOMContentLoaded', function () {
   z-index: 2000;
   align-items: center; justify-content: center;
 }
-
 #save-loader-card {
   background: #0b1a43;
   padding: 18px 25px;
   color: #fff;
   border-radius: 12px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.3);
 }
-
-/* Overlay sync */
+/* overlay sync */
 #loader-overlay {
   position: fixed; inset: 0;
   background: rgba(8,12,27,0.55);
-  backdrop-filter: blur(2px);
   z-index: 1080;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
 }
-
-/* Loader card */
 #loader-card {
   background: #0b1a43; color: #fff;
   border-radius: 16px; padding: 18px 20px; min-width: 280px;
-  box-shadow: 0 12px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06) inset;
 }
-#loader-card .progress { height: 8px; border-radius: 10px; background: rgba(255,255,255,.15); }
-#loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
-@keyframes progressPulse { 0%{transform:scaleX(.15)}50%{transform:scaleX(1)}100%{transform:scaleX(.15)} }
-
-/* Slide do histórico */
-#historicOptions.collapse { display: none; transition: all 0.3s ease-in-out; }
-#historicOptions.show { display: block; animation: slideDown 0.4s ease forwards; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 {% endblock %}

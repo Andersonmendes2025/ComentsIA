@@ -79,6 +79,7 @@ from openai import OpenAI
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sqlalchemy import desc, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from admin import get_pricing_catalog
 
 # --- app modules ---
 from admin import (
@@ -367,6 +368,8 @@ limiter = Limiter(
 def agora_brt():
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
 
+from stripe_pay import stripe_bp
+app.register_blueprint(stripe_bp)
 
 def analisar_pontos_mais_mencionados(comentarios):
     if not comentarios:
@@ -684,71 +687,39 @@ def save_user_settings(user_id, settings_data):
     db.session.commit()
 
 
-
-@app.route("/planos", methods=["GET", "POST"])
+@app.route("/planos", methods=["GET"])
 def planos():
-    user_info = session.get("user_info", {})
-    user_id = user_info.get("id") if user_info else None
+    user_info = session.get("user_info")
+    
+    # Se NÃO estiver logado → visitante → user_id = None
+    user_id = user_info["id"] if user_info else None
 
-    # Catálogo centralizado de planos (inclui preços para o template)
-    catalog = (
-        get_pricing_catalog()
-    )  # ex.: {"free": {...}, "pro": {...}, "pro_anual": {...}, ...}
-
-    if request.method == "POST":
-        if not user_id:
-            flash("Você precisa estar logado para alterar o plano.", "warning")
-            return redirect(url_for("authorize"))
-
-        novo_plano = (request.form.get("plano") or "").strip()
-
-        # valida contra o catálogo vindo do admin.py
-        if not novo_plano or novo_plano not in catalog:
-            flash("Plano inválido.", "danger")
-            return redirect(url_for("planos"))
-
+    # Se usuário existe, pega settings
+    settings = None
+    if user_id:
         settings = UserSettings.query.filter_by(user_id=user_id).first()
-        if not settings:
-            flash("Configurações do usuário não encontradas.", "danger")
-            return redirect(url_for("planos"))
 
-        if settings.plano == novo_plano:
-            flash(f"Você já está no plano {get_plan_display_name(novo_plano)}.", "info")
-            return redirect(url_for("planos"))
+    # Se não tiver settings → define como free
+    user_plano = settings.plano if settings else "free"
 
-        # aplica o novo plano
-        settings.plano = novo_plano
+    # Pega preços direto do admin
+    pricing = get_pricing_catalog()  # já retorna price_cents e currency
 
-        # validade centralizada (0 = sem validade para 'free')
-        dias_validade = get_plan_duration_days(novo_plano)
-        settings.plano_ate = (
-            None if dias_validade == 0 else agora_brt() + timedelta(days=dias_validade)
-        )
+    # Junta limitações + preços
+    planos = {
+        "free": {**PLANOS["free"], **pricing["free"]},
+        "pro": {**PLANOS["pro"], **pricing["pro"]},
+        "pro_anual": {**PLANOS["pro_anual"], **pricing["pro_anual"]},
+        "business": {**PLANOS["business"], **pricing["business"]},
+        "business_anual": {**PLANOS["business_anual"], **pricing["business_anual"]},
+    }
 
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            flash("Erro ao salvar alterações. Tente novamente.", "danger")
-            return redirect(url_for("planos"))
-
-        flash(
-            f"Plano alterado para {get_plan_display_name(novo_plano)} com sucesso!",
-            "success",
-        )
-        return redirect(url_for("index"))
-
-    # GET
-    user_plano = get_user_plan(user_id) if user_id else "free"
-
-    # Passa o catálogo completo (com preços centralizados) para o template
-    # Cada item do catalog deve ter, por exemplo:
-    #   {"nome": "Pro", "period": "monthly", "price_cents": 9900, "features": {...}, ...}
     return render_template(
         "planos.html",
-        planos=catalog,
         user_plano=user_plano,
+        planos=planos
     )
+
 
 
 # main.py (Adicione esta função, por exemplo, após calcular_projecao)

@@ -48,6 +48,7 @@ from models import (
     UserPermissionOverride,
     UserRole,
     UserSettings,
+    HistoricalSyncPrice,
     db,
 )
 
@@ -463,10 +464,12 @@ def pricing():
         invalidate_price_cache()
         flash("Preços atualizados.", "success")
         return redirect(url_for("admin.pricing"))
+    # adicionando os preços históricos no HTML
     return render_template(
         "admin_pricing.html",
         prices=get_plan_prices(),
         planos=get_pricing_catalog(),
+        historical=get_historical_sync_prices(),   # ⭐ ADICIONADO
         fmt=format_brl_cents,
     )
 
@@ -742,6 +745,64 @@ def _render_template_html(html: str, vars_dict: Dict[str, str]) -> str:
     for k, v in (vars_dict or {}).items():
         out = out.replace(f"{{{{{k}}}}}", str(v))
     return out
+@lru_cache(maxsize=1)
+def get_historical_sync_prices():
+    defaults = {
+        "30": {"price_cents": 990, "currency": "BRL"},
+        "60": {"price_cents": 1490, "currency": "BRL"},
+        "90": {"price_cents": 1990, "currency": "BRL"},
+        "180": {"price_cents": 3490, "currency": "BRL"},
+    }
+
+    rows = HistoricalSyncPrice.query.all()
+    if not rows:
+        return defaults
+
+    out = {}
+    for r in rows:
+        out[r.period] = {
+            "price_cents": r.price_cents,
+            "currency": r.currency or "BRL"
+        }
+
+    # Garante defaults para períodos não criados no banco
+    for p, v in defaults.items():
+        out.setdefault(p, v)
+
+    return out
+def invalidate_historical_cache():
+    get_historical_sync_prices.cache_clear()
+
+@admin_bp.route("/pricing/historical", methods=["GET", "POST"])
+def admin_historical_pricing():
+    prices = get_historical_sync_prices()
+
+    if request.method == "POST":
+        for period in ["30", "60", "90", "180"]:
+            field_name = f"price_{period}"
+            value = request.form.get(field_name)
+            if not value:
+                continue
+
+            # converte "9.90" para cents
+            value_cents = int(float(value.replace(",", ".")) * 100)
+
+            row = HistoricalSyncPrice.query.filter_by(period=period).first()
+            if not row:
+                row = HistoricalSyncPrice(period=period)
+
+            row.price_cents = value_cents
+            db.session.add(row)
+
+        db.session.commit()
+        invalidate_historical_cache()
+        flash("Preços atualizados!", "success")
+
+        # 🔥 CORREÇÃO AQUI — volta para /admin/pricing
+        return redirect(url_for("admin.pricing"))
+
+    return render_template("admin_historical_pricing.html", prices=prices)
+
 
 
 @admin_bp.route("/broadcast", methods=["GET", "POST"])
@@ -1304,3 +1365,18 @@ def company_create():
     db.session.commit()
     flash("Empresa criada.", "success")
     return redirect(url_for("admin.tickets_board"))
+import os
+
+STRIPE_PRICE_IDS = {
+    # planos recorrentes
+    "pro_mensal": os.getenv("STRIPE_PRICE_PRO_MENSAL"),
+    "pro_anual": os.getenv("STRIPE_PRICE_PRO_ANUAL"),
+    "business_mensal": os.getenv("STRIPE_PRICE_BUSINESS_MENSAL"),
+    "business_anual": os.getenv("STRIPE_PRICE_BUSINESS_ANUAL"),
+
+    # add-ons de sincronização retroativa
+    "retro_30": os.getenv("STRIPE_PRICE_RETRO_30"),
+    "retro_60": os.getenv("STRIPE_PRICE_RETRO_60"),
+    "retro_90": os.getenv("STRIPE_PRICE_RETRO_90"),
+    "retro_180": os.getenv("STRIPE_PRICE_RETRO_180"),
+}
