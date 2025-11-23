@@ -574,16 +574,17 @@ def configurar_automacao_google():
         return redirect(url_for("authorize"))
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
-    # 🚫 **NOVO BLOQUEIO PARA PLANO FREE**
-    if settings.plano == "free":
-        flash("Seu plano atual é Gratuito e não inclui automação do Google. Atualize seu plano para acessar esta funcionalidade.", "danger")
-        return redirect(url_for("planos"))  # ajuste conforme sua rota real
-
     if not settings:
         settings = UserSettings(user_id=user_id)
         db.session.add(settings)
         db.session.commit()
 
+    # 🔥 BLOQUEIA APENAS O PLANO FREE
+    if settings.plano == "free":
+        flash("Seu plano atual não inclui automação do Google. Atualize seu plano para usar esta função.", "danger")
+        return redirect(url_for("planos"))
+
+    # --- CONTINUAÇÃO NORMAL DA ROTA ---
     if request.method == "POST":
         settings.gbp_auto_enabled = request.form.get("ativar") is not None
         settings.gbp_tone = request.form.get("tone")
@@ -596,7 +597,7 @@ def configurar_automacao_google():
     return render_template(
         "configurar_automacao_google.html",
         settings=settings,
-        historical=historical,   # ⭐ AGORA O HTML TEM A VARIÁVEL
+        historical=historical,
     )
 
 
@@ -1464,42 +1465,65 @@ def run_sync_historical(user_id: str, period: str) -> int:
 
     print(f"\n--- [GBP HISTÓRICO] ✅ Total de avaliações processadas: {total_processadas} ---\n")
     return total_processadas
+
+from stripe_pay import usar_credito_retro, usuario_tem_credito_retro
+
+
 @google_auto_bp.route("/sync_historical/<period>", methods=["POST"])
 def sync_historical(period):
     """
-    Executa sincronização retroativa de avaliações (30, 60, 90, 180 dias)
-    apenas para o usuário logado — SEM cobrança, apenas usando preços para exibir no HTML.
+    Executa sincronização retroativa usando CRÉDITOS PAGOS.
+    Só roda se o usuário tiver um crédito disponível.
     """
+
     # Autenticação
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
         return jsonify({"success": False, "message": "Usuário não autenticado."}), 401
 
-    # Validação
-    prices = get_historical_sync_prices()
+    # 🔒 BLOQUEIO DO PLANO FREE
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if settings and settings.plano == "free":
+        return jsonify({
+            "success": False,
+            "message": "Seu plano atual não permite sincronização retroativa. Atualize seu plano."
+        }), 402
 
-    # Validação
+    # Validação dos períodos válidos
+    prices = get_historical_sync_prices()
     if period not in prices:
         return jsonify({"success": False, "message": "Período inválido."}), 400
 
-    # Preço só para exibição no botão
+    # Verificar se TEM crédito antes de rodar
+    from stripe_pay import usar_credito_retro, usuario_tem_credito_retro
+    if not usuario_tem_credito_retro(user_id, period):
+        return jsonify({
+            "success": False,
+            "message": "Você não possui crédito para este período."
+        }), 402
+
     price_cents = prices[period]["price_cents"]
-
-
     logging.info(f"[HIST-SYNC] Rodando sync histórica de {period} dias para {user_id}")
 
     try:
+        # 1️⃣ Roda a sincronização
         total = run_sync_historical(user_id, period)
+
+        # 2️⃣ Consumir o crédito
+        usar_credito_retro(user_id, period)
+
         return jsonify({
             "success": True,
             "message": f"Sincronização de {period} dias concluída com sucesso!",
             "total_processadas": total,
             "price_cents": price_cents
         })
+
     except Exception as e:
         logging.exception(f"[HIST-SYNC] erro: {e}")
         return jsonify({"success": False, "message": "Erro interno."}), 500
+
 
 
 @google_auto_bp.route("/cron/run_gbp_48h/<token>", methods=["GET", "POST"])

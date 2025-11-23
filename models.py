@@ -67,6 +67,8 @@ class UserSettings(db.Model):
     stripe_customer_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_item_id = db.Column(db.String(255), nullable=True)
+    
+
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -254,6 +256,7 @@ class PaymentTransaction(db.Model):
     status = db.Column(db.String(16), default="paid")  # paid|failed|refunded
     paid_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
     external_id = db.Column(db.String(255), index=True)
+    consumido = db.Column(db.Boolean, default=False)
 
 
 class FinanceItem(db.Model):

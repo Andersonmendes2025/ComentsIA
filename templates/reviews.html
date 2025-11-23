@@ -5,47 +5,68 @@
 
     <h2 class="mb-4">Avaliações Recebidas</h2>
 
-    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
-        <div class="d-flex flex-wrap gap-2">
-            <a href="{{ url_for('auto_reply.auto_reply_setup') }}" class="btn btn-outline-primary">
-                <i class="bi bi-robot me-1"></i>
-                Ativar Respostas Automáticas
-            </a>
+    <div class="filtro-header" onclick="toggleFiltros()">
+            <span><i class="bi bi-sliders me-2"></i> Filtros</span>
+            <i id="icon-seta" class="bi bi-chevron-down"></i>
         </div>
-        <div class="d-flex flex-wrap align-items-end gap-3">
-            <div>
-                <label for="filtro-origem" class="form-label mb-1">Origem:</label>
-                <select id="filtro-origem" class="form-select form-select-sm">
-                    <option value="todas">Todas</option>
-                    <option value="google">Google</option>
-                    <option value="booking">Booking</option>
-                </select>
+
+        <div id="filtro-body" class="filtro-body">
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Período:</label>
+                    <select id="filtro-periodo" class="form-select form-select-sm">
+                        <option value="all">Todo o período</option>
+                        <option value="0">Hoje</option>
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="30">Últimos 30 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Origem:</label>
+                    <select id="filtro-origem" class="form-select form-select-sm">
+                        <option value="todas">Todas</option>
+                        <option value="google">Google</option>
+                        <option value="booking">Booking</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Status:</label>
+                    <select id="filtro-respondida" class="form-select form-select-sm">
+                        <option value="todas">Todas</option>
+                        <option value="sim">Respondidas</option>
+                        <option value="nao">Não Respondidas</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Nota:</label>
+                    <select id="filtro-nota" class="form-select form-select-sm">
+                        <option value="todas">Todas</option>
+                        <option value="5">5 estrelas</option>
+                        <option value="4">4 estrelas</option>
+                        <option value="3">3 estrelas</option>
+                        <option value="2">2 estrelas</option>
+                        <option value="1">1 estrela</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label mb-1">Buscar:</label>
+                    <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
+                </div>
             </div>
-            <div>
-                <label for="filtro-respondida" class="form-label mb-1">Responder:</label>
-                <select id="filtro-respondida" class="form-select form-select-sm">
-                    <option value="todas">Todas</option>
-                    <option value="sim">Respondidas</option>
-                    <option value="nao">Não Respondidas</option>
-                </select>
+
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-google btn-sm" onclick="aplicaFiltros()">Aplicar filtros</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">Limpar</button>
             </div>
-            <div>
-                <label for="filtro-nota" class="form-label mb-1">Nota:</label>
-                <select id="filtro-nota" class="form-select form-select-sm">
-                    <option value="todas">Todas</option>
-                    <option value="5">5 estrelas</option>
-                    <option value="4">4 estrelas</option>
-                    <option value="3">3 estrelas</option>
-                    <option value="2">2 estrelas</option>
-                    <option value="1">1 estrela</option>
-                </select>
-            </div>
-            <div>
-                <label for="filtro-texto" class="form-label mb-1">Buscar:</label>
-                <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
-            </div>
+
         </div>
-    </div>
+
 
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div class="d-flex align-items-center gap-2">
@@ -84,6 +105,7 @@
             data-texto="{{ (texto_limpo or '')|lower }}"
             data-nota="{{ nota5 if nota5 is not none else '' }}"
             data-origem="{{ origem }}"
+            data-date="{{ review.date.strftime('%Y-%m-%dT%H:%M:%S') if review.date }}"
             data-id-externo="{{ review.external_id or '' }}" 
             data-id-interno="{{ review.id }}">
             <div class="card-body">
@@ -453,6 +475,21 @@ function deleteReview(id) {
         });
     });
 }
+// FUNÇÃO GLOBAL — AGORA FUNCIONA
+function toggleFiltros() {
+    const box = document.getElementById('filtro-body');
+    const icon = document.getElementById('icon-seta');
+
+    if (box.style.display === "none" || box.style.display === "") {
+        box.style.display = "block";
+        icon.classList.remove("bi-chevron-down");
+        icon.classList.add("bi-chevron-up");
+    } else {
+        box.style.display = "none";
+        icon.classList.remove("bi-chevron-up");
+        icon.classList.add("bi-chevron-down");
+    }
+}
 
 // ===== Filtros + Paginação (Mantido e garantido no escopo global) =====
 document.addEventListener('DOMContentLoaded', function () {
@@ -475,6 +512,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const valorRespondida = filtroRespondida.value;
         const valorNota = filtroNota.value;
         const textoBusca = (filtroTexto.value || '').toLowerCase();
+        const filtroPeriodo = document.getElementById('filtro-periodo').value;
+        const agora = new Date();
 
         filtered = cards.filter(card => {
             const origem = (card.dataset.origem || '').toLowerCase();
@@ -493,11 +532,50 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const okTexto = nome.includes(textoBusca) || texto.includes(textoBusca);
-            return okOrigem && okResp && okNota && okTexto;
+            // ------- FILTRO DE PERÍODO -------
+            let okPeriodo = true;
+
+            if (filtroPeriodo !== 'all') {
+                const dias = parseInt(filtroPeriodo, 10);
+
+                // Data de hoje normalizada para 00:00:00
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+
+                // Limite calculado: hoje - N dias
+                const limite = new Date(hoje);
+                limite.setDate(limite.getDate() - dias);
+
+                const rawDate = card.dataset.date;
+
+                if (rawDate) {
+                    const dataCard = new Date(rawDate);
+
+                    // Normaliza também a data da avaliação
+                    const dataAvaliacao = new Date(dataCard);
+                    dataAvaliacao.setHours(0, 0, 0, 0);
+
+                    okPeriodo = dataAvaliacao >= limite && dataAvaliacao <= hoje;
+                }
+            }
+
+            return okOrigem && okResp && okNota && okTexto && okPeriodo;
+
         });
 
         currentPage = 1;
         renderPagina();
+    }
+    
+
+    function limparFiltros() {
+        document.getElementById('filtro-periodo').value = "all";
+        document.getElementById('filtro-origem').value = "todas";
+        document.getElementById('filtro-respondida').value = "todas";
+        document.getElementById('filtro-nota').value = "todas";
+        document.getElementById('filtro-texto').value = "";
+
+        aplicaFiltros();
     }
 
     function renderPagina() {
@@ -518,6 +596,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     [filtroOrigem, filtroRespondida, filtroNota].forEach(el => el.addEventListener('change', aplicaFiltros));
     filtroTexto.addEventListener('input', aplicaFiltros);
+    document.getElementById('filtro-periodo').addEventListener('change', aplicaFiltros);
     perPageSelect.addEventListener('change', renderPagina);
     btnPrev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPagina(); } });
     btnNext.addEventListener('click', () => { currentPage++; renderPagina(); });

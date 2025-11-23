@@ -2460,22 +2460,19 @@ def analyze_reviews():
 
     user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-    
-    # 1. Busca settings AQUI
-    settings = get_user_settings(user_id)
-    
-    # Validação do ID (Melhoria de segurança/lógica)
+
     if not user_id:
         return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
+    # Settings do usuário
+    settings = get_user_settings(user_id)
+
+    # Avaliações do usuário
     user_reviews = get_user_reviews(user_id)
     if not user_reviews:
-        return (
-            jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}),
-            400,
-        )
+        return jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}), 400
 
-    # Constrói resumo, mas limita tamanho para não estourar tokens
+    # Resumo limitado para não estourar tokens
     lines = [
         f"{(r.reviewer_name or 'Cliente').strip()[:80]} ({r.rating} estrelas): {(r.text or '').strip()}"
         for r in user_reviews
@@ -2484,67 +2481,69 @@ def analyze_reviews():
     if len(resumo) > 8000:
         resumo = resumo[:8000]
 
-    # 2. 💡 CORREÇÃO: Inicializa 'prompt' e adiciona o contexto ANTES
-    prompt = "" 
+    # ===========================
+    # NOVO PROMPT CURTO (4 PARÁGRAFOS)
+    # ===========================
+    prompt = ""
 
+    # Contexto personalizado (se existir)
     if settings.get("contexto_personalizado"):
         contexto = settings["contexto_personalizado"].strip()
-        # Adiciona a caixa de contexto na frente
-        prompt += f"INFORMAÇÃO CRÍTICA: Use o seguinte contexto da empresa para guiar sua análise:\nContexto da empresa: {contexto}\n\n" 
+        prompt += (
+            "INSTRUÇÃO PRIORITÁRIA: Use o contexto da empresa abaixo como referência principal.\n"
+            f"Contexto: {contexto}\n\n"
+        )
 
-    # 3. Adiciona as instruções principais (sem redefinir 'prompt = f"""')
     prompt += f"""
-Você é um analista de satisfação do cliente. Analise as avaliações abaixo e gere um resumo útil para gestores.
+Você é um analista profissional de satisfação do cliente.
 
-Tarefas:
-    Primeiro paragrafo liste os principais elogios em PONTOS POSITIVOS .
-    Segundo paragrafo recorrentes ou oportunidades de melhoria em PONTOS NEGATIVOS .
-    Escreva um parágrafo claro em ANALISE GERAL, com tom profissional, respeitoso e construtivo.
-    Escreva cada topico em uma linha.
-    Revise cuidadosamente a ortografia, acentuação e gramática do texto antes de finalizar.
-Use português formal e fluente, sem erros nem regionalismos.
+Gere APENAS quatro parágrafos curtos, separados por uma linha em branco, seguindo exatamente este formato:
 
-Evite qualquer caractere especial como travessões (—), aspas curvas (“ ”) ou reticências estilizadas (…).
-Use apenas caracteres simples (por exemplo, '-' em vez de '—').
+1) PONTOS POSITIVOS:
+Resuma em poucas frases os elogios predominantes e padrões positivos percebidos.
 
-Garanta que todo o texto siga normas ortográficas do português do Brasil (novo acordo ortográfico)
-e mantenha formatação limpa, sem símbolos estranhos ou emojis.
-Avaliações:
+2) PONTOS NEGATIVOS:
+Resuma em poucas frases as críticas recorrentes, dificuldades relatadas ou pontos que geram insatisfação.
+
+3) TEMAS MAIS CITADOS:
+Faça um parágrafo curto mencionando os 4 a 5 temas mais mencionados de forma geral.
+
+4) ANÁLISE GERAL:
+Produza um parágrafo final equilibrado, mencionando a percepção global dos clientes, pontos fortes e oportunidades de melhoria.
+
+Regras obrigatórias:
+- Não usar bullets, listas, números ou travessões.
+- Não usar emojis.
+- Não usar aspas curvas, travessões longos ou reticências estilizadas.
+- Texto limpo, direto, profissional, em português do Brasil.
+- Não repetir frases.
+- Não citar todos os comentários; apenas padrões gerais.
+- Cada parágrafo deve ser curto.
+
+Avaliações para análise:
 {resumo}
-
-Responda apenas os seguintes campos:
-    Nao cite todos os comentarios, apenas os mais importantes e com palavras diferentes ou mais profissionais do que foram usadas no comentario. 
-    Sem caracteres especiais, um texto de facil compreenção mas completo.
-    Escolhe os tres pontos principais e diga o primeiro segundo e terceiro em grau de importancia na interveçao
 """
-    # ... (restante do código que chama a API da OpenAI)
-    
+
+    # ===========================
+    # Chamada da IA
+    # ===========================
     try:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um analista de avaliações de clientes.",
-                },
+                {"role": "system", "content": "Você é um analista profissional de avaliações de clientes."},
                 {"role": "user", "content": prompt},
             ],
         )
-        # ... (tratamento da resposta)
+
         response_text = (completion.choices[0].message.content or "").strip()
 
-        # Tenta JSON; se falhar, retorna como texto
-        try:
-            analysis = json.loads(response_text)
-            return jsonify({"success": True, "analysis": analysis})
-        except json.JSONDecodeError:
-            return jsonify({"success": True, "raw_analysis": response_text})
+        # Retorna como texto simples (melhor para dashboard)
+        return jsonify({"success": True, "raw_analysis": response_text})
+
     except Exception as e:
         logging.exception("analyze_reviews: falha na IA")
-        return (
-            jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}),
-            500,
-        )
+        return jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}), 500
 
 
 

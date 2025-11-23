@@ -1,68 +1,159 @@
 {% extends "base.html" %}
-{% block title %}Automação Google - ComentsIA{% endblock %}
+{% block title %}Automação Google Business - ComentsIA{% endblock %}
 {% block content %}
 
-<div class="container mt-4">
-  <h2 class="mb-4"><i class="bi bi-gear-wide-connected me-2"></i>Automação Google</h2>
+<div class="container mt-4 mb-5">
+
+  <!-- CABEÇALHO PRINCIPAL -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="bi bi-magic me-2 text-primary"></i>
+        Central de Automação Google Business
+      </h2>
+      <p class="text-muted mb-0" style="max-width: 640px;">
+        Configure a inteligência da ComentsIA para monitorar e responder, de forma automática e elegante,
+        às avaliações recebidas no seu perfil do Google Business.
+      </p>
+    </div>
+
+    <div class="mt-3 mt-md-0 text-md-end">
+      <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
+        <i class="bi bi-lightning-charge-fill me-1"></i>
+        Automação avançada de reputação
+      </div>
+    </div>
+  </div>
 
   <!-- FORMULÁRIO DE CONFIGURAÇÃO -->
-  <form method="post" id="configForm">
+  <form method="post" id="configForm" class="mb-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token_field">
 
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm border-0 mb-3 automacao-card">
       <div class="card-body">
-        <h5 class="card-title">Status da Automação</h5>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" name="ativar" id="ativar" value="1"
-                 {% if settings.gbp_auto_enabled %}checked{% endif %}>
-          <label class="form-check-label" for="ativar">Automação ativada</label>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="card-title mb-1">
+              <i class="bi bi-sliders me-2 text-primary"></i>
+              Orquestração da Automação Diária
+            </h5>
+            <p class="text-muted mb-0" style="max-width: 520px;">
+              Ao ativar a automação, a ComentsIA assume o acompanhamento integral das suas avaliações e 
+              entrega respostas refinadas, com linguagem perfeitamente harmonizada ao posicionamento da sua marca.
+            </p>
+          </div>
         </div>
-        <small class="text-muted">Quando ativada, suas avaliações novas no Google serão monitoradas automaticamente.</small>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="ativar" id="ativar" value="1"
+                   {% if settings.gbp_auto_enabled %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="ativar">
+              Automação ativa para novas avaliações
+            </label>
+          </div>
+          <small class="text-muted">
+            O monitoramento ocorre em janelas regulares ao longo do dia, sem interferir no uso do sistema.
+          </small>
+        </div>
       </div>
     </div>
 
-    <div class="text-end mb-4">
-      <button type="submit" class="btn btn-primary" id="saveConfigBtn">
-        <i class="bi bi-save me-1"></i>Salvar configurações
+    <div class="text-end">
+      <button type="submit" class="btn btn-primary px-4" id="saveConfigBtn">
+        <i class="bi bi-save me-1"></i>
+        Guardar configurações
       </button>
     </div>
   </form>
 
-  <!-- CARD DE SINCRONIZAÇÃO -->
-  <div class="card shadow-sm">
+  <!-- CARD DE SINCRONIZAÇÃO HISTÓRICA -->
+  <div class="card shadow-sm border-0 automacao-card">
     <div class="card-body">
-      <h5 class="card-title mb-3">
-        <i class="bi bi-arrow-repeat me-2"></i>Sincronizar Avaliações Antigas
-      </h5>
+      <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+        <div>
+          <h5 class="card-title mb-1">
+            <i class="bi bi-arrow-counterclockwise me-2 text-primary"></i>
+            Sincronização Histórica de Avaliações
+          </h5>
+          <p class="text-muted mb-0" style="max-width: 560px;">
+            Reimporte avaliações antigas do Google Business com todo o cuidado, permitindo que a ComentsIA
+            responda, organize e traga inteligência também para o seu histórico.
+          </p>
+        </div>
 
-      <button id="toggleHistoricBtn" class="btn btn-outline-primary w-100">
-        <i class="bi bi-calendar-range me-1"></i> Mostrar opções de sincronização
+        {% if settings.plano == "free" %}
+        <div class="mt-3 mt-md-0">
+          <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 rounded-pill">
+            <i class="bi bi-lock-fill me-1"></i>
+            Exclusivo para planos pagos
+          </span>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if settings.plano == "free" %}
+      <div class="alert alert-warning border-0 shadow-sm mb-3" style="font-size: 0.92rem;">
+        <strong>Funcionalidade indisponível no Plano Gratuito.</strong><br>
+        A sincronização histórica de avaliações é um recurso premium, destinado a clientes dos planos
+        superiores, que desejam uma curadoria profunda do histórico de feedbacks com suporte
+        inteligente da ComentsIA.
+      </div>
+      {% endif %}
+
+      <button id="toggleHistoricBtn"
+              class="btn btn-outline-primary w-100"
+              {% if settings.plano == "free" %} disabled style="opacity:0.6; cursor:not-allowed;"{% endif %}>
+        <i class="bi bi-calendar-range me-1"></i>
+        Exibir opções de sincronização histórica
       </button>
 
       <div id="historicOptions" class="mt-3 collapse">
-        <div class="d-flex flex-wrap gap-2 justify-content-center">
+        <div class="d-flex flex-wrap gap-3 justify-content-center">
 
-          {% for dias in [30,60,90,180] %}
+          {% for dias in [30, 60, 90, 180] %}
             {% set p = historical[dias|string] %}
             {% set valor = "%.2f"|format(p.price_cents / 100) %}
 
-            <div class="d-flex flex-column align-items-center border rounded p-3 shadow-sm"
-                 style="min-width:140px; background:#f8faff;">
+            <div class="historico-card d-flex flex-column align-items-stretch border rounded-3 p-3 shadow-sm position-relative">
 
-              <strong>{{ dias }} dias</strong>
-              <span class="text-success fw-bold mb-2">R$ {{ valor }}</span>
+              <div class="w-100 mb-1 d-flex justify-content-between align-items-center">
+                <strong class="fs-6">{{ dias }} dias de histórico</strong>
+                <span class="badge bg-primary-subtle text-primary-emphasis">
+                  Curadoria retroativa
+                </span>
+              </div>
+
+              <p class="text-muted mb-2 small">
+                Importação das avaliações publicadas nos últimos {{ dias }} dias, com respostas
+                geradas e registradas diretamente na sua conta.
+              </p>
+
+              <div class="w-100 d-flex justify-content-between align-items-center mb-2">
+                <span class="text-success fw-bold fs-6">R$ {{ valor }}</span>
+              </div>
 
               <!-- BOTÃO DE PAGAMENTO -->
               <button class="btn btn-outline-primary w-100 mb-2 pay-btn"
                       data-stripe-key="retro_{{ dias }}"
-                      data-period="{{ dias }}">
-                <i class="bi bi-credit-card"></i> Pagar
+                      data-period="{{ dias }}"
+                      {% if settings.plano == "free" %}
+                        disabled style="opacity:0.5; cursor:not-allowed;"
+                        title="Disponível apenas em planos pagos"
+                      {% endif %}>
+                <i class="bi bi-credit-card me-1"></i>
+                Adquirir sincronização
               </button>
 
               <!-- BOTÃO DE SINCRONIZAR DEPOIS DO PAGAMENTO -->
               <button class="btn btn-success w-100 sync-after-btn d-none"
-                      data-period="{{ dias }}">
-                <i class="bi bi-cloud-upload"></i> Sincronizar agora
+                      data-period="{{ dias }}"
+                      {% if settings.plano == "free" %}
+                        disabled style="opacity:0.5; cursor:not-allowed;"
+                        title="Disponível apenas em planos pagos"
+                      {% endif %}>
+                <i class="bi bi-cloud-upload me-1"></i>
+                Iniciar sincronização agora
               </button>
 
             </div>
@@ -70,6 +161,14 @@
 
         </div>
       </div>
+
+      {% if settings.plano != "free" %}
+      <p class="text-muted small mt-3 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        Após a confirmação do pagamento, a opção de sincronização será liberada automaticamente
+        para o período correspondente.
+      </p>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -79,7 +178,8 @@
 <div id="save-loader-overlay" style="display:none;">
   <div id="save-loader-card" class="text-center">
     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-    <div><strong>Salvando configurações...</strong></div>
+    <div><strong>Guardando configurações...</strong></div>
+    <div class="small" style="opacity:.85;">Aguarde apenas um instante.</div>
   </div>
 </div>
 
@@ -88,12 +188,14 @@
   <div id="loader-card" class="text-center">
     <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
       <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-      <strong>Sincronizando avaliações...</strong>
+      <strong>Sincronizando avaliações históricas...</strong>
     </div>
-    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
+    <div class="small mb-2" style="opacity:.9">
+      Este processo pode levar alguns instantes, conforme o volume de avaliações. Por favor, permaneça nesta página.
+    </div>
 
-    <div class="progress">
-      <div class="progress-bar bg-light"></div>
+    <div class="progress" style="height: 5px; border-radius: 999px; background: rgba(255,255,255,0.25);">
+      <div class="progress-bar bg-light" style="width: 100%; animation: loadingStripe 1.4s infinite;"></div>
     </div>
   </div>
 </div>
@@ -121,31 +223,51 @@ function showToast(message, type) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  const csrfToken = document.getElementById("csrf_token_field").value;
+  const csrfTokenInput = document.getElementById("csrf_token_field");
+  const csrfToken = csrfTokenInput ? csrfTokenInput.value : "";
+
+  const isFree = {{ 'true' if settings.plano == 'free' else 'false' }};
+
+  // Bloqueios extras no front para plano Free
+  if (isFree) {
+    document.querySelectorAll(".pay-btn").forEach(btn => {
+      btn.style.pointerEvents = "none";
+    });
+    document.querySelectorAll(".sync-after-btn").forEach(btn => {
+      btn.style.pointerEvents = "none";
+    });
+    const toggleBtn = document.getElementById("toggleHistoricBtn");
+    if (toggleBtn) {
+      toggleBtn.style.pointerEvents = "none";
+    }
+  }
 
   // =============================
   // 🔥 PAGAMENTO STRIPE
   // =============================
-    async function checkoutStripe(productKey, period) {
-        const response = await fetch(`/stripe/checkout/${productKey}`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",  // 🔥 obrigatório
-            "X-CSRFToken": csrfToken 
-          }
-        });
+  async function checkoutStripe(productKey, period) {
+    try {
+      const response = await fetch(`/stripe/checkout/${productKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        }
+      });
 
-        const data = await response.json();
+      const data = await response.json();
+      console.log("DEBUG CHECKOUT STRIPE:", data);
 
-        console.log("DEBUG CHECKOUT STRIPE:", data);  // 🔥 mostra o erro real no console
-
-    if (data.success) {
-      // Salva no localStorage pra saber qual período ativar depois do pagamento
-      localStorage.setItem("retro_sync_period", period);
-      window.location.href = data.checkout_url;
-
-    } else {
-      showToast("Erro ao iniciar pagamento Stripe", "error");
+      if (data.success) {
+        // Guarda o período escolhido para liberação posterior
+        localStorage.setItem("retro_sync_period", period);
+        window.location.href = data.checkout_url;
+      } else {
+        showToast(data.message || "Não foi possível iniciar o pagamento Stripe.", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Ocorreu um erro ao iniciar o pagamento. Tente novamente em instantes.", "error");
     }
   }
 
@@ -165,12 +287,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const period = localStorage.getItem("retro_sync_period");
     if (!period) return;
 
-    const r = await fetch(`/stripe/check_paid/${period}`);
-    const data = await r.json();
+    try {
+      const r = await fetch(`/stripe/check_paid/${period}`);
+      const data = await r.json();
 
-    if (data.paid) {
-      const btn = document.querySelector(`.sync-after-btn[data-period="${period}"]`);
-      if (btn) btn.classList.remove("d-none");
+      if (data.paid) {
+        const btn = document.querySelector(`.sync-after-btn[data-period="${period}"]`);
+        if (btn) {
+          btn.classList.remove("d-none");
+          showToast(`Pagamento confirmado. A sincronização de ${period} dias está disponível para iniciar.`, "success");
+        }
+      }
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -183,20 +312,33 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.addEventListener("click", async () => {
       const period = btn.dataset.period;
 
-      document.getElementById("loader-overlay").style.display = "flex";
+      const overlay = document.getElementById("loader-overlay");
+      if (overlay) overlay.style.display = "flex";
 
-      const response = await fetch(`/auto/sync_historical/${period}`, {
-        method: "POST",
-        headers: { "X-CSRFToken": csrfToken }
-      });
+      try {
+        const response = await fetch(`/auto/sync_historical/${period}`, {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken }
+        });
 
-      const data = await response.json();
-      document.getElementById("loader-overlay").style.display = "none";
+        const data = await response.json();
 
-      if (data.success) {
-        showToast(`Sincronização de ${period} dias concluída!`, "success");
-      } else {
-        showToast(data.message || "Erro durante sincronização", "error");
+        if (overlay) overlay.style.display = "none";
+
+        if (data.success) {
+          showToast(`Sincronização de ${period} dias concluída com êxito.`, "success");
+
+          setTimeout(() => {
+            localStorage.removeItem("retro_sync_period");
+            location.reload();
+          }, 1200);
+        } else {
+          showToast(data.message || "Ocorreu um erro durante a sincronização histórica.", "error");
+        }
+      } catch (e) {
+        if (overlay) overlay.style.display = "none";
+        console.error(e);
+        showToast("Não foi possível concluir a sincronização. Tente novamente em alguns instantes.", "error");
       }
     });
   });
@@ -204,22 +346,50 @@ document.addEventListener('DOMContentLoaded', function () {
   // ANIMAÇÃO DO SALVAR CONFIG
   const saveBtn = document.getElementById("saveConfigBtn");
   const saveOverlay = document.getElementById("save-loader-overlay");
-  document.getElementById("configForm").addEventListener("submit", function () {
-    saveBtn.disabled = true;
-    saveOverlay.style.display = "flex";
-    saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Salvando...`;
-  });
+  const configForm = document.getElementById("configForm");
 
-  // Mostrar/ocultar opções
-  document.getElementById("toggleHistoricBtn").addEventListener("click", () => {
-    document.getElementById("historicOptions").classList.toggle("show");
-  });
+  if (configForm && saveBtn && saveOverlay) {
+    configForm.addEventListener("submit", function () {
+      saveBtn.disabled = true;
+      saveOverlay.style.display = "flex";
+      saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Guardando...`;
+    });
+  }
 
+  // Mostrar/ocultar opções históricas
+  const toggleHistoricBtn = document.getElementById("toggleHistoricBtn");
+  const historicOptions = document.getElementById("historicOptions");
+
+  if (toggleHistoricBtn && historicOptions) {
+    toggleHistoricBtn.addEventListener("click", () => {
+      historicOptions.classList.toggle("show");
+    });
+  }
 });
 </script>
 
 
 <style>
+.automacao-card {
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #f4f7ff);
+}
+
+.historico-card {
+  min-width: 220px;
+  max-width: 260px;
+  background: #f8faff;
+  border-color: rgba(57, 132, 255, 0.15) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.historico-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  border-color: rgba(57, 132, 255, 0.35) !important;
+}
+
+/* Overlay salvar config */
 #save-loader-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.45);
@@ -235,6 +405,7 @@ document.addEventListener('DOMContentLoaded', function () {
   border-radius: 12px;
   text-align: center;
 }
+
 /* overlay sync */
 #loader-overlay {
   position: fixed; inset: 0;
@@ -244,7 +415,14 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 #loader-card {
   background: #0b1a43; color: #fff;
-  border-radius: 16px; padding: 18px 20px; min-width: 280px;
+  border-radius: 16px; padding: 18px 22px; min-width: 280px; max-width: 380px;
+}
+
+/* animação da barra de progresso */
+@keyframes loadingStripe {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(-10%); }
+  100% { transform: translateX(0%); }
 }
 </style>
 

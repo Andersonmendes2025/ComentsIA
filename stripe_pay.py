@@ -64,6 +64,40 @@ def _duracao_dias_from_product_key(product_key: str) -> int:
         return 365
     return 30  # default mensal
 
+def usar_credito_retro(user_id, period):
+    retro_key = f"retro_{period}"
+
+    tx = (
+        PaymentTransaction.query
+        .filter_by(
+            user_id=user_id,
+            plan_key=retro_key,
+            status="paid",
+            consumido=False
+        )
+        .order_by(PaymentTransaction.paid_at.desc())
+        .first()
+    )
+
+    if tx:
+        tx.consumido = True
+        db.session.commit()
+        return True
+
+    return False
+
+def usuario_tem_credito_retro(user_id, period):
+    retro_key = f"retro_{period}"
+
+    return (
+        PaymentTransaction.query.filter_by(
+            user_id=user_id,
+            plan_key=retro_key,
+            status="paid",
+            consumido=False
+        ).first()
+        is not None
+    )
 
 # -----------------------
 # CHECKOUT (PLANOS + RETRO)
@@ -109,6 +143,7 @@ def create_checkout(product_key):
                 cancel_url=f"{domain}/stripe/cancel",
                 customer_email=email,
                 line_items=[{"price": price_id, "quantity": 1}],
+                allow_promotion_codes=True,
             )
 
             tx = PaymentTransaction(
@@ -322,13 +357,8 @@ def upgrade_plan(new_plan_key):
 # -----------------------
 # CHECK PAGO (RETRO_XX)
 # -----------------------
-
 @stripe_bp.route("/check_paid/<period>", methods=["GET"])
 def check_paid(period):
-    """
-    Valida se o usuário pagou a sincronização retroativa daquele período (retro_30, retro_60, ...).
-    Usado pela tela de configuração da automação.
-    """
     user_id = session.get("user_info", {}).get("id")
     if not user_id:
         return jsonify({"paid": False}), 401
@@ -337,12 +367,98 @@ def check_paid(period):
 
     tx = (
         PaymentTransaction.query
-        .filter_by(user_id=user_id, plan_key=retro_key, status="paid")
+        .filter_by(
+            user_id=user_id,
+            plan_key=retro_key,
+            status="paid",
+            consumido=False    # 🔥 obrigando crédito não usado
+        )
         .order_by(PaymentTransaction.paid_at.desc())
         .first()
     )
 
-    if tx:
-        return jsonify({"paid": True})
+    return jsonify({"paid": bool(tx)})
+# -----------------------
+# WEBHOOK — RENEGAÇÃO AUTOMÁTICA DO STRIPE
+# -----------------------
 
-    return jsonify({"paid": False})
+@stripe_bp.route("/webhook", methods=["POST"])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get("Stripe-Signature")
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")  # coloque isso no .env
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+    # -------------------------
+    # Pagamento de assinatura OK
+    # -------------------------
+    if event["type"] == "invoice.payment_succeeded":
+        invoice = event["data"]["object"]
+        subscription_id = invoice.get("subscription")
+
+        if subscription_id:
+            settings = UserSettings.query.filter_by(
+                stripe_subscription_id=subscription_id
+            ).first()
+
+            if settings:
+                sub = stripe.Subscription.retrieve(subscription_id)
+
+                # Atualizar plano até a nova data de renovação
+                period_end_ts = sub.current_period_end
+                settings.plano_ate = datetime.utcfromtimestamp(period_end_ts)
+
+                # Garantir que o plano interno está correto
+                item = sub["items"]["data"][0]
+                price_id = item["price"]["id"]
+
+                for key, pid in STRIPE_PRICE_IDS.items():
+                    if pid == price_id:
+                        settings.plano = _plano_from_product_key(key)
+
+                db.session.commit()
+
+    # -------------------------
+    # Pagamento FALHOU
+    # -------------------------
+    if event["type"] == "invoice.payment_failed":
+        invoice = event["data"]["object"]
+        subscription_id = invoice.get("subscription")
+
+        if subscription_id:
+            settings = UserSettings.query.filter_by(
+                stripe_subscription_id=subscription_id
+            ).first()
+
+            if settings:
+                # Quando falha, deixamos plano_ate como está.
+                # Ao expirar a data, o app bloqueia automaticamente.
+                pass
+
+    # -------------------------
+    # Assinatura cancelada pelo Stripe
+    # -------------------------
+    if event["type"] == "customer.subscription.deleted":
+        subscription = event["data"]["object"]
+        subscription_id = subscription["id"]
+
+        settings = UserSettings.query.filter_by(
+            stripe_subscription_id=subscription_id
+        ).first()
+
+        if settings:
+            # Bloquear imediatamente
+            settings.plano = "free"
+            settings.plano_ate = agora_brt()  # expira agora
+            settings.stripe_subscription_id = None
+            settings.stripe_subscription_item_id = None
+
+            db.session.commit()
+
+    return jsonify({"status": "ok"})

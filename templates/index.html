@@ -10,54 +10,101 @@
   <!-- ====== SEÇÃO NÃO LOGADO ====== -->
   <!-- === CSS Dark Futurista (neon) + Hero, Cards, Métricas, Carrossel e Planos === -->
   <style>
-    :root{
-      --bg:#0b1020;--panel:#0f1630;--ink:#eaf1ff;--muted:#9fb0d3;--brand:#2f7bff;--neon:#8a5bff;--hot:#ff4fb5;
+    :root {
+      --landing-bg: #f5f7fb;
+      --landing-ink: #0f172a;
+      --landing-muted: #6b7280;
+      --landing-accent: #2563eb;
+      --landing-accent-soft: #e0ecff;
+      --landing-border: #e5e7eb;
+      --landing-card: #ffffff;
+      --landing-radius-lg: 20px;
+      --landing-radius-md: 14px;
+      --landing-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
+      --landing-shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
     }
-    body{ background: radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
-                       radial-gradient(900px 600px at 120% -20%, rgba(138,91,255,.14), transparent 60%),
-                       linear-gradient(180deg, #0a0f1e 0%, #0b1020 60%); color:var(--ink); }
-    .text-muted{ color:var(--muted)!important; }
-    .hero{ position:relative; overflow:hidden; border-radius:24px; padding:56px 18px;
-      background: linear-gradient(180deg, rgba(47,123,255,.16), rgba(138,91,255,.06)) ,
-                  radial-gradient(1300px 700px at -20% -40%, rgba(255,79,181,.15), transparent 60%),
-                  linear-gradient(180deg, #0f1630, #0b1020 70%);
-      box-shadow: inset 0 0 0 1px rgba(143,164,255,.12), 0 40px 80px rgba(0,0,0,.35);
+
+    body {
+      background:
+        radial-gradient(900px 600px at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
+        radial-gradient(900px 600px at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
+        linear-gradient(180deg, #f9fafb 0%, #eef2ff 45%, #f5f7fb 100%);
+      color: var(--landing-ink) !important;
     }
-    .hero::before,.hero::after{ content:""; position:absolute; border-radius:50%; filter:blur(40px); opacity:.5; pointer-events:none; }
-    .hero::before{ width:420px;height:420px; left:-120px; top:-120px;
-      background: conic-gradient(from 120deg, var(--brand), var(--neon)); animation:float1 16s ease-in-out infinite; }
-    .hero::after{ width:300px;height:300px; right:-80px; bottom:-100px;
-      background: conic-gradient(from 200deg, var(--hot), var(--brand)); animation:float2 18s ease-in-out infinite; }
-    @keyframes float1{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(22px) rotate(18deg)}}
-    @keyframes float2{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-22px) rotate(-16deg)}}
-    .title-gradient{ background: linear-gradient(90deg, #fff, #cfe1ff 30%, #eabfff 60%, #fff);
-      -webkit-background-clip:text;background-clip:text; color:transparent; background-size: 200% auto; animation:shine 6s linear infinite; letter-spacing:-.01em; }
-    @keyframes shine{0%{background-position:0 0}100%{background-position:200% 0}}
-    .btn-neon{ background: linear-gradient(135deg, var(--brand), var(--neon)); border:none; color:#fff; border-radius:14px; padding:12px 18px; font-weight:800;
-      box-shadow:0 10px 30px rgba(47,123,255,.35), 0 0 0 1px rgba(143,164,255,.18) inset; transition: transform .2s, box-shadow .2s; will-change: transform; }
-    .btn-neon:hover{ transform: translateY(-2px) rotateX(6deg); box-shadow:0 18px 42px rgba(138,91,255,.42); }
-    .btn-ghost{ border:1.5px solid rgba(143,164,255,.35); color:#cfe1ff; border-radius:14px; padding:12px 18px; font-weight:800; }
-    .glass{ background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03)); backdrop-filter: blur(8px);
-      border:1px solid rgba(143,164,255,.16); border-radius:20px; padding:20px; box-shadow:0 12px 40px rgba(0,0,0,.35);
-      transition: transform .25s, box-shadow .25s, border-color .25s; }
-    .glass:hover{ transform: translateY(-6px) rotateX(4deg); border-color: rgba(143,164,255,.28); box-shadow:0 18px 60px rgba(0,0,0,.45); }
-    .icon-plate{ width:48px;height:48px; display:grid;place-items:center; border-radius:14px;
-      background: radial-gradient(80% 80% at 30% 20%, rgba(47,123,255,.45), rgba(138,91,255,.25)); color:#fff; box-shadow: inset 0 0 0 1px rgba(143,164,255,.18); }
-    .stat{ display:flex; align-items:center; gap:12px; padding:18px; border-radius:16px;
-      background: linear-gradient(180deg, rgba(47,123,255,.20), rgba(20,28,60,.35));
-      border:1px solid rgba(143,164,255,.18); color:#eaf1ff;
-      box-shadow: inset 0 0 0 1px rgba(20,28,60,.6), 0 10px 28px rgba(0,0,0,.35);
+
+    .hero {
+      position: relative;
+      border-radius: var(--landing-radius-lg);
+      padding: 40px 20px 36px;
+      background:
+        radial-gradient(120% 160% at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
+        radial-gradient(140% 180% at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
+        linear-gradient(135deg, #ffffff, #eef2ff);
+      box-shadow: var(--landing-shadow-soft);
+      overflow: hidden;
     }
-    .stat .value{ font-size:1.7rem; font-weight:900; letter-spacing:.5px; }
-    .stat small{ color:var(--muted); }
-    .plans-band{ background: radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.15), transparent 60%),
-                             radial-gradient(1100px 600px at 120% -10%, rgba(255,79,181,.10), transparent 60%),
-                             linear-gradient(180deg,#0b1020,#0a0f1e 70%); border-top:1px solid rgba(143,164,255,.16); }
-    #printsCarousel{ max-width:65%; margin:0 auto; }
-    #printsCarousel img{ width:100%; height:auto; object-fit:contain; }
-    #printsCarousel .carousel-caption{ background: rgba(11,16,32,.72); backdrop-filter: blur(6px); bottom:10px; padding:.5rem .75rem; }
-    @media (max-width:768px){ #printsCarousel{ max-width:100%; } }
-    .band{ height:2px; background: linear-gradient(90deg, transparent, rgba(47,123,255,.5), rgba(255,79,181,.4), rgba(138,91,255,.5), transparent); border-radius:999px; }
+
+    .title-gradient {
+      background: linear-gradient(90deg, #2563eb, #1d4ed8, #7c3aed);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .btn-neon {
+      border-radius: 999px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff !important;
+      font-weight: 700;
+      border: none;
+      box-shadow: 0 12px 30px rgba(37,99,235,0.25);
+    }
+    .btn-neon:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      border-radius: 999px;
+      padding: 10px 18px;
+      background: #ffffff;
+      border: 1px solid rgba(148,163,184,0.4);
+      font-weight: 600;
+      color: #0f172a !important;
+    }
+
+    .glass {
+      background: #ffffff;
+      border: 1px solid rgba(226,232,240,0.9);
+      border-radius: var(--landing-radius-md);
+      padding: 18px;
+      box-shadow: var(--landing-shadow-card);
+    }
+
+    .stat {
+      background: #ffffff;
+      color: var(--landing-ink);
+      border-radius: var(--landing-radius-md);
+      border: 1px solid rgba(226,232,240,0.9);
+      padding: 16px;
+      box-shadow: var(--landing-shadow-card);
+    }
+
+    .qs-panel {
+      background: #ffffff;
+      border-radius: var(--landing-radius-lg);
+      padding: 28px 24px;
+      border: 1px solid rgba(226,232,240,0.9);
+      box-shadow: var(--landing-shadow-card);
+    }
+
+    .qs-text,
+    .qs-list,
+    .text-muted {
+      color: var(--landing-muted) !important;
+    }
+  </style>
+  <style>
 
     /* ===== Estilo da seção "Quem Somos" no INDEX (dark + glass) ===== */
     .qs-panel{
@@ -79,7 +126,7 @@
       font-weight: 900;
       letter-spacing: -.02em;
       margin-bottom: 10px;
-      background: linear-gradient(90deg,#fff,#cfe1ff 30%,#eabfff 60%,#fff);
+      background: linear-gradient(90deg,#fff,#a4adf5 30%,#a4adf5 60%,#fff);
       -webkit-background-clip:text;background-clip:text;color:transparent;
     }
     .qs-text{
@@ -114,7 +161,7 @@
         <a href="{{ url_for('authorize') }}" class="btn btn-neon"><i class="bi bi-google me-2"></i> Entrar ou Cadastrar com Google</a>
         <a href="{{ url_for('planos') }}" class="btn btn-ghost"><i class="bi bi-box-seam me-2"></i> Ver Planos</a>
       </div>
-      <div class="mt-3"><span class="badge bg-transparent border text-uppercase" style="border-color:rgba(143,164,255,.25); color:#cfe1ff">Site seguro — HTTPS</span></div>
+      <div class="mt-3"><span class="badge bg-transparent border text-uppercase" style="border-color:rgba(143, 164, 255, 0.549); color:#4c00ff">Site seguro — HTTPS</span></div>
     </div>
   </section>
 
