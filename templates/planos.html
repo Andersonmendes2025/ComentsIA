@@ -448,14 +448,19 @@ document.addEventListener('DOMContentLoaded', function () {
         : `/stripe/checkout/${product}`;
 
       try {
+        const nextUrl = window.location.pathname;
+
         const resp = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-CSRFToken": csrfToken
           },
-          body: "{}"
+          body: JSON.stringify({
+            next_url: nextUrl
+          })
         });
+
 
         const data = await resp.json();
         if (!resp.ok || !data.success) {

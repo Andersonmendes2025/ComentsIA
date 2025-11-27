@@ -114,6 +114,9 @@ def create_checkout(product_key):
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     email = user_info.get("email")
+    data = request.get_json(silent=True) or {}
+    next_url = data.get("next_url", "/dashboard")
+
 
     if not user_id or not email:
         return jsonify({"success": False, "message": "Faça login novamente."}), 401
@@ -134,17 +137,18 @@ def create_checkout(product_key):
         # --------- SINCRONIZAÇÃO RETROATIVA (ONE SHOT PAYMENT) ----------
         if product_key.startswith("retro_"):
             checkout = stripe.checkout.Session.create(
-                mode="payment",
-                success_url=(
-                    f"{domain}/stripe/success?"
-                    "session_id={CHECKOUT_SESSION_ID}"
-                    "&next=/auto/configurar"
-                ),
-                cancel_url=f"{domain}/stripe/cancel",
-                customer_email=email,
-                line_items=[{"price": price_id, "quantity": 1}],
-                allow_promotion_codes=True,
-            )
+            mode="payment",
+            success_url=(
+                f"{domain}/stripe/success?"
+                "session_id={CHECKOUT_SESSION_ID}"
+                f"&next={next_url}"
+            ),
+            cancel_url=f"{domain}/stripe/cancel?next={next_url}",
+            customer_email=email,
+            line_items=[{"price": price_id, "quantity": 1}],
+            allow_promotion_codes=True,
+        )
+
 
             tx = PaymentTransaction(
                 user_id=user_id,
@@ -167,13 +171,14 @@ def create_checkout(product_key):
             success_url=(
                 f"{domain}/stripe/success?"
                 "session_id={CHECKOUT_SESSION_ID}"
-                "&next=/planos"
+                f"&next={next_url}"
             ),
-            cancel_url=f"{domain}/stripe/cancel",
+            cancel_url=f"{domain}/stripe/cancel?next={next_url}",
             customer=customer_id,
             line_items=[{"price": price_id, "quantity": 1}],
-            allow_promotion_codes=True,  # cupom
+            allow_promotion_codes=True,
         )
+
 
         tx = PaymentTransaction(
             user_id=user_id,
@@ -271,7 +276,7 @@ def cancel():
     Usuário cancelou o checkout no Stripe.
     Só devolve pra /planos ou página desejada.
     """
-    next_url = request.args.get("next") or "/planos"
+    next_url = request.args.get("next") or "/dashboard"
     return redirect(next_url)
 
 

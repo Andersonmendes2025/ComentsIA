@@ -247,13 +247,19 @@ document.addEventListener('DOMContentLoaded', function () {
   // =============================
   async function checkoutStripe(productKey, period) {
     try {
+      const nextUrl = window.location.pathname;
+
       const response = await fetch(`/stripe/checkout/${productKey}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-CSRFToken": csrfToken
-        }
+        },
+        body: JSON.stringify({
+          next_url: nextUrl
+        })
       });
+
 
       const data = await response.json();
       console.log("DEBUG CHECKOUT STRIPE:", data);
