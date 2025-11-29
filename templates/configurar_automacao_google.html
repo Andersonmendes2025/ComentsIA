@@ -3,6 +3,86 @@
 {% block content %}
 
 <div class="container mt-4 mb-5">
+   <!-- ======================================= -->
+  <!-- 📘 TUTORIAL: COMO ATIVAR A AUTOMAÇÃO    -->
+  <!-- ======================================= -->
+
+  <div class="card shadow-sm border-0 automacao-card mt-4">
+    <div class="card-body">
+
+      <h5 class="card-title mb-1">
+        <i class="bi bi-info-circle text-primary me-2"></i>
+        Como ativar a automação na sua ficha do Google
+      </h5>
+
+      <p class="text-muted" style="max-width: 620px;">
+        Para que a ComentsIA consiga sincronizar e responder automaticamente suas avaliações,
+        você precisa mover sua ficha para um <strong>grupo de locais</strong> no Google Business.
+        O processo é simples — siga os passos abaixo:
+      </p>
+
+      <!-- Botão de abrir tutorial -->
+      <button class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2"
+              data-bs-toggle="collapse" 
+              data-bs-target="#tutorialGBP"
+              aria-expanded="false">
+        <i class="bi bi-chevron-down"></i> Mostrar passo a passo
+      </button>
+
+      <!-- Conteúdo retrátil -->
+      <div id="tutorialGBP" class="collapse mt-3">
+
+        <div class="tutorial-step mb-4">
+          <h6 class="fw-bold mb-2">
+            1️⃣ Abra o gerenciador oficial do Google Business
+          </h6>
+          <p class="text-muted">
+            Acesse o painel de locais do Google pelo link abaixo:
+          </p>
+          <a href="https://business.google.com/locations" target="_blank" class="btn btn-sm btn-primary">
+            Abrir painel do Google &nbsp; <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+
+          <p class="mt-2 text-muted small">
+            ⚠️ Certifique-se de estar logado com o <strong>mesmo Gmail que criou sua conta na ComentsIA</strong>, 
+            e esse Gmail deve ser o <strong>proprietário</strong> da ficha.
+          </p>
+
+          <img src="{{ url_for('static', filename='step1.png') }}" class="img-fluid rounded shadow-sm mt-3">
+        </div>
+
+        <div class="tutorial-step mb-4">
+          <h6 class="fw-bold mb-2">
+            2️⃣ Clique em <strong>Criar Grupo</strong> na parte superior
+          </h6>
+          <p class="text-muted">
+            Você pode dar o nome que preferir (ex: “ComentsIA”, “Minha Empresa”, “Avaliações”).
+          </p>
+
+          <img src="{{ url_for('static', filename='step2.png') }}" class="img-fluid rounded shadow-sm mt-3">
+        </div>
+
+        <div class="tutorial-step mb-4">
+          <h6 class="fw-bold mb-2">
+            3️⃣ Mova sua ficha para o grupo criado
+          </h6>
+          <p class="text-muted">
+            Na lista de empresas, marque a caixinha da ficha → clique em 
+            <strong>Ações</strong> → <strong>Transferir empresa</strong> → selecione o grupo.
+          </p>
+
+          <img src="{{ url_for('static', filename='step3.png') }}" class="img-fluid rounded shadow-sm mt-3">
+        </div>
+
+        <div class="alert alert-success mt-3">
+          <i class="bi bi-check-circle-fill me-1"></i>
+          Pronto! Sua ficha está conectada corretamente. A automação agora consegue monitorar e responder
+          suas avaliações diariamente.
+        </div>
+
+      </div>
+    </div>
+  </div>
 
   <!-- CABEÇALHO PRINCIPAL -->
   <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
@@ -247,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // =============================
   async function checkoutStripe(productKey, period) {
     try {
-      const nextUrl = window.location.pathname;
+      const nextUrl = window.location.href;
 
       const response = await fetch(`/stripe/checkout/${productKey}`, {
         method: "POST",
@@ -376,6 +456,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 <style>
+.tutorial-step img {
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
 .automacao-card {
   border-radius: 18px;
   background: linear-gradient(145deg, #ffffff, #f4f7ff);

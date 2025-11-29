@@ -64,7 +64,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRFToken": "{{ csrf_token() }}"
-                }
+                },
+                body: JSON.stringify({
+                    next_url: window.location.origin + "/planos"
+                })
             });
 
             const data = await r.json();

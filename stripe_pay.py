@@ -16,12 +16,19 @@ stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
 # -----------------------
 
 def _get_domain_url() -> str:
-    """Retorna DOMAIN_URL sem barra no final."""
-    base = os.getenv("DOMAIN_URL", "").rstrip("/")
-    if not base:
-        # fallback pra dev local
-        base = "http://localhost:5000"
-    return base
+    """
+    Retorna a URL correta dependendo do ambiente:
+    - Em produção: usa DOMAIN_URL configurado no Render.
+    - Em desenvolvimento: usa localhost automaticamente.
+    """
+    domain = os.getenv("DOMAIN_URL")
+
+    # Se está em produção e tem DOMAIN_URL, usa ele
+    if domain and domain.strip():
+        return domain.rstrip("/")
+
+    # Caso contrário, estamos em ambiente local
+    return "http://localhost:5000"
 
 
 def _get_or_create_stripe_customer(settings: UserSettings, email: str) -> str:

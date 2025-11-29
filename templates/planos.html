@@ -3,167 +3,128 @@
 
 {% block extra_head %}
 <style>
-  .plans-grid .col {
-    display: flex;
-    align-items: stretch;
+  /* === VARIÁVEIS DE TEMA (VERSÃO CLARA DO INDEX) === */
+  :root {
+    --landing-bg: #f5f7fb;
+    --landing-ink: #0f172a;
+    --landing-muted: #6b7280;
+    --landing-accent: #2563eb;
+    --landing-accent-soft: #e0ecff;
+    --landing-border: #e5e7eb;
+    --landing-card: #ffffff;
+    --landing-radius-lg: 20px;
+    --landing-radius-md: 14px;
+    --landing-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
+    --landing-shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
   }
-  .plans-grid .glass {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  :root{
-    --bg:#0b1020;
-    --panel:#0f1630;
-    --ink:#eaf1ff;
-    --muted:#9cbce5;
-    --brand:#2f7bff;
-    --neon:#8a5bff;
-    --hot:#ff4fb5;
-    --ok:#22c55e;
-    --warn:#f59e0b;
-  }
-  body.plans-dark {
+
+  /* === FUNDO CLARO IGUAL AO INDEX === */
+  body {
     background:
-      radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
-      radial-gradient(900px 600px at 120% -20%, rgba(138,91,255,.14), transparent 60%),
-      linear-gradient(180deg, #0a0f1e 0%, #0b1020 60%);
-    color: var(--ink);
+      radial-gradient(900px 600px at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
+      radial-gradient(900px 600px at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
+      linear-gradient(180deg, #f9fafb 0%, #eef2ff 45%, #f5f7fb 100%);
+    color: var(--landing-ink) !important;
   }
-  .plans-band{
-    background:
-      radial-gradient(1200px 700px at 8% -15%, rgba(47,123,255,.18), transparent 60%),
-      radial-gradient(1100px 650px at 110% -10%, rgba(255,79,181,.14), transparent 60%),
-      linear-gradient(180deg,#0b1020,#0a0f1e 70%);
-    border:1px solid rgba(143,164,255,.16);
-    border-radius:24px;
-    box-shadow:0 30px 80px rgba(0,0,0,.35), inset 0 0 0 1px rgba(143,164,255,.06);
-    padding: 36px 18px;
+
+  /* === CARDS DE PLANOS (IGUAL OS CARDS GLASS DO INDEX) === */
+  .glass {
+    background: var(--landing-card);
+    border: 1px solid rgba(226,232,240,0.9);
+    border-radius: var(--landing-radius-md);
+    padding: 22px;
+    box-shadow: var(--landing-shadow-card);
+    transition: transform .25s ease, box-shadow .25s ease;
   }
-  .plans-title{
-    background: linear-gradient(90deg, #fff, #cfe1ff 30%, #eabfff 60%, #fff);
-    -webkit-background-clip:text;
-    background-clip:text;
-    color:transparent;
-    background-size:200% auto;
-    animation:shine 6s linear infinite;
-    letter-spacing:-.01em;
-  }
-  @keyframes shine{0%{background-position:0 0}100%{background-position:200% 0}}
-  .glass{
-    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-    backdrop-filter: blur(8px);
-    border:1px solid rgba(143,164,255,.16);
-    border-radius:20px;
-    padding:22px;
-    box-shadow:0 12px 40px rgba(0,0,0,.35);
-    transition: transform .25s, box-shadow .25s, border-color .25s;
-    height:100%;
-    position:relative;
-  }
-  .glass:hover{
+
+  .glass:hover {
     transform: translateY(-6px);
-    border-color: rgba(143,164,255,.28);
-    box-shadow:0 18px 60px rgba(0,0,0,.45);
+    box-shadow: 0 20px 40px rgba(0,0,0,.08);
   }
-  .plan-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:8px;
+
+  /* === CABEÇALHO DOS PLANOS === */
+  .plans-title {
+    background: linear-gradient(90deg, #2563eb, #1d4ed8, #7c3aed);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: 800;
   }
-  .plan-name{
-    font-size:1.25rem;
-    font-weight:800;
-    color:#fff;
+
+  .badge-tier {
+    background: var(--landing-accent-soft);
+    color: var(--landing-accent);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: .8rem;
+    font-weight: 600;
   }
-  .badge-top{
-    background: linear-gradient(135deg, var(--hot), var(--neon));
-    color:#fff;
-    border:none;
-    font-weight:700;
-    padding:.35rem .7rem;
-    border-radius:999px;
-    font-size:.78rem;
+
+  .badge-top {
+    background: linear-gradient(135deg, #ff4fb5, #8a5bff);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-weight: 700;
+    font-size: .75rem;
   }
-  .badge-tier{
-    background: transparent;
-    color:#cfe1ff;
-    border:1px solid rgba(143,164,255,.25);
-    padding:.28rem .55rem;
-    border-radius:999px;
-    font-size:.72rem;
+
+  /* === TEXTOS & PREÇOS === */
+  .plan-name {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--landing-ink);
   }
-  .price{
-    font-size:1.6rem;
-    font-weight:900;
-    color:#fff;
-    margin-top:.2rem;
+
+  .price {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--landing-ink);
   }
-  .price small{
-    font-size:.9rem;
-    color:var(--muted);
+
+  .price small {
+    font-size: .9rem;
+    color: var(--landing-muted);
   }
-  .price-note{
-    font-size:.8rem;
-    color:var(--muted);
-    margin-top:4px;
+
+  .features li {
+    color: var(--landing-muted);
+    margin: 8px 0;
+    display: flex;
+    gap: .5rem;
   }
-  .features{
-    list-style:none;
-    padding-left:0;
-    margin:14px 0 0;
-    color:var(--muted);
+  .features i {
+    color: #2563eb;
   }
-  .features li{
-    margin:.45rem 0;
-    display:flex;
-    gap:.5rem;
-    align-items:flex-start;
+
+  /* === BOTÕES === */
+  .btn-neon {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff !important;
+    border: none;
+    border-radius: 12px;
+    padding: .9rem 1rem;
+    font-weight: 700;
+    box-shadow: 0 10px 30px rgba(37,99,235,.25);
   }
-  .features i{
-    color:#79b7ff;
-    margin-top:2px;
+
+  .btn-ghost {
+    border: 1px solid var(--landing-border);
+    color: var(--landing-ink);
+    background: #ffffff;
+    border-radius: 12px;
+    padding: .9rem 1rem;
+    font-weight: 600;
   }
-  .btn-neon{
-    background: linear-gradient(135deg, var(--brand), var(--neon));
-    border:none;
-    color:#fff;
-    border-radius:14px;
-    padding:.9rem 1rem;
-    font-weight:800;
-    width:100%;
-    box-shadow:0 10px 30px rgba(47,123,255,.35);
+
+  .btn-selected {
+    background: #e2e8f0;
+    cursor: default;
   }
-  .btn-ghost{
-    border:1.5px solid rgba(143,164,255,.35);
-    color:#cfe1ff;
-    border-radius:14px;
-    padding:.9rem 1rem;
-    font-weight:800;
-    width:100%;
-    background:transparent;
-  }
-  .btn-selected{
-    background:rgba(47,123,255,.15);
-    color:#cfe1ff;
-    border:1px solid rgba(47,123,255,.45);
-    cursor:default;
-  }
-  .plan-selected{
-    outline:2px solid #2f7bff;
-    box-shadow:0 0 0 4px rgba(47,123,255,.16);
-  }
-  .pill-label{
-    font-size:.75rem;
-    border-radius:999px;
-    border:1px solid rgba(255,255,255,.18);
-    padding:2px 8px;
-    display:inline-flex;
-    align-items:center;
-    gap:4px;
-    color:var(--muted);
-    margin-top:4px;
+
+  /* Container geral */
+  .plans-container {
+    max-width: 1100px;
   }
 </style>
 {% endblock %}
@@ -448,7 +409,8 @@ document.addEventListener('DOMContentLoaded', function () {
         : `/stripe/checkout/${product}`;
 
       try {
-        const nextUrl = window.location.pathname;
+        const nextUrl = window.location.href;
+
 
         const resp = await fetch(url, {
           method: "POST",
