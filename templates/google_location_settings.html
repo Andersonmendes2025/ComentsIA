@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar Unidade{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+  <div class="d-flex align-items-center mb-4 pb-2 border-bottom">
+    <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-light border me-3 rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+      <h4 class="fw-bold mb-0 text-dark">{{ ficha.location_name }}</h4>
+      <span class="badge bg-light text-muted border fw-normal mt-1">ID: {{ ficha.location_id }}</span>
+    </div>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row g-4">
+      
+      <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-white py-3">
+            <h6 class="fw-bold text-primary mb-0"><i class="bi bi-cpu me-2"></i>Cérebro da Unidade</h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Contexto Específico</label>
+              <textarea name="contexto_personalizado" class="form-control bg-light border-0" rows="12" 
+                        style="resize: none;"
+                        placeholder="Escreva aqui tudo que a IA precisa saber EXCLUSIVAMENTE sobre esta unidade.&#10;&#10;Exemplo:&#10;- Esta unidade fica no 2º piso.&#10;- Estacionamento gratuito por 2h.&#10;- Não aceitamos reservas no almoço.&#10;- Temos música ao vivo às sextas.">{{ ficha.contexto_personalizado or '' }}</textarea>
+              <div class="form-text mt-2">
+                <i class="bi bi-info-circle-fill me-1"></i> Essas informações têm prioridade sobre o contexto global da sua conta.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white py-3">
+            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-shop me-2"></i>Identidade Local</h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted text-uppercase fw-bold">Nome Fantasia (Assinatura)</label>
+              <input type="text" name="business_name" class="form-control" 
+                     value="{{ ficha.business_name or '' }}" 
+                     placeholder="Global: {{ global_settings.get('business_name', '') }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted text-uppercase fw-bold">Gerente Responsável</label>
+              <input type="text" name="manager_name" class="form-control" 
+                     value="{{ ficha.manager_name or '' }}" 
+                     placeholder="Global: {{ global_settings.get('manager_name', '') }}">
+            </div>
+            <div>
+              <label class="form-label small text-muted text-uppercase fw-bold">Contato / WhatsApp</label>
+              <input type="text" name="contact_info" class="form-control" 
+                     value="{{ ficha.contact_info or '' }}" 
+                     placeholder="Global: {{ global_settings.get('contact_info', '') }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-white py-3">
+            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-chat-quote me-2"></i>Estilo de Resposta</h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted text-uppercase fw-bold">Saudação Inicial</label>
+              <input type="text" name="default_greeting" class="form-control" 
+                     value="{{ ficha.default_greeting or '' }}" 
+                     placeholder="Ex: Olá, (Nome)">
+            </div>
+            <div>
+              <label class="form-label small text-muted text-uppercase fw-bold">Encerramento</label>
+              <input type="text" name="default_closing" class="form-control" 
+                     value="{{ ficha.default_closing or '' }}" 
+                     placeholder="Ex: Atenciosamente, Equipe X">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="fixed-bottom bg-white border-top py-3 shadow-lg" style="z-index: 1000;">
+      <div class="container d-flex justify-content-between align-items-center">
+        <span class="text-muted small"><i class="bi bi-check2-all me-1"></i> Dados salvos apenas para esta unidade.</span>
+        <button type="submit" class="btn btn-primary px-5 fw-bold rounded-pill">
+          Salvar Alterações
+        </button>
+      </div>
+    </div>
+
+  </form>
+  
+  <div style="height: 100px;"></div>
+
+</div>
+{% endblock %}

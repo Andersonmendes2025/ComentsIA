@@ -3,25 +3,18 @@
 {% block content %}
 
 <div class="container mt-4 mb-5">
-   <!-- ======================================= -->
-  <!-- 📘 TUTORIAL: COMO ATIVAR A AUTOMAÇÃO    -->
-  <!-- ======================================= -->
-
-  <div class="card shadow-sm border-0 automacao-card mt-4">
+  
+  <div class="card shadow-sm border-0 automacao-card mt-4 mb-4">
     <div class="card-body">
-
       <h5 class="card-title mb-1">
         <i class="bi bi-info-circle text-primary me-2"></i>
         Como ativar a automação na sua ficha do Google
       </h5>
-
       <p class="text-muted" style="max-width: 620px;">
         Para que a ComentsIA consiga sincronizar e responder automaticamente suas avaliações,
         você precisa mover sua ficha para um <strong>grupo de locais</strong> no Google Business.
-        O processo é simples — siga os passos abaixo:
       </p>
 
-      <!-- Botão de abrir tutorial -->
       <button class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2"
               data-bs-toggle="collapse" 
               data-bs-target="#tutorialGBP"
@@ -29,83 +22,103 @@
         <i class="bi bi-chevron-down"></i> Mostrar passo a passo
       </button>
 
-      <!-- Conteúdo retrátil -->
       <div id="tutorialGBP" class="collapse mt-3">
-
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">
-            1️⃣ Abra o gerenciador oficial do Google Business
-          </h6>
-          <p class="text-muted">
-            Acesse o painel de locais do Google pelo link abaixo:
-          </p>
+          <h6 class="fw-bold mb-2">1️⃣ Abra o gerenciador oficial do Google Business</h6>
+          <p class="text-muted">Acesse o painel de locais do Google pelo link abaixo:</p>
           <a href="https://business.google.com/locations" target="_blank" class="btn btn-sm btn-primary">
             Abrir painel do Google &nbsp; <i class="bi bi-box-arrow-up-right"></i>
           </a>
-
           <p class="mt-2 text-muted small">
-            ⚠️ Certifique-se de estar logado com o <strong>mesmo Gmail que criou sua conta na ComentsIA</strong>, 
-            e esse Gmail deve ser o <strong>proprietário</strong> da ficha.
+            ⚠️ Certifique-se de estar logado com o <strong>mesmo Gmail que criou sua conta na ComentsIA</strong>.
           </p>
-
           <img src="{{ url_for('static', filename='step1.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
-
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">
-            2️⃣ Clique em <strong>Criar Grupo</strong> na parte superior
-          </h6>
-          <p class="text-muted">
-            Você pode dar o nome que preferir (ex: “ComentsIA”, “Minha Empresa”, “Avaliações”).
-          </p>
-
+          <h6 class="fw-bold mb-2">2️⃣ Clique em <strong>Criar Grupo</strong> na parte superior</h6>
           <img src="{{ url_for('static', filename='step2.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
-
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">
-            3️⃣ Mova sua ficha para o grupo criado
-          </h6>
-          <p class="text-muted">
-            Na lista de empresas, marque a caixinha da ficha → clique em 
-            <strong>Ações</strong> → <strong>Transferir empresa</strong> → selecione o grupo.
-          </p>
-
+          <h6 class="fw-bold mb-2">3️⃣ Mova sua ficha para o grupo criado</h6>
           <img src="{{ url_for('static', filename='step3.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
-
         <div class="alert alert-success mt-3">
           <i class="bi bi-check-circle-fill me-1"></i>
-          Pronto! Sua ficha está conectada corretamente. A automação agora consegue monitorar e responder
-          suas avaliações diariamente.
+          Pronto! Sua ficha está conectada corretamente.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
+    
+    <div class="card shadow-sm border-0 automacao-card mb-4 w-100">
+      <div class="card-body">
+
+        <div class="mb-3">
+          <h5 class="card-title mb-1">
+            <i class="bi bi-geo-alt-fill text-primary me-2"></i>
+            Ficha Google ativa
+          </h5>
+          <p class="text-muted small mb-0">
+            Esta é a ficha atualmente monitorada e automatizada pela ComentsIA.
+          </p>
         </div>
 
+        {% if ficha_ativa %}
+          <div class="p-3 bg-white border rounded shadow-sm d-flex flex-wrap align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-success-subtle text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                <i class="bi bi-shop fs-5"></i>
+              </div>
+              <div>
+                <h6 class="fw-bold text-dark mb-0">{{ ficha_ativa.location_name }}</h6>
+                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.75rem;">
+                  <i class="bi bi-check-circle-fill me-1"></i> Monitoramento Ativo
+                </span>
+                <small class="text-muted ms-2 d-none d-sm-inline">ID: {{ ficha_ativa.location_id }}</small>
+              </div>
+            </div>
+
+            <div class="mt-3 mt-sm-0">
+              <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-sm btn-outline-secondary bg-light border-0 text-dark fw-semibold">
+                <i class="bi bi-arrow-repeat me-1"></i> Trocar ficha
+              </a>
+            </div>
+          </div>
+        {% else %}
+          <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-0" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div>
+              <strong>Nenhuma ficha ativa.</strong><br>
+              <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="alert-link">Clique aqui para selecionar uma ficha</a>.
+            </div>
+          </div>
+        {% endif %}
+
       </div>
     </div>
-  </div>
 
-  <!-- CABEÇALHO PRINCIPAL -->
-  <div class="d-flex flex-wrap align-items-center justify-content-between mb-4">
-    <div>
-      <h2 class="mb-1">
-        <i class="bi bi-magic me-2 text-primary"></i>
-        Central de Automação Google Business
-      </h2>
-      <p class="text-muted mb-0" style="max-width: 640px;">
-        Configure a inteligência da ComentsIA para monitorar e responder, de forma automática e elegante,
-        às avaliações recebidas no seu perfil do Google Business.
-      </p>
-    </div>
-
-    <div class="mt-3 mt-md-0 text-md-end">
-      <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
-        <i class="bi bi-lightning-charge-fill me-1"></i>
-        Automação avançada de reputação
+    <div class="w-100 d-flex justify-content-between align-items-end mt-2">
+      <div>
+        <h2 class="mb-1">
+          <i class="bi bi-magic me-2 text-primary"></i>
+          Central de Automação
+        </h2>
+        <p class="text-muted mb-0" style="max-width: 640px;">
+          Configure a inteligência da ComentsIA para monitorar e responder automaticamente às suas avaliações.
+        </p>
+      </div>
+      <div class="d-none d-md-block">
+        <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
+          <i class="bi bi-lightning-charge-fill me-1"></i>
+          Automação avançada
+        </div>
       </div>
     </div>
+
   </div>
 
-  <!-- FORMULÁRIO DE CONFIGURAÇÃO -->
   <form method="post" id="configForm" class="mb-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token_field">
 
@@ -115,40 +128,52 @@
           <div>
             <h5 class="card-title mb-1">
               <i class="bi bi-sliders me-2 text-primary"></i>
-              Orquestração da Automação Diária
+              Status da Automação
             </h5>
             <p class="text-muted mb-0" style="max-width: 520px;">
-              Ao ativar a automação, a ComentsIA assume o acompanhamento integral das suas avaliações e 
-              entrega respostas refinadas, com linguagem perfeitamente harmonizada ao posicionamento da sua marca.
+              Ao ativar, a ComentsIA responderá automaticamente todas as novas avaliações seguindo suas configurações.
             </p>
           </div>
         </div>
 
-        <div class="d-flex flex-wrap align-items-center justify-content-between">
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="ativar" id="ativar" value="1"
-                   {% if settings.gbp_auto_enabled %}checked{% endif %}>
-            <label class="form-check-label fw-semibold" for="ativar">
-              Automação ativa para novas avaliações
-            </label>
+        <div class="d-flex flex-wrap align-items-center justify-content-between p-3 bg-white border rounded shadow-sm">
+          <div class="form-check form-switch d-flex align-items-center gap-2 ps-0">
+            <input class="form-check-input ms-0 mt-0" style="width: 3em; height: 1.5em;"
+                   type="checkbox"
+                   name="ativar"
+                   id="ativar"
+                   value="1"
+                   {% if settings.gbp_auto_enabled %}checked{% endif %}
+                   {% if not ficha_ativa %}disabled{% endif %}>
+            
+            <div class="ms-3">
+              <label class="form-check-label fw-bold text-dark mb-0" for="ativar" style="font-size: 1.05rem;">
+                Ativar Respostas Automáticas
+              </label>
+              {% if not ficha_ativa %}
+                <small class="text-danger d-block mt-1">
+                  <i class="bi bi-lock-fill me-1"></i> Selecione uma ficha Google ativa acima para habilitar.
+                </small>
+              {% else %}
+                <small class="text-muted d-block">
+                  O sistema verificará novas avaliações a cada 24h.
+                </small>
+              {% endif %}
+            </div>
           </div>
-          <small class="text-muted">
-            O monitoramento ocorre em janelas regulares ao longo do dia, sem interferir no uso do sistema.
-          </small>
         </div>
       </div>
     </div>
 
     <div class="text-end">
-      <button type="submit" class="btn btn-primary px-4" id="saveConfigBtn">
+      <button type="submit" class="btn btn-primary px-4 py-2 fw-bold shadow-sm" id="saveConfigBtn">
         <i class="bi bi-save me-1"></i>
-        Guardar configurações
+        Salvar Configurações
       </button>
     </div>
   </form>
 
-  <!-- CARD DE SINCRONIZAÇÃO HISTÓRICA -->
-  <div class="card shadow-sm border-0 automacao-card">
+  <div class="card shadow-sm border-0 automacao-card mb-5">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
         <div>
@@ -157,104 +182,82 @@
             Sincronização Histórica de Avaliações
           </h5>
           <p class="text-muted mb-0" style="max-width: 560px;">
-            Reimporte avaliações antigas do Google Business com todo o cuidado, permitindo que a ComentsIA
-            responda, organize e traga inteligência também para o seu histórico.
+            Reimporte avaliações antigas do Google Business com todo o cuidado, permitindo que a ComentsIA responda e organize seu histórico.
           </p>
         </div>
 
         {% if settings.plano == "free" %}
         <div class="mt-3 mt-md-0">
           <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 rounded-pill">
-            <i class="bi bi-lock-fill me-1"></i>
-            Exclusivo para planos pagos
+            <i class="bi bi-lock-fill me-1"></i> Exclusivo Premium
           </span>
         </div>
         {% endif %}
       </div>
 
-      {% if settings.plano == "free" %}
-      <div class="alert alert-warning border-0 shadow-sm mb-3" style="font-size: 0.92rem;">
-        <strong>Funcionalidade indisponível no Plano Gratuito.</strong><br>
-        A sincronização histórica de avaliações é um recurso premium, destinado a clientes dos planos
-        superiores, que desejam uma curadoria profunda do histórico de feedbacks com suporte
-        inteligente da ComentsIA.
-      </div>
+      {% if ficha_ativa %}
+        <div class="alert alert-light border border-info-subtle text-info-emphasis small mb-4 d-flex align-items-center">
+          <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+          <div>A sincronização será aplicada à ficha: <strong>{{ ficha_ativa.location_name }}</strong></div>
+        </div>
       {% endif %}
 
       <button id="toggleHistoricBtn"
-              class="btn btn-outline-primary w-100"
+              class="btn btn-outline-primary w-100 py-2 border-dashed"
               {% if settings.plano == "free" %} disabled style="opacity:0.6; cursor:not-allowed;"{% endif %}>
-        <i class="bi bi-calendar-range me-1"></i>
+        <i class="bi bi-calendar-range me-2"></i>
         Exibir opções de sincronização histórica
       </button>
 
-      <div id="historicOptions" class="mt-3 collapse">
+      <div id="historicOptions" class="mt-4 collapse">
         <div class="d-flex flex-wrap gap-3 justify-content-center">
-
           {% for dias in [30, 60, 90, 180] %}
             {% set p = historical[dias|string] %}
             {% set valor = "%.2f"|format(p.price_cents / 100) %}
 
-            <div class="historico-card d-flex flex-column align-items-stretch border rounded-3 p-3 shadow-sm position-relative">
-
-              <div class="w-100 mb-1 d-flex justify-content-between align-items-center">
-                <strong class="fs-6">{{ dias }} dias de histórico</strong>
-                <span class="badge bg-primary-subtle text-primary-emphasis">
-                  Curadoria retroativa
-                </span>
+            <div class="historico-card d-flex flex-column align-items-stretch border rounded-3 p-3 shadow-sm position-relative bg-white text-start">
+              
+              <div class="w-100 mb-2 d-flex justify-content-between align-items-center">
+                <strong class="fs-6 text-dark">{{ dias }} dias de histórico</strong>
+                <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size: 0.65rem;">Curadoria retroativa</span>
               </div>
-
-              <p class="text-muted mb-2 small">
-                Importação das avaliações publicadas nos últimos {{ dias }} dias, com respostas
-                geradas e registradas diretamente na sua conta.
+              
+              <p class="text-muted mb-3 small" style="line-height: 1.4;">
+                Importação das avaliações publicadas nos últimos {{ dias }} dias, com respostas geradas e registradas diretamente na sua conta.
               </p>
+              
+              <div class="mt-auto">
+                <div class="mb-3">
+                  <span class="text-success fw-bold fs-5">R$ {{ valor }}</span>
+                </div>
+                
+                <button class="btn btn-outline-primary w-100 pay-btn fw-semibold"
+                        data-stripe-key="retro_{{ dias }}"
+                        data-period="{{ dias }}"
+                        {% if settings.plano == "free" %} disabled {% endif %}>
+                  <i class="bi bi-credit-card-2-front me-2"></i>
+                  Adquirir sincronização
+                </button>
 
-              <div class="w-100 d-flex justify-content-between align-items-center mb-2">
-                <span class="text-success fw-bold fs-6">R$ {{ valor }}</span>
+                <button class="btn btn-success w-100 sync-after-btn d-none fw-bold"
+                        data-period="{{ dias }}">
+                  <i class="bi bi-cloud-arrow-down-fill me-2"></i>
+                  Iniciar agora
+                </button>
               </div>
-
-              <!-- BOTÃO DE PAGAMENTO -->
-              <button class="btn btn-outline-primary w-100 mb-2 pay-btn"
-                      data-stripe-key="retro_{{ dias }}"
-                      data-period="{{ dias }}"
-                      {% if settings.plano == "free" %}
-                        disabled style="opacity:0.5; cursor:not-allowed;"
-                        title="Disponível apenas em planos pagos"
-                      {% endif %}>
-                <i class="bi bi-credit-card me-1"></i>
-                Adquirir sincronização
-              </button>
-
-              <!-- BOTÃO DE SINCRONIZAR DEPOIS DO PAGAMENTO -->
-              <button class="btn btn-success w-100 sync-after-btn d-none"
-                      data-period="{{ dias }}"
-                      {% if settings.plano == "free" %}
-                        disabled style="opacity:0.5; cursor:not-allowed;"
-                        title="Disponível apenas em planos pagos"
-                      {% endif %}>
-                <i class="bi bi-cloud-upload me-1"></i>
-                Iniciar sincronização agora
-              </button>
-
             </div>
           {% endfor %}
-
+        </div>
+        
+        <div class="text-muted small mt-3">
+          <i class="bi bi-info-circle me-1"></i> Após a confirmação do pagamento, a opção de sincronização será liberada automaticamente para o período correspondente.
         </div>
       </div>
-
-      {% if settings.plano != "free" %}
-      <p class="text-muted small mt-3 mb-0">
-        <i class="bi bi-info-circle me-1"></i>
-        Após a confirmação do pagamento, a opção de sincronização será liberada automaticamente
-        para o período correspondente.
-      </p>
-      {% endif %}
     </div>
   </div>
+
 </div>
 
-
-<!-- LOADER DAS CONFIG -->
 <div id="save-loader-overlay" style="display:none;">
   <div id="save-loader-card" class="text-center">
     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
@@ -263,23 +266,18 @@
   </div>
 </div>
 
-<!-- OVERLAY DE SINCRONIZAÇÃO -->
 <div id="loader-overlay" aria-hidden="true" style="display:none;">
   <div id="loader-card" class="text-center">
     <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
       <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-      <strong>Sincronizando avaliações históricas...</strong>
+      <strong>Sincronizando...</strong>
     </div>
-    <div class="small mb-2" style="opacity:.9">
-      Este processo pode levar alguns instantes, conforme o volume de avaliações. Por favor, permaneça nesta página.
-    </div>
-
+    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes.</div>
     <div class="progress" style="height: 5px; border-radius: 999px; background: rgba(255,255,255,0.25);">
       <div class="progress-bar bg-light" style="width: 100%; animation: loadingStripe 1.4s infinite;"></div>
     </div>
   </div>
 </div>
-
 
 <script>
 function showToast(message, type) {
@@ -287,17 +285,10 @@ function showToast(message, type) {
   toast.className = "toast align-items-center text-white border-0 position-fixed top-0 end-0 m-3 show fade";
   toast.style.zIndex = 1055;
   toast.style.minWidth = "280px";
-
   if (type === "success") toast.classList.add("bg-success");
   else if (type === "error") toast.classList.add("bg-danger");
   else toast.classList.add("bg-warning");
-
-  toast.innerHTML = `
-    <div class="d-flex">
-      <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-    </div>`;
-
+  toast.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
   document.body.appendChild(toast);
   setTimeout(() => { toast.remove(); }, 6000);
 }
@@ -305,215 +296,106 @@ function showToast(message, type) {
 document.addEventListener('DOMContentLoaded', function () {
   const csrfTokenInput = document.getElementById("csrf_token_field");
   const csrfToken = csrfTokenInput ? csrfTokenInput.value : "";
-
   const isFree = {{ 'true' if settings.plano == 'free' else 'false' }};
 
-  // Bloqueios extras no front para plano Free
   if (isFree) {
-    document.querySelectorAll(".pay-btn").forEach(btn => {
+    document.querySelectorAll(".pay-btn, .sync-after-btn, #toggleHistoricBtn").forEach(btn => {
       btn.style.pointerEvents = "none";
+      btn.classList.add("opacity-50");
     });
-    document.querySelectorAll(".sync-after-btn").forEach(btn => {
-      btn.style.pointerEvents = "none";
-    });
-    const toggleBtn = document.getElementById("toggleHistoricBtn");
-    if (toggleBtn) {
-      toggleBtn.style.pointerEvents = "none";
-    }
   }
 
-  // =============================
-  // 🔥 PAGAMENTO STRIPE
-  // =============================
   async function checkoutStripe(productKey, period) {
     try {
-      const nextUrl = window.location.href;
-
       const response = await fetch(`/stripe/checkout/${productKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken
-        },
-        body: JSON.stringify({
-          next_url: nextUrl
-        })
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+        body: JSON.stringify({ next_url: window.location.href })
       });
-
-
       const data = await response.json();
-      console.log("DEBUG CHECKOUT STRIPE:", data);
-
       if (data.success) {
-        // Guarda o período escolhido para liberação posterior
         localStorage.setItem("retro_sync_period", period);
         window.location.href = data.checkout_url;
       } else {
-        showToast(data.message || "Não foi possível iniciar o pagamento Stripe.", "error");
+        showToast(data.message || "Erro no pagamento.", "error");
       }
-    } catch (e) {
-      console.error(e);
-      showToast("Ocorreu um erro ao iniciar o pagamento. Tente novamente em instantes.", "error");
-    }
+    } catch (e) { showToast("Erro de conexão.", "error"); }
   }
 
-  // BOTÕES DE PAGAMENTO
   document.querySelectorAll(".pay-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.stripeKey;
-      const period = btn.dataset.period;
-      checkoutStripe(key, period);
-    });
+    btn.addEventListener("click", () => checkoutStripe(btn.dataset.stripeKey, btn.dataset.period));
   });
 
-  // =============================
-  // 🔥 APÓS PAGAMENTO – LIBERA BOTÃO "SINCRONIZAR"
-  // =============================
   async function checkPaid() {
     const period = localStorage.getItem("retro_sync_period");
     if (!period) return;
-
     try {
       const r = await fetch(`/stripe/check_paid/${period}`);
       const data = await r.json();
-
       if (data.paid) {
         const btn = document.querySelector(`.sync-after-btn[data-period="${period}"]`);
+        const payBtn = document.querySelector(`.pay-btn[data-period="${period}"]`);
         if (btn) {
           btn.classList.remove("d-none");
-          showToast(`Pagamento confirmado. A sincronização de ${period} dias está disponível para iniciar.`, "success");
+          if(payBtn) payBtn.classList.add("d-none");
+          showToast(`Pagamento confirmado! Pode iniciar o sync de ${period} dias.`, "success");
         }
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   }
-
   checkPaid();
 
-  // =============================
-  // 🔥 SINCRONIZAR DEPOIS DO PAGAMENTO
-  // =============================
   document.querySelectorAll(".sync-after-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
       const period = btn.dataset.period;
-
       const overlay = document.getElementById("loader-overlay");
-      if (overlay) overlay.style.display = "flex";
-
+      overlay.style.display = "flex";
       try {
         const response = await fetch(`/auto/sync_historical/${period}`, {
           method: "POST",
           headers: { "X-CSRFToken": csrfToken }
         });
-
         const data = await response.json();
-
-        if (overlay) overlay.style.display = "none";
-
+        overlay.style.display = "none";
         if (data.success) {
-          showToast(`Sincronização de ${period} dias concluída com êxito.`, "success");
-
-          setTimeout(() => {
-            localStorage.removeItem("retro_sync_period");
-            location.reload();
-          }, 1200);
+          showToast("Sincronização concluída com sucesso!", "success");
+          localStorage.removeItem("retro_sync_period");
+          setTimeout(() => location.reload(), 1500);
         } else {
-          showToast(data.message || "Ocorreu um erro durante a sincronização histórica.", "error");
+          showToast(data.message || "Erro ao sincronizar.", "error");
         }
       } catch (e) {
-        if (overlay) overlay.style.display = "none";
-        console.error(e);
-        showToast("Não foi possível concluir a sincronização. Tente novamente em alguns instantes.", "error");
+        overlay.style.display = "none";
+        showToast("Erro de conexão.", "error");
       }
     });
   });
 
-  // ANIMAÇÃO DO SALVAR CONFIG
   const saveBtn = document.getElementById("saveConfigBtn");
   const saveOverlay = document.getElementById("save-loader-overlay");
   const configForm = document.getElementById("configForm");
-
-  if (configForm && saveBtn && saveOverlay) {
+  if (configForm) {
     configForm.addEventListener("submit", function () {
       saveBtn.disabled = true;
       saveOverlay.style.display = "flex";
-      saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Guardando...`;
+      saveBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Salvando...`;
     });
   }
 
-  // Mostrar/ocultar opções históricas
   const toggleHistoricBtn = document.getElementById("toggleHistoricBtn");
   const historicOptions = document.getElementById("historicOptions");
-
-  if (toggleHistoricBtn && historicOptions) {
-    toggleHistoricBtn.addEventListener("click", () => {
-      historicOptions.classList.toggle("show");
-    });
+  if (toggleHistoricBtn) {
+    toggleHistoricBtn.addEventListener("click", () => historicOptions.classList.toggle("show"));
   }
 });
 </script>
 
-
 <style>
-.tutorial-step img {
-  border: 1px solid rgba(0,0,0,0.08);
-}
-
-.automacao-card {
-  border-radius: 18px;
-  background: linear-gradient(145deg, #ffffff, #f4f7ff);
-}
-
-.historico-card {
-  min-width: 220px;
-  max-width: 260px;
-  background: #f8faff;
-  border-color: rgba(57, 132, 255, 0.15) !important;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.historico-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-  border-color: rgba(57, 132, 255, 0.35) !important;
-}
-
-/* Overlay salvar config */
-#save-loader-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.45);
-  backdrop-filter: blur(2px);
-  display: none;
-  z-index: 2000;
-  align-items: center; justify-content: center;
-}
-#save-loader-card {
-  background: #0b1a43;
-  padding: 18px 25px;
-  color: #fff;
-  border-radius: 12px;
-  text-align: center;
-}
-
-/* overlay sync */
-#loader-overlay {
-  position: fixed; inset: 0;
-  background: rgba(8,12,27,0.55);
-  z-index: 1080;
-  display: none; align-items: center; justify-content: center;
-}
-#loader-card {
-  background: #0b1a43; color: #fff;
-  border-radius: 16px; padding: 18px 22px; min-width: 280px; max-width: 380px;
-}
-
-/* animação da barra de progresso */
-@keyframes loadingStripe {
-  0%   { transform: translateX(-100%); }
-  50%  { transform: translateX(-10%); }
-  100% { transform: translateX(0%); }
-}
+.automacao-card { border-radius: 16px; background: linear-gradient(145deg, #ffffff, #f8faff); }
+.historico-card { min-width: 240px; max-width: 260px; transition: all 0.2s ease; border-color: #e2e8f0 !important; }
+.historico-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); border-color: var(--bs-primary) !important; }
+#save-loader-overlay, #loader-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 2000; display: none; align-items: center; justify-content: center; }
+#save-loader-card, #loader-card { background: #1e293b; color: #fff; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+@keyframes loadingStripe { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 </style>
-
 {% endblock %}

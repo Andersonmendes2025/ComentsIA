@@ -26,88 +26,101 @@
 {% block content %}
 <div class="container-fluid">
 
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
     <div>
       <h2 class="mb-1">
         <i class="bi bi-graph-up me-2"></i>
-        Dashboard de Avaliações
+        Dashboard
       </h2>
-      <p class="text-muted mb-0">Análise completa das suas avaliações e feedback dos clientes</p>
+      <p class="text-muted mb-0">Visão geral da reputação online</p>
     </div>
-    <div>
+
+    <div class="d-flex align-items-center gap-2">
+      
+      <form method="GET" action="{{ url_for('dashboard') }}" class="d-flex">
+          <div class="input-group">
+              <span class="input-group-text bg-white"><i class="bi bi-shop"></i></span>
+              <select name="ficha" class="form-select" onchange="this.form.submit()" style="max-width: 250px;">
+                  <option value="todas" {% if filtro_ficha == 'todas' %}selected{% endif %}>Todas as Lojas</option>
+                  {% for f in fichas %}
+                      <option value="{{ f.id }}" {% if filtro_ficha|int == f.id %}selected{% endif %}>
+                        {{ f.location_name or f.business_name or 'Loja sem nome' }}
+                      </option>
+                  {% endfor %}
+              </select>
+          </div>
+      </form>
+
       {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
-        <button class="btn btn-primary me-2" onclick="analyzeReviews()">
-          <i class="bi bi-robot me-1"></i>
-          Analisar com IA
+        <button class="btn btn-primary" onclick="analyzeReviews()">
+          <i class="bi bi-robot me-1"></i> IA
         </button>
       {% else %}
-        <button class="btn btn-secondary me-2" disabled style="cursor:not-allowed;">
-          <i class="bi bi-robot me-1"></i>
-          Analisar com IA
+        <button class="btn btn-secondary" disabled title="Disponível no plano PRO/BUSINESS">
+          <i class="bi bi-robot me-1"></i> IA
         </button>
-        <span class="text-muted small d-block mt-1 ms-2">Disponível apenas no <b>PRO</b> ou <b>BUSINESS</b></span>
       {% endif %}
-      <a href="{{ url_for('add_review') }}" class="btn btn-primary">
-        <i class="bi bi-plus-circle me-1"></i>
-        Adicionar Avaliação
+
+      <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary" title="Adicionar Manualmente">
+        <i class="bi bi-plus-lg"></i>
       </a>
+
     </div>
   </div>
 
-  <!-- STAT CARDS -->
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
-      <div class="card stat-card bg-primary text-white shadow-sm">
+      <div class="card stat-card bg-primary text-white shadow-sm h-100">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h3 class="card-title mb-1">{{ total_reviews }}</h3>
-              <p class="card-text mb-0">Total de Avaliações</p>
+              <p class="card-text mb-0 opacity-75">Total de Avaliações</p>
             </div>
-            <i class="bi bi-chat-square-text" style="font-size: 2.5rem; opacity: 0.7;"></i>
+            <i class="bi bi-chat-square-text fs-1 opacity-50"></i>
           </div>
         </div>
       </div>
     </div>
 
     <div class="col-lg-3 col-md-6">
-      <div class="card stat-card bg-success text-white shadow-sm">
+      <div class="card stat-card bg-success text-white shadow-sm h-100">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h3 class="card-title mb-1">{{ reviews|selectattr('replied')|list|length }}</h3>
-              <p class="card-text mb-0">Respondidas</p>
+              <p class="card-text mb-0 opacity-75">Respondidas</p>
             </div>
-            <i class="bi bi-reply" style="font-size: 2.5rem; opacity: 0.7;"></i>
+            <i class="bi bi-reply-all fs-1 opacity-50"></i>
           </div>
         </div>
       </div>
     </div>
 
     <div class="col-lg-3 col-md-6">
-      <div class="card stat-card bg-warning text-white shadow-sm">
+      <div class="card stat-card bg-warning text-dark shadow-sm h-100">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h3 class="card-title mb-1">{{ "%.1f"|format(avg_rating) }}</h3>
-              <p class="card-text mb-0">Classificação Média</p>
+              <p class="card-text mb-0 opacity-75">Nota Média</p>
             </div>
-            <i class="bi bi-star-fill" style="font-size: 2.5rem; opacity: 0.7;"></i>
+            <i class="bi bi-star-half fs-1 opacity-50"></i>
           </div>
         </div>
       </div>
     </div>
 
     <div class="col-lg-3 col-md-6">
-      <div class="card stat-card bg-info text-white shadow-sm">
+      <div class="card stat-card bg-info text-white shadow-sm h-100">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               {% set resp = reviews|selectattr('replied')|list|length %}
               <h3 class="card-title mb-1">{{ (resp / total_reviews * 100)|round(1) if total_reviews > 0 else 0 }}%</h3>
-              <p class="card-text mb-0">Taxa de Resposta</p>
+              <p class="card-text mb-0 opacity-75">Taxa de Resposta</p>
             </div>
-            <i class="bi bi-percent" style="font-size: 2.5rem; opacity: 0.7;"></i>
+            <i class="bi bi-graph-up-arrow fs-1 opacity-50"></i>
           </div>
         </div>
       </div>
@@ -115,15 +128,11 @@
   </div>
 
 
-  <!-- GRÁFICO -->
-  <div class="row">
-    <div class="col-lg-8 mb-4">
-      <div class="card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
-        <div class="card-header">
-          <h5 class="card-title mb-0">
-            <i class="bi bi-bar-chart me-1"></i>
-            Distribuição de Classificações
-          </h5>
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100 position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
+        <div class="card-header bg-transparent border-0 pt-3">
+          <h5 class="card-title mb-0"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Distribuição de Notas</h5>
         </div>
         <div class="card-body">
           <div class="chart-container">
@@ -132,8 +141,8 @@
             {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
             <div class="lock-overlay">
               <i class="bi bi-lock-fill fs-2 mb-2"></i>
-              <div>Gráfico disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
-              <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+              <div class="mb-2">Análise gráfica disponível no <b>PRO</b></div>
+              <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary">Fazer Upgrade</a>
             </div>
             {% endif %}
           </div>
@@ -141,108 +150,104 @@
       </div>
     </div>
 
-    <!-- AVALIAÇÕES RECENTES -->
-    <div class="col-lg-4 mb-4">
-      <div class="card shadow-sm">
-        <div class="card-header">
-          <h5 class="card-title mb-0">
-            <i class="bi bi-clock me-1"></i>
-            Avaliações Recentes
-          </h5>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 pt-3">
+          <h5 class="card-title mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Recentes</h5>
         </div>
 
-        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush" style="max-height: 340px; overflow-y: auto;">
           {% if reviews %}
-            {% for review in reviews[-5:] %}
-              {% set display_name = review.reviewer_name or 'Cliente' %}
+            {% for review in reviews[:5] %} {% set display_name = review.reviewer_name or 'Cliente' %}
               {% set stars = review.rating or 0 %}
               {% set t = review.text or '' %}
-
-              <div class="d-flex align-items-start mb-3 {% if not loop.last %}border-bottom pb-3{% endif %}">
-                <div class="flex-shrink-0 me-3">
-                  <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
-                       style="width: 40px; height: 40px;">
-                    <span class="avatar-inicial">{{ display_name[0]|upper }}</span>
-                  </div>
-                </div>
-
-                <div class="flex-grow-1">
-                  <h6 class="mb-1">{{ display_name }}</h6>
-
-                  <div class="text-warning mb-1">
-                    {% for i in range(1, 6) %}
-                      {% if i <= stars %}
-                        <i class="bi bi-star-fill"></i>
-                      {% else %}
-                        <i class="bi bi-star"></i>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-
-                  <p class="text-muted small mb-1">
-                    {{ t[:80] }}{% if t|length > 80 %}...{% endif %}
-                  </p>
-
+              
+              <a href="#" class="list-group-item list-group-item-action border-0 py-3">
+                <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                  <h6 class="mb-0 text-truncate" style="max-width: 150px;">{{ display_name }}</h6>
                   <small class="text-muted">{{ review.date | formatar_data_brt }}</small>
                 </div>
-              </div>
-
+                <div class="mb-1 text-warning small">
+                  {% for i in range(1, 6) %}<i class="bi bi-star{{ '-fill' if i <= stars else '' }}"></i>{% endfor %}
+                </div>
+                <p class="mb-1 small text-muted text-truncate">{{ t if t else 'Sem comentário' }}</p>
+                {% if review.replied %}
+                  <span class="badge bg-light text-success border border-success px-2 py-1" style="font-size:0.7rem"><i class="bi bi-check2 me-1"></i>Respondida</span>
+                {% else %}
+                  <span class="badge bg-light text-danger border border-danger px-2 py-1" style="font-size:0.7rem">Pendente</span>
+                {% endif %}
+              </a>
             {% endfor %}
           {% else %}
-            <p class="text-muted text-center">Nenhuma avaliação encontrada</p>
+            <div class="text-center py-5">
+              <i class="bi bi-inbox fs-1 text-muted opacity-25"></i>
+              <p class="text-muted mt-2">Nenhuma avaliação encontrada.</p>
+            </div>
           {% endif %}
+          </div>
         </div>
+        {% if reviews|length > 5 %}
+        <div class="card-footer bg-transparent border-0 text-center">
+            <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-sm btn-link text-decoration-none">Ver todas</a>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
 
 
-  <!-- IA — NOVO CARD LIMPO COM <PRE> -->
-  <div class="row mt-3">
+  <div class="row mt-4 mb-5">
     <div class="col-12">
-
       <div class="card analysis-card shadow-sm position-relative {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
-        <div class="card-header">
-          <h5 class="card-title mb-0">
-            <i class="bi bi-robot me-1"></i>
-            Análise Inteligente
+        <div class="card-header bg-white py-3">
+          <h5 class="card-title mb-0 d-flex align-items-center text-primary">
+            <i class="bi bi-stars me-2"></i>
+            Insights da Inteligência Artificial
+            {% if filtro_ficha != 'todas' %}
+                <span class="badge bg-primary ms-2 fs-6 fw-normal" style="font-size: 0.8rem !important;">Focada em: {{ filtro_ficha|truncate(20) }}</span>
+            {% endif %}
           </h5>
         </div>
 
         <div class="card-body">
-
-          <!-- LOADING -->
           <div id="analysis-loading" style="display: none;">
-            <div class="text-center py-4">
-              <div class="spinner-border text-primary mb-3"></div>
-              <p class="text-muted">Analisando suas avaliações com inteligência artificial...</p>
+            <div class="text-center py-5">
+              <div class="spinner-grow text-primary mb-3" role="status"></div>
+              <h5 class="fw-normal text-muted">A IA está lendo todas as avaliações...</h5>
+              <p class="small text-muted">Isso pode levar alguns segundos.</p>
             </div>
           </div>
 
-          <!-- RESULTADO -->
           <div id="analysis-text" style="display:none;">
-            <pre id="analysis-output" class="p-3 bg-light rounded" 
-                 style="white-space: pre-wrap; font-size: 0.95rem;"></pre>
+            <pre id="analysis-output" class="p-4 bg-light rounded border border-light shadow-sm text-dark" 
+                 style="white-space: pre-wrap; font-family: sans-serif; font-size: 1rem; line-height: 1.6;"></pre>
           </div>
 
-          <!-- PLACEHOLDER -->
-          <div id="analysis-placeholder" class="text-center py-4">
-            <i class="bi bi-robot text-muted" style="font-size:3rem;"></i>
-            <h6 class="text-muted mt-2">Análise com IA</h6>
-            <p class="text-muted">Clique no botão acima para gerar</p>
+          <div id="analysis-placeholder" class="text-center py-5">
+            <div class="mb-3">
+                <i class="bi bi-lightbulb text-warning" style="font-size:3.5rem; opacity:0.8;"></i>
+            </div>
+            <h5 class="text-muted fw-normal">Descubra o que seus clientes realmente pensam</h5>
+            <p class="text-muted mb-4" style="max-width: 500px; margin: 0 auto;">
+                Nossa IA analisa sentimentos, elogios frequentes e pontos de melhoria baseados nas avaliações exibidas acima.
+            </p>
+            <button class="btn btn-primary px-4 py-2" onclick="analyzeReviews()">
+                <i class="bi bi-play-circle-fill me-2"></i>Gerar Relatório Agora
+            </button>
           </div>
 
           {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
           <div class="lock-overlay">
-            <i class="bi bi-lock-fill fs-2 mb-2"></i>
-            <div>Disponível apenas para <b>PRO</b> e <b>BUSINESS</b>.</div>
-            <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-2">Ver planos</a>
+            <i class="bi bi-gem fs-1 mb-3 text-primary"></i>
+            <h5 class="mb-2">Recurso Premium</h5>
+            <div class="text-muted mb-3">Análises detalhadas com IA disponíveis no PRO.</div>
+            <a href="{{ url_for('planos') }}" class="btn btn-primary px-4">Liberar Acesso</a>
           </div>
           {% endif %}
 
         </div>
       </div>
-
     </div>
   </div>
 
@@ -254,36 +259,59 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-// Chart.js
+// Configuração do Gráfico
 const ctx = document.getElementById('ratingsChart').getContext('2d');
 new Chart(ctx, {
   type: 'bar',
   data: {
     labels: ['1 Estrela','2 Estrelas','3 Estrelas','4 Estrelas','5 Estrelas'],
     datasets: [{
-      label: 'Número de Avaliações',
+      label: 'Quantidade',
       data: {{ rating_distribution_values | tojson }},
-      backgroundColor: ['#dc3545','#fd7e14','#ffc107','#20c997','#28a745'],
-      borderWidth: 1
+      backgroundColor: [
+        'rgba(220, 53, 69, 0.8)', // 1 - Red
+        'rgba(253, 126, 20, 0.8)', // 2 - Orange
+        'rgba(255, 193, 7, 0.8)',  // 3 - Yellow
+        'rgba(32, 201, 151, 0.8)', // 4 - Teal
+        'rgba(40, 167, 69, 0.8)'   // 5 - Green
+      ],
+      borderRadius: 4,
+      borderWidth: 0
     }]
   },
-  options: { responsive:true, maintainAspectRatio:false }
+  options: { 
+    responsive: true, 
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false }
+    },
+    scales: {
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' } },
+        x: { grid: { display: false } }
+    }
+  }
 });
 
 
-// NOVA FUNÇÃO — MOSTRA APENAS 1 TEXTO
+// Função de Análise com IA (Atualizada para suportar filtro)
 function analyzeReviews() {
   const loading = document.getElementById("analysis-loading");
   const textDiv = document.getElementById("analysis-text");
   const placeholder = document.getElementById("analysis-placeholder");
   const output = document.getElementById("analysis-output");
 
+  // Pega o filtro atual da URL (ex: ?ficha=locations/123)
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentFicha = urlParams.get('ficha') || 'todas';
+
+  // Interface Loading
   loading.style.display = "block";
   textDiv.style.display = "none";
   placeholder.style.display = "none";
   output.textContent = "";
 
-  fetch("/analyze_reviews", {
+  // Faz a requisição passando o filtro na query string
+  fetch(`/analyze_reviews?ficha=${encodeURIComponent(currentFicha)}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -297,9 +325,11 @@ function analyzeReviews() {
     if (data.success) {
       output.textContent = data.raw_analysis || "Não foi possível gerar a análise.";
       textDiv.style.display = "block";
+      // Scroll suave até o resultado
+      textDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } else {
       placeholder.style.display = "block";
-      alert("Erro: " + data.error);
+      alert("Atenção: " + data.error);
     }
   })
   .catch(err => {

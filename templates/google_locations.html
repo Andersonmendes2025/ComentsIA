@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Meus Locais Google{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5" style="min-height: 60vh;">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1"><i class="bi bi-shop text-primary me-2"></i>Gerenciar Locais</h2>
+      <p class="text-muted mb-1">
+        {% if total_slots is defined %}
+          Você está utilizando <strong>{{ ativas_count }}</strong> de <strong>{{ total_slots }}</strong> slots disponíveis.
+        {% else %}
+          Selecione qual ficha do Google Business você deseja gerenciar.
+        {% endif %}
+      </p>
+      <p class="text-muted small mb-0">
+        Cada slot permite deixar uma ficha ativa para monitorar e responder com a ComentsIA.
+        Slots extras são cobrados mensalmente junto com a sua assinatura e podem ser cancelados a qualquer momento.
+      </p>
+    </div>
+    <button id="btnSync" class="btn btn-outline-primary">
+      <i class="bi bi-cloud-download me-2"></i> Sincronizar
+    </button>
+  </div>
+
+  <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
+
+  {% if fichas %}
+    <div class="row g-4">
+      {% for ficha in fichas %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm {{ 'border-success border-2' if ficha.is_active else '' }}">
+          <div class="card-body d-flex flex-column">
+            
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="icon-shape icon-md bg-light text-primary rounded-circle">
+                <i class="bi bi-geo-alt-fill fs-5 p-2"></i>
+              </div>
+              {% if ficha.is_active %}
+                <span class="badge bg-success">Monitorando</span>
+              {% else %}
+                <span class="badge bg-secondary">Inativa</span>
+              {% endif %}
+            </div>
+
+            <h5 class="card-title fw-bold text-truncate" title="{{ ficha.location_name }}">
+              {{ ficha.location_name }}
+            </h5>
+            <p class="text-muted small mb-3">ID: {{ ficha.location_id }}</p>
+
+            <div class="mb-3">
+                <a href="{{ url_for('google_auto.configurar_ficha_especifica', location_id=ficha.location_id) }}" 
+                   class="btn btn-sm btn-light w-100 border text-muted d-flex align-items-center justify-content-center gap-2"
+                   title="Configurar nome, gerente e contexto desta unidade">
+                   <i class="bi bi-gear-fill"></i> Personalizar IA desta Loja
+                </a>
+            </div>
+
+            <div class="mt-auto">
+              {% if ficha.is_active %}
+                <button type="button"
+                        class="btn btn-outline-danger w-100 btn-toggle-ficha"
+                        data-id="{{ ficha.location_id }}"
+                        data-name="{{ ficha.location_name }}"
+                        data-action="desativar">
+                  <i class="bi bi-power me-1"></i> Desativar Ficha
+                </button>
+                <small class="text-muted d-block mt-1 text-center">
+                  Ao desativar, este local deixa de usar um slot.
+                </small>
+              {% else %}
+                <button type="button" 
+                        class="btn btn-outline-dark w-100 btn-toggle-ficha" 
+                        data-id="{{ ficha.location_id }}"
+                        data-name="{{ ficha.location_name }}"
+                        data-action="ativar">
+                  <i class="bi bi-power me-1"></i> Ativar Ficha
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <div class="mb-3">
+        <i class="bi bi-shop-window text-muted" style="font-size: 3rem;"></i>
+      </div>
+      <h4>Nenhum local encontrado</h4>
+      <p class="text-muted">Clique no botão "Sincronizar" acima para buscar suas fichas do Google.</p>
+    </div>
+  {% endif %}
+
+</div>
+
+<!-- MODAL: SLOT EXTRA -->
+<div class="modal fade" id="modalAddon" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold text-primary">Ativar Novo Local</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <div class="mb-3 text-warning">
+          <i class="bi bi-star-fill" style="font-size: 3rem;"></i>
+        </div>
+        <h4 class="fw-bold">Limite de Slots Atingido</h4>
+        <p class="text-muted mb-3">
+          Você já atingiu o limite de locais ativos do seu plano. 
+        </p>
+        <p class="text-muted mb-4">
+          Para ativar <strong><span id="addonLocName"></span></strong> como novo local monitorado,
+          será adicionado um <strong>slot extra recorrente</strong> à sua assinatura.
+        </p>
+        
+        <div class="card bg-light border-0 p-3 mb-4">
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Slot Adicional (Mensal)</span>
+            <span class="fs-5 fw-bold text-success">R$ <span id="addonPrice"></span></span>
+          </div>
+          <small class="text-muted mt-2 d-block">
+            Cobrado junto com sua fatura atual. Você pode remover esse slot extra a qualquer momento.
+          </small>
+        </div>
+
+        <button id="btnBuyAddon" class="btn btn-success w-100 py-2 fs-6 fw-bold">
+          <i class="bi bi-credit-card-2-front me-2"></i> Contratar Slot Extra
+        </button>
+
+        <p class="text-muted small mt-3 mb-0">
+          Após a contratação, tentaremos ativar automaticamente este local como ficha ativa.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER GERAL -->
+<div id="general-loader" style="display:none; position:fixed; inset:0; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
+  <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+  <h5 id="loader-text">Processando...</h5>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrf = document.getElementById('csrf_token').value;
+    const loader = document.getElementById('general-loader');
+    const loaderText = document.getElementById('loader-text');
+
+    // Guarda a ficha selecionada quando faltar slot
+    let selectedLocId = null;
+    let selectedLocName = null;
+    
+    // Inicializa o modal do Bootstrap
+    let modalAddon = null;
+    const modalEl = document.getElementById('modalAddon');
+    if (modalEl) {
+        modalAddon = new bootstrap.Modal(modalEl);
+    }
+
+    // 1. Função de Sincronizar
+    const btnSync = document.getElementById('btnSync');
+    if (btnSync) {
+        btnSync.addEventListener('click', async function() {
+            loaderText.innerText = "Sincronizando locais...";
+            loader.style.display = 'flex';
+
+            try {
+                const response = await fetch("{{ url_for('google_auto.sync_google_locations') }}", {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-CSRFToken': csrf
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erro: ' + (data.error || 'Falha na sincronização'));
+                    loader.style.display = 'none';
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro de conexão.');
+                loader.style.display = 'none';
+            }
+        });
+    }
+
+    // Helper para ativar ficha (reutilizável)
+    async function tentarAtivarFicha(locationId) {
+        const formData = new FormData();
+        formData.append('location_id', locationId);
+
+        loaderText.innerText = "Ativando novo local...";
+        loader.style.display = 'flex';
+
+        try {
+            const response = await fetch("{{ url_for('google_auto.escolher_ficha_google') }}", {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrf},
+                body: formData
+            });
+
+            const data = await response.json();
+            loader.style.display = 'none';
+
+            if (data.success) {
+                window.location.reload();
+                return true;
+            }
+
+            if (data.payment_required) {
+                alert("Slot contratado, mas ainda não foi possível ativar esta ficha automaticamente. Tente novamente clicando em 'Ativar Ficha'.");
+                return false;
+            }
+
+            alert(data.error || 'Erro ao ativar ficha.');
+            return false;
+        } catch (error) {
+            console.error(error);
+            alert('Erro de conexão ao ativar ficha.');
+            loader.style.display = 'none';
+            return false;
+        }
+    }
+
+    // 2. Ativar / Desativar Ficha (usa a mesma rota)
+    document.querySelectorAll('.btn-toggle-ficha').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const locId = this.getAttribute('data-id');
+            const locName = this.getAttribute('data-name');
+            const action = this.getAttribute('data-action'); // ativar | desativar
+
+            if (action === 'desativar') {
+                const ok = confirm(`Deseja realmente desativar a ficha "${locName}"?`);
+                if (!ok) return;
+            }
+
+            loaderText.innerText = (action === 'desativar')
+                ? "Desativando ficha..."
+                : "Verificando slot...";
+            loader.style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('location_id', locId);
+
+            try {
+                const response = await fetch("{{ url_for('google_auto.escolher_ficha_google') }}", {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': csrf},
+                    body: formData
+                });
+                
+                const data = await response.json();
+                loader.style.display = 'none';
+                
+                if (data.success) {
+                    // Tanto na ativação quanto na desativação só recarrega
+                    window.location.reload(); 
+                } 
+                else if (data.payment_required) {
+                    // Vai contratar slot extra
+                    selectedLocId = locId;
+                    selectedLocName = locName;
+
+                    if (modalAddon) {
+                        document.getElementById('addonLocName').innerText = locName || "este local";
+                        document.getElementById('addonPrice').innerText = data.price_fmt || "29,90";
+                        modalAddon.show();
+                    } else {
+                        alert("Limite atingido. Entre em contato para aumentar seu plano.");
+                    }
+                }
+                else if (data.upgrade_required) {
+                    // Não tem assinatura: manda pra tela de planos (que vai pro Stripe)
+                    const target = data.upgrade_url || "{{ url_for('planos') }}";
+                    window.location.href = target;
+                }
+                else {
+                    alert(data.error || 'Erro ao processar ficha');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erro de conexão.');
+                loader.style.display = 'none';
+            }
+        });
+    });
+
+    // 3. Botão "Contratar Slot Extra" (Dentro do Modal)
+    const btnBuy = document.getElementById('btnBuyAddon');
+    if (btnBuy) {
+        btnBuy.addEventListener('click', async function() {
+            const originalText = btnBuy.innerHTML;
+            btnBuy.disabled = true;
+            btnBuy.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando pagamento...';
+
+            try {
+                // Chama a rota que adiciona 1 slot extra na assinatura
+                const res = await fetch("/stripe/addon/add", {
+                    method: 'POST', 
+                    headers: {'X-CSRFToken': csrf}
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    if (modalAddon) modalAddon.hide();
+
+                    // Tenta ativar automaticamente a ficha que o usuário tinha escolhido
+                    if (selectedLocId) {
+                        const ok = await tentarAtivarFicha(selectedLocId);
+                        if (!ok) {
+                            window.location.reload();
+                        }
+                    } else {
+                        window.location.reload();
+                    }
+                } else {
+                    alert("Erro: " + (data.error || "Não foi possível contratar o slot extra."));
+                    if (modalAddon) modalAddon.hide();
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erro de conexão ao processar pagamento.");
+            } finally {
+                btnBuy.disabled = false;
+                btnBuy.innerHTML = originalText;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

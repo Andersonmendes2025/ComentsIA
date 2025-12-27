@@ -17,7 +17,9 @@ class ColorFormatter(logging.Formatter):
         color = self.COLORS.get(record.levelname, self.RESET)
         message = super().format(record)
         return f"{color}{message}{self.RESET}"
-
+    
+from datetime import timedelta
+from sqlalchemy import or_
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -26,7 +28,8 @@ handler.setFormatter(
 
 logging.basicConfig(level=logging.DEBUG, handlers=[handler], force=True)
 sys.stdout.reconfigure(line_buffering=True)
-
+from flask import send_file
+from math import isnan
 import base64
 import io
 import json
@@ -100,6 +103,7 @@ from email_utils import (
 from matriz import matriz_bp
 from models import (
     ConsideracoesUso,
+    GoogleLocation,
     FilialVinculo,
     RelatorioHistorico,
     RespostaEspecialUso,
@@ -1080,7 +1084,6 @@ from math import isnan
 def get_current_user_id():
     return (session.get("user_info") or {}).get("id")
 
-
 # main.py
 
 # IMPORTANTE: Garanta que a função calcular_metricas_reviews(reviews)
@@ -1093,9 +1096,8 @@ def get_current_user_id():
 @require_plano_ativo
 @limiter.limit("5/minute")
 def gerar_relatorio():
-    # --- 1. AUTENTICAÇÃO E VARIÁVEIS ESSENCIAIS (Definidas ANTES de qualquer GET/POST) ---
+    # --- 1. AUTENTICAÇÃO E VARIÁVEIS ESSENCIAIS ---
 
-    # Autenticação e obtenção do user_id
     if "credentials" not in flask.session:
         flash("Você precisa estar logado para gerar o relatório.", "warning")
         return redirect(url_for("authorize"))
@@ -1106,17 +1108,14 @@ def gerar_relatorio():
         flash("Sessão inválida. Faça login novamente.", "warning")
         return redirect(url_for("logout"))
 
-    # Configurações e Plano
     user_settings = get_user_settings(user_id)
     plano = get_user_plan(user_id)
     relatorio_limite = PLANOS.get(plano, {}).get("relatorio_pdf_mes", 0)
 
-    # Cálculo do limite (necessário para o GET e POST)
+    # --- 2. CHECA LIMITE MENSAL (para o POST) ---
     limite_atingido = False
-    if relatorio_limite is not None and relatorio_limite > 0:
-        inicio_mes = agora_brt().replace(
-            day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+    if relatorio_limite and relatorio_limite > 0:
+        inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         rels_mes = RelatorioHistorico.query.filter(
             RelatorioHistorico.user_id == user_id,
             RelatorioHistorico.data_criacao >= inicio_mes,
@@ -1124,76 +1123,131 @@ def gerar_relatorio():
         if rels_mes >= relatorio_limite:
             limite_atingido = True
 
-    logging.debug("[RELATÓRIO] user_id=%s, plano=%s", user_id, plano)
-
-    # --- 2. MÉTODO GET (VISUALIZAÇÃO DA PÁGINA) ---
+    # =====================================================================
+    # 3. GET: EXIBE A PÁGINA COM AS MÉTRICAS (MESMA LÓGICA DO DASHBOARD)
+    # =====================================================================
     if request.method == "GET":
-        # 1. Busca os dados brutos (Reviews)
-        user_reviews = get_user_reviews(user_id)
+        # mesmo padrão do dashboard: vem "todas" ou GoogleLocation.id (int)
+        ficha = request.args.get("ficha", "todas")
 
-        # 2. Calcula as métricas
-        # ASSUMINDO que calcular_metricas_reviews está definida
-        metrics = calcular_metricas_reviews(user_reviews)
+        # base query
+        q = Review.query.filter(Review.user_id == user_id)
+
+        if ficha != "todas":
+            try:
+                ficha_id = int(ficha)
+
+                # 1) reviews já vinculadas pela FK (igual dashboard)
+                q_ficha = q.filter(Review.google_location_id == ficha_id)
+
+                # 2) fallback para reviews antigas sem FK
+                gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+                if gl:
+                    loc_id = str(gl.location_id).split("/")[-1].strip()
+                    q_ficha = q_ficha.union(
+                        q.filter(
+                            (Review.google_location_id.is_(None))
+                            & (Review.location_name.in_([loc_id, f"locations/{loc_id}"]))
+                        )
+                    )
+
+                avaliacoes_query = q_ficha.order_by(Review.date.desc()).all()
+
+            except ValueError:
+                # se vier lixo, mostra tudo
+                avaliacoes_query = q.order_by(Review.date.desc()).all()
+        else:
+            avaliacoes_query = q.order_by(Review.date.desc()).all()
+
+        fichas = (
+            GoogleLocation.query
+            .filter_by(user_id=user_id)
+            .order_by(GoogleLocation.location_name)
+            .all()
+        )
+
+        metrics = calcular_metricas_reviews(avaliacoes_query)
 
         return render_template(
             "relatorio.html",
             PLANOS=PLANOS,
             user_plano=plano,
             user_settings=user_settings,
-            reviews=user_reviews,
+            reviews=avaliacoes_query,
             metrics=metrics,
             limite_relatorio_atingido=limite_atingido,
+            fichas=fichas,
+            ficha_selecionada=ficha,
         )
 
-    # --- 3. MÉTODO POST (GERAÇÃO DE PDF) ---
-    # O código abaixo é executado APENAS se request.method == "POST"
+    # =====================================================================
+    # 4. POST: GERAR PDF (usa o MESMO FILTRO DE FICHA do dashboard)
+    # =====================================================================
 
-    # Validação do limite/plano
+    # plano sem direito a PDF
     if relatorio_limite == 0:
-        flash(
-            "Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.",
-            "warning",
-        )
-        return redirect(url_for("relatorio"))
+        flash("Baixar relatórios em PDF está disponível apenas no plano PRO ou superior.", "warning")
+        return redirect(url_for("gerar_relatorio"))
 
+    # limite mensal estourado
     if limite_atingido:
-        flash(
-            f"Você já atingiu o limite mensal de download de relatórios em PDF do seu plano ({relatorio_limite} por mês).",
-            "warning",
-        )
-        return redirect(url_for("relatorio"))
+        flash(f"Você já atingiu o limite mensal de relatórios ({relatorio_limite}).", "warning")
+        return redirect(url_for("gerar_relatorio"))
 
-    # Filtros (com whitelists)
+    # Filtros
     periodo = (request.form.get("periodo") or "90dias").strip()
     nota = (request.form.get("nota") or "todas").strip()
     respondida = (request.form.get("respondida") or "todas").strip()
+    ficha = (request.form.get("ficha") or "todas").strip()
 
     PERIODOS_OK = {"90dias", "6meses", "1ano", "todas"}
     NOTAS_OK = {"todas", "1", "2", "3", "4", "5"}
     RESP_OK = {"todas", "sim", "nao"}
 
     if periodo not in PERIODOS_OK or nota not in NOTAS_OK or respondida not in RESP_OK:
-        flash("Parâmetros de filtro inválidos.", "danger")
-        return redirect(url_for("relatorio"))
+        flash("Parâmetros inválidos.", "danger")
+        return redirect(url_for("gerar_relatorio"))
 
-    logging.info(
-        "[RELATÓRIO] Filtros: periodo=%s, nota=%s, respondida=%s",
-        periodo,
-        nota,
-        respondida,
-    )
+    # --- Buscar avaliações com filtro por ficha (MESMO PADRÃO DO DASHBOARD) ---
+    q = Review.query.filter(Review.user_id == user_id)
 
-    # Busca e normaliza timezone
-    avaliacoes_query = Review.query.filter_by(user_id=user_id).all()
+    if ficha != "todas":
+        try:
+            ficha_id = int(ficha)
+
+            # 1) reviews já vinculadas pela FK
+            q_ficha = q.filter(Review.google_location_id == ficha_id)
+
+            # 2) fallback para reviews antigas sem FK
+            gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+            if gl:
+                loc_id = str(gl.location_id).split("/")[-1].strip()
+                q_ficha = q_ficha.union(
+                    q.filter(
+                        (Review.google_location_id.is_(None))
+                        & (Review.location_name.in_([loc_id, f"locations/{loc_id}"]))
+                    )
+                )
+
+            avaliacoes_query = q_ficha.all()
+
+        except ValueError:
+            # se vier param zoado, gera com tudo
+            avaliacoes_query = q.all()
+    else:
+        avaliacoes_query = q.all()
+
     logging.debug("[RELATÓRIO] Avaliações encontradas: %d", len(avaliacoes_query))
 
     avaliacoes = []
     agora = agora_brt()
+
     for av in avaliacoes_query:
         data_av = av.date
         if not data_av:
             continue
 
+        # Normaliza timezone
         if data_av.tzinfo is None:
             data_av = data_av.replace(tzinfo=agora.tzinfo)
         else:
@@ -1201,7 +1255,7 @@ def gerar_relatorio():
 
         diff_days = (agora - data_av).days
 
-        # Lógica de filtro re-aplicada (APENAS para o PDF)
+        # Filtros adicionais
         if nota != "todas" and str(av.rating) != nota:
             continue
         if respondida == "sim" and not av.replied:
@@ -1215,38 +1269,48 @@ def gerar_relatorio():
         if periodo == "1ano" and diff_days > 365:
             continue
 
-        avaliacoes.append(
-            {
-                "data": data_av,
-                "nota": av.rating,
-                "texto": av.text or "",
-                "respondida": 1 if av.replied else 0,
-                "tags": getattr(av, "tags", "") or "",
-            }
-        )
-
-    logging.debug("[RELATÓRIO] Avaliações após filtro: %d", len(avaliacoes))
+        avaliacoes.append({
+            "data": data_av,
+            "nota": av.rating,
+            "texto": av.text or "",
+            "respondida": 1 if av.replied else 0,
+            "tags": getattr(av, "tags", "") or "",
+        })
 
     if not avaliacoes:
-        flash("Nenhuma avaliação encontrada para os filtros escolhidos.", "info")
-        return redirect(url_for("relatorio"))
+        flash("Nenhuma avaliação encontrada nos filtros escolhidos.", "info")
+        return redirect(url_for("gerar_relatorio"))
 
-    # Média robusta (cálculo de média para o corpo do PDF)
-    notas = [
-        a.get("nota") for a in avaliacoes if isinstance(a.get("nota"), (int, float))
-    ]
+    # Média
+    notas = [a["nota"] for a in avaliacoes if isinstance(a["nota"], (int, float))]
     media_atual = calcular_media(notas) if notas else 0.0
     if isinstance(media_atual, float) and isnan(media_atual):
         media_atual = 0.0
 
+    # Nome amigável da ficha para o relatório
+    nome_ficha = "Todas as Lojas / Unidades"
+    if ficha != "todas":
+        try:
+            ficha_id = int(ficha)
+            gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+            if gl and gl.location_name:
+                nome_ficha = gl.location_name
+        except ValueError:
+            pass
+
+    # Instancia o gerador de relatório
     rel = RelatorioAvaliacoes(
-        avaliacoes, media_atual=media_atual, settings=user_settings
+        avaliacoes,
+        media_atual=media_atual,
+        settings=user_settings,
+        nome_ficha=nome_ficha,
     )
 
     nome_arquivo = f"relatorio_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
     br_tz = pytz.timezone("America/Sao_Paulo")
     data_criacao = datetime.now(br_tz)
 
+    # Gerar e salvar PDF
     try:
         buffer = io.BytesIO()
         rel.gerar_pdf(buffer)
@@ -1255,6 +1319,7 @@ def gerar_relatorio():
 
         historico = RelatorioHistorico(
             user_id=user_id,
+            filtro_ficha=ficha,
             filtro_periodo=periodo,
             filtro_nota=nota,
             filtro_respondida=respondida,
@@ -1262,24 +1327,22 @@ def gerar_relatorio():
             arquivo_pdf=pdf_bytes,
             data_criacao=data_criacao,
         )
+
         db.session.add(historico)
         db.session.commit()
-        logging.info(
-            "[RELATÓRIO] Histórico salvo ID=%s arquivo=%s", historico.id, nome_arquivo
-        )
 
-        # Download
         return send_file(
             io.BytesIO(pdf_bytes),
             as_attachment=True,
             download_name=nome_arquivo,
             mimetype="application/pdf",
         )
-    except Exception as e:
+
+    except Exception:
         db.session.rollback()
-        logging.exception("ERRO AO GERAR/ENVIAR PDF")
-        flash("Erro ao gerar o relatório. Tente novamente em instantes.", "danger")
-        return redirect(url_for("index"))
+        logging.exception("ERRO AO GERAR PDF")
+        flash("Erro ao gerar o relatório. Tente novamente.", "danger")
+        return redirect(url_for("gerar_relatorio"))
 
 
 @app.route("/delete_account", methods=["POST"])
@@ -1649,26 +1712,36 @@ def suggest_reply():
         return jsonify({"success": False, "error": "Usuário não identificado"})
 
     data = request.get_json(silent=True) or {}
-    review_text = (data.get("review_text") or "").strip()
-    reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
+
+    # ✅ 1. Recebe o ID da avaliação
+    review_id = data.get("review_id")
+    if not review_id:
+        return jsonify({"success": False, "error": "ID da avaliação não fornecido"})
+
+    # ✅ 2. Busca a avaliação no banco
+    review = Review.query.filter_by(
+        id=review_id,
+        user_id=user_id
+    ).first()
+
+    if not review:
+        return jsonify({"success": False, "error": "Avaliação não encontrada"})
+
+    # ✅ 3. Extrai os dados reais da avaliação
+    review_text = (review.text or "").strip()
+    reviewer_name = (review.reviewer_name or "Cliente").strip()
+    star_rating = review.rating or 5
     tone = (data.get("tone") or "profissional").strip().lower()
 
-    # rating seguro (1..5)
-    try:
-        star_rating = int(data.get("star_rating", 5))
-    except (TypeError, ValueError):
-        star_rating = 5
-    star_rating = max(1, min(5, star_rating))
-
     if not review_text:
-        return jsonify({"success": False, "error": "Texto da avaliação não fornecido"})
+        return jsonify({"success": False, "error": "Avaliação sem texto para resposta"})
 
-    # limitar tamanho para evitar prompt injection gigante / custos
+    # ✅ 4. Limite de tamanho
     MAX_LEN = 2000
     if len(review_text) > MAX_LEN:
         review_text = review_text[:MAX_LEN]
 
-    # Buscar configurações do usuário do banco de dados
+    # ✅ 5. Buscar configurações do usuário
     settings = get_user_settings(user_id)
 
     TONE_OK = {
@@ -1684,9 +1757,9 @@ def suggest_reply():
     business = (settings.get("business_name") or "").strip()
     assinatura = f"{business}\n{manager}" if manager else business
 
-    # 1. 📝 INICIALIZAÇÃO E INCLUSÃO DO CONTEXTO PERSONALIZADO (CMNTS)
-    prompt = "" # Inicializa a variável prompt
-    
+    # 🔒 PROMPT — NÃO MEXIDO
+    prompt = ""
+
     if settings.get("contexto_personalizado"):
         contexto = settings["contexto_personalizado"].strip()
         prompt += "####\n"
@@ -1694,10 +1767,12 @@ def suggest_reply():
         prompt += "VOCÊ DEVE USAR ESTA INFORMAÇÃO COM PRIORIDADE ABSOLUTA. ELA DEFINE O TOM (INFORMAL) E O ALCANCE DOS SERVIÇOS (SOMENTE PEÇAS/NÃO MANUTENÇÃO).\n"
         prompt += f"CONTEXTO ESPECÍFICO: {contexto}\n"
         prompt += "####\n\n"
-        # Adiciona o contexto e uma instrução forte para a IA
-        prompt += f"INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\nContexto da empresa: {contexto}\n\n"
-    
-    # 2. 📝 Adiciona o restante das instruções e dados
+        prompt += (
+            "INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA "
+            "na personalização da resposta.\n"
+            f"Contexto da empresa: {contexto}\n\n"
+        )
+
     prompt += f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
 
@@ -1731,20 +1806,19 @@ Instruções:
                 {"role": "user", "content": prompt},
             ],
         )
+
         suggested_reply = (completion.choices[0].message.content or "").strip()
         if not suggested_reply:
-            return jsonify(
-                {"success": False, "error": "Não foi possível gerar a resposta agora."}
-            )
+            return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
+
         return jsonify({"success": True, "suggested_reply": suggested_reply})
+
     except Exception:
         logging.exception("Erro na API OpenAI em suggest_reply")
         return jsonify(
-            {
-                "success": False,
-                "error": "Erro ao gerar a resposta. Tente novamente mais tarde.",
-            }
+            {"success": False, "error": "Erro ao gerar a resposta. Tente novamente mais tarde."}
         )
+
 
 
 @app.template_filter("formatar_data_brt")
@@ -2071,8 +2145,6 @@ def logout():
 
     flask.session.clear()
     return flask.redirect(url_for("index"))
-
-
 @app.route("/reviews")
 @limiter.limit("5 per minute")
 @require_terms_accepted
@@ -2087,31 +2159,116 @@ def reviews():
         flash("Sessão inválida. Faça login novamente.", "danger")
         return redirect(url_for("logout"))
 
-    # Logs enxutos (sem listar IDs de outros usuários)
     logging.debug("reviews: user_id=%s", user_id)
+
+    # Booking: adotar avaliações anônimas (igual você já tinha)
     try:
         adotadas = claim_booking_anonymous_for(user_id)
         if adotadas:
             app.logger.info(
-                "Booking: %s avaliações adotadas para user_id=%s", adotadas, user_id
+                "Booking: %s avaliações adotadas para user_id=%s",
+                adotadas,
+                user_id,
             )
     except Exception as e:
-        app.logger.warning("Falha ao adotar reviews anônimas do Booking: %s", e)
+        app.logger.warning(
+            "Falha ao adotar reviews anônimas do Booking: %s", e
+        )
 
-    user_reviews = get_user_reviews(user_id)
-    logging.debug("reviews: qnt_avaliacoes=%d", len(user_reviews))
+    # -----------------------------
+    # 1) LÊ OS FILTROS DA URL (GET)
+    # -----------------------------
+    ficha_selecionada = request.args.get("ficha", "todas")
+    termo_busca = (request.args.get("q") or "").strip()
+    periodo = request.args.get("periodo", "").strip()
+    estrelas = request.args.get("estrelas", "").strip()
+    origem = request.args.get("origem", "").strip()
+    status = request.args.get("status", "").strip()
 
-    # 🚨 CORREÇÃO: DEFINIR user_plano ANTES DE USÁ-LO
+    # paginação
+    page = request.args.get("page", 1, type=int)
+    per_page = 12  # quantidade por página
+
+    # Lista de fichas do usuário
+    fichas = (
+        GoogleLocation.query
+        .filter_by(user_id=user_id)
+        .order_by(GoogleLocation.location_name)
+        .all()
+    )
+
+    # -----------------------------
+    # 2) BASE QUERY
+    # -----------------------------
+    q = Review.query.filter(Review.user_id == user_id)
+
+    # Filtro por ficha (GoogleLocation.id -> Review.google_location_id)
+    if ficha_selecionada != "todas":
+        try:
+            ficha_id = int(ficha_selecionada)
+            q = q.filter(Review.google_location_id == ficha_id)
+        except ValueError:
+            # se vier zoado, ignora e volta pra "todas"
+            ficha_selecionada = "todas"
+
+    # Filtro por texto (nome, texto, resposta)
+    if termo_busca:
+        like = f"%{termo_busca}%"
+        q = q.filter(
+            or_(
+                Review.reviewer_name.ilike(like),
+                Review.text.ilike(like),
+                Review.reply.ilike(like),
+            )
+        )
+
+    # Filtro por período (em dias)
+    if periodo in {"7", "30", "90", "180", "365"}:
+        dias = int(periodo)
+        limite = agora_brt() - timedelta(days=dias)
+        q = q.filter(Review.date >= limite)
+
+    # Filtro por estrelas
+    if estrelas in {"1", "2", "3", "4", "5"}:
+        q = q.filter(Review.rating == int(estrelas))
+
+    # Filtro por origem
+    if origem in {"google", "booking"}:
+        q = q.filter(Review.source == origem)
+
+    # Filtro por status (respondida / pendente)
+    if status == "pendente":
+        q = q.filter(Review.replied.is_(False))
+    elif status == "respondida":
+        q = q.filter(Review.replied.is_(True))
+
+    # Ordenação e paginação
+    q = q.order_by(Review.date.desc())
+    pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+    user_reviews = pagination.items
+
+    logging.debug(
+        "reviews: qnt_avaliacoes_filtradas=%d (ficha=%s, page=%s)",
+        len(user_reviews),
+        ficha_selecionada,
+        page,
+    )
+
     user_plano = get_user_plan(user_id)
 
     return render_template(
         "reviews.html",
         reviews=user_reviews,
+        pagination=pagination,
         user=user_info,
         now=datetime.now(),
         PLANOS=PLANOS,
-        user_plano=user_plano,  # Agora 'user_plano' está definido
+        user_plano=user_plano,
+        fichas=fichas,
+        ficha_selecionada=ficha_selecionada,
     )
+
+
 
 
 # -- quem é o usuário atual (para blueprints como o booking.py) --
@@ -2365,7 +2522,6 @@ def save_reply():
 @require_terms_accepted
 @require_plano_ativo
 def dashboard():
-    """Página de dashboard com análise de avaliações, adaptada ao plano."""
     if "credentials" not in flask.session:
         return flask.redirect(url_for("authorize"))
 
@@ -2376,42 +2532,92 @@ def dashboard():
         return redirect(url_for("logout"))
 
     plano = get_user_plan(user_id)
-    user_reviews = get_user_reviews(user_id)
+
+    # 🔥 LISTA DE FICHAS PARA O FILTRO
+    fichas = (
+        GoogleLocation.query
+        .filter_by(user_id=user_id)
+        .order_by(GoogleLocation.location_name)
+        .all()
+    )
+
+    # 🔥 LÊ O FILTRO DO FRONT (GET) -> deve vir GoogleLocation.id (int) ou "todas"
+    filtro_ficha = flask.request.args.get("ficha", "todas")
+
+    # 🔥 BASE QUERY
+    q = Review.query.filter(Review.user_id == user_id)
+
+    # 🔥 BUSCA AS REVIEWS DE ACORDO COM O FILTRO
+    if filtro_ficha != "todas":
+        try:
+            ficha_id = int(filtro_ficha)
+
+            q_ficha = q.filter(Review.google_location_id == ficha_id)
+
+            # fallback: reviews antigas sem FK (usa location_name "locations/123" ou "123")
+            gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+            if gl:
+                loc_id = str(gl.location_id).split("/")[-1].strip()
+                q_ficha = q_ficha.union(
+                    q.filter(
+                        (Review.google_location_id.is_(None)) &
+                        (Review.location_name.in_([loc_id, f"locations/{loc_id}"]))
+                    )
+                )
+
+            user_reviews = q_ficha.order_by(Review.date.desc()).all()
+
+        except ValueError:
+            # veio algo inválido -> mostra tudo
+            user_reviews = q.order_by(Review.date.desc()).all()
+    else:
+        # se você quiser manter seu helper, beleza:
+        # user_reviews = get_user_reviews(user_id)
+        user_reviews = q.order_by(Review.date.desc()).all()
 
     if not user_reviews:
-        flash("Adicione algumas avaliações para visualizar o dashboard.", "info")
-        return redirect(url_for("add_review"))
+        flash("Ainda não há avaliações para esta ficha.", "info")
+        return render_template(
+            "dashboard.html",
+            total_reviews=0,
+            avg_rating=0,
+            rating_distribution={1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            percent_responded=0,
+            reviews=[],
+            user=user_info,
+            user_plano=plano,
+            PLANOS=PLANOS,
+            fichas=fichas,
+            filtro_ficha=filtro_ficha,
+            now=datetime.now(),
+        )
 
+    # ============================================================
+    #   CÁLCULOS DO DASHBOARD (mantidos iguais)
+    # ============================================================
     total_reviews = len(user_reviews)
 
-    # --- média robusta (usa apenas ratings numéricos) ---
     ratings = []
     for r in user_reviews:
         try:
-            if r.rating is None:
-                continue
-            ratings.append(float(r.rating))
-        except (TypeError, ValueError):
-            continue
+            if r.rating is not None:
+                ratings.append(float(r.rating))
+        except:
+            pass
+
     avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else 0.0
 
-    # --- distribuição por estrelas 1..5 (agrupa decimais) ---
     rating_distribution = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
     for r in user_reviews:
         try:
             val = float(r.rating)
-            star = int(val)  # 4.3 -> 4
-            star = min(5, max(1, star))
-            rating_distribution[star] += 1
-        except (TypeError, ValueError):
-            continue
+            st = max(1, min(5, int(val)))
+            rating_distribution[st] += 1
+        except:
+            pass
 
-    responded_reviews = sum(
-        1 for r in user_reviews if bool(getattr(r, "replied", False))
-    )
-    percent_responded = (
-        (responded_reviews * 100.0 / total_reviews) if total_reviews else 0.0
-    )
+    responded_reviews = sum(1 for r in user_reviews if getattr(r, "replied", False))
+    percent_responded = round((responded_reviews * 100.0 / total_reviews), 1)
 
     rating_distribution_values = [
         rating_distribution[1],
@@ -2424,19 +2630,19 @@ def dashboard():
     return render_template(
         "dashboard.html",
         total_reviews=total_reviews,
-        avg_rating=avg_rating,  # já arredondado
+        avg_rating=avg_rating,
         rating_distribution=rating_distribution,
         rating_distribution_values=rating_distribution_values,
-        percent_responded=round(percent_responded, 1),
+        percent_responded=percent_responded,
         reviews=user_reviews,
         user=user_info,
         user_plano=plano,
         PLANOS=PLANOS,
+        fichas=fichas,
+        filtro_ficha=filtro_ficha,
         now=datetime.now(),
     )
 
-
-from flask_wtf.csrf import CSRFError
 
 
 @app.errorhandler(CSRFError)
@@ -2460,19 +2666,51 @@ def analyze_reviews():
 
     user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
-
     if not user_id:
         return jsonify({"success": False, "error": "Usuário não identificado"}), 401
 
-    # Settings do usuário
-    settings = get_user_settings(user_id)
+    # ✅ Captura o filtro da ficha (deve vir GoogleLocation.id ou "todas")
+    filtro_ficha = request.args.get("ficha", "todas")
 
-    # Avaliações do usuário
-    user_reviews = get_user_reviews(user_id)
+    # Base query
+    q = Review.query.filter(Review.user_id == user_id)
+
+    if filtro_ficha != "todas":
+        try:
+            ficha_id = int(filtro_ficha)
+
+            # 1) caminho novo: FK
+            q_ficha = q.filter(Review.google_location_id == ficha_id)
+
+            # 2) fallback: reviews antigas sem FK (usa location_name antigo)
+            gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+            if gl:
+                loc_id = str(gl.location_id).split("/")[-1].strip()
+                q_ficha = q_ficha.union(
+                    q.filter(
+                        (Review.google_location_id.is_(None)) &
+                        (Review.location_name.in_([loc_id, f"locations/{loc_id}"]))
+                    )
+                )
+
+            user_reviews = q_ficha.all()
+
+        except ValueError:
+            # se vier inválido, analisa tudo
+            user_reviews = q.all()
+    else:
+        # se você prefere manter get_user_reviews(user_id), ok
+        # user_reviews = get_user_reviews(user_id)
+        user_reviews = q.all()
+
     if not user_reviews:
         return jsonify({"success": False, "error": "Nenhuma avaliação para analisar."}), 400
 
-    # Resumo limitado para não estourar tokens
+    settings = get_user_settings(user_id)
+
+    # ===========================
+    # Resumo limitado
+    # ===========================
     lines = [
         f"{(r.reviewer_name or 'Cliente').strip()[:80]} ({r.rating} estrelas): {(r.text or '').strip()}"
         for r in user_reviews
@@ -2482,11 +2720,10 @@ def analyze_reviews():
         resumo = resumo[:8000]
 
     # ===========================
-    # NOVO PROMPT CURTO (4 PARÁGRAFOS)
+    # Prompt
     # ===========================
     prompt = ""
 
-    # Contexto personalizado (se existir)
     if settings.get("contexto_personalizado"):
         contexto = settings["contexto_personalizado"].strip()
         prompt += (
@@ -2524,9 +2761,6 @@ Avaliações para análise:
 {resumo}
 """
 
-    # ===========================
-    # Chamada da IA
-    # ===========================
     try:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
@@ -2537,14 +2771,11 @@ Avaliações para análise:
         )
 
         response_text = (completion.choices[0].message.content or "").strip()
-
-        # Retorna como texto simples (melhor para dashboard)
         return jsonify({"success": True, "raw_analysis": response_text})
 
     except Exception as e:
         logging.exception("analyze_reviews: falha na IA")
         return jsonify({"success": False, "error": f"Erro na análise com IA: {str(e)}"}), 500
-
 
 
 @app.route("/settings", methods=["GET", "POST"])
@@ -2602,7 +2833,7 @@ def settings():
             flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
             return redirect(url_for("settings"))
 
-        # Salva as configurações com try/except
+        # Salva as configurações
         try:
             save_user_settings(user_id, settings_data)
         except Exception:
@@ -2611,7 +2842,7 @@ def settings():
             flash("Erro ao salvar as configurações.", "danger")
             return redirect(url_for("settings"))
 
-        # Envia e-mail de boas-vindas (idempotente)
+        # Envia e-mail de boas-vindas (se necessário)
         try:
             existing_settings = UserSettings.query.filter_by(user_id=user_id).first()
             if existing_settings and not getattr(existing_settings, "email_boas_vindas_enviado", False):
@@ -2642,13 +2873,22 @@ def settings():
         flash("Configurações salvas com sucesso!", "success")
         return redirect(url_for("index"))
 
+    # --- PARTE DO GET (CORRIGIDA) ---
     current_settings = get_user_settings(user_id)
+    
+    # 1. Definimos o plano
+    plano_atual = get_user_plan(user_id)
+    
+    # 2. Definimos a variável que estava faltando!
+    is_free_plan = (plano_atual == 'free')
+
     return render_template(
         "settings.html",
         settings=current_settings,
         user=user_info,
         now=datetime.now(),
-    )
+        is_free_plan=is_free_plan  # Agora a variável existe!
+    ) 
 @app.route("/settings/contexto", methods=["POST"])
 @require_terms_accepted
 @require_plano_ativo
@@ -2848,4 +3088,4 @@ if __name__ == "__main__":
 
     # --- Executa o servidor Flask ---
     print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
-    app.run(host=host, port=port, debug=False, use_reloader=False)
+    app.run(host=host, port=port, debug=True)

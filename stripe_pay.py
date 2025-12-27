@@ -1,40 +1,29 @@
 import os
 import stripe
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
-from flask import Blueprint, request, jsonify, session, redirect
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
 from models import db, PaymentTransaction, UserSettings
 from admin import STRIPE_PRICE_IDS, agora_brt
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
+# ⚠️ Configure aqui o ID do Preço do Slot Extra no Stripe
+STRIPE_ADDON_PRICE_ID = os.getenv("STRIPE_ADDON_PRICE_ID", "price_SEU_ID_AQUI")
+
 stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
 
-
 # -----------------------
-# HELPERS
+# HELPERS GERAIS
 # -----------------------
 
 def _get_domain_url() -> str:
-    """
-    Retorna a URL correta dependendo do ambiente:
-    - Em produção: usa DOMAIN_URL configurado no Render.
-    - Em desenvolvimento: usa localhost automaticamente.
-    """
     domain = os.getenv("DOMAIN_URL")
-
-    # Se está em produção e tem DOMAIN_URL, usa ele
     if domain and domain.strip():
         return domain.rstrip("/")
-
-    # Caso contrário, estamos em ambiente local
     return "http://localhost:5000"
 
-
 def _get_or_create_stripe_customer(settings: UserSettings, email: str) -> str:
-    """
-    Cria ou reutiliza um Customer no Stripe e salva o ID em UserSettings.
-    """
     if settings.stripe_customer_id:
         return settings.stripe_customer_id
 
@@ -46,34 +35,21 @@ def _get_or_create_stripe_customer(settings: UserSettings, email: str) -> str:
     db.session.commit()
     return customer.id
 
-
 def _plano_from_product_key(product_key: str) -> str:
-    """
-    Converte chave stripe para plano interno:
-    - pro_mensal → pro
-    - pro_anual → pro
-    - business_mensal → business
-    - business_anual → business
-    """
-    if product_key.startswith("pro"):
-        return "pro"
-    if product_key.startswith("business"):
-        return "business"
+    if product_key.startswith("pro"): return "pro"
+    if product_key.startswith("business"): return "business"
     return "free"
 
-
 def _duracao_dias_from_product_key(product_key: str) -> int:
-    """
-    Define duração em dias pra plano_ate, se quiser manter.
-    (Opcional — você também pode confiar só no Stripe)
-    """
-    if product_key.endswith("_anual"):
-        return 365
-    return 30  # default mensal
+    if product_key.endswith("_anual"): return 365
+    return 30
+
+# -----------------------
+# HELPERS DE CRÉDITO RETROATIVO (RESTAURADOS)
+# -----------------------
 
 def usar_credito_retro(user_id, period):
     retro_key = f"retro_{period}"
-
     tx = (
         PaymentTransaction.query
         .filter_by(
@@ -85,17 +61,14 @@ def usar_credito_retro(user_id, period):
         .order_by(PaymentTransaction.paid_at.desc())
         .first()
     )
-
     if tx:
         tx.consumido = True
         db.session.commit()
         return True
-
     return False
 
 def usuario_tem_credito_retro(user_id, period):
     retro_key = f"retro_{period}"
-
     return (
         PaymentTransaction.query.filter_by(
             user_id=user_id,
@@ -107,30 +80,144 @@ def usuario_tem_credito_retro(user_id, period):
     )
 
 # -----------------------
-# CHECKOUT (PLANOS + RETRO)
+# 🔄 LÓGICA DE ADD-ON (ASSINATURA)
+# -----------------------
+
+@stripe_bp.route("/addon/add", methods=["POST"])
+def adicionar_slot_ao_plano():
+    """Adiciona 1 slot extra à assinatura existente."""
+    user_info = session.get("user_info")
+    if not user_info:
+        return jsonify({"success": False, "error": "Usuário não logado"}), 401
+    
+    user_id = user_info.get("id")
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+
+    if not settings or not settings.stripe_subscription_id:
+        return jsonify({"success": False, "error": "Necessário plano ativo."}), 400
+
+    try:
+        sub = stripe.Subscription.retrieve(settings.stripe_subscription_id)
+        addon_item = None
+        for item in sub['items']['data']:
+            if item.price.id == STRIPE_ADDON_PRICE_ID:
+                addon_item = item
+                break
+        
+        if addon_item:
+            stripe.SubscriptionItem.modify(
+                addon_item.id,
+                quantity=addon_item.quantity + 1,
+                proration_behavior='always_invoice'
+            )
+        else:
+            stripe.SubscriptionItem.create(
+                subscription=sub.id,
+                price=STRIPE_ADDON_PRICE_ID,
+                quantity=1,
+                proration_behavior='always_invoice'
+            )
+
+        settings.gbp_slots_extras = (settings.gbp_slots_extras or 0) + 1
+        db.session.commit()
+
+        return jsonify({"success": True, "message": "Slot ativado com sucesso!"})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@stripe_bp.route("/addon/remove", methods=["POST"])
+def remover_slot_do_plano():
+    """Remove 1 slot extra da assinatura."""
+    user_info = session.get("user_info")
+    if not user_info:
+        return jsonify({"success": False, "error": "Usuário não logado"}), 401
+    
+    user_id = user_info.get("id")
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+
+    if not settings or not settings.stripe_subscription_id:
+        return jsonify({"success": False, "error": "Assinatura não encontrada."}), 400
+
+    if (settings.gbp_slots_extras or 0) <= 0:
+        return jsonify({"success": False, "error": "Sem slots extras para cancelar."}), 400
+
+    try:
+        sub = stripe.Subscription.retrieve(settings.stripe_subscription_id)
+        addon_item = None
+        for item in sub['items']['data']:
+            if item.price.id == STRIPE_ADDON_PRICE_ID:
+                addon_item = item
+                break
+        
+        if not addon_item:
+            settings.gbp_slots_extras = 0
+            db.session.commit()
+            return jsonify({"success": True, "message": "Sincronizado."})
+
+        if addon_item.quantity > 1:
+            stripe.SubscriptionItem.modify(
+                addon_item.id, quantity=addon_item.quantity - 1, proration_behavior='none'
+            )
+        else:
+            stripe.SubscriptionItem.delete(addon_item.id, proration_behavior='none')
+
+        settings.gbp_slots_extras = max(0, (settings.gbp_slots_extras or 0) - 1)
+        db.session.commit()
+
+        return jsonify({"success": True, "message": "Slot extra cancelado."})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# -----------------------
+# ❌ CANCELAMENTO GERAL
+# -----------------------
+
+@stripe_bp.route("/subscription/cancel", methods=["POST"])
+def cancelar_assinatura_geral():
+    user_info = session.get("user_info")
+    if not user_info:
+        return jsonify({"success": False, "error": "Usuário não logado"}), 401
+    
+    user_id = user_info.get("id")
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+
+    if not settings or not settings.stripe_subscription_id:
+        return jsonify({"success": False, "error": "Nenhuma assinatura ativa."}), 400
+
+    try:
+        stripe.Subscription.modify(
+            settings.stripe_subscription_id,
+            cancel_at_period_end=True
+        )
+        flash("Assinatura cancelada. Acesso mantido até o fim do ciclo.", "info")
+        return jsonify({"success": True, "message": "Cancelamento agendado."})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# -----------------------
+# CHECKOUT PADRÃO (PLANOS / RETRO)
 # -----------------------
 
 @stripe_bp.route("/checkout/<product_key>", methods=["POST"])
 def create_checkout(product_key):
-    """
-    Checkout para:
-      - Planos recorrentes (pro_mensal, pro_anual, business_mensal, business_anual)
-      - Sincronizações retroativas (retro_30, retro_60, ...), modo=payment
-    """
-
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     email = user_info.get("email")
     data = request.get_json(silent=True) or {}
     next_url = data.get("next_url", "/dashboard")
 
-
     if not user_id or not email:
         return jsonify({"success": False, "message": "Faça login novamente."}), 401
 
     price_id = STRIPE_PRICE_IDS.get(product_key)
     if not price_id:
-        return jsonify({"success": False, "message": "Produto/plano inválido."}), 400
+        return jsonify({"success": False, "message": "Plano inválido."}), 400
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     if not settings:
@@ -141,336 +228,150 @@ def create_checkout(product_key):
     domain = _get_domain_url()
 
     try:
-        # --------- SINCRONIZAÇÃO RETROATIVA (ONE SHOT PAYMENT) ----------
+        # Retroativo (One-shot)
         if product_key.startswith("retro_"):
             checkout = stripe.checkout.Session.create(
-            mode="payment",
-            success_url=(
-                f"{domain}/stripe/success?"
-                "session_id={CHECKOUT_SESSION_ID}"
-                f"&next={next_url}"
-            ),
-            cancel_url=f"{domain}/stripe/cancel?next={next_url}",
-            customer_email=email,
-            line_items=[{"price": price_id, "quantity": 1}],
-            allow_promotion_codes=True,
-        )
-
-
+                mode="payment",
+                success_url=f"{domain}/stripe/success?session_id={{CHECKOUT_SESSION_ID}}&next={next_url}",
+                cancel_url=f"{domain}/stripe/cancel?next={next_url}",
+                customer_email=email,
+                line_items=[{"price": price_id, "quantity": 1}],
+                allow_promotion_codes=True,
+            )
             tx = PaymentTransaction(
-                user_id=user_id,
-                plan_key=product_key,
-                amount_cents=0,
-                status="pending",
-                external_id=checkout.id,
+                user_id=user_id, plan_key=product_key, amount_cents=0,
+                status="pending", external_id=checkout.id
             )
             db.session.add(tx)
             db.session.commit()
-
             return jsonify({"success": True, "checkout_url": checkout.url})
 
-        # --------- PLANOS RECORRENTES (SUBSCRIPTION) ----------
-        # Gera/recupera Customer no Stripe
+        # Planos (Subscription)
         customer_id = _get_or_create_stripe_customer(settings, email)
-
+        
         checkout = stripe.checkout.Session.create(
             mode="subscription",
-            success_url=(
-                f"{domain}/stripe/success?"
-                "session_id={CHECKOUT_SESSION_ID}"
-                f"&next={next_url}"
-            ),
+            success_url=f"{domain}/stripe/success?session_id={{CHECKOUT_SESSION_ID}}&next={next_url}",
             cancel_url=f"{domain}/stripe/cancel?next={next_url}",
             customer=customer_id,
             line_items=[{"price": price_id, "quantity": 1}],
             allow_promotion_codes=True,
         )
-
-
+        
         tx = PaymentTransaction(
-            user_id=user_id,
-            plan_key=product_key,
-            amount_cents=0,
-            status="pending",
-            external_id=checkout.id,
+            user_id=user_id, plan_key=product_key, amount_cents=0,
+            status="pending", external_id=checkout.id
         )
         db.session.add(tx)
         db.session.commit()
-
+        
         return jsonify({"success": True, "checkout_url": checkout.url})
 
     except Exception as e:
-        # Log real no console/backend, front recebe msg genérica
         return jsonify({"success": False, "message": str(e)}), 400
 
 
-# -----------------------
-# SUCCESS & CANCEL
-# -----------------------
-
 @stripe_bp.route("/success")
 def success():
-    """
-    Callback após o Stripe redirecionar de volta.
-    Serve tanto p/ subscriptions quanto p/ pagamentos one-shot.
-    """
     session_id = request.args.get("session_id")
     next_url = request.args.get("next") or "/dashboard"
 
-    if not session_id:
-        # Se por algum motivo vier sem, só manda pra página padrão
-        return redirect(next_url)
+    if not session_id: return redirect(next_url)
 
     try:
         checkout = stripe.checkout.Session.retrieve(session_id)
-
-        # Localiza transação que criamos com external_id = checkout.id
         tx = PaymentTransaction.query.filter_by(external_id=checkout.id).first()
-        if not tx:
-            # Falha silenciosa – volta pra tela
-            return redirect(next_url)
-
-        # Valor cobrado (serve pra payment e subscription)
-        amount_total = checkout.amount_total or 0
+        if not tx: return redirect(next_url)
 
         tx.status = "paid"
-        tx.amount_cents = amount_total
+        tx.amount_cents = checkout.amount_total or 0
         tx.paid_at = agora_brt()
 
         settings = UserSettings.query.filter_by(user_id=tx.user_id).first()
 
-        # 1) Pagamento único retroativo
         if tx.plan_key.startswith("retro_"):
-            # Não altera plano nem subscription, só marca pago
             db.session.commit()
             return redirect(next_url)
 
-        # 2) Assinatura (Subscription)
         subscription_id = checkout.subscription
         if subscription_id and settings:
             sub = stripe.Subscription.retrieve(subscription_id)
-
-            # Seta dados no UserSettings
             settings.stripe_subscription_id = sub.id
             if sub.items.data:
                 settings.stripe_subscription_item_id = sub.items.data[0].id
-
-            # Atualiza plano interno
             settings.plano = _plano_from_product_key(tx.plan_key)
-
-            # Se quiser manter plano_ate baseado na data de renovação atual:
             try:
-                period_end_ts = sub.current_period_end  # epoch
-                period_end_dt = datetime.utcfromtimestamp(period_end_ts)
-                # Se quiser em BRT:
-                settings.plano_ate = period_end_dt  # ou converter para BRT se seu campo usa timezone
-            except Exception:
-                # Fallback: mantém lógica antiga (30 ou 365 dias a partir de agora)
-                dias = _duracao_dias_from_product_key(tx.plan_key)
-                settings.plano_ate = agora_brt() + timedelta(days=dias)
+                settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
+            except:
+                settings.plano_ate = agora_brt() + timedelta(days=30)
 
         db.session.commit()
         return redirect(next_url)
 
     except Exception:
-        # Qualquer erro, redireciona mesmo assim
         return redirect(next_url)
-
 
 @stripe_bp.route("/cancel")
 def cancel():
-    """
-    Usuário cancelou o checkout no Stripe.
-    Só devolve pra /planos ou página desejada.
-    """
     next_url = request.args.get("next") or "/dashboard"
     return redirect(next_url)
 
-
-# -----------------------
-# UPGRADE DE PLANO (PRORATION)
-# -----------------------
-
-@stripe_bp.route("/upgrade/<new_plan_key>", methods=["POST"])
-def upgrade_plan(new_plan_key):
-    """
-    Faz upgrade de plano usando proration do Stripe.
-    Exemplo de new_plan_key:
-      - "pro_mensal" → upgrade para Pro mensal
-      - "business_mensal" → upgrade para Business mensal
-      - "pro_anual", "business_anual" etc.
-    """
-
-    user_info = session.get("user_info") or {}
-    user_id = user_info.get("id")
-    if not user_id:
-        return jsonify({"success": False, "message": "Faça login novamente."}), 401
-
-    price_id = STRIPE_PRICE_IDS.get(new_plan_key)
-    if not price_id:
-        return jsonify({"success": False, "message": "Plano inválido."}), 400
-
-    settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if not settings or not settings.stripe_subscription_id:
-        return jsonify({
-            "success": False,
-            "message": "Nenhuma assinatura ativa encontrada para upgrade."
-        }), 400
-
-    try:
-        sub = stripe.Subscription.retrieve(settings.stripe_subscription_id)
-
-        # Usa o subscription_item salvo, ou pega o primeiro
-        item_id = settings.stripe_subscription_item_id
-        if not item_id and sub.items.data:
-            item_id = sub.items.data[0].id
-
-        if not item_id:
-            return jsonify({
-                "success": False,
-                "message": "Item da assinatura não encontrado."
-            }), 400
-
-        # Atualiza assinatura com proration
-        updated = stripe.Subscription.modify(
-            settings.stripe_subscription_id,
-            items=[{
-                "id": item_id,
-                "price": price_id,
-            }],
-            proration_behavior="create_prorations",
-        )
-
-        # Atualiza info local
-        settings.plano = _plano_from_product_key(new_plan_key)
-        try:
-            period_end_ts = updated.current_period_end
-            period_end_dt = datetime.utcfromtimestamp(period_end_ts)
-            settings.plano_ate = period_end_dt
-        except Exception:
-            dias = _duracao_dias_from_product_key(new_plan_key)
-            settings.plano_ate = agora_brt() + timedelta(days=dias)
-
-        # Se item mudou, atualiza também
-        if updated.items.data:
-            settings.stripe_subscription_item_id = updated.items.data[0].id
-
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "Upgrade realizado com sucesso! O Stripe cobrará apenas a diferença proporcional."
-        })
-
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 400
-
-
-# -----------------------
-# CHECK PAGO (RETRO_XX)
-# -----------------------
 @stripe_bp.route("/check_paid/<period>", methods=["GET"])
 def check_paid(period):
     user_id = session.get("user_info", {}).get("id")
     if not user_id:
         return jsonify({"paid": False}), 401
+    return jsonify({"paid": usuario_tem_credito_retro(user_id, period)})
 
-    retro_key = f"retro_{period}"
-
-    tx = (
-        PaymentTransaction.query
-        .filter_by(
-            user_id=user_id,
-            plan_key=retro_key,
-            status="paid",
-            consumido=False    # 🔥 obrigando crédito não usado
-        )
-        .order_by(PaymentTransaction.paid_at.desc())
-        .first()
-    )
-
-    return jsonify({"paid": bool(tx)})
 # -----------------------
-# WEBHOOK — RENEGAÇÃO AUTOMÁTICA DO STRIPE
+# WEBHOOK
 # -----------------------
-
 @stripe_bp.route("/webhook", methods=["POST"])
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
-    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")  # coloque isso no .env
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except Exception as e:
+        # Se a assinatura não bater ou o payload estiver errado, retorna 400
         return jsonify({"error": str(e)}), 400
 
-    # -------------------------
-    # Pagamento de assinatura OK
-    # -------------------------
+    # ✅ Pagamento de fatura de assinatura (renovação/mensalidade/anual)
     if event["type"] == "invoice.payment_succeeded":
         invoice = event["data"]["object"]
-        subscription_id = invoice.get("subscription")
+        sub_id = invoice.get("subscription")
 
-        if subscription_id:
-            settings = UserSettings.query.filter_by(
-                stripe_subscription_id=subscription_id
-            ).first()
-
+        if sub_id:
+            settings = UserSettings.query.filter_by(stripe_subscription_id=sub_id).first()
             if settings:
-                sub = stripe.Subscription.retrieve(subscription_id)
+                # Atualiza validade do plano com base no período atual da assinatura
+                sub = stripe.Subscription.retrieve(sub_id)
+                settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
 
-                # Atualizar plano até a nova data de renovação
-                period_end_ts = sub.current_period_end
-                settings.plano_ate = datetime.utcfromtimestamp(period_end_ts)
+                # 🔄 Sincroniza quantidade de ADD-ON (slots extras)
+                addon_qty = 0
+                for item in sub["items"]["data"]:
+                    if item.price.id == STRIPE_ADDON_PRICE_ID:
+                        addon_qty = item.quantity
 
-                # Garantir que o plano interno está correto
-                item = sub["items"]["data"][0]
-                price_id = item["price"]["id"]
-
-                for key, pid in STRIPE_PRICE_IDS.items():
-                    if pid == price_id:
-                        settings.plano = _plano_from_product_key(key)
+                settings.gbp_slots_extras = addon_qty
 
                 db.session.commit()
 
-    # -------------------------
-    # Pagamento FALHOU
-    # -------------------------
-    if event["type"] == "invoice.payment_failed":
-        invoice = event["data"]["object"]
-        subscription_id = invoice.get("subscription")
-
-        if subscription_id:
-            settings = UserSettings.query.filter_by(
-                stripe_subscription_id=subscription_id
-            ).first()
-
-            if settings:
-                # Quando falha, deixamos plano_ate como está.
-                # Ao expirar a data, o app bloqueia automaticamente.
-                pass
-
-    # -------------------------
-    # Assinatura cancelada pelo Stripe
-    # -------------------------
+    # ❌ Assinatura cancelada (Stripe encerrou mesmo, não é só cancel_at_period_end)
     if event["type"] == "customer.subscription.deleted":
-        subscription = event["data"]["object"]
-        subscription_id = subscription["id"]
-
-        settings = UserSettings.query.filter_by(
-            stripe_subscription_id=subscription_id
-        ).first()
+        sub_id = event["data"]["object"]["id"]
+        settings = UserSettings.query.filter_by(stripe_subscription_id=sub_id).first()
 
         if settings:
-            # Bloquear imediatamente
             settings.plano = "free"
-            settings.plano_ate = agora_brt()  # expira agora
+            settings.plano_ate = agora_brt()
             settings.stripe_subscription_id = None
             settings.stripe_subscription_item_id = None
-
+            settings.gbp_slots_extras = 0
             db.session.commit()
 
+    # Stripe só precisa saber que você recebeu o evento
     return jsonify({"status": "ok"})

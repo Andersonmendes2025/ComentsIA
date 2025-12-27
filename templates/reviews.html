@@ -1,607 +1,625 @@
 {% extends "base.html" %}
+
+{% block title %}Gerenciar Avaliações - ComentsIA{% endblock %}
+
+{% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+  :root { --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+
+  .hero-reviews {
+    background: var(--primary-gradient);
+    color: white;
+    border-radius: 24px;
+    padding: 30px 32px;
+    box-shadow: 0 15px 35px -10px rgba(37, 99, 235, 0.4);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+  }
+  .hero-reviews::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 30%);
+    pointer-events: none;
+  }
+
+  .filter-container {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 5px 20px 5px 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.3s ease;
+    max-width: 520px;
+  }
+  .filter-container:focus-within {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    border-color: #3b82f6;
+  }
+  .filter-icon {
+    width: 40px; height: 40px;
+    background: #eff6ff; color: #2563eb;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 10px;
+  }
+
+  .filters-card {
+    background: #fff;
+    border: 1px solid #eef2f7;
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.03);
+    margin-bottom: 1.5rem;
+  }
+  .filters-card .form-control,
+  .filters-card .form-select { border-radius: 12px; }
+
+  .review-card {
+    background: #fff;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    display: flex; flex-direction: column;
+  }
+  .review-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06);
+    border-color: #e2e8f0;
+  }
+
+  .avatar-circle {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    color: #475569;
+    font-weight: 700; font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .source-badge {
+    font-size: 0.75rem; font-weight: 600;
+    padding: 4px 10px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .source-google { background: #e8f0fe; color: #1967d2; }
+  .source-booking { background: #003580; color: #fff; }
+
+  .review-text {
+    color: #334155; font-size: 0.95rem; line-height: 1.6;
+    margin: 15px 0; flex-grow: 1;
+  }
+
+  .modal-content { border-radius: 20px; border: 0; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+  .modal-header { border-bottom: 1px solid #f1f5f9; padding: 20px 24px; }
+  .modal-body { padding: 24px; }
+  .modal-footer { border-top: 1px solid #f1f5f9; padding: 16px 24px; }
+
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <meta name="csrf-token" content="{{ csrf_token() }}"/>
+<div class="container py-4">
 
-    <h2 class="mb-4">Avaliações Recebidas</h2>
+  <form action="{{ url_for('reviews') }}" method="GET" id="filtersForm">
 
-    <div class="filtro-header" onclick="toggleFiltros()">
-            <span><i class="bi bi-sliders me-2"></i> Filtros</span>
-            <i id="icon-seta" class="bi bi-chevron-down"></i>
-        </div>
+    <div class="hero-reviews d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4">
+      <div style="position: relative; z-index: 2;">
+        <h1 class="fw-bold mb-2 fs-3"><i class="bi bi-star-half me-2"></i>Gerenciar Avaliações</h1>
+        <p class="mb-0 opacity-90">Acompanhe, responda e analise o feedback dos seus clientes em tempo real.</p>
+      </div>
 
-        <div id="filtro-body" class="filtro-body">
+      <div class="d-flex flex-column flex-md-row align-items-md-center gap-2" style="position: relative; z-index: 2;">
 
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Período:</label>
-                    <select id="filtro-periodo" class="form-select form-select-sm">
-                        <option value="all">Todo o período</option>
-                        <option value="0">Hoje</option>
-                        <option value="7">Últimos 7 dias</option>
-                        <option value="30">Últimos 30 dias</option>
-                        <option value="90">Últimos 90 dias</option>
-                    </select>
-                </div>
+        <div class="filter-container bg-white">
+          <div class="filter-icon">
+            <i class="bi bi-shop fs-5"></i>
+          </div>
+          <div class="flex-grow-1">
+            <label class="d-block small text-muted fw-bold" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: -2px;">Visualizando</label>
 
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Origem:</label>
-                    <select id="filtro-origem" class="form-select form-select-sm">
-                        <option value="todas">Todas</option>
-                        <option value="google">Google</option>
-                        <option value="booking">Booking</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Status:</label>
-                    <select id="filtro-respondida" class="form-select form-select-sm">
-                        <option value="todas">Todas</option>
-                        <option value="sim">Respondidas</option>
-                        <option value="nao">Não Respondidas</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label mb-1">Nota:</label>
-                    <select id="filtro-nota" class="form-select form-select-sm">
-                        <option value="todas">Todas</option>
-                        <option value="5">5 estrelas</option>
-                        <option value="4">4 estrelas</option>
-                        <option value="3">3 estrelas</option>
-                        <option value="2">2 estrelas</option>
-                        <option value="1">1 estrela</option>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label mb-1">Buscar:</label>
-                    <input type="text" id="filtro-texto" class="form-control form-control-sm" placeholder="Nome ou avaliação...">
-                </div>
-            </div>
-
-            <div class="mt-3 d-flex gap-2">
-                <button class="btn btn-google btn-sm" onclick="aplicaFiltros()">Aplicar filtros</button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">Limpar</button>
-            </div>
-
-        </div>
-
-
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-        <div class="d-flex align-items-center gap-2">
-            <label for="itens-por-pagina" class="form-label mb-0">Itens por página:</label>
-            <select id="itens-por-pagina" class="form-select form-select-sm" style="width:auto;">
-                <option value="5">5</option>
-                <option value="10" selected>10</option>
-                <option value="15">15</option>
-                <option value="25">25</option>
+            {# ✅ IMPORTANTE: agora o value é o ID interno (GoogleLocation.id) #}
+            <select id="fichaSelect" name="ficha"
+                    class="form-select border-0 p-0 shadow-none bg-transparent fw-semibold text-dark"
+                    style="cursor: pointer; min-width: 220px;"
+                    onchange="document.getElementById('filtersForm').submit()">
+              <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>Todas as Lojas</option>
+              {% for f in fichas %}
+                <option value="{{ f.id }}" {% if ficha_selecionada|int == f.id %}selected{% endif %}>
+                  {{ f.location_name or f.business_name or 'Loja sem nome' }}
+                </option>
+              {% endfor %}
             </select>
+          </div>
+          <div class="ps-2 pe-3 text-muted"><i class="bi bi-chevron-down small"></i></div>
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <button id="btn-prev" class="btn btn-outline-secondary btn-sm" disabled>&laquo; Anterior</button>
-            <span id="pagina-info" class="text-muted small">Página 1 de 1</span>
-            <button id="btn-next" class="btn btn-outline-secondary btn-sm" disabled>Próxima &raquo;</button>
-        </div>
+
+        <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
+          <i class="bi bi-arrow-repeat me-1"></i>
+          <span id="reconcileText">Reconciliar ficha</span>
+          <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Reconciliando...</span>
+        </button>
+
+      </div>
     </div>
 
-    <div id="reviews-container">
-    {% if reviews %}
-        {% for review in reviews %}
-        {% set origem = (review.source or review.platform or review.origin or review.provider or 'local')|lower %} 
-        {% set nome   = review.reviewer_name or review.author_name or 'Cliente' %}
-        {% set texto  = review.text or review.content or review.comment or '' %}
-        {% set nota5  = review.rating %}
-        {% set nota10 = (review.original_rating | default(None)) %}
-        {% set escala = review.original_scale or '0-10' %}
+    <div class="filters-card">
+      <div class="row g-2 align-items-end">
 
-        {# CORREÇÃO DA TRADUÇÃO #}
-        {% set texto_limpo = texto | replace('(Translated by Google)', '') | replace('It was very good', '') | trim %}
-        
-
-        <div class="card mb-3 review-card review-block" id="review-{{ review.id }}"
-            data-respondida="{{ 'sim' if review.replied else 'nao' }}"
-            data-nome="{{ (nome or '')|lower }}"
-            data-texto="{{ (texto_limpo or '')|lower }}"
-            data-nota="{{ nota5 if nota5 is not none else '' }}"
-            data-origem="{{ origem }}"
-            data-date="{{ review.date.strftime('%Y-%m-%dT%H:%M:%S') if review.date }}"
-            data-id-externo="{{ review.external_id or '' }}" 
-            data-id-interno="{{ review.id }}">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                    <h5 class="card-title mb-1">Avaliação de {{ nome }}</h5>
-                    <span class="badge text-uppercase {% if origem=='booking' %}bg-warning text-dark{% else %}bg-success{% endif %}">
-                        {{ origem }}
-                    </span>
-                </div>
-
-                <h6 class="card-subtitle mb-2 text-muted">
-                    {% if nota5 is not none %}⭐ Nota ponderada: {{ '%.1f'|format(nota5) }} / 5{% endif %}
-                    {% if origem == 'booking' and nota10 is not none %}
-                        &nbsp;•&nbsp;<i class="bi bi-bookmark-star"></i> Booking: {{ '%.1f'|format(nota10) }} / 10
-                    {% endif %}
-                    &nbsp;—&nbsp; Data: {{ review.date | formatar_data_brt }}
-                </h6>
-
-                <p class="card-text" id="review-text-{{ review.id }}">{{ texto_limpo }}</p>
-
-                {% if review.replied %}
-                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;" id="reply-card-{{ review.id }}">
-                        <div class="d-flex align-items-center mb-2 gap-2">
-                            <i class="bi bi-check-circle text-primary" style="font-size:1.2rem"></i>
-                            <span class="fw-bold">Resposta enviada</span>
-                        </div>
-                        <div style="white-space: pre-line;" class="ms-4" id="reply-text-{{ review.id }}">
-                            {{ review.reply | safe }}
-                        </div>
-                        
-                        <div class="d-flex gap-2 mt-3" id="reply-actions-{{ review.id }}">
-                             <button class="btn btn-sm btn-outline-secondary" 
-                                     onclick="enableReplyEdit('{{ review.id }}')">
-                                 <i class="bi bi-pencil me-1"></i> Editar Resposta
-                             </button>
-                             
-                             <button class="btn btn-sm btn-outline-danger" 
-                                     onclick="deleteReply('{{ review.id }}', '{{ origem }}', '{{ review.external_id or '' }}')">
-                                 <i class="bi bi-trash me-1"></i> Excluir Resposta
-                             </button>
-                        </div>
-                    </div>
-                {% endif %}
-
-                <div class="form-group mt-2">
-                    <label for="tone-{{ review.id }}">Tom da resposta:</label>
-                    <select class="form-control" id="tone-{{ review.id }}">
-                        <option value="profissional">Profissional</option>
-                        <option value="amigavel">Amigável</option>
-                        <option value="empatico">Empático</option>
-                    </select>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button class="btn btn-primary btn-sm flex-fill" style="min-width: 160px;"
-                            onclick="generateReply('{{ review.id }}', {{ nota5 if nota5 is not none else '0' }}, '{{ (nome or '') | e }}')">
-                        Gerar sugestão
-                    </button>
-                    {% if origem != 'google' %}
-                        <button class="btn btn-danger btn-sm flex-fill" style="min-width:160px;"
-                                onclick="deleteReview('{{ review.id }}')">
-                            Excluir avaliação (Local)
-                        </button>
-                    {% endif %}
-                    <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary btn-sm flex-fill text-nowrap"
-                        style="min-width:160px;">
-                        + Adicionar Avaliação
-                    </a>
-                </div>
-
-                <p id="loading-{{ review.id }}" class="mt-2" style="display:none;color:#555;">Gerando resposta...</p>
-
-                <div id="suggestion-block-{{ review.id }}" style="display:none;">
-                    <div class="card border-primary p-3 mt-3" style="background:#f9fbfe;">
-                        <div class="d-flex align-items-center mb-2 gap-2">
-                            <i class="bi bi-magic text-primary" style="font-size:1.2rem"></i>
-                            <span class="fw-bold">Sugestão de resposta / Editor</span>
-                        </div>
-                        {# Área de texto editável #}
-                        <textarea id="reply-editor-{{ review.id }}" class="form-control mb-2" rows="5"></textarea>
-                        
-                        <div id="actions-{{ review.id }}" class="mt-2 d-flex gap-2">
-                             <button class="btn btn-success btn-sm" 
-                                    onclick="saveReply('{{ review.id }}', '{{ origem }}', '{{ review.external_id or '' }}')">
-                                Publicar / Atualizar Resposta
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="hideSuggestion('{{ review.id }}')">Cancelar</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="col-12 col-lg-4">
+          <label class="form-label small text-muted fw-bold mb-1">Nome/palavra</label>
+          <input type="text" name="q" class="form-control" placeholder="Ex: atendimento, João, demora..." value="{{ request.args.get('q','') }}">
         </div>
-        {% endfor %}
-    {% else %}
-        <p>Nenhuma avaliação disponível.</p>
+
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label small text-muted fw-bold mb-1">Período</label>
+          {% set p = request.args.get('periodo','') %}
+          <select name="periodo" class="form-select">
+            <option value="" {% if p=='' %}selected{% endif %}>Todos</option>
+            <option value="7" {% if p=='7' %}selected{% endif %}>Últimos 7 dias</option>
+            <option value="30" {% if p=='30' %}selected{% endif %}>Últimos 30 dias</option>
+            <option value="90" {% if p=='90' %}selected{% endif %}>Últimos 90 dias</option>
+            <option value="180" {% if p=='180' %}selected{% endif %}>Últimos 180 dias</option>
+            <option value="365" {% if p=='365' %}selected{% endif %}>Último ano</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label small text-muted fw-bold mb-1">Estrelas</label>
+          {% set e = request.args.get('estrelas','') %}
+          <select name="estrelas" class="form-select">
+            <option value="" {% if e=='' %}selected{% endif %}>Todas</option>
+            <option value="5" {% if e=='5' %}selected{% endif %}>5 ⭐</option>
+            <option value="4" {% if e=='4' %}selected{% endif %}>4 ⭐</option>
+            <option value="3" {% if e=='3' %}selected{% endif %}>3 ⭐</option>
+            <option value="2" {% if e=='2' %}selected{% endif %}>2 ⭐</option>
+            <option value="1" {% if e=='1' %}selected{% endif %}>1 ⭐</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label small text-muted fw-bold mb-1">Origem</label>
+          {% set o = request.args.get('origem','') %}
+          <select name="origem" class="form-select">
+            <option value="" {% if o=='' %}selected{% endif %}>Todas</option>
+            <option value="google" {% if o=='google' %}selected{% endif %}>Google</option>
+            <option value="booking" {% if o=='booking' %}selected{% endif %}>Booking</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6 col-lg-2">
+          <label class="form-label small text-muted fw-bold mb-1">Status</label>
+          {% set s = request.args.get('status','') %}
+          <select name="status" class="form-select">
+            <option value="" {% if s=='' %}selected{% endif %}>Todos</option>
+            <option value="pendente" {% if s=='pendente' %}selected{% endif %}>Pendente</option>
+            <option value="respondida" {% if s=='respondida' %}selected{% endif %}>Respondida</option>
+          </select>
+        </div>
+
+        <div class="col-12 d-flex gap-2 justify-content-end pt-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('reviews', ficha=ficha_selecionada or 'todas') }}" style="border-radius: 14px;">
+            <i class="bi bi-x-circle me-1"></i>Limpar
+          </a>
+          <button class="btn btn-primary fw-semibold" type="submit" style="border-radius: 14px;">
+            <i class="bi bi-funnel me-1"></i>Aplicar filtros
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </form>
+
+  {% if reviews %}
+  <div class="row g-4">
+    {% for review in reviews %}
+      {% set stars = review.rating or 0 %}
+      <div class="col-12 col-lg-6">
+        <div class="review-card shadow-sm h-100 position-relative">
+
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="avatar-circle">{{ (review.reviewer_name or 'C')[0] | upper }}</div>
+              <div>
+                <h6 class="fw-bold mb-1 text-dark">{{ review.reviewer_name or 'Cliente Anônimo' }}</h6>
+                <div class="small text-muted">{{ review.date | formatar_data_brt }}</div>
+              </div>
+            </div>
+
+            <div class="d-flex flex-column align-items-end gap-2">
+              {% if review.source == 'google' %}
+                <span class="source-badge source-google"><i class="bi bi-google"></i> Google</span>
+              {% elif review.source == 'booking' %}
+                <span class="source-badge source-booking">Booking.com</span>
+              {% else %}
+                <span class="badge bg-secondary">Outro</span>
+              {% endif %}
+
+              {% if review.replied %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20 rounded-pill px-2">
+                  <i class="bi bi-check2-circle me-1"></i>Respondida
+                </span>
+              {% else %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-20 rounded-pill px-2">
+                  <i class="bi bi-hourglass-split me-1"></i>Pendente
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-2">
+            {% for i in range(1, 6) %}
+              <i class="bi bi-star{{ '-fill' if i <= stars else '' }} text-warning fs-5"></i>
+            {% endfor %}
+          </div>
+
+          <div class="review-text">
+            {% if review.text %}
+              "{{ review.text }}"
+            {% else %}
+              <span class="text-muted fst-italic">Sem comentário escrito.</span>
+            {% endif %}
+          </div>
+
+          {% if review.tags %}
+            <div class="mb-3">
+              <small class="text-muted fw-bold">Tags:</small>
+              <span class="badge bg-light text-dark border">{{ review.tags }}</span>
+            </div>
+          {% endif %}
+
+          <hr class="border-light my-3">
+
+          <div class="mt-auto">
+            {% if review.replied %}
+              <div class="bg-light p-3 rounded-3 border border-light">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <small class="fw-bold text-primary"><i class="bi bi-arrow-return-right me-1"></i>Sua Resposta:</small>
+
+                  <div class="dropdown">
+                    <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                      <li>
+                        <button class="dropdown-item small" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', `{{ review.reply|e }}`, true)">
+                          <i class="bi bi-pencil me-2"></i>Editar
+                        </button>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <button class="dropdown-item small text-danger" onclick="deleteReply('{{ review.external_id }}')">
+                          <i class="bi bi-trash me-2"></i>Excluir
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <p class="small text-secondary mb-0" style="white-space: pre-wrap;">{{ review.reply }}</p>
+              </div>
+            {% else %}
+              <div class="d-grid">
+                <button class="btn btn-outline-primary fw-semibold" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', '', false)">
+                  <i class="bi bi-stars me-1"></i> Gerar Resposta com IA
+                </button>
+              </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="text-center py-5">
+        <div class="bg-light rounded-circle d-inline-flex p-4 mb-3">
+          <i class="bi bi-inbox fs-1 text-muted opacity-50"></i>
+        </div>
+        <h4 class="fw-bold text-dark">Nenhuma avaliação encontrada</h4>
+        <p class="text-muted">Tente mudar o filtro de loja ou aguarde novas sincronizações.</p>
+      </div>
     {% endif %}
-    </div> </div>
+    {% if pagination and pagination.pages > 1 %}
+    <nav aria-label="Paginação de avaliações" class="mt-4">
+      <ul class="pagination justify-content-center">
 
+        {# Anterior #}
+        <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+          <a class="page-link"
+            href="{% if pagination.has_prev %}{{ url_for(
+                'reviews',
+                page=pagination.prev_num,
+                ficha=ficha_selecionada,
+                q=request.args.get('q',''),
+                periodo=request.args.get('periodo',''),
+                estrelas=request.args.get('estrelas',''),
+                origem=request.args.get('origem',''),
+                status=request.args.get('status','')
+            ) }}{% else %}#{% endif %}">
+            « Anterior
+          </a>
+        </li>
+
+        {# Números de página (janela simples em torno da atual) #}
+        {% for p in range(1, pagination.pages + 1) %}
+          {% if p >= pagination.page - 2 and p <= pagination.page + 2 %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ url_for(
+                  'reviews',
+                  page=p,
+                  ficha=ficha_selecionada,
+                  q=request.args.get('q',''),
+                  periodo=request.args.get('periodo',''),
+                  estrelas=request.args.get('estrelas',''),
+                  origem=request.args.get('origem',''),
+                  status=request.args.get('status','')
+              ) }}">
+                {{ p }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        {# Próxima #}
+        <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+          <a class="page-link"
+            href="{% if pagination.has_next %}{{ url_for(
+                'reviews',
+                page=pagination.next_num,
+                ficha=ficha_selecionada,
+                q=request.args.get('q',''),
+                periodo=request.args.get('periodo',''),
+                estrelas=request.args.get('estrelas',''),
+                origem=request.args.get('origem',''),
+                status=request.args.get('status','')
+            ) }}{% else %}#{% endif %}">
+            Próxima »
+          </a>
+        </li>
+
+      </ul>
+    </nav>
+  {% endif %}
+
+</div>
+
+<div class="modal fade" id="replyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-primary">
+          <i class="bi bi-robot me-2"></i>Assistente de Resposta
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <div id="loading-ai" class="text-center py-4" style="display:none;">
+          <div class="spinner-border text-primary mb-3" role="status"></div>
+          <p class="text-muted mb-0">A Inteligência Artificial está escrevendo uma resposta personalizada...</p>
+        </div>
+
+        <div id="reply-area">
+          <label class="form-label fw-semibold text-secondary">Texto da Resposta</label>
+          <textarea id="reply-text" class="form-control form-control-lg bg-light border-0" rows="6" placeholder="A resposta gerada aparecerá aqui..."></textarea>
+          <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> Você pode editar o texto antes de enviar.</div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer bg-light">
+        <input type="hidden" id="current-external-id">
+        <input type="hidden" id="current-internal-id">
+
+        <div class="me-auto">
+          <button type="button" id="btnNewSuggestion" class="btn btn-outline-primary fw-semibold d-none" style="border-radius: 14px;" onclick="generateNewSuggestion()">
+            <i class="bi bi-magic me-1"></i> Gerar nova sugestão
+          </button>
+        </div>
+
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="border-radius: 14px;">Cancelar</button>
+
+        <button type="button" class="btn btn-primary px-4" style="border-radius: 14px;" onclick="sendReply()">
+          <span id="btn-send-text">Publicar Resposta</span>
+          <span id="btn-send-loading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Enviando...</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
-// ===== Helpers (Globais) =====
-function getCSRF() {
-    const m = document.querySelector('meta[name="csrf-token"]');
-    return m ? m.getAttribute('content') : null;
-}
-function showToast(msg, type) {
-    if (window.showToast) return window.showToast(msg, type);
-    console[(type === 'danger' ? 'error' : 'log')](msg);
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const replyModal = new bootstrap.Modal(document.getElementById('replyModal'));
+
+  let currentIsEdit = false;
+
+  function toast(msg, type="info") {
+    if (typeof showToast === "function") return showToast(msg, type);
     alert(msg);
-}
-function askConfirm(msg, cb) { if (confirm(msg)) cb(); }
+  }
 
-// --- Visibilidade da Sugestão / Edição ---
-function hideSuggestion(id) {
-    document.getElementById('suggestion-block-' + id).style.display = 'none';
-    const replyCard = document.getElementById('reply-card-' + id);
-    if(replyCard) replyCard.style.display = 'block'; 
-}
+  async function reconcileSelectedLocation() {
+    const sel = document.getElementById('fichaSelect');
+    const val = (sel?.value || 'todas').toString();
 
-function enableReplyEdit(id) {
-    const replyTextEl = document.getElementById('reply-text-' + id);
-    const suggestionBlock = document.getElementById('suggestion-block-' + id);
-    const editor = document.getElementById('reply-editor-' + id);
-    
-    // Move o texto atual da resposta para o editor
-    if (replyTextEl && editor) {
-        editor.value = replyTextEl.textContent.trim();
-    }
-    
-    // Exibe o bloco de edição
-    suggestionBlock.style.display = 'block';
-    // Esconde o card de resposta enviada
-    const replyCard = document.getElementById('reply-card-' + id);
-    if(replyCard) replyCard.style.display = 'none'; 
-}
-
-// ===== Fetch util com tratamento de erro/JSON ou texto =====
-function _jsonFetch(url, bodyObj, method='POST') { 
-    const token = getCSRF();
-    const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-    };
-    if (token) {
-        headers['X-CSRFToken'] = token;
-        headers['X-CSRF-Token'] = token;
-    }
-    
-    let fetchOptions = {
-        method: method,
-        headers,
-        credentials: 'same-origin',
-    };
-    // Body só é necessário para POST/PUT, e deve ser omitido para GET/DELETE se não houver payload
-    if (['POST', 'PUT', 'PATCH'].includes(method.toUpperCase()) && bodyObj) {
-        fetchOptions.body = JSON.stringify(bodyObj);
-    } else if (method.toUpperCase() === 'DELETE' && bodyObj && Object.keys(bodyObj).length > 0) {
-        // Para DELETE com payload, forçamos o POST, ou passamos o body se o backend aceitar
-        fetchOptions.body = JSON.stringify(bodyObj);
-    } else {
-        delete fetchOptions.headers['Content-Type']; // Omitir Content-Type para GET/DELETE sem body
+    if (!val || val === 'todas') {
+      toast("⚠️ Para reconciliar, escolha uma ficha (não pode estar em 'Todas as lojas').", "warning");
+      return;
     }
 
-    return fetch(url, fetchOptions).then(async (r) => {
-        const raw = await r.text(); 
-        let data = null;
-        try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
-        
-        if (!r.ok) {
-            const msg = (data && (data.error || data.message)) || raw || ('HTTP ' + r.status);
-            throw new Error(msg);
-        }
-        return data || {};
-    });
-}
-
-// ===== Ações (Gerar/Salvar/Excluir) - Escopo Global =====
-
-function generateReply(id, rating, reviewerName) {
-    const textEl = document.getElementById('review-text-' + id);
-    const toneEl = document.getElementById('tone-' + id);
-    const loading = document.getElementById('loading-' + id);
-    const suggestionBlock = document.getElementById('suggestion-block-' + id);
-    const editor = document.getElementById('reply-editor-' + id); 
-
-    const text = textEl ? (textEl.innerText || textEl.textContent || '') : '';
-    const tone = (toneEl && toneEl.value) ? toneEl.value : 'profissional';
-
-    const star = Number.parseFloat(rating);
-    const starRating = Number.isNaN(star) ? 0 : star;
-
-    // Se já existe uma resposta enviada, esconde o card dela
-    const replyCard = document.getElementById('reply-card-' + id);
-    if(replyCard) replyCard.style.display = 'none';
-
-    // Garante que os elementos existam antes de manipular estilos
-    if (loading && suggestionBlock) {
-        loading.style.display = 'block';
-        suggestionBlock.style.display = 'none';
-    } else {
-        showToast('Erro: Elementos da review não encontrados (ID: ' + id + ')', 'danger');
-        return;
+    // ✅ agora o select já envia o GoogleLocation.id
+    const googleLocationId = parseInt(val, 10);
+    if (!Number.isFinite(googleLocationId) || googleLocationId <= 0) {
+      toast("Não consegui identificar o ID interno dessa ficha. Atualize a página e tente de novo.", "danger");
+      return;
     }
 
-    _jsonFetch('/suggest_reply', {
-        review_id: id,
-        review_text: text || '',
-        star_rating: starRating,
-        reviewer_name: reviewerName || '',
-        tone: tone
-    })
-    .then(data => {
-        loading.style.display = 'none';
-        if (data && data.success) {
-            // Insere a sugestão no editor
-            editor.value = data.suggested_reply || ''; 
-            suggestionBlock.style.display = 'block';
-        } else {
-            const msg = (data && data.error) ? data.error : 'Falha ao gerar sugestão';
-            showToast('Erro: ' + msg, 'danger');
-        }
-    })
-    .catch(err => {
-        loading.style.display = 'none';
-        showToast('Erro de comunicação: ' + err.message, 'danger');
-    });
-}
+    const btn = document.getElementById('btnReconcile');
+    const t = document.getElementById('reconcileText');
+    const l = document.getElementById('reconcileLoading');
 
-/**
- * Salva ou Atualiza uma resposta, roteando para a rota local ou Google Auto.
- * Se for Google, usa o endpoint de edição que serve para criar ou atualizar.
- */
-function saveReply(idInterno, source, externalId) {
-    const btn = document.querySelector(`#actions-${idInterno} .btn-success`);
-    const replyText = (document.getElementById('reply-editor-' + idInterno) || {}).value || '';
-
-    if (!replyText.trim()) {
-        showToast('A resposta não pode estar vazia.', 'warning');
-        return;
-    }
-
-    // ===== Ativa Loading =====
     btn.disabled = true;
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = `
-        <span class="spinner-border spinner-border-sm me-2"></span>
-        Publicando...
-    `;
+    t.classList.add('d-none');
+    l.classList.remove('d-none');
 
-    let endpoint;
-    let payload = { reply_text: replyText };
-    let method = 'POST';
+    try {
+      const res = await fetch(`/auto/google/reconcile/${googleLocationId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ hard_delete: true })
+      });
 
-    if (source === 'google') {
-        if (!externalId) {
-            showToast('❌ ID Externo ausente. Não é possível publicar no Google.', 'danger');
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-            return;
-        }
-        endpoint = `/auto/editar_reply/${externalId}`;
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.ok) {
+        toast(`✅ Reconciliado! Google: ${data.google_count} | Inseridos: ${data.inserted} | Atualizados: ${data.updated} | Removidos: ${data.deleted}`, "success");
+        setTimeout(() => window.location.reload(), 900);
+      } else {
+        toast(data.error || data.message || "Erro ao reconciliar a ficha.", "danger");
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Erro de conexão ao reconciliar.", "danger");
+    } finally {
+      btn.disabled = false;
+      t.classList.remove('d-none');
+      l.classList.add('d-none');
+    }
+  }
+
+  function openReplyModal(internalId, externalId, currentReply, isEdit) {
+    document.getElementById('current-external-id').value = externalId;
+    document.getElementById('current-internal-id').value = internalId;
+
+    const textArea = document.getElementById('reply-text');
+    const btnSug = document.getElementById('btnNewSuggestion');
+
+    currentIsEdit = !!isEdit;
+
+    document.getElementById('loading-ai').style.display = 'none';
+    document.getElementById('reply-area').style.display = 'block';
+
+    if (currentIsEdit) {
+      textArea.value = currentReply || "";
+      document.getElementById('btn-send-text').innerText = "Atualizar Resposta";
+      btnSug.classList.remove('d-none');
+      replyModal.show();
     } else {
-        endpoint = '/save_reply';
-        payload.review_id = idInterno;
+      textArea.value = "";
+      document.getElementById('btn-send-text').innerText = "Publicar Resposta";
+      btnSug.classList.add('d-none');
+      replyModal.show();
+      generateAISuggestion(internalId);
     }
+  }
 
-    _jsonFetch(endpoint, payload, method)
-        .then(data => {
-            if (data && data.success) {
-                btn.innerHTML = `
-                    <i class="bi bi-check-circle me-1"></i> Publicado!
-                `;
-                showToast('Resposta publicada com sucesso!', 'success');
+  async function generateNewSuggestion() {
+    const internalId = document.getElementById('current-internal-id').value;
+    if (!internalId) return toast("Não achei o ID interno da avaliação.", "danger");
 
-                setTimeout(() => {
-                    location.reload();
-                }, 600);
-            } else {
-                const msg = (data && (data.message || data.error)) || 'Falha ao salvar resposta';
-                showToast('Erro: ' + msg, 'danger');
+    await generateAISuggestion(internalId);
+    toast("✨ Nova sugestão gerada! Se quiser, edite e clique em Atualizar.", "success");
+  }
 
-                // Volta ao normal
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-            }
-        })
-        .catch(err => {
-            showToast('Erro de comunicação: ' + err.message, 'danger');
+  async function generateAISuggestion(reviewId) {
+    document.getElementById('loading-ai').style.display = 'block';
+    document.getElementById('reply-area').style.display = 'none';
 
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        });
-}
+    try {
+      const res = await fetch('/suggest_reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ review_id: reviewId })
+      });
 
+      const data = await res.json().catch(() => ({}));
 
-function deleteReply(idInterno, source, externalId) {
-    askConfirm('Tem certeza que deseja excluir a resposta? Esta ação removerá a resposta permanentemente.', function () {
-
-        const btn = document.querySelector(`#reply-actions-${idInterno} .btn-outline-danger`);
-        const originalHTML = btn.innerHTML;
-
-        // Ativa loading
-        btn.disabled = true;
-        btn.innerHTML = `
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            Excluindo...
-        `;
-
-        let endpoint;
-        let payload = {};
-        let method = "POST";
-
-        if (source === "google") {
-            if (!externalId) {
-                showToast("❌ ID Externo ausente. Não é possível excluir do Google.", "danger");
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-                return;
-            }
-            endpoint = `/auto/excluir_reply/${externalId}`;
-            method = "DELETE";
-        } else {
-            endpoint = "/delete_reply";
-            payload.review_id = idInterno;
-        }
-
-        _jsonFetch(endpoint, payload, method)
-            .then(data => {
-                if (data && data.success) {
-                    btn.innerHTML = `
-                        <i class="bi bi-check-circle me-1"></i> Excluído!
-                    `;
-                    showToast("Resposta excluída com sucesso!", "success");
-
-                    setTimeout(() => location.reload(), 600);
-                } else {
-                    const msg = (data && (data.message || data.error)) || "Falha ao excluir resposta";
-                    showToast("Erro: " + msg, "danger");
-
-                    btn.disabled = false;
-                    btn.innerHTML = originalHTML;
-                }
-            })
-            .catch(err => {
-                showToast("Erro de comunicação: " + err.message, "danger");
-
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-            });
-    });
-}
-
-
-function deleteReview(id) {
-    askConfirm('Tem certeza que deseja excluir esta avaliação permanentemente do seu painel? (Isso não afeta a fonte original, apenas o seu registro local.)', function() {
-        _jsonFetch('/delete_review', { review_id: id })
-        .then(data => {
-            if (data && data.success) {
-                showToast('Avaliação excluída com sucesso! Recarregando...', 'success');
-                location.reload();
-            } else {
-                const msg = (data && data.error) ? data.error : 'Falha ao excluir avaliação';
-                showToast('Erro: ' + msg, 'danger');
-            }
-        })
-        .catch(err => {
-            showToast('Erro de comunicação: ' + err.message, 'danger');
-        });
-    });
-}
-// FUNÇÃO GLOBAL — AGORA FUNCIONA
-function toggleFiltros() {
-    const box = document.getElementById('filtro-body');
-    const icon = document.getElementById('icon-seta');
-
-    if (box.style.display === "none" || box.style.display === "") {
-        box.style.display = "block";
-        icon.classList.remove("bi-chevron-down");
-        icon.classList.add("bi-chevron-up");
-    } else {
-        box.style.display = "none";
-        icon.classList.remove("bi-chevron-up");
-        icon.classList.add("bi-chevron-down");
+      if (data.success) {
+        document.getElementById('reply-text').value = data.suggested_reply || "";
+      } else {
+        toast("Erro ao gerar sugestão: " + (data.error || "desconhecido"), "danger");
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Erro de conexão com a IA.", "danger");
+    } finally {
+      document.getElementById('loading-ai').style.display = 'none';
+      document.getElementById('reply-area').style.display = 'block';
     }
-}
+  }
 
-// ===== Filtros + Paginação (Mantido e garantido no escopo global) =====
-document.addEventListener('DOMContentLoaded', function () {
-    const cards = Array.from(document.querySelectorAll('.review-card'));
-    const filtroOrigem = document.getElementById('filtro-origem');
-    const filtroRespondida = document.getElementById('filtro-respondida');
-    const filtroNota = document.getElementById('filtro-nota');
-    const filtroTexto = document.getElementById('filtro-texto');
+  async function sendReply() {
+    const extId = document.getElementById('current-external-id').value;
+    const text = document.getElementById('reply-text').value;
+    const btnText = document.getElementById('btn-send-text');
+    const btnLoad = document.getElementById('btn-send-loading');
 
-    const perPageSelect = document.getElementById('itens-por-pagina');
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const paginaInfo = document.getElementById('pagina-info');
+    if(!text.trim()) { toast("A resposta não pode estar vazia.", "warning"); return; }
 
-    let currentPage = 1;
-    let filtered = cards.slice();
+    btnText.classList.add('d-none');
+    btnLoad.classList.remove('d-none');
 
-    function aplicaFiltros() {
-        const valorOrigem = filtroOrigem.value;
-        const valorRespondida = filtroRespondida.value;
-        const valorNota = filtroNota.value;
-        const textoBusca = (filtroTexto.value || '').toLowerCase();
-        const filtroPeriodo = document.getElementById('filtro-periodo').value;
-        const agora = new Date();
+    try {
+      const res = await fetch(`/auto/editar_reply/${extId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ reply_text: text })
+      });
 
-        filtered = cards.filter(card => {
-            const origem = (card.dataset.origem || '').toLowerCase();
-            const respondida = card.dataset.respondida;
-            const nome = card.dataset.nome || '';
-            const texto = card.dataset.texto || '';
-            const nota = parseFloat(card.dataset.nota || 'NaN');
+      const data = await res.json().catch(() => ({}));
 
-            const okOrigem = (valorOrigem === 'todas') || (valorOrigem === origem);
-            const okResp   = (valorRespondida === 'todas') || (valorRespondida === respondida);
-
-            let okNota = true;
-            if (valorNota !== 'todas' && !Number.isNaN(nota)) {
-                const alvo = parseInt(valorNota, 10);
-                okNota = Math.floor(nota) === alvo;
-            }
-
-            const okTexto = nome.includes(textoBusca) || texto.includes(textoBusca);
-            // ------- FILTRO DE PERÍODO -------
-            let okPeriodo = true;
-
-            if (filtroPeriodo !== 'all') {
-                const dias = parseInt(filtroPeriodo, 10);
-
-                // Data de hoje normalizada para 00:00:00
-                const hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
-
-                // Limite calculado: hoje - N dias
-                const limite = new Date(hoje);
-                limite.setDate(limite.getDate() - dias);
-
-                const rawDate = card.dataset.date;
-
-                if (rawDate) {
-                    const dataCard = new Date(rawDate);
-
-                    // Normaliza também a data da avaliação
-                    const dataAvaliacao = new Date(dataCard);
-                    dataAvaliacao.setHours(0, 0, 0, 0);
-
-                    okPeriodo = dataAvaliacao >= limite && dataAvaliacao <= hoje;
-                }
-            }
-
-            return okOrigem && okResp && okNota && okTexto && okPeriodo;
-
-        });
-
-        currentPage = 1;
-        renderPagina();
+      if (data.success) {
+        replyModal.hide();
+        toast("Resposta publicada com sucesso!", "success");
+        setTimeout(() => window.location.reload(), 900);
+      } else {
+        toast("Erro ao publicar: " + (data.message || data.error || "desconhecido"), "danger");
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Erro de conexão.", "danger");
+    } finally {
+      btnText.classList.remove('d-none');
+      btnLoad.classList.add('d-none');
     }
-    
+  }
 
-    function limparFiltros() {
-        document.getElementById('filtro-periodo').value = "all";
-        document.getElementById('filtro-origem').value = "todas";
-        document.getElementById('filtro-respondida').value = "todas";
-        document.getElementById('filtro-nota').value = "todas";
-        document.getElementById('filtro-texto').value = "";
+  async function deleteReply(extId) {
+    if(!confirm("Tem certeza que deseja excluir esta resposta do Google?")) return;
 
-        aplicaFiltros();
+    try {
+      const res = await fetch(`/auto/excluir_reply/${extId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': csrfToken }
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (data.success) {
+        toast("Resposta excluída.", "success");
+        setTimeout(() => window.location.reload(), 900);
+      } else {
+        toast("Erro ao excluir: " + (data.message || data.error || "desconhecido"), "danger");
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Erro de conexão.", "danger");
     }
-
-    function renderPagina() {
-        const perPage = parseInt(perPageSelect.value, 10) || 10;
-        const total = filtered.length;
-        const totalPages = Math.max(1, Math.ceil(total / perPage));
-        currentPage = Math.min(currentPage, totalPages);
-
-        cards.forEach(c => c.style.display = 'none');
-        const start = (currentPage - 1) * perPage;
-        const end = start + perPage;
-        filtered.slice(start, end).forEach(c => c.style.display = '');
-
-        paginaInfo.textContent = `Página ${currentPage} de ${totalPages}`;
-        btnPrev.disabled = (currentPage <= 1);
-        btnNext.disabled = (currentPage >= totalPages);
-    }
-
-    [filtroOrigem, filtroRespondida, filtroNota].forEach(el => el.addEventListener('change', aplicaFiltros));
-    filtroTexto.addEventListener('input', aplicaFiltros);
-    document.getElementById('filtro-periodo').addEventListener('change', aplicaFiltros);
-    perPageSelect.addEventListener('change', renderPagina);
-    btnPrev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPagina(); } });
-    btnNext.addEventListener('click', () => { currentPage++; renderPagina(); });
-
-    aplicaFiltros();
-});
+  }
 </script>
 {% endblock %}

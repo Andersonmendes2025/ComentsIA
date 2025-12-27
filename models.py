@@ -9,12 +9,40 @@ from sqlalchemy.orm import relationship
 db = SQLAlchemy()
 
 
+
 def default_brt_now():
     # Retorna o datetime atual já no timezone de São Paulo
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
 
+class GoogleLocation(db.Model):
+    __tablename__ = "google_locations"
 
-# models.py (classe Review)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id"), index=True)
+
+    # IDs do Google
+    account_id = db.Column(db.String(255), nullable=False)
+    location_id = db.Column(db.String(255), nullable=False)
+    location_name = db.Column(db.String(255))
+
+    # Controle de uso
+    is_active = db.Column(db.Boolean, default=False)
+    activated_at = db.Column(db.DateTime(timezone=True))
+    last_switch_at = db.Column(db.DateTime(timezone=True))
+    last_reconcile_at = db.Column("ast_reconcile_at", db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+    business_name = db.Column(db.String(255))           
+    manager_name = db.Column(db.String(255))         
+    contact_info = db.Column(db.String(255))        
+    default_greeting = db.Column(db.String(255))     
+    default_closing = db.Column(db.String(255))    
+    contexto_personalizado = db.Column(db.Text)
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "location_id", name="uq_user_location"),
+    )
+    reviews = relationship("Review", backref="google_location", lazy="dynamic")
+    
+
 class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False)
@@ -31,12 +59,24 @@ class Review(db.Model):
     auto_origin = db.Column(db.String(50))  # Ex: 'gbp' para Google Business Profile
     external_id = db.Column(db.String(255), index=True)
     fingerprint = db.Column(db.String(128), index=True)
+    
+    # FK para UploadLog (Booking)
     upload_log_id = db.Column(
         db.Integer,
         db.ForeignKey("upload_log.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
+
+    # FK para GoogleLocation (Google Business)
+    google_location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("google_locations.id"),
+        index=True,
+        nullable=True
+    )
+    
+
 class HistoricalSyncPrice(db.Model):
     __tablename__ = "historical_sync_prices"
 
@@ -67,8 +107,9 @@ class UserSettings(db.Model):
     stripe_customer_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_item_id = db.Column(db.String(255), nullable=True)
-    
-
+    gbp_slots_extras = db.Column(db.Integer, default=0)
+    is_parent = db.Column(db.Boolean, default=False)       
+    parent_user_id = db.Column(db.String(150), nullable=True)
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -80,7 +121,7 @@ class RelatorioHistorico(db.Model):
     nome_arquivo = db.Column(db.String(255))
     caminho_arquivo = db.Column(db.String(500))
     arquivo_pdf = db.Column(db.LargeBinary)
-
+    filtro_ficha = db.Column(db.String(255), nullable=True)
 
 class LegalDocument(db.Model):
     __tablename__ = "legal_documents"

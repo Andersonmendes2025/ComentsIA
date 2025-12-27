@@ -3,77 +3,172 @@
 
 {% block content %}
 <style>
-  /* HERO */
+  :root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  }
+
+  /* HERO MODERNIZADO */
   .hero-relatorios {
     position: relative;
-    background: linear-gradient(135deg, #1b3fbf 0%, #1e74ff 45%, #6dd5ff 100%);
+    background: var(--primary-gradient);
     color: #fff;
-    border-radius: 22px;
-    padding: 32px 28px;
-    box-shadow: 0 10px 28px rgba(28,87,255,0.25);
+    border-radius: 24px;
+    padding: 40px 32px;
+    box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.3);
     overflow: hidden;
+    margin-bottom: 2rem;
   }
-  .hero-relatorios::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.10));
-    border-radius: 22px;
+  
+  /* Textura sutil no fundo */
+  .hero-relatorios::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(circle at 10% 20%, rgba(255,255,255,0.1) 0%, transparent 20%),
+                      radial-gradient(circle at 90% 80%, rgba(255,255,255,0.1) 0%, transparent 20%);
     pointer-events: none;
   }
-  .hero-relatorios * {
-    position: relative; z-index: 1;
-    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+
+  .hero-content { position: relative; z-index: 2; }
+  
+  .btn-glass {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    border-radius: 50px;
+    padding: 8px 20px;
+    transition: all 0.3s ease;
+  }
+  .btn-glass:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    transform: translateY(-2px);
   }
 
-  /* Métricas */
-  .metric-tile {
-    border: 0; border-radius: 20px; color:#fff;
-    padding: 22px; height: 100%; box-shadow: 0 12px 26px rgba(0,0,0,.08);
+  /* CARDS DE MÉTRICAS (Estilo SaaS Clean) */
+  .stat-card {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    padding: 24px;
+    height: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
-  .metric-blue  { background: #2563eb; }
-  .metric-green { background: #16a34a; }
-  .metric-amber { background: #f59e0b; }
-  .metric-cyan  { background: #06b6d4; }
+  
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--hover-shadow);
+    border-color: #cbd5e1;
+  }
 
-  .metric-title { font-size: .95rem; opacity: .95; margin-bottom: 6px; display:flex; align-items:center; gap:8px;}
-  .metric-value { font-size: 2rem; font-weight: 800; line-height: 1; }
-  .metric-sub   { font-size: .9rem; opacity: .95; }
-  .btn-pill { border-radius: 999px; }
+  .stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 16px;
+  }
 
-  /* Overlay */
+  /* Cores dos ícones */
+  .bg-soft-blue { background: #eff6ff; color: #2563eb; }
+  .bg-soft-green { background: #f0fdf4; color: #16a34a; }
+  .bg-soft-amber { background: #fffbeb; color: #d97706; }
+  .bg-soft-purple { background: #faf5ff; color: #9333ea; }
+
+  .stat-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  
+  .stat-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-meta {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  /* FORMULÁRIO E FILTROS */
+  .filter-card {
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    box-shadow: var(--card-shadow);
+  }
+
+  .form-select-lg {
+    border-radius: 12px;
+    border-color: #e2e8f0;
+    font-size: 1.05rem;
+    padding: 12px 16px;
+    background-color: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  
+  .form-select-lg:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    background-color: #fff;
+  }
+
+  /* OVERLAY DE CARREGAMENTO */
   #loader-overlay {
     position: fixed; inset: 0;
-    background: rgba(8, 12, 27, 0.55);
-    backdrop-filter: blur(2px);
-    z-index: 1080;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 9999;
     display: none; align-items: center; justify-content: center;
   }
-  #loader-card {
-    background: #0b1a43; color: #fff;
-    border-radius: 16px; padding: 18px 20px; min-width: 280px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.25), 0 0 0 1px rgba(255,255,255,.06) inset;
+  
+  .loader-box {
+    background: #fff;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    min-width: 300px;
   }
-  #loader-card .progress { height: 8px; border-radius: 10px; background: rgba(255,255,255,.15); }
-  #loader-card .progress-bar { width: 100%; animation: progressPulse 1.4s ease-in-out infinite; }
-  @keyframes progressPulse { 0%{transform:scaleX(.15)}50%{transform:scaleX(1)}100%{transform:scaleX(.15)} }
 </style>
 
-<div class="container mt-4 mt-md-5">
+<div class="container mt-4 mt-md-5 pb-5">
 
-  <!-- HERO -->
-  <div class="hero-relatorios mb-4 mb-md-5">
-    <div class="d-flex align-items-start gap-3 flex-wrap">
-      <div class="display-6 d-flex align-items-center">
-        <i class="bi bi-file-earmark-bar-graph me-2"></i>
-        <span>Relatórios de Avaliações</span>
+  <div class="hero-relatorios d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-4">
+    <div class="hero-content">
+      <div class="d-flex align-items-center mb-2">
+        <span class="badge bg-white text-primary rounded-pill px-3 py-1 me-2 fw-bold shadow-sm">
+            <i class="bi bi-stars me-1"></i> Premium
+        </span>
       </div>
-      <div class="ms-auto d-flex gap-2">
-        <a href="{{ url_for('historico_relatorios') }}" class="btn btn-light btn-pill shadow-sm">
-          <i class="bi bi-clock-history me-1"></i> Histórico
-        </a>
-      </div>
+      <h1 class="display-6 fw-bold mb-2">Relatórios Gerenciais</h1>
+      <p class="mb-0 opacity-90 fs-5" style="font-weight: 300;">Gere PDFs detalhados com análise de IA e métricas de desempenho.</p>
     </div>
-    <p>Gere relatórios completos com gráficos, análise profissional e resumo dos principais pontos.</p>
+    <div class="hero-content">
+       <a href="{{ url_for('historico_relatorios') }}" class="btn btn-glass">
+         <i class="bi bi-clock-history me-2"></i>Histórico de Downloads
+       </a>
+    </div>
   </div>
 
   {# ---- MÉTRICAS CALCULADAS NO SERVIDOR ---- #}
@@ -83,133 +178,208 @@
   {% set avg = metrics.media if metrics and metrics.media is defined else 0 %}
   {% set pct = metrics.percent_respondidas if metrics and metrics.percent_respondidas is defined else (responded / total * 100 if total > 0 else 0) %}
 
-  <div class="row g-4 mb-4" id="metrics-row">
+  <div class="row g-4 mb-5">
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="metric-tile metric-blue">
-        <div class="metric-title"><i class="bi bi-chat-left-text"></i> Avaliações</div>
-        <div class="metric-value">{{ total }}</div>
-        <div class="metric-sub">&nbsp;</div>
+      <div class="stat-card">
+        <div>
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="stat-icon-wrapper bg-soft-blue">
+                    <i class="bi bi-chat-left-text-fill"></i>
+                </div>
+            </div>
+            <div class="stat-value">{{ total }}</div>
+            <div class="stat-label">Total de Avaliações</div>
+        </div>
+        <div class="stat-meta">
+            Base completa de dados
+        </div>
       </div>
     </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="metric-tile metric-green">
-        <div class="metric-title"><i class="bi bi-check-circle"></i> Respondidas (%)</div>
-        <div class="metric-value">{{ "%.1f"|format(pct|float) }}%</div>
-        <div class="metric-sub">{{ responded }} de {{ total }} respondidas</div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="metric-tile metric-amber">
-      <div class="metric-title"><i class="bi bi-star-fill"></i> Média</div>
-      <div class="metric-value">{{ "%.1f"|format(avg|float) }}</div>
-      <div class="metric-sub">de 5,0</div>
-    </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="metric-tile metric-cyan">
-        <div class="metric-title"><i class="bi bi-clock"></i> Pendentes</div>
-        <div class="metric-value">{{ pending }}</div>
-        <div class="metric-sub">aguardando resposta</div>
-      </div>
-    </div>
-  </div>
 
-  <!-- INFO DO PLANO -->
-  {% if user_plano %}
-  <div id="plano-info" class="alert alert-info text-center card-soft py-3 mb-4">
-    {% set plano = PLANOS[user_plano] %}
-    {% if plano.relatorio_pdf_mes %}
-      Você está no plano <strong>{{ plano.nome }}</strong>.
-      Relatórios PDF gerados este mês:
-      <strong>{{ metrics.relatorios_usados if metrics and metrics.relatorios_usados is defined else 0 }}</strong> /
-      <strong>{{ plano.relatorio_pdf_mes }}</strong>.
-    {% else %}
-      Você está no plano <strong>{{ plano.nome }}</strong>.
-      Relatórios PDF mensais <strong>ilimitados</strong>.
-    {% endif %}
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="stat-card">
+        <div>
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="stat-icon-wrapper bg-soft-green">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill">+{{ "%.0f"|format(pct|float) }}%</span>
+            </div>
+            <div class="stat-value">{{ responded }}</div>
+            <div class="stat-label">Respondidas</div>
+        </div>
+        <div class="stat-meta text-success">
+            Ótimo engajamento
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="stat-card">
+        <div>
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="stat-icon-wrapper bg-soft-amber">
+                    <i class="bi bi-star-fill"></i>
+                </div>
+            </div>
+            <div class="stat-value">{{ "%.1f"|format(avg|float) }}</div>
+            <div class="stat-label">Nota Média</div>
+        </div>
+        <div class="stat-meta">
+            Escala de 1 a 5
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="stat-card">
+        <div>
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="stat-icon-wrapper bg-soft-purple">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+                {% if pending > 0 %}
+                <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill">Atenção</span>
+                {% endif %}
+            </div>
+            <div class="stat-value">{{ pending }}</div>
+            <div class="stat-label">Pendentes</div>
+        </div>
+        <div class="stat-meta">
+            Aguardando resposta
+        </div>
+      </div>
+    </div>
   </div>
-  {% endif %}
 
   {% if user_plano == 'free' %}
-  <div class="banner-grad-warning py-3 px-4 mb-4 text-center card-soft">
-    <i class="bi bi-lock-fill fs-3 text-warning mb-2 d-block"></i>
-    <div class="fw-semibold mb-1" style="color:#6c5700">
-      O download de relatórios em PDF está disponível apenas no <b>plano PRO</b> ou superior.
+  <div class="alert alert-warning d-flex align-items-center shadow-sm border-warning border-opacity-25 rounded-4 mb-4" role="alert">
+    <i class="bi bi-lock-fill fs-2 me-3 text-warning"></i>
+    <div class="flex-grow-1">
+      <h6 class="alert-heading fw-bold mb-1">Recurso Premium Bloqueado</h6>
+      <div class="small">O download de relatórios PDF com análise de IA é exclusivo dos planos PRO e Business.</div>
     </div>
-    <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Veja os planos</a>
+    <a href="{{ url_for('planos') }}" class="btn btn-warning btn-sm fw-bold px-4 rounded-pill">Liberar Acesso</a>
   </div>
   {% elif limite_relatorio_atingido %}
-  <div class="banner-grad-danger py-3 px-4 mb-4 text-center card-soft">
-    <i class="bi bi-exclamation-triangle-fill fs-3 text-danger mb-2 d-block"></i>
-    <div class="fw-semibold mb-1" style="color:#7c3535">
-      Você atingiu o limite mensal de relatórios em PDF do seu plano.
+  <div class="alert alert-danger d-flex align-items-center shadow-sm border-danger border-opacity-25 rounded-4 mb-4" role="alert">
+    <i class="bi bi-exclamation-octagon-fill fs-2 me-3 text-danger"></i>
+    <div>
+      <h6 class="alert-heading fw-bold mb-1">Limite Atingido</h6>
+      <div class="small">Você atingiu o limite mensal de geração de PDFs do seu plano.</div>
     </div>
-    <a href="{{ url_for('planos') }}" class="btn btn-sm btn-primary mt-1 btn-pill shadow-sm">Faça upgrade</a>
   </div>
   {% endif %}
 
-  <!-- FORM -->
-  <div class="card card-soft p-4 mb-5">
+
+  <div class="filter-card p-4 p-md-5">
+    
+    <form method="GET" action="{{ url_for('gerar_relatorio') }}" class="mb-5 border-bottom pb-4">
+        <div class="row align-items-end">
+            <div class="col-md-7 col-lg-6">
+                <label class="form-label text-uppercase fw-bold text-muted small ls-1 mb-2">
+                    <i class="bi bi-funnel-fill me-1 text-primary"></i> Filtrar Dados do Dashboard
+                </label>
+                <div class="input-group input-group-lg shadow-sm">
+                    <span class="input-group-text bg-white border-end-0 text-primary ps-3">
+                        <i class="bi bi-shop"></i>
+                    </span>
+                    <select name="ficha"
+                          class="form-select form-select-lg border-start-0 ps-0 text-dark fw-semibold"
+                          onchange="this.form.submit()"
+                          style="background-image:none;">
+                      <option value="todas"
+                              {% if ficha_selecionada == 'todas' %}selected{% endif %}>
+                          Todas as Lojas / Unidades
+                      </option>
+
+                      {% for f in fichas %}
+                          <option value="{{ f.id }}"
+                                  {% if ficha_selecionada|int == f.id %}selected{% endif %}>
+                              {{ f.location_name or 'Loja sem nome' }}
+                          </option>
+                      {% endfor %}
+                  </select>
+
+                    <span class="input-group-text bg-white border-start-0 pe-3 text-muted">
+                        <i class="bi bi-chevron-down"></i>
+                    </span>
+                </div>
+                <div class="form-text mt-2 ms-1 text-primary">
+                    <i class="bi bi-info-circle me-1"></i> As métricas acima serão atualizadas automaticamente ao mudar a loja.
+                </div>
+            </div>
+        </div>
+    </form>
+    
     <form id="form-relatorio" method="post" novalidate>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="row g-3">
+      <input type="hidden" name="ficha" value="{{ ficha_selecionada }}">
+
+      <div class="d-flex align-items-center mb-4">
+        <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-3">
+            <i class="bi bi-file-earmark-pdf-fill fs-4"></i>
+        </div>
+        <h4 class="mb-0 fw-bold text-dark">Exportar Relatório PDF</h4>
+      </div>
+
+      <div class="row g-4">
         <div class="col-md-4">
-          <label class="form-label fw-semibold"><i class="bi bi-calendar me-1"></i> Período</label>
-          <select name="periodo" class="form-select">
+          <label class="form-label fw-semibold text-secondary">Período de Análise</label>
+          <select name="periodo" class="form-select form-select-lg">
             <option value="90dias">Últimos 90 dias</option>
             <option value="6meses">Últimos 6 meses</option>
             <option value="1ano">Último 1 ano</option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold"><i class="bi bi-star me-1"></i> Nota</label>
-          <select name="nota" class="form-select">
-            <option value="todas">Todas</option>
-            <option value="1">1 estrela</option>
-            <option value="2">2 estrelas</option>
-            <option value="3">3 estrelas</option>
-            <option value="4">4 estrelas</option>
-            <option value="5">5 estrelas</option>
+          <label class="form-label fw-semibold text-secondary">Filtrar por Nota</label>
+          <select name="nota" class="form-select form-select-lg">
+            <option value="todas">Todas as notas</option>
+            <option value="1">⭐ 1 Estrela</option>
+            <option value="2">⭐⭐ 2 Estrelas</option>
+            <option value="3">⭐⭐⭐ 3 Estrelas</option>
+            <option value="4">⭐⭐⭐⭐ 4 Estrelas</option>
+            <option value="5">⭐⭐⭐⭐⭐ 5 Estrelas</option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold"><i class="bi bi-chat-left-quote me-1"></i> Respondida</label>
-          <select name="respondida" class="form-select">
-            <option value="todas">Todas</option>
-            <option value="sim">Somente respondidas</option>
-            <option value="nao">Somente não respondidas</option>
+          <label class="form-label fw-semibold text-secondary">Status da Resposta</label>
+          <select name="respondida" class="form-select form-select-lg">
+            <option value="todas">Qualquer status</option>
+            <option value="sim">✅ Apenas Respondidas</option>
+            <option value="nao">⚠️ Apenas Pendentes</option>
           </select>
         </div>
       </div>
 
-      <div class="d-flex justify-content-end gap-2 mt-4">
-        <button type="submit" class="btn btn-primary btn-pill px-4" id="btn-gerar-pdf"
+      <div class="mt-5 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg position-relative overflow-hidden" id="btn-gerar-pdf"
           {% if user_plano == 'free' or limite_relatorio_atingido %}disabled
-             style="pointer-events:none; background:#a0a4ad; border-color:#a0a4ad;"
-             title="Disponível apenas no PRO ou superior"{% endif %}>
-          <span class="btn-text"><i class="bi bi-file-earmark-arrow-down me-1"></i> Gerar PDF</span>
-          <span class="btn-loading d-none">
-            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-            Preparando...
+             style="filter: grayscale(1); opacity: 0.7;"
+             title="Faça upgrade para liberar"{% endif %}>
+          
+          <span class="position-relative z-1 d-flex align-items-center gap-2">
+              <i class="bi bi-cloud-arrow-down-fill"></i> 
+              Gerar PDF da Ficha Atual
           </span>
         </button>
-        <a href="{{ url_for('historico_relatorios') }}" class="btn btn-outline-primary btn-pill">
-          <i class="bi bi-clock-history me-1"></i> Histórico
-        </a>
       </div>
     </form>
   </div>
+
 </div>
 
-<!-- OVERLAY -->
 <div id="loader-overlay" aria-hidden="true">
-  <div id="loader-card" class="text-center">
-    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-      <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-      <strong>Gerando relatório…</strong>
+  <div class="loader-box">
+    <div class="mb-4">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
     </div>
-    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes. Não feche esta página.</div>
-    <div class="progress"><div class="progress-bar bg-light"></div></div>
+    <h5 class="fw-bold text-dark mb-2">Gerando seu relatório...</h5>
+    <p class="text-muted mb-3">A Inteligência Artificial está analisando os dados.<br>Isso pode levar alguns segundos.</p>
+    <div class="progress" style="height: 6px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
+    </div>
   </div>
 </div>
 
@@ -217,28 +387,44 @@
 document.addEventListener('DOMContentLoaded', function () {
   const btn = document.getElementById('btn-gerar-pdf');
   const form = document.getElementById('form-relatorio');
+  
   if (btn && form) {
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      document.getElementById('loader-overlay').style.display = 'flex';
+      
+      // Feedback visual imediato
+      const overlay = document.getElementById('loader-overlay');
+      overlay.style.display = 'flex';
+      overlay.animate([{opacity:0}, {opacity:1}], {duration:300});
+      
       btn.setAttribute('disabled', 'true');
+      
       try {
         const res = await fetch(form.action || window.location.pathname, {
           method: 'POST', body: new FormData(form)
         });
+        
         if (res.ok && (res.headers.get('Content-Type') || '').includes('application/pdf')) {
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href = url; a.download = "relatorio.pdf";
-          document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(url);
-          if (typeof showToast === 'function') showToast('Relatório gerado com sucesso!', 'success');
+          const a = document.createElement('a'); 
+          a.href = url; 
+          a.download = `Relatorio_Avaliacoes_${new Date().toISOString().slice(0,10)}.pdf`;
+          document.body.appendChild(a); 
+          a.click(); 
+          a.remove(); 
+          window.URL.revokeObjectURL(url);
+          
+          if (typeof showToast === 'function') showToast('Relatório baixado com sucesso!', 'success');
         } else {
-          if (typeof showToast === 'function') showToast('Erro ao gerar relatório.', 'danger');
+          if (typeof showToast === 'function') showToast('Erro ao gerar relatório. Verifique os limites.', 'danger');
+          else alert('Erro ao gerar relatório.');
         }
-      } catch {
-        if (typeof showToast === 'function') showToast('Erro ao conectar ao servidor.', 'danger');
+      } catch (err) {
+        console.error(err);
+        if (typeof showToast === 'function') showToast('Erro de conexão.', 'danger');
       } finally {
-        document.getElementById('loader-overlay').style.display = 'none';
+        overlay.style.display = 'none';
         btn.removeAttribute('disabled');
       }
     });

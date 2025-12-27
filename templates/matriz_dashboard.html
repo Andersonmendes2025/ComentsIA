@@ -7,26 +7,27 @@
 {% block content %}
 <div class="container py-4">
 
-  <!-- Métricas da Matriz -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header"><strong>Matriz - Métricas</strong></div>
+    <div class="card-header bg-white py-3">
+      <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-speedometer2 me-2"></i>Matriz - Métricas Consolidadas</h6>
+    </div>
     <div class="card-body">
-      <div class="row g-3">
+      <div class="row g-3 text-center">
         <div class="col-md-3">
-          <div class="text-muted small">Total de avaliações</div>
-          <div class="h5">{{ matriz_metrics.total_reviews }}</div>
+          <div class="text-muted small text-uppercase fw-bold">Total de Avaliações</div>
+          <div class="h3 fw-bold text-dark mt-2">{{ matriz_metrics.total_reviews }}</div>
         </div>
-        <div class="col-md-3">
-          <div class="text-muted small">Nota média</div>
-          <div class="h5">{{ matriz_metrics.avg_rating }}</div>
+        <div class="col-md-3 border-start">
+          <div class="text-muted small text-uppercase fw-bold">Nota Média</div>
+          <div class="h3 fw-bold text-dark mt-2">{{ matriz_metrics.avg_rating }}</div>
         </div>
-        <div class="col-md-3">
-          <div class="text-muted small">Taxa de resposta</div>
-          <div class="h5">{{ matriz_metrics.response_rate }}%</div>
+        <div class="col-md-3 border-start">
+          <div class="text-muted small text-uppercase fw-bold">Taxa de Resposta</div>
+          <div class="h3 fw-bold text-success mt-2">{{ matriz_metrics.response_rate }}%</div>
         </div>
-        <div class="col-md-3">
-          <div class="text-muted small">Última avaliação</div>
-          <div class="h6">
+        <div class="col-md-3 border-start">
+          <div class="text-muted small text-uppercase fw-bold">Última Atividade</div>
+          <div class="h5 mt-3 text-secondary">
             {% if matriz_metrics.last_review_at %}
               {{ matriz_metrics.last_review_at|formatar_data_brt }}
             {% else %}
@@ -38,59 +39,54 @@
     </div>
   </div>
 
-  <!-- Título e botão -->
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h3 class="mb-0">Dashboard da Matriz</h3>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalVincular">
-      Vincular nova filial
+    <h3 class="mb-0 fw-bold text-dark">Dashboard da Rede</h3>
+    <button class="btn btn-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#modalVincular">
+      <i class="bi bi-link-45deg me-1"></i> Vincular nova filial
     </button>
   </div>
 
-  <!-- Métricas agregadas das Filiais -->
   <div class="row g-3 mb-4">
     <div class="col-md-3">
-      <div class="card stat-card text-white shadow-sm
-          {% if aggregate.avg_rating >= 4 %}
-            bg-success
-          {% elif aggregate.avg_rating >= 2.5 %}
-            bg-warning
-          {% else %}
-            bg-danger
-          {% endif %}">
+      <div class="card stat-card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body">
-          <div class="text-muted small">Total de avaliações (Filiais)</div>
-          <div class="h4 mb-0">{{ aggregate.total_reviews if aggregate else 0 }}</div>
+          <div class="text-white-50 small text-uppercase fw-bold">Avaliações (Filiais)</div>
+          <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.total_reviews if aggregate else 0 }}</div>
         </div>
       </div>
     </div>
+
     <div class="col-md-3">
-      <div class="card stat-card text-white shadow-sm
-          {% if aggregate.avg_rating >= 4 %}
-            bg-success
-          {% elif aggregate.avg_rating >= 2.5 %}
-            bg-warning
-          {% else %}
-            bg-danger
-          {% endif %}">
+      <div class="card stat-card border-0 shadow-sm text-white
+          {% if aggregate and aggregate.avg_rating >= 4 %} bg-success
+          {% elif aggregate and aggregate.avg_rating >= 2.5 %} bg-warning text-dark
+          {% else %} bg-danger {% endif %}">
         <div class="card-body">
-          <div class="text-muted small">Média ponderada</div>
-          <div class="h4 mb-0">{{ aggregate.avg_rating if aggregate else 0.0 }}</div>
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="small text-uppercase fw-bold opacity-75">Média Global</div>
+              <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.avg_rating if aggregate else 0.0 }}</div>
+            </div>
+            <i class="bi bi-star-fill fs-3 opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
+
     <div class="col-md-3">
-      <div class="card stat-card text-white shadow-sm bg-info">
+      <div class="card stat-card border-0 shadow-sm bg-info text-white">
         <div class="card-body">
-          <div class="text-muted small">Taxa de resposta</div>
-          <div class="h4 mb-0">{{ aggregate.response_rate if aggregate else 0.0 }}%</div>
+          <div class="small text-uppercase fw-bold opacity-75">Taxa de Resposta</div>
+          <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.response_rate if aggregate else 0.0 }}%</div>
         </div>
       </div>
     </div>
+
     <div class="col-md-3">
-      <div class="card stat-card text-white shadow-sm bg-primary">
+      <div class="card stat-card border-0 shadow-sm bg-dark text-white">
         <div class="card-body">
-          <div class="text-muted small">Última avaliação</div>
-          <div class="h6 mb-0">
+          <div class="small text-uppercase fw-bold opacity-75">Última Interação</div>
+          <div class="h5 fw-bold mb-0 mt-3">
             {% if aggregate and aggregate.last_review_at %}
               {{ aggregate.last_review_at|formatar_data_brt }}
             {% else %}
@@ -102,50 +98,70 @@
     </div>
   </div>
 
-  <!-- Lista de Filiais -->
-  <div class="card shadow-sm">
-    <div class="card-header">
-      <strong>Filiais vinculadas</strong>
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h6 class="mb-0 fw-bold"><i class="bi bi-shop me-2"></i>Filiais Vinculadas</h6>
     </div>
     <div class="card-body p-0">
       {% if filiais and filiais|length > 0 %}
       <div class="table-responsive">
-        <table class="table table-sm mb-0 align-middle">
-          <thead class="table-light">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="table-light text-muted small text-uppercase">
             <tr>
-              <th style="width: 40%;">Filial</th>
+              <th class="ps-4" style="width: 35%;">Filial</th>
               <th class="text-center">Avaliações</th>
               <th class="text-center">Média</th>
               <th class="text-center">Respondidas</th>
-              <th class="text-center">Taxa de Resposta</th>
-              <th class="text-end" style="width: 180px;">Ações</th>
+              <th class="text-center">Taxa Resp.</th>
+              <th class="text-end pe-4" style="width: 200px;">Ações</th>
             </tr>
           </thead>
           <tbody>
           {% for f in filiais %}
-          <tr class="{% if f.metrics.avg_rating >= 4 %}table-success{% elif f.metrics.avg_rating >= 2.5 %}table-warning{% else %}table-danger{% endif %}">
-            <td>{{ f.display_name }}</td>
+          <tr>
+            <td class="ps-4 fw-semibold text-dark">
+              <i class="bi bi-building me-2 text-secondary"></i> {{ f.display_name }}
+            </td>
             <td class="text-center">{{ f.metrics.total_reviews }}</td>
-            <td class="text-center">{{ f.metrics.avg_rating }}</td>
+            <td class="text-center">
+              <span class="badge rounded-pill 
+                {% if f.metrics.avg_rating >= 4 %}bg-success
+                {% elif f.metrics.avg_rating >= 2.5 %}bg-warning text-dark
+                {% else %}bg-danger{% endif %}">
+                {{ f.metrics.avg_rating }} <i class="bi bi-star-fill ms-1" style="font-size: 0.65rem;"></i>
+              </span>
+            </td>
             <td class="text-center">{{ f.metrics.responded }}</td>
-            <td class="text-center">{{ f.metrics.response_rate }}%</td>
-            <td class="text-end">
-              <button class="btn btn-outline-primary btn-sm" onclick="gerarAnaliseIA('{{ f.user_id }}')">
-                <i class="bi bi-robot"></i> IA
+            <td class="text-center">
+              <div class="progress" style="height: 6px; width: 80px; margin: 0 auto;">
+                <div class="progress-bar bg-info" role="progressbar" style="width: {{ f.metrics.response_rate }}%"></div>
+              </div>
+              <small class="text-muted" style="font-size: 0.75rem;">{{ f.metrics.response_rate }}%</small>
+            </td>
+            <td class="text-end pe-4">
+              <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="gerarAnaliseIA('{{ f.user_id }}')">
+                <i class="bi bi-robot me-1"></i> Analisar
               </button>
-              <button class="btn btn-outline-danger btn-sm ms-1" onclick="desvincularFilial('{{ f.user_id }}')">
-                Desvincular
+              <button class="btn btn-link text-danger btn-sm p-0 ms-2" onclick="desvincularFilial('{{ f.user_id }}')" title="Remover vínculo">
+                <i class="bi bi-trash"></i>
               </button>
             </td>
           </tr>
-          <tr id="analise-{{ f.user_id }}" style="display: none;">
-            <td colspan="6">
-              <div class="card border-primary shadow-sm mt-2">
-                <div class="card-body">
-                  <div id="analise-conteudo-{{ f.user_id }}">
-                    <div class="text-center text-muted">
-                      <div class="spinner-border text-primary" role="status"></div>
-                      <p class="mt-2">🔄 Gerando análise com IA...</p>
+          
+          <tr id="analise-{{ f.user_id }}" style="display: none; background-color: #f8f9fa;">
+            <td colspan="6" class="p-0 border-0">
+              <div class="p-4">
+                <div class="card border-0 shadow-sm">
+                  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-stars me-2"></i>Análise Inteligente da Filial</span>
+                    <button class="btn btn-sm btn-link text-white text-decoration-none" onclick="document.getElementById('analise-{{ f.user_id }}').style.display='none'">
+                      <i class="bi bi-x-lg"></i> Fechar
+                    </button>
+                  </div>
+                  <div class="card-body" id="analise-conteudo-{{ f.user_id }}">
+                    <div class="text-center py-4 text-muted">
+                      <div class="spinner-border text-primary mb-2" role="status"></div>
+                      <p class="mb-0">A IA está processando os dados desta filial...</p>
                     </div>
                   </div>
                 </div>
@@ -153,144 +169,206 @@
             </td>
           </tr>
           {% endfor %}
-        </tbody>
-
+          </tbody>
         </table>
       </div>
       {% else %}
-        <div class="p-3 text-muted">Nenhuma filial vinculada ainda.</div>
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-shop display-4 mb-3 d-block text-secondary opacity-50"></i>
+          <h5>Nenhuma filial vinculada</h5>
+          <p class="mb-0">Clique no botão acima para adicionar a primeira filial.</p>
+        </div>
       {% endif %}
     </div>
   </div>
 </div>
 
-<!-- Modal Vincular -->
 <div class="modal fade" id="modalVincular" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form class="modal-content" onsubmit="return vincularFilial(event)">
-      <div class="modal-header">
-        <h5 class="modal-title">Vincular nova filial</h5>
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content border-0 shadow" onsubmit="return vincularFilial(event)">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold">Vincular nova filial</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
-      <div class="modal-body">
-        <label class="form-label">ID/E-mail da filial</label>
-        <input type="text" name="child_user_id" id="child_user_id" class="form-control" placeholder="email@empresa.com" required>
-        <div class="form-text">A conta da filial já deve existir para ser vinculada.</div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">ID ou E-mail da filial</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
+            <input type="text" name="child_user_id" id="child_user_id" class="form-control" placeholder="exemplo@empresa.com" required>
+          </div>
+          <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> A conta da filial já deve estar cadastrada na plataforma.</div>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
-        <button class="btn btn-primary" type="submit">Vincular</button>
+      <div class="modal-footer bg-light border-0">
+        <button class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary px-4" type="submit">Confirmar Vínculo</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Toast -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
-  <div id="toastMsg" class="toast align-items-center text-white bg-primary border-0" role="alert">
+  <div id="toastMsg" class="toast align-items-center text-white border-0 shadow-lg" role="alert">
     <div class="d-flex">
-      <div class="toast-body" id="toastText">Ação executada.</div>
+      <div class="toast-body d-flex align-items-center" id="toastText">
+        </div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
     </div>
   </div>
 </div>
 
 <script>
+  // 1. Função Segura para obter CSRF Token
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  // 2. Vincular Filial
   async function vincularFilial(e) {
     e.preventDefault();
     const id = document.getElementById('child_user_id').value.trim();
     if (!id) return false;
 
+    // Desabilitar botão para evitar duplo clique
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    const originalText = btnSubmit.innerHTML;
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processando...';
+
     const formData = new FormData();
     formData.append('child_user_id', id);
 
-    const resp = await fetch('{{ url_for("matriz.vincular_filial") }}', {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-      },
-      body: formData
-    });
+    try {
+      const resp = await fetch('{{ url_for("matriz.vincular_filial") }}', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken()
+        },
+        body: formData
+      });
 
+      const data = await resp.json();
+      showToast(data.message || data.error || 'Operação concluída', resp.ok ? 'success' : 'danger');
 
-    const data = await resp.json();
-    showToast(data.message || data.error || 'OK', resp.ok ? 'success' : 'danger');
-
-    if (data.success) {
-      const modal = bootstrap.Modal.getInstance(document.getElementById('modalVincular'));
-      modal && modal.hide();
-      setTimeout(() => location.reload(), 600);
+      if (data.success) {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalVincular'));
+        if(modal) modal.hide();
+        setTimeout(() => location.reload(), 800);
+      }
+    } catch (error) {
+      showToast('Erro de conexão com o servidor.', 'danger');
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = originalText;
     }
     return false;
   }
 
+  // 3. Desvincular Filial
   async function desvincularFilial(childId) {
-    if (!confirm('Desvincular esta filial?')) return;
+    if (!confirm('Tem certeza que deseja desvincular esta filial? Ela deixará de aparecer neste painel.')) return;
 
     const formData = new FormData();
     formData.append('child_user_id', childId);
 
-    const resp = await fetch('{{ url_for("matriz.desvincular_filial") }}', {
-      method: 'POST',
-      body: formData
-    });
+    try {
+      const resp = await fetch('{{ url_for("matriz.desvincular_filial") }}', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken() // Token adicionado
+        },
+        body: formData
+      });
 
-    const data = await resp.json();
-    showToast(data.message || data.error || 'OK', resp.ok ? 'success' : 'danger');
-    if (data.success) setTimeout(() => location.reload(), 600);
+      const data = await resp.json();
+      showToast(data.message || data.error || 'Operação concluída', resp.ok ? 'success' : 'danger');
+      if (data.success) setTimeout(() => location.reload(), 800);
+    } catch (error) {
+      showToast('Erro ao tentar desvincular.', 'danger');
+    }
   }
 
+  // 4. Exibir Toast
   function showToast(text, theme) {
     const toastEl = document.getElementById('toastMsg');
     const toastText = document.getElementById('toastText');
-    toastText.textContent = text;
-    toastEl.classList.remove('bg-primary', 'bg-danger', 'bg-success');
+    
+    // Define ícone baseado no tema
+    let icon = theme === 'success' ? '<i class="bi bi-check-circle-fill me-2 fs-5"></i>' : 
+               theme === 'danger' ? '<i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>' : 
+               '<i class="bi bi-info-circle-fill me-2 fs-5"></i>';
+
+    toastText.innerHTML = icon + text;
+    
+    toastEl.classList.remove('bg-primary', 'bg-danger', 'bg-success', 'bg-warning');
     toastEl.classList.add(theme === 'danger' ? 'bg-danger' : (theme === 'success' ? 'bg-success' : 'bg-primary'));
+    
     new bootstrap.Toast(toastEl).show();
   }
+
+  // 5. Gerar Análise IA (CORRIGIDA)
   async function gerarAnaliseIA(filialId) {
-  const linhaAnalise = document.getElementById(`analise-${filialId}`);
-  const conteudoAnalise = document.getElementById(`analise-conteudo-${filialId}`);
+    const linhaAnalise = document.getElementById(`analise-${filialId}`);
+    const conteudoAnalise = document.getElementById(`analise-conteudo-${filialId}`);
 
-  // Alternar visibilidade
-  const isVisible = linhaAnalise.style.display === "table-row";
-  if (isVisible) {
-    linhaAnalise.style.display = "none";
-    return;
-  }
-
-  // Mostra o card com "gerando..."
-  linhaAnalise.style.display = "table-row";
-  conteudoAnalise.innerHTML = `
-    <div class="text-center text-muted">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-2">🔄 Gerando análise com IA...</p>
-    </div>
-  `;
-
-  try {
-    const resp = await fetch(`/matriz/analyze_reviews?filial_id=${filialId}`, {
-      method: "POST",
-    });
-    const data = await resp.json();
-
-    if (data.success) {
-      const texto = data.analysis || data.raw_analysis || "Análise indisponível.";
-      conteudoAnalise.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start mb-2">
-          <h5 class="text-primary"><i class="bi bi-graph-up-arrow me-2"></i>Análise da Filial</h5>
-          <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('analise-${filialId}').style.display='none'">↩️ Esconder</button>
-        </div>
-        <div style="white-space: pre-wrap; max-width: 100%; overflow-x: auto;" class="bg-light p-3 rounded border">
-          ${texto}
-        </div>
-      `;
-    } else {
-      conteudoAnalise.innerHTML = `<p class="text-danger">Erro: ${data.error || 'Erro inesperado.'}</p>`;
+    // Toggle (Abre/Fecha)
+    const isVisible = linhaAnalise.style.display === "table-row";
+    if (isVisible) {
+      linhaAnalise.style.display = "none";
+      return;
     }
-  } catch (error) {
-    conteudoAnalise.innerHTML = `<p class="text-danger">Erro ao gerar análise.</p>`;
+
+    // Mostra linha e loading
+    linhaAnalise.style.display = "table-row";
+    conteudoAnalise.innerHTML = `
+      <div class="text-center py-4 text-muted">
+        <div class="spinner-border text-primary mb-2" role="status"></div>
+        <p class="mb-0">A IA está analisando os dados...</p>
+      </div>
+    `;
+
+    try {
+      // ✅ FETCH CORRIGIDO: Headers JSON + CSRF
+      const resp = await fetch(`/matriz/analyze_reviews?filial_id=${filialId}`, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json', // Essencial para evitar erro 400
+            'X-CSRFToken': getCsrfToken()       // Essencial para segurança
+        },
+        body: JSON.stringify({}) // Body vazio (JSON válido)
+      });
+
+      if (!resp.ok) {
+          throw new Error(`Erro HTTP: ${resp.status}`);
+      }
+
+      const data = await resp.json();
+
+      if (data.success) {
+        // Pega o texto da análise
+        const texto = data.analysis || data.raw_analysis || "Análise indisponível no momento.";
+        
+        conteudoAnalise.innerHTML = `
+          <div class="alert alert-light border shadow-sm mb-0">
+            <h6 class="alert-heading fw-bold text-primary mb-3"><i class="bi bi-lightbulb me-2"></i>Insights da Inteligência Artificial</h6>
+            <div style="white-space: pre-wrap; line-height: 1.6; font-size: 0.95rem; color: #444;">${texto}</div>
+          </div>
+        `;
+      } else {
+        conteudoAnalise.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                <i class="bi bi-exclamation-octagon me-2"></i> Erro: ${data.error || 'Erro inesperado ao processar a análise.'}
+            </div>`;
+      }
+    } catch (error) {
+      console.error(error);
+      conteudoAnalise.innerHTML = `
+        <div class="alert alert-danger mb-0">
+            <i class="bi bi-wifi-off me-2"></i> Falha na comunicação com o servidor. Tente novamente.
+        </div>`;
+    }
   }
-}
 </script>
 {% endblock %}

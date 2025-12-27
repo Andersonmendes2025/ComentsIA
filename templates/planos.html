@@ -1,452 +1,437 @@
 {% extends "base.html" %}
-{% block title %}Planos - ComentsIA{% endblock %}
+{% block title %}Planos & Preços - ComentsIA{% endblock %}
 
 {% block extra_head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <style>
-  /* === VARIÁVEIS DE TEMA (VERSÃO CLARA DO INDEX) === */
   :root {
-    --landing-bg: #f5f7fb;
-    --landing-ink: #0f172a;
-    --landing-muted: #6b7280;
-    --landing-accent: #2563eb;
-    --landing-accent-soft: #e0ecff;
-    --landing-border: #e5e7eb;
-    --landing-card: #ffffff;
-    --landing-radius-lg: 20px;
-    --landing-radius-md: 14px;
-    --landing-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
-    --landing-shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
   }
 
-  /* === FUNDO CLARO IGUAL AO INDEX === */
   body {
-    background:
-      radial-gradient(900px 600px at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
-      radial-gradient(900px 600px at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
-      linear-gradient(180deg, #f9fafb 0%, #eef2ff 45%, #f5f7fb 100%);
-    color: var(--landing-ink) !important;
+    background: 
+      radial-gradient(at 0% 0%, rgba(37,99,235,0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(124,58,237,0.05) 0px, transparent 50%),
+      var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
-  /* === CARDS DE PLANOS (IGUAL OS CARDS GLASS DO INDEX) === */
-  .glass {
-    background: var(--landing-card);
-    border: 1px solid rgba(226,232,240,0.9);
-    border-radius: var(--landing-radius-md);
-    padding: 22px;
-    box-shadow: var(--landing-shadow-card);
-    transition: transform .25s ease, box-shadow .25s ease;
-  }
-
-  .glass:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 40px rgba(0,0,0,.08);
-  }
-
-  /* === CABEÇALHO DOS PLANOS === */
-  .plans-title {
-    background: linear-gradient(90deg, #2563eb, #1d4ed8, #7c3aed);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    font-weight: 800;
-  }
-
-  .badge-tier {
-    background: var(--landing-accent-soft);
-    color: var(--landing-accent);
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: .8rem;
-    font-weight: 600;
-  }
-
-  .badge-top {
-    background: linear-gradient(135deg, #ff4fb5, #8a5bff);
-    color: #fff;
-    border-radius: 999px;
-    padding: 4px 12px;
-    font-weight: 700;
-    font-size: .75rem;
-  }
-
-  /* === TEXTOS & PREÇOS === */
-  .plan-name {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--landing-ink);
-  }
-
-  .price {
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: var(--landing-ink);
-  }
-
-  .price small {
-    font-size: .9rem;
-    color: var(--landing-muted);
-  }
-
-  .features li {
-    color: var(--landing-muted);
-    margin: 8px 0;
-    display: flex;
-    gap: .5rem;
-  }
-  .features i {
-    color: #2563eb;
-  }
-
-  /* === BOTÕES === */
-  .btn-neon {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-    color: #fff !important;
-    border: none;
-    border-radius: 12px;
-    padding: .9rem 1rem;
-    font-weight: 700;
-    box-shadow: 0 10px 30px rgba(37,99,235,.25);
-  }
-
-  .btn-ghost {
-    border: 1px solid var(--landing-border);
-    color: var(--landing-ink);
-    background: #ffffff;
-    border-radius: 12px;
-    padding: .9rem 1rem;
-    font-weight: 600;
-  }
-
-  .btn-selected {
-    background: #e2e8f0;
-    cursor: default;
-  }
-
-  /* Container geral */
   .plans-container {
-    max-width: 1100px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 60px 20px;
   }
+
+  .header-section {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+  .header-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 10px auto 0;
+  }
+
+  /* CARDS */
+  .plan-card {
+    background: var(--card-bg);
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 32px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .plan-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+  }
+
+  /* Destaque para o plano atual */
+  .border-highlight {
+    border: 2px solid var(--primary);
+    box-shadow: 0 10px 30px -10px rgba(37, 99, 235, 0.15);
+  }
+  
+  .badge-current {
+    background: #dcfce7; color: #166534;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    display: inline-block; margin-bottom: 12px;
+  }
+
+  .badge-pro {
+    background: #eff6ff; color: var(--primary);
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    display: inline-block; margin-bottom: 12px;
+  }
+
+  .badge-biz {
+    background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    display: inline-block; margin-bottom: 12px;
+  }
+
+  .plan-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+  
+  .plan-price {
+    font-size: 2.5rem; font-weight: 800; color: #0f172a;
+    display: flex; align-items: baseline; gap: 4px;
+  }
+  .plan-price small { font-size: 1rem; font-weight: 500; color: #64748b; }
+  
+  .price-sub { font-size: 0.875rem; color: #64748b; margin-bottom: 24px; min-height: 20px; }
+
+  .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
+
+  .features { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
+  .features li {
+    display: flex; gap: 10px; margin-bottom: 12px;
+    font-size: 0.95rem; color: #334155; line-height: 1.5;
+  }
+  .features i { color: var(--primary); font-size: 1.1rem; }
+  .features i.bi-x-circle { color: #cbd5e1; }
+
+  /* BOTÕES */
+  .btn-plan {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1rem;
+    margin-top: 24px;
+  }
+
+  .btn-primary-plan {
+    background: var(--primary); color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  }
+  .btn-primary-plan:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+  .btn-dark-plan {
+    background: #0f172a; color: white;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  }
+  .btn-dark-plan:hover { background: #1e293b; transform: translateY(-1px); }
+
+  .btn-outline-plan {
+    background: white; border: 2px solid #e2e8f0; color: #0f172a;
+  }
+  .btn-outline-plan:hover { border-color: #94a3b8; background: #f8fafc; }
+
+  .btn-disabled {
+    background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0;
+    cursor: not-allowed; opacity: 0.8;
+  }
+
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="container my-4 plans-page">
-  <script>document.body.classList.add('plans-dark');</script>
+<div class="plans-container">
+  
+  <div class="header-section">
+    <h1 class="header-title">Planos que crescem com você</h1>
+    <p class="header-subtitle">
+      Escolha a tecnologia ideal para automatizar sua reputação. 
+      Upgrade simples, pagamento proporcional e cancelamento a qualquer momento.
+    </p>
+  </div>
 
-  {% set current_tier = user_plano if user_plano else 'guest' %}
+  {# 
+     === LÓGICA DE HIERARQUIA DE PLANOS (JINJA2 PURO) === 
+     Isso evita precisar mudar o Python.
+  #}
+  
+  {# 1. Detecta se está logado verificando a sessão diretamente #}
+  {% set is_logged_in = session.get('user_info') is not none %}
 
-  <section class="plans-band mb-4">
-    <div class="text-center mb-3">
-      <h2 class="plans-title fw-extrabold m-0">Planos ComentsIA</h2>
-      <p class="text-neon mt-2 mb-0">Comece grátis, evolua para o Pro ou Business quando fizer sentido.</p>
-    </div>
+  {# 2. Define o plano atual REAL (se não logado = 'guest', se logado = user_plano) #}
+  {% if is_logged_in %}
+      {# Se user_plano não vier do backend, assume 'free' #}
+      {% set current_plan = user_plano if user_plano else 'free' %}
+  {% else %}
+      {% set current_plan = 'guest' %}
+  {% endif %}
 
-    <div class="row g-3 plans-grid">
+  {# 3. Define Pontuação para Hierarquia (Quanto maior, mais caro/recursos) #}
+  {% set current_score = 0 %}
+  
+  {% if current_plan == 'guest' %}      {% set current_score = -1 %}
+  {% elif current_plan == 'free' %}     {% set current_score = 0 %}
+  {% elif current_plan == 'pro' %}      {% set current_score = 10 %}
+  {% elif current_plan == 'pro_anual' %}{% set current_score = 11 %}
+  {% elif current_plan == 'business' %} {% set current_score = 20 %}
+  {% elif current_plan == 'business_anual' %} {% set current_score = 21 %}
+  {% endif %}
 
-      <!-- FREE -->
-    <div class="col-12 col-md-4">
-      <div class="glass {% if user_plano == 'free' %}plan-selected{% endif %}">
-        <div class="plan-head">
-          <span class="badge-tier">Começo</span>
-          {% if user_plano == 'free' %}
-            <span class="badge-top">Plano Atual</span>
+  <div class="row g-4">
+
+    {# ================== FREE ================== #}
+    <div class="col-12 col-lg-4">
+      <div class="plan-card {% if current_plan == 'free' %}border-highlight{% endif %}">
+        <div>
+          {% if current_plan == 'free' %}
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+          {% else %}
+            <span class="badge-biz">Inicial</span>
           {% endif %}
+          <div class="plan-name">Starter Free</div>
+          <div class="plan-price">R$ 0<small>/mês</small></div>
+          <div class="price-sub">Para conhecer a plataforma.</div>
         </div>
-
-        <div class="plan-name">Free</div>
-
-        <div class="price">
-          R$ 0 <small>/mês</small>
-        </div>
-
+        
+        <div class="divider"></div>
+        
         <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> Até <strong>{{ planos['free'].avaliacoes_mes }}</strong> avaliações/mês.</li>
-          <li><i class="bi bi-x-circle text-danger"></i> Sem resposta hiper compreensiva.</li>
-          <li><i class="bi bi-x-circle text-danger"></i> Sem caixa de contexto.</li>
-          <li><i class="bi bi-x-circle text-danger"></i> Sem automação Google.</li>
-          <li><i class="bi bi-x-circle text-danger"></i> Sem PDF.</li>
-          <li><i class="bi bi-check2-circle"></i> Suporte {{ planos['free'].suporte }}.</li>
+          <li><i class="bi bi-check2-circle"></i> Até {{ planos['free'].avaliacoes_mes }} avaliações/mês</li>
+          <li><i class="bi bi-x-circle"></i> Sem resposta hiper empática</li>
+          <li><i class="bi bi-x-circle"></i> Sem contexto personalizado</li>
+          <li><i class="bi bi-x-circle"></i> Sem automação Google</li>
         </ul>
 
-        <div class="mt-3">
-          {% if user_plano == 'free' %}
-            <button class="btn btn-ghost btn-selected w-100" disabled>
-              Você já está no Free
-            </button>
-
-          {% elif current_tier in ['pro','business','business_anual','pro_anual'] %}
-            <button class="btn btn-ghost w-100" disabled>
-              Indisponível (downgrade)
-            </button>
-
-          {% elif current_tier == 'guest' %}
-            <button class="btn btn-ghost w-100" onclick="window.location.href='{{ url_for('authorize') }}'">
-              Faça login para assinar o Free
-            </button>
-
-          {% else %}
-            <form method="post" action="{{ url_for('planos') }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="plano" value="free">
-              <button type="submit" class="btn btn-ghost w-100">Voltar para Free</button>
-            </form>
-          {% endif %}
-        </div>
-
-      </div>
-    </div>
-
-
-      <!-- PRO -->
-      <div class="col-12 col-md-4">
-        <div class="glass {% if user_plano in ['pro','pro_anual'] %}plan-selected{% endif %}">
-          <div class="plan-head">
-            <span class="badge-tier">Profissional</span>
-            <span class="badge-top">Mais escolhido</span>
-          </div>
-
-          <div class="plan-name">Pro</div>
-
-          <div class="price">
-            R$ {{ '%.2f'|format(planos['pro'].preco)|replace('.', ',') }}
-            <small>/mês</small>
-            <div><small>ou R$ {{ '%.2f'|format(planos['pro_anual'].preco)|replace('.', ',') }} /ano</small></div>
-          </div>
-
-          <div class="price-note">Para empresas que querem profissionalizar respostas.</div>
-
-          <ul class="features">
-            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].avaliacoes_mes }} avaliações/mês.</li>
-            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].hiper_dia }} hiper/dia.</li>
-            <li><i class="bi bi-check2-circle"></i> Caixa de contexto incluída.</li>
-            <li><i class="bi bi-check2-circle"></i> Considerações por avaliação.</li>
-            <li><i class="bi bi-check2-circle"></i> {{ planos['pro'].relatorio_pdf_mes }} PDF/mês.</li>
-            <li><i class="bi bi-check2-circle"></i> Dashboard completo.</li>
-            <li><i class="bi bi-check2-circle"></i> Automação Google disponível.</li>
-            <li><i class="bi bi-x-circle text-danger"></i> Não inclui filiais.</li>
-          </ul>
-
-          <div class="mt-3 d-grid gap-2">
-
-            {% set is_guest = current_tier in ['guest', None] %}
-            {% set can_checkout_pro = current_tier in ['guest','free'] %}
-            {% set can_upgrade_to_pro = current_tier in ['pro_anual'] %}
-            {% set is_downgrade_from_business = current_tier in ['business','business_anual'] %}
-
-            <!-- PRO Mensal -->
-            <button type="button"
-              class="btn btn-neon {% if user_plano=='pro' %}btn-selected{% endif %}"
-              data-plan="pro_mensal"
-              data-stripe-action="
-                {% if is_guest %}login
-                {% elif can_checkout_pro %}checkout
-                {% elif can_upgrade_to_pro %}upgrade
-                {% else %}none
-                {% endif %}
-              "
-              {% if is_downgrade_from_business or user_plano=='pro' %}disabled{% endif %}>
-              {% if is_guest %}Faça login para assinar
-              {% elif user_plano=='pro' %}Pro Mensal (Atual)
-              {% elif is_downgrade_from_business %}Indisponível (downgrade)
-              {% else %}Assinar Pro Mensal
-              {% endif %}
-            </button>
-
-            <!-- PRO Anual -->
-            <button type="button"
-              class="btn btn-neon {% if user_plano=='pro_anual' %}btn-selected{% endif %}"
-              data-plan="pro_anual"
-              data-stripe-action="
-                {% if is_guest %}login
-                {% elif can_checkout_pro %}checkout
-                {% elif can_upgrade_to_pro %}upgrade
-                {% else %}none
-                {% endif %}
-              "
-              {% if is_downgrade_from_business or user_plano=='pro_anual' %}disabled{% endif %}>
-              {% if is_guest %}Faça login para assinar
-              {% elif user_plano=='pro_anual' %}Pro Anual (Atual)
-              {% elif is_downgrade_from_business %}Indisponível (downgrade)
-              {% else %}Assinar Pro Anual
-              {% endif %}
-            </button>
-
-            <div class="price-note">
-              <span class="pill-label"><i class="bi bi-clock-history"></i> Pro Anual inclui sincronização gratuita de 3 meses.</span>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      <!-- BUSINESS -->
-      <div class="col-12 col-md-4">
-        <div class="glass {% if user_plano in ['business','business_anual'] %}plan-selected{% endif %}">
-          <div class="plan-head">
-            <span class="badge-tier">Escala & Rede</span>
-            {% if user_plano in ['business','business_anual'] %}
-              <span class="badge-top">Plano Atual</span>
+        <div class="mt-auto">
+            {% if current_plan == 'guest' %}
+                <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Começar Grátis</button>
+            {% elif current_plan == 'free' %}
+                <button class="btn-plan btn-disabled" disabled>Seu plano atual</button>
+            {% else %}
+                <button class="btn-plan btn-disabled" disabled title="Cancele sua assinatura para voltar ao Free">Plano Básico</button>
             {% endif %}
-          </div>
-
-          <div class="plan-name">Business Pro</div>
-
-          <div class="price">
-            R$ {{ '%.2f'|format(planos['business'].preco)|replace('.', ',') }}
-            <small>/mês</small>
-            <div><small>ou R$ {{ '%.2f'|format(planos['business_anual'].preco)|replace('.', ',') }} /ano</small></div>
-          </div>
-
-          <div class="price-note">Para redes, hotéis, clínicas e multiunidades.</div>
-
-          <ul class="features">
-            <li><i class="bi bi-check2-circle"></i> Avaliações ilimitadas.</li>
-            <li><i class="bi bi-check2-circle"></i> Hiper ilimitadas.</li>
-            <li><i class="bi bi-check2-circle"></i> Contexto ilimitado.</li>
-            <li><i class="bi bi-check2-circle"></i> PDFs ilimitados.</li>
-            <li><i class="bi bi-check2-circle"></i> Dashboard avançado.</li>
-            <li><i class="bi bi-check2-circle"></i> Automação Google incluída.</li>
-            <li><i class="bi bi-diagram-3"></i> Matriz + Filiais ilimitadas.</li>
-            <li><i class="bi bi-headset"></i> Suporte VIP.</li>
-          </ul>
-
-          <div class="mt-3 d-grid gap-2">
-
-            {% set is_guest = current_tier in ['guest', None] %}
-            {% set can_checkout_business = current_tier in ['guest','free','pro','pro_anual'] %}
-            {% set can_upgrade_to_business = current_tier in ['business'] %}
-            {% set is_downgrade_business = current_tier in ['business_anual'] %}
-
-            <!-- BUSINESS Mensal -->
-            <button type="button"
-              class="btn btn-ghost {% if user_plano=='business' %}btn-selected{% endif %}"
-              data-plan="business_mensal"
-              data-stripe-action="
-                {% if is_guest %}login
-                {% elif can_checkout_business %}checkout
-                {% elif can_upgrade_to_business %}upgrade
-                {% else %}none
-                {% endif %}
-              "
-              {% if user_plano=='business' %}disabled{% endif %}>
-              {% if is_guest %}Faça login para assinar
-              {% elif user_plano=='business' %}Business Mensal (Atual)
-              {% else %}Assinar Business Mensal
-              {% endif %}
-            </button>
-
-            <!-- BUSINESS Anual -->
-            <button type="button"
-              class="btn btn-ghost {% if user_plano=='business_anual' %}btn-selected{% endif %}"
-              data-plan="business_anual"
-              data-stripe-action="
-                {% if is_guest %}login
-                {% elif can_checkout_business %}checkout
-                {% elif can_upgrade_to_business %}upgrade
-                {% else %}none
-                {% endif %}
-              "
-              {% if user_plano=='business_anual' %}disabled{% endif %}>
-              {% if is_guest %}Faça login para assinar
-              {% elif user_plano=='business_anual' %}Business Anual (Atual)
-              {% else %}Assinar Business Anual
-              {% endif %}
-            </button>
-
-            <div class="price-note">
-              <span class="pill-label"><i class="bi bi-clock-history"></i> Business Anual inclui sincronização gratuita de 3 meses.</span>
-            </div>
-
-          </div>
         </div>
       </div>
-
     </div>
-  </section>
+
+    {# ================== PRO ================== #}
+    <div class="col-12 col-lg-4">
+      <div class="plan-card {% if current_plan in ['pro', 'pro_anual'] %}border-highlight{% endif %}">
+        <div>
+          {% if current_plan in ['pro', 'pro_anual'] %}
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+          {% else %}
+            <span class="badge-pro">Profissional</span>
+          {% endif %}
+          <div class="plan-name">Pro</div>
+          <div class="plan-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>/mês</small></div>
+          <div class="price-sub">ou R$ {{ '%.0f'|format(planos['pro_anual'].preco) }} /ano</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <ul class="features">
+          <li><i class="bi bi-check2-circle"></i> <strong>{{ planos['pro'].avaliacoes_mes }}</strong> avaliações/mês</li>
+          <li><i class="bi bi-check2-circle"></i> Contexto da IA Personalizado</li>
+          <li><i class="bi bi-check2-circle"></i> <strong>{{ planos['pro'].hiper_dia }}</strong> respostas Hiper/dia</li>
+          <li><i class="bi bi-check2-circle"></i> Automação Google Conectada</li>
+          <li><i class="bi bi-check2-circle"></i> Multi Filiais (Add-on)</li>
+        </ul>
+
+        {# BOTOES PRO #}
+        <div class="d-grid gap-2 mt-auto">
+          
+          {# Pro Mensal (Score 10) #}
+          {% if current_plan == 'guest' %}
+             <button class="btn-plan btn-primary-plan" onclick="redirecionarLogin()">Assinar Pro Mensal</button>
+          
+          {% elif current_plan == 'pro' %}
+             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+          
+          {% elif current_score > 10 %}
+             <button class="btn-plan btn-disabled" disabled>Indisponível (Downgrade)</button>
+          
+          {% else %}
+             <button class="btn-plan btn-primary-plan" onclick="processarPlano('pro_mensal')">
+               {% if current_score > 0 %}Fazer Upgrade{% else %}Assinar Pro Mensal{% endif %}
+             </button>
+          {% endif %}
+
+          {# Pro Anual (Score 11) #}
+          {% if current_plan == 'guest' %}
+             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Assinar Anual</button>
+          
+          {% elif current_plan == 'pro_anual' %}
+             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+          
+          {% elif current_score > 11 %}
+             <button class="btn-plan btn-disabled" disabled>Indisponível</button>
+          
+          {% else %}
+             <button class="btn-plan btn-outline-plan" onclick="processarPlano('pro_anual')">
+                {% if current_score > 0 %}Upgrade para Anual{% else %}Assinar Pro Anual{% endif %}
+             </button>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+    {# ================== BUSINESS ================== #}
+    <div class="col-12 col-lg-4">
+      <div class="plan-card {% if current_plan in ['business', 'business_anual'] %}border-highlight{% endif %}" style="background: linear-gradient(to bottom, #ffffff, #f8fafc);">
+        <div>
+          {% if current_plan in ['business', 'business_anual'] %}
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+          {% else %}
+            <span class="badge-biz text-dark bg-dark bg-opacity-10">Power User</span>
+          {% endif %}
+          <div class="plan-name">Business</div>
+          <div class="plan-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>/mês</small></div>
+          <div class="price-sub">ou R$ {{ '%.0f'|format(planos['business_anual'].preco) }} /ano</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <ul class="features">
+          <li><i class="bi bi-check2-circle"></i> <strong>Ilimitadas</strong> avaliações</li>
+          <li><i class="bi bi-check2-circle"></i> <strong>Ilimitadas</strong> respostas Hiper</li>
+          <li><i class="bi bi-check2-circle"></i> Múltiplos Contextos</li>
+          <li><i class="bi bi-diagram-3-fill text-primary"></i> <strong>Gestão de Filiais</strong></li>
+          <li><i class="bi bi-check2-circle"></i> Multi Filiais (Add-on)</li>
+          <li><i class="bi bi-check2-circle"></i> Sincronização Prioritária</li>
+          <li><i class="bi bi-headset"></i> Suporte VIP</li>
+        </ul>
+
+        {# BOTOES BUSINESS #}
+        <div class="d-grid gap-2 mt-auto">
+          
+          {# Business Mensal (Score 20) #}
+          {% if current_plan == 'guest' %}
+             <button class="btn-plan btn-dark-plan" onclick="redirecionarLogin()">Começar Business</button>
+          
+          {% elif current_plan == 'business' %}
+             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+          
+          {% elif current_score > 20 %}
+             <button class="btn-plan btn-disabled" disabled>Indisponível</button>
+          
+          {% else %}
+             <button class="btn-plan btn-dark-plan" onclick="processarPlano('business_mensal')">
+               {% if current_score > 0 %}Fazer Upgrade{% else %}Assinar Business{% endif %}
+             </button>
+          {% endif %}
+
+          {# Business Anual (Score 21) #}
+          {% if current_plan == 'guest' %}
+             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Business Anual</button>
+          
+          {% elif current_plan == 'business_anual' %}
+             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+          
+          {% else %}
+             <button class="btn-plan btn-outline-plan" onclick="processarPlano('business_anual')">
+                {% if current_score > 0 %}Upgrade para Anual{% else %}Assinar Business Anual{% endif %}
+             </button>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+  // Variáveis do Backend injetadas no JS
   const csrfToken = "{{ csrf_token() }}";
-  const isAuthenticated = {{ 'true' if user_plano is not none else 'false' }};
-  const currentTier = "{{ current_tier }}";
+  // Detecta se é visitante
+  const isGuest = {{ 'true' if current_plan == 'guest' else 'false' }};
   const loginUrl = "{{ url_for('authorize') }}";
+  const currentUrl = window.location.href; 
 
-  function showToast(message, type = 'error') {
-    if (window.showToast) window.showToast(message, type);
-    else alert(message);
+  // 1. Redirecionamento de Visitante para Login -> Planos
+  function redirecionarLogin() {
+    // Codifica a URL atual para o parametro ?next=
+    // Assim, após logar, o backend redireciona de volta para /planos
+    const target = `${loginUrl}?next=${encodeURIComponent(window.location.pathname)}`;
+    window.location.href = target;
   }
 
-  document.querySelectorAll('[data-stripe-action]').forEach(function (btn) {
-    btn.addEventListener('click', async function () {
-      if (btn.disabled) return;
+  // 2. Processamento do Plano (Checkout ou Upgrade)
+  async function processarPlano(productKey) {
+    if (isGuest) {
+      redirecionarLogin();
+      return;
+    }
 
-      const action = btn.getAttribute('data-stripe-action');
-      const product = btn.getAttribute('data-plan');
+    // Feedback Visual imediato no botão clicado
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando...';
 
-      if (action === "login") {
-        const next = encodeURIComponent(window.location.pathname);
-        return window.location.href = `${loginUrl}?next=${next}`;
-      }
+    try {
+      // Chama a rota de checkout do backend
+      // O backend/Stripe cuidará se é assinatura nova ou upgrade
+      const endpoint = `/stripe/checkout/${productKey}`;
 
-      if (action === "none") {
-        showToast("Este plano não está disponível para seu plano atual.", "error");
-        return;
-      }
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ 
+          next_url: currentUrl // Volta pra cá após pagar
+        })
+      });
 
-      if (!isAuthenticated) {
-        const next = encodeURIComponent(window.location.pathname);
-        return window.location.href = `${loginUrl}?next=${next}`;
-      }
+      const data = await res.json();
 
-      btn.disabled = true;
-      const original = btn.innerHTML;
-      btn.innerHTML = 'Processando...';
-
-      const url = action === "upgrade"
-        ? `/stripe/upgrade/${product}`
-        : `/stripe/checkout/${product}`;
-
-      try {
-        const nextUrl = window.location.href;
-
-
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken
-          },
-          body: JSON.stringify({
-            next_url: nextUrl
-          })
+      if (data.success && data.checkout_url) {
+        // Redireciona para o Stripe
+        window.location.href = data.checkout_url;
+      } else {
+        // Erro
+        Swal.fire({
+          icon: 'error',
+          title: 'Oops...',
+          text: data.message || 'Erro ao iniciar pagamento.',
+          confirmButtonColor: '#2563eb'
         });
-
-
-        const data = await resp.json();
-        if (!resp.ok || !data.success) {
-          showToast(data.message || "Erro ao processar.", "error");
-          btn.disabled = false;
-          btn.innerHTML = original;
-          return;
-        }
-
-        if (data.checkout_url) {
-          window.location.href = data.checkout_url;
-        } else {
-          showToast("Plano atualizado com sucesso!", "success");
-          window.location.reload();
-        }
-
-      } catch (err) {
-        showToast("Erro ao comunicar com o servidor.", "error");
         btn.disabled = false;
-        btn.innerHTML = original;
+        btn.innerHTML = originalText;
       }
-    });
-  });
-});
+
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro de conexão',
+        text: 'Verifique sua internet e tente novamente.',
+        confirmButtonColor: '#2563eb'
+      });
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
 </script>
 
 {% endblock %}

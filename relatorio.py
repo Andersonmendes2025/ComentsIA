@@ -2,10 +2,8 @@ import io
 import os
 import re
 import tempfile
-import unicodedata
 from datetime import datetime
 
-# --- Matplotlib sem GUI (evita Tkinter) ---
 import matplotlib
 import pandas as pd
 import pytz
@@ -17,15 +15,20 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 
+# ============================================================
+# LIMPA FORMATAÇÕES DA IA
+# ============================================================
+
 def limpa_markdown(texto: str) -> str:
     if not isinstance(texto, str):
         return ""
-    texto = re.sub(r"^\s*#+\s*", "", texto, flags=re.MULTILINE)  # remove títulos markdown
-    texto = re.sub(r"\*\*([^*]+)\*\*", r"\1", texto)            # remove bold
-    texto = re.sub(r"^[\-\*]\s+", "", texto, flags=re.MULTILINE) # remove bullets
-    texto = re.sub(r"^\d+\.\s+", "", texto, flags=re.MULTILINE)  # remove listas 1,2,3
-    texto = re.sub(r"^---+", "", texto, flags=re.MULTILINE)      # remove separadores
-    texto = re.sub(r"\n{3,}", "\n\n", texto)                      # normaliza quebras de linha
+
+    texto = re.sub(r"^\s*#+\s*", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"\*\*([^*]+)\*\*", r"\1", texto)
+    texto = re.sub(r"^[\-\*]\s+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"^\d+\.\s+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"^---+", "", texto, flags=re.MULTILINE)
+    texto = re.sub(r"\n{3,}", "\n\n", texto)
 
     texto = texto.replace("“", '"').replace("”", '"')
     texto = texto.replace("‘", "'").replace("’", "'")
@@ -34,9 +37,16 @@ def limpa_markdown(texto: str) -> str:
     return texto.strip()
 
 
+# ============================================================
+# CLASSE PRINCIPAL DO RELATÓRIO
+# ============================================================
+
 class RelatorioAvaliacoes:
-    def __init__(self, avaliacoes, media_atual=None, analises=None, settings=None):
-        # Garante chaves mínimas
+    print("### RELATORIO.PY CARREGADO:", __file__)
+
+    def __init__(self, avaliacoes, media_atual=None, analises=None,
+                 settings=None, nome_ficha=None):
+
         safe = []
         for a in avaliacoes or []:
             safe.append(
@@ -45,37 +55,43 @@ class RelatorioAvaliacoes:
                     "nota": a.get("nota"),
                     "texto": a.get("texto") or a.get("text") or "",
                     "respondida": a.get("respondida", 0),
-                    "tags": a.get("tags", ""),
+                    "tags": a.get("tags", "")
                 }
             )
+
         self.df = pd.DataFrame(safe)
         self.media_atual = media_atual
         self.analises = analises
         self.settings = settings or {}
+        self.nome_ficha = nome_ficha or "Todas as Lojas"
+
+    # ============================================================
+    # GRÁFICO HISTÓRICO
+    # ============================================================
 
     def gerar_grafico_media_historica(self, output_dir: str) -> str:
-        # Converte 'data' para tz-aware e cria uma coluna "naive" (sem tz) só para agrupar
         self.df["data"] = pd.to_datetime(self.df.get("data"), errors="coerce", utc=True)
 
         data_local = self.df["data"].dt.tz_convert("America/Sao_Paulo")
-        self.df["data_local"] = data_local.dt.strftime("%d/%m/%Y %H:%M")
         self.df["data_local_naive"] = data_local.dt.tz_localize(None)
 
-        # Agrupa por mês sem timezone (evita o warning do pandas)
         if "nota" not in self.df.columns:
             self.df["nota"] = None
-        notas_por_mes = (
-            self.df.dropna(subset=["data_local_naive"])
-            .groupby(self.df["data_local_naive"].dt.to_period("M"))["nota"]
-            .mean()
-        )
+
+        df_temp = self.df.dropna(subset=["data_local_naive"])
+        if len(df_temp) == 0:
+            notas_por_mes = []
+        else:
+            notas_por_mes = (
+                df_temp.groupby(df_temp["data_local_naive"].dt.to_period("M"))["nota"].mean()
+            )
 
         plt.figure(figsize=(9, 4))
-        if len(notas_por_mes) > 0:
-            notas_por_mes.plot(kind="line", marker="o", color="#28a745")
-        else:
-            # gráfico vazio, mas válido
+        if isinstance(notas_por_mes, list) or len(notas_por_mes) == 0:
             plt.plot([], [])
+        else:
+            notas_por_mes.plot(kind="line", marker="o", color="#28a745")
+
         plt.title("Evolução da Nota Média por Mês")
         plt.xlabel("Mês")
         plt.ylabel("Nota Média")
@@ -84,20 +100,22 @@ class RelatorioAvaliacoes:
         grafico_path = os.path.join(output_dir, "evolucao_medio.png")
         plt.savefig(grafico_path, dpi=140)
         plt.close()
+
         return grafico_path
 
+    # ============================================================
+    # GERAÇÃO DO PDF
+    # ============================================================
+
     def gerar_pdf(self, output):
-        """
-        Gera o PDF em:
-          - um buffer BytesIO (se 'output' for BytesIO), ou
-          - um arquivo no disco (se 'output' for caminho str/Path).
-        """
         with tempfile.TemporaryDirectory() as tmpdir:
             pdf = FPDF()
             pdf.add_page()
             y_logo_offset = 10
 
-            # --- LOGO DA EMPRESA ---
+            # ==========================================
+            # LOGO
+            # ==========================================
             logo_bytes = self.settings.get("logo")
             if logo_bytes:
                 try:
@@ -105,205 +123,211 @@ class RelatorioAvaliacoes:
                     logo_path = os.path.join(tmpdir, "logo_temp.png")
                     img.save(logo_path, "PNG")
 
-                    # dimensionamento simples
                     max_width_mm = 60
                     max_height_mm = 25
                     dpi = 96
                     px_to_mm = 25.4 / dpi
                     img_width_mm = img.width * px_to_mm
                     img_height_mm = img.height * px_to_mm
-                    ratio = min(
-                        max_width_mm / img_width_mm, max_height_mm / img_height_mm, 1
-                    )
+                    ratio = min(max_width_mm / img_width_mm, max_height_mm / img_height_mm, 1)
+
                     w = img_width_mm * ratio
                     h = img_height_mm * ratio
                     x_pos = (pdf.w - w) / 2
+
                     pdf.image(logo_path, x=x_pos, y=y_logo_offset, w=w, h=h)
                     y_logo_offset += h + 7
-                except Exception as e:
-                    print("Erro ao processar logo:", e)
+                except Exception:
                     y_logo_offset = 20
             else:
                 y_logo_offset = 20
 
-            # --- Cabeçalho ---
+            # ==========================================
+            # CABEÇALHO
+            # ==========================================
             br_tz = pytz.timezone("America/Sao_Paulo")
             data_br = datetime.now(br_tz).strftime("%d/%m/%Y %H:%M")
+
             pdf.set_y(y_logo_offset)
             pdf.set_font("Arial", "B", 16)
             pdf.cell(0, 10, "Relatorio de Avaliacoes", ln=True, align="C")
+
             pdf.ln(5)
             pdf.set_font("Arial", "", 10)
             pdf.cell(0, 10, f"Data de geracao: {data_br}", ln=True)
-            pdf.ln(1)
+            pdf.set_font("Arial", "", 11)
+            pdf.ln(2)
+            pdf.cell(0, 8, f"Loja / Ficha: {self.nome_ficha}", ln=True)
+            pdf.ln(3)
 
+
+            # ==========================================
+            # MÉDIAS
+            # ==========================================
             total_avaliacoes = len(self.df)
             media_nota = float(self.df["nota"].mean()) if total_avaliacoes > 0 else 0.0
+
             pdf.set_font("Arial", "", 12)
+            pdf.ln(1)
             pdf.cell(0, 10, f"Media de nota: {media_nota:.2f}", ln=True)
+
             if self.media_atual is not None:
                 try:
-                    pdf.cell(
-                        0, 10, f"Media Atual: {float(self.media_atual):.2f}", ln=True
-                    )
+                    pdf.cell(0, 10, f"Media Atual: {float(self.media_atual):.2f}", ln=True)
                 except Exception:
                     pdf.cell(0, 10, "Media Atual: --", ln=True)
+
             pdf.ln(5)
 
-            # Normaliza 'data_local' (pode ser util em outras secoes)
-            try:
-                self.df["data"] = pd.to_datetime(
-                    self.df.get("data"), errors="coerce", utc=True
-                )
-                self.df["data_local"] = (
-                    self.df["data"]
-                    .dt.tz_convert("America/Sao_Paulo")
-                    .dt.strftime("%d/%m/%Y %H:%M")
-                )
-            except Exception:
-                pass
-
             manager_name = self.settings.get("manager_name") or ""
-            manager_str = (
-                f'O gerente responsavel e "{manager_name}".' if manager_name else ""
-            )
+            manager_str = f'O gerente responsavel e "{manager_name}".' if manager_name else ""
 
-            # --- ANÁLISE DA IA ---
-            # Garante colunas para o prompt
+            # ==========================================
+            # ANÁLISE COM IA
+            # ==========================================
             if "texto" not in self.df.columns:
                 self.df["texto"] = ""
+
             if "nota" not in self.df.columns:
                 self.df["nota"] = None
-            
 
             try:
                 dados_prompt = self.df[["nota", "texto"]].to_dict(orient="records")
             except Exception:
-                
                 dados_prompt = []
-            # Adiciona o contexto personalizado da empresa no prompt, se existir
+
             contexto_personalizado = (self.settings.get("contexto_personalizado") or "").strip()
 
-            # 🔥 CORREÇÃO: inicializa o prompt ANTES de usar +=
-            prompt = ""
+            # Prompt LIMPO e sem duplicações
+            prompt = (
+                "INSTRUÇÃO PRIORITÁRIA: Use o contexto da empresa como referência principal.\n\n"
+            )
 
-            prompt += "🚨 INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\n"
-            prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA.\n\n"
+            if contexto_personalizado:
+                prompt += f"Contexto da empresa: {contexto_personalizado}\n\n"
 
-            contexto_extra = f"\nContexto da empresa: {contexto_personalizado}\n" if contexto_personalizado else ""
-
-            prompt += f"""{contexto_extra}
-Voce e um analista senior de satisfacao do cliente. Gere um relatorio analitico detalhado para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}", usando analise de sentimentos e metricas relevantes. Nao cite diretamente comentarios. Nao repita palavras.
+            prompt += f"""
+Você é um analista profissional de satisfação do cliente. Gere um relatório completo para a diretoria da empresa "{self.settings.get('business_name', 'EMPRESA')}".  
+Não cite comentários literais. Não repita palavras.  
 {manager_str}
 
-Estruture o relatorio com topicos bem destacados, assim:
+Estrutura obrigatória:
 
 RESUMO EXECUTIVO
-- Apresente um panorama geral, principais tendencias e os insights mais importantes.
-
 ANALISE QUANTITATIVA
-- Mostre a distribuicao das notas.
-- Informe o percentual de avaliacoes positivas, neutras e negativas.
-- Apresente os temas e palavras mais frequentes.
-
 ANALISE POR ESTRELA
-- Para cada nota de 1 a 5, explique o sentimento predominante, pontos principais e sugestoes de resposta ou acao.
-
 PONTOS CRITICOS
-- Destaque no minimo 3 principais problemas ou riscos identificados.
-
 DESTAQUES POSITIVOS
-- Aponte de 1 a 3 pontos fortes e diferenciais competitivos da empresa.
-
 CONCLUSAO E RECOMENDACOES
-- Apresente acoes praticas para o proximo trimestre, oportunidades de melhoria e estrategias para aumentar a satisfacao dos clientes.
-
 METODOLOGIA
-- Informe que foi utilizado IA com analise de sentimentos e linguagem natural, sem citar comentarios literais.
 
-ORIENTACOES ADICIONAIS:
-- Se os comentarios forem inconclusivos, ressalte esse ponto.
-- Nao use negrito, italico ou sublinhado: apenas destaque cada topico com o TITULO EM MAIUSCULAS no inicio de cada secao.
-- Nao repita palavras, nao cite comentarios literais.
-- O relatorio deve ser claro, bem detalhado, objetivo, sem repeticao e com extensao entre 2 e 5 paginas.
--Revise cuidadosamente a ortografia, acentuação e gramática do texto antes de finalizar.
-Use português formal e fluente, sem erros nem regionalismos.
+Regras:
+- Texto formal, claro e bem estruturado.
+- Não usar negrito, itálico, emojis ou caracteres especiais.
+- Não repetir palavras ou ideias.
+- Não usar travessões longos.
+- Não citar comentários literais.
+- Entre 2 e 5 páginas de conteúdo.
+- Passe todo o texto por uma corrreção ortografica antes de enviar e nao use acaracteres como travesao.
 
-Evite qualquer caractere especial como travessões (—), aspas curvas (“ ”) ou reticências estilizadas (…).
-Use apenas caracteres simples (por exemplo, '-' em vez de '—').
-
-Garanta que todo o texto siga normas ortográficas do português do Brasil (novo acordo ortográfico)
-e mantenha formatação limpa, sem símbolos estranhos ou emojis.
-
-Siga exatamente esse roteiro, mantendo os titulos dos topicos conforme o exemplo acima.
-
-DADOS DAS AVALIACOES:
+DADOS:
 {dados_prompt}
-            """
+"""
 
+            # Chamada da IA
             try:
                 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
                 completion = client.chat.completions.create(
                     model="gpt-4.1",
                     messages=[
-                        {
-                            "role": "system",
-                            "content": "Voce e um assistente especializado em analise de satisfacao do cliente.",
-                        },
+                        {"role": "system", "content": "Você analisa avaliações com precisão."},
                         {"role": "user", "content": prompt},
                     ],
                     timeout=60,
                 )
-                analise_gerada = (completion.choices[0].message.content or "").strip()
-                analise_limpa = limpa_markdown(analise_gerada)
+
+                analise = (completion.choices[0].message.content or "").strip()
+                analise_limpa = limpa_markdown(analise)
 
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, "Analise da IA sobre as Avaliacoes", ln=True)
+
                 pdf.set_font("Arial", "", 11)
 
-                partes = analise_limpa.split("ANALISE QUANTITATIVA", 1)
-                if len(partes) == 2:
-                    pdf.multi_cell(0, 7, partes[0].strip())
-                    pdf.ln(4)
-                    grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
-                    largura_grafico = pdf.w - 2 * pdf.l_margin - 2
-                    pdf.set_font("Arial", "", 12)
-                    pdf.cell(0, 10, "Evolucao da Nota Media por Mes:", ln=True)
-                    pdf.image(grafico_media_path, x=pdf.l_margin + 1, w=largura_grafico)
+                # Normaliza texto para facilitar a detecção da seção
+                texto_n = (
+                    analise_limpa.upper()
+                    .replace("Á", "A")
+                    .replace("Ã", "A")
+                    .replace("Â", "A")
+                )
+
+                gatilhos = [
+                    "ANALISE QUANTITATIVA",
+                    "SECAO QUANTITATIVA",
+                    "ANALISE  QUANTITATIVA",  # com espaço duplo
+                ]
+
+                if any(g in texto_n for g in gatilhos):
+
+                    # identifica qual gatilho ocorreu
+                    gatilho_usado = next(g for g in gatilhos if g in texto_n)
+
+                    # tenta dividir texto corretamente
+                    try:
+                        bloco1, bloco2 = texto_n.split(gatilho_usado, 1)
+
+                        # Mas usamos a versão original formatada para exibir no PDF
+                        bloco1_original, bloco2_original = analise_limpa.split(
+                            gatilho_usado.replace("  ", " "), 1
+                        )
+                    except Exception:
+                        bloco1_original = analise_limpa
+                        bloco2_original = ""
+
+                    # --- Parte antes da análise quantitativa ---
+                    pdf.multi_cell(0, 7, bloco1_original.strip())
+                    pdf.ln(5)
+
+                    # --- INSERE O GRÁFICO ---
+                    grafico_path = self.gerar_grafico_media_historica(tmpdir)
+                    largura = pdf.w - 2 * pdf.l_margin
+                    pdf.image(grafico_path, w=largura)
                     pdf.ln(8)
-                    pdf.set_font("Arial", "", 11)
-                    pdf.multi_cell(0, 7, "ANALISE QUANTITATIVA" + partes[1].strip())
+
+                    # --- Parte depois da análise quantitativa ---
+                    if bloco2_original:
+                        pdf.multi_cell(0, 7, "ANALISE QUANTITATIVA\n" + bloco2_original.strip())
+
                 else:
+                    # fallback: IA não encontrou seção -> mas ainda assim adiciona gráfico
                     pdf.multi_cell(0, 7, analise_limpa)
-                    pdf.ln(4)
-                    grafico_media_path = self.gerar_grafico_media_historica(tmpdir)
-                    largura_grafico = pdf.w - 2 * pdf.l_margin - 2
-                    pdf.set_font("Arial", "", 12)
-                    pdf.cell(0, 10, "Evolucao da Nota Media por Mes:", ln=True)
-                    pdf.image(grafico_media_path, x=pdf.l_margin + 1, w=largura_grafico)
+                    pdf.ln(5)
+                    grafico_path = self.gerar_grafico_media_historica(tmpdir)
+                    largura = pdf.w - 2 * pdf.l_margin
+                    pdf.image(grafico_path, w=largura)
                     pdf.ln(8)
+
 
             except Exception as e:
-                print(f"Erro ao gerar analise com IA: {str(e)}")
                 pdf.multi_cell(0, 7, f"Erro ao gerar analise com IA: {str(e)}")
 
+            # Rodapé com gerente
             if manager_name:
                 pdf.ln(8)
                 pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, f"{self.settings.get('business_name','')}", ln=True)
-                pdf.cell(0, 10, f"{manager_name}", ln=True)
+                pdf.cell(0, 10, self.settings.get("business_name", ""), ln=True)
+                pdf.cell(0, 10, manager_name, ln=True)
 
-            # --- Saída: arquivo ou buffer ---
+            # ==========================================
+            # SAÍDA
+            # ==========================================
             if isinstance(output, (str, os.PathLike)):
-                pdf.output(output)  # grava direto no disco
-                print("PDF gerado com sucesso:", output)
+                pdf.output(output)
             else:
-                # PyFPDF (1.x) retorna string em output(dest='S'); converte para bytes
                 raw = pdf.output(dest="S")
                 if isinstance(raw, str):
-                    pdf_bytes = raw.encode("latin-1")  # encoding usado pelo FPDF
-                else:
-                    pdf_bytes = raw  # fpdf2 já retorna bytes
-                output.write(pdf_bytes)
+                    raw = raw.encode("latin-1")
+                output.write(raw)
                 output.seek(0)
-                print("PDF gerado em buffer.")
