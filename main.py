@@ -358,12 +358,15 @@ def get_user_or_ip():
 
 
 storage_uri = os.getenv("REDIS_URL", "memory://")
+
 limiter = Limiter(
     key_func=get_user_or_ip,
     app=app,
     storage_uri=storage_uri,
     default_limits=["200 per day", "50 per hour"],
+    swallow_errors=True,  # <- ESSENCIAL: não derruba o app se Redis falhar
 )
+
 
 
 # -------------------------------------------------------------------
