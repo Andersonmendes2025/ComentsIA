@@ -143,8 +143,12 @@ sentry_sdk.init(
 # -------------------------------------------------------------------
 # FLASK APP
 # -------------------------------------------------------------------
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
 
+app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 if os.getenv("WORKER_ROLE") == "1":
     from booking import _get_scheduler
@@ -1915,14 +1919,13 @@ def registrar_uso_consideracoes(user_id):
 
 
 @app.route("/oauth2callback")
-@app.route("/oauth2callback")
 def oauth2callback():
     # 1) Anti-CSRF / state
     session_state = session.get("state")
     req_state = request.args.get("state")
     if not session_state or session_state != req_state:
         flash("Sessão inválida. Por favor, inicie o login novamente.", "danger")
-        return redirect(url_for("authorize"))
+        return redirect(url_for("index")) # <--- MUDADO PARA INDEX
 
     redirect_uri = url_for("oauth2callback", _external=True)
     try:
@@ -1930,7 +1933,7 @@ def oauth2callback():
     except Exception:
         logging.exception("Falha ao construir o fluxo OAuth")
         flash("Não foi possível iniciar o login. Tente novamente.", "danger")
-        return redirect(url_for("authorize"))
+        return redirect(url_for("index")) # <--- MUDADO PARA INDEX
 
     # 2) Troca código por token
     try:
@@ -1939,7 +1942,7 @@ def oauth2callback():
     except Exception as e:
         logging.exception("Erro ao obter token: %s", e)
         flash("Erro ao obter token. Tente novamente.", "danger")
-        return redirect(url_for("authorize"))
+        return redirect(url_for("index")) # <--- MUDADO PARA INDEX
 
     # Armazene só o necessário na sessão
     session["credentials"] = credentials_to_dict(credentials)
@@ -2023,8 +2026,6 @@ def oauth2callback():
 
     # 6) Done
     return redirect(url_for("reviews"))
-
-
 def build_flow(state=None, redirect_uri=None):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
