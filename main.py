@@ -1580,13 +1580,16 @@ def authorize():
             prompt="consent"                  # força reconsentimento
         )
         session["state"] = state
+        
+        # 💡 NOVA LINHA AQUI: Salva o verificador de segurança do Google na Sessão
+        session["code_verifier"] = getattr(flow, "code_verifier", None)
+        
         return redirect(authorization_url)
     except Exception:
         logging.exception("Falha ao iniciar OAuth")
         flash("Não foi possível iniciar o login no momento. Tente novamente.", "danger")
         return redirect(url_for("index"))
-
-
+    
 @app.template_filter("initial")
 def initial_filter(value):
     s = (value or "").strip()
@@ -1918,6 +1921,7 @@ def registrar_uso_consideracoes(user_id):
         logging.exception("Falha ao registrar uso de considerações para %s", user_id)
 
 
+
 @app.route("/oauth2callback")
 def oauth2callback():
     # 1) Anti-CSRF / state
@@ -1930,6 +1934,11 @@ def oauth2callback():
     redirect_uri = url_for("oauth2callback", _external=True)
     try:
         flow = build_flow(state=session_state, redirect_uri=redirect_uri)
+        
+        # 💡 NOVA LINHA AQUI: Restaura o verificador antes de pedir o token pro Google
+        if session.get("code_verifier"):
+            flow.code_verifier = session.get("code_verifier")
+            
     except Exception:
         logging.exception("Falha ao construir o fluxo OAuth")
         flash("Não foi possível iniciar o login. Tente novamente.", "danger")
@@ -2026,6 +2035,7 @@ def oauth2callback():
 
     # 6) Done
     return redirect(url_for("reviews"))
+
 def build_flow(state=None, redirect_uri=None):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
