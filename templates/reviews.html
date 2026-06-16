@@ -122,7 +122,6 @@
           <div class="flex-grow-1">
             <label class="d-block small text-muted fw-bold" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: -2px;">Visualizando</label>
 
-            {# ✅ IMPORTANTE: agora o value é o ID interno (GoogleLocation.id) #}
             <select id="fichaSelect" name="ficha"
                     class="form-select border-0 p-0 shadow-none bg-transparent fw-semibold text-dark"
                     style="cursor: pointer; min-width: 220px;"
@@ -137,6 +136,10 @@
           </div>
           <div class="ps-2 pe-3 text-muted"><i class="bi bi-chevron-down small"></i></div>
         </div>
+
+        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-light fw-semibold border" style="border-radius: 14px;" title="Gerenciar Pesquisas Internas">
+          <i class="bi bi-qr-code-scan text-primary me-1"></i> Criar Pesquisa
+        </a>
 
         <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
           <i class="bi bi-arrow-repeat me-1"></i>
@@ -328,7 +331,6 @@
     <nav aria-label="Paginação de avaliações" class="mt-4">
       <ul class="pagination justify-content-center">
 
-        {# Anterior #}
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
           <a class="page-link"
             href="{% if pagination.has_prev %}{{ url_for(
@@ -345,7 +347,6 @@
           </a>
         </li>
 
-        {# Números de página (janela simples em torno da atual) #}
         {% for p in range(1, pagination.pages + 1) %}
           {% if p >= pagination.page - 2 and p <= pagination.page + 2 %}
             <li class="page-item {% if p == pagination.page %}active{% endif %}">
@@ -365,7 +366,6 @@
           {% endif %}
         {% endfor %}
 
-        {# Próxima #}
         <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
           <a class="page-link"
             href="{% if pagination.has_next %}{{ url_for(
@@ -459,7 +459,6 @@
       return;
     }
 
-    // ✅ agora o select já envia o GoogleLocation.id
     const googleLocationId = parseInt(val, 10);
     if (!Number.isFinite(googleLocationId) || googleLocationId <= 0) {
       toast("Não consegui identificar o ID interno dessa ficha. Atualize a página e tente de novo.", "danger");

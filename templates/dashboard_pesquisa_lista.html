@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Dashboard de Pesquisas - ComentsIA{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+    <div>
+      <h2 class="h4 fw-bold text-dark mb-1">Pesquisas de Satisfação Customizadas</h2>
+      <p class="text-muted small mb-0">Gerencie seus formulários estilo Google Forms e acompanhe o engajamento dos seus clientes.</p>
+    </div>
+    <a href="{{ url_for('pesquisa.criar_pesquisa') }}" class="btn btn-primary fw-medium rounded-3 px-3 shadow-sm">
+      <i class="bi bi-plus-lg me-1"></i> Criar Nova Pesquisa
+    </a>
+  </div>
+
+  <div class="row g-3 flex-wrap">
+    {% for p in pesquisas %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card bg-white border border-light-subtle rounded-3 shadow-sm h-100 d-flex flex-column justify-content-between p-3">
+        <div>
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h3 class="h6 fw-bold text-dark mb-0 text-truncate pe-2" title="{{ p.titulo }}">{{ p.titulo }}</h3>
+            <span class="badge bg-primary-subtle text-primary rounded-pill px-2.5 py-1 small fw-semibold flex-shrink-0">
+              {{ p.respostas_count }} respostas
+            </span>
+          </div>
+          
+          <div class="bg-light p-2 rounded-2 mb-3 small border border-light">
+            <span class="text-muted d-block small">Link público de acesso:</span>
+            <div class="d-flex justify-content-between align-items-center">
+              <code class="text-primary text-truncate pe-2">/p/{{ p.slug }}</code>
+              <button class="btn btn-link p-0 text-secondary border-0 small" onclick="copiarLink('{{ p.slug }}')" title="Copiar link">
+                <i class="bi bi-copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="d-flex gap-1.5 justify-content-between pt-2.5 border-top border-light-subtle align-items-center flex-wrap">
+          <div class="d-flex gap-1">
+            <a href="/p/{{ p.slug }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-2 fw-medium">
+              <i class="bi bi-box-arrow-up-right me-1"></i> Responder
+            </a>
+
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-2 btn-qr-trigger" 
+                    data-slug="{{ p.slug }}" 
+                    data-titulo="{{ p.titulo }}">
+              <i class="bi bi-qr-code"></i> QR Code
+            </button>
+          </div>
+
+          <div class="d-flex gap-1">
+            <a href="/dashboard/pesquisa/{{ p.id }}/respostas" class="btn btn-sm btn-light text-primary border rounded-2 fw-medium">
+              <i class="bi bi-bar-chart-fill me-1"></i> Métricas
+            </a>
+            <form method="POST" action="{{ url_for('pesquisa.deletar_pesquisa', id=p.id) }}" onsubmit="return confirm('Tem certeza que deseja apagar permanentemente esta pesquisa?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger rounded-2" title="Excluir">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 bg-white border border-light-subtle rounded-3 shadow-sm">
+      <i class="bi bi-ui-checks text-muted display-4 opacity-25 mb-3 d-block"></i>
+      <h4 class="fw-bold text-dark h5">Nenhum formulário criado ainda</h4>
+      <p class="text-muted small max-width-400 mx-auto">Comece a coletar feedbacks estruturados criando perguntas personalizadas.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-3">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark fs-6" id="qrCodeModalLabel">QR Code da Pesquisa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <p class="text-muted small mb-3 text-wrap px-2 fw-medium" id="qrTitleView"></p>
+        
+        <div class="p-3 bg-white d-inline-block rounded-3 border mb-3 shadow-sm" style="min-height: 180px; min-width: 180px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+          <div id="qrLoader" class="spinner-border text-primary" role="status"></div>
+          
+          <img id="qrCodeContainer" src="" alt="QR Code" style="width: 180px; height: 180px; display: none;" onload="this.style.display='block'; document.getElementById('qrLoader').style.display='none';">
+        </div>
+        
+        <div class="px-2">
+          <a href="#" id="btnDownloadQR" download="qrcode-pesquisa.png" class="btn btn-primary btn-sm w-100 fw-medium py-2 rounded-2">
+            <i class="bi bi-download me-1"></i> Baixar Imagem (PNG)
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copiarLink(slug) {
+    const urlCompleta = `${window.location.origin}/p/${slug}`;
+    navigator.clipboard.writeText(urlCompleta).then(() => {
+        if (typeof showToast === "function") {
+            showToast("Link da pesquisa copiado com sucesso!", "success");
+        } else {
+            alert("Link copiado para a área de transferência!");
+        }
+    });
+}
+
+// 🚀 SCRIPT INQUEBRÁVEL: Modal abre instantaneamente, carregamento fica a cargo do HTML
+document.addEventListener("DOMContentLoaded", function() {
+    const botoesQR = document.querySelectorAll(".btn-qr-trigger");
+    const modalEl = document.getElementById("qrCodeModal");
+    const bootstrapModal = new bootstrap.Modal(modalEl);
+
+    botoesQR.forEach(botao => {
+        botao.addEventListener("click", function(e) {
+            e.preventDefault(); // Bloqueia comportamentos estranhos
+            
+            const slug = this.getAttribute("data-slug");
+            const titulo = this.getAttribute("data-titulo");
+            const rotaPython = `/dashboard/pesquisa/qrcode/${slug}`;
+
+            // 1. Prepara a tela inicial da Modal (Esconde a imagem antiga, mostra o spinner)
+            document.getElementById("qrTitleView").innerText = titulo;
+            document.getElementById("qrCodeContainer").style.display = "none";
+            document.getElementById("qrLoader").style.display = "block";
+            
+            // 2. Aponta os links para a sua rota local do Python
+            document.getElementById("qrCodeContainer").src = rotaPython;
+            document.getElementById("btnDownloadQR").href = rotaPython;
+            document.getElementById("btnDownloadQR").download = `qrcode-${slug}.png`;
+
+            // 3. Abre a modal instantaneamente. A mágica de esconder o spinner acontece via "onload" direto na tag <img>
+            bootstrapModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

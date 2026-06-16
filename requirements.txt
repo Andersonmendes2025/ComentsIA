@@ -34,3 +34,5 @@ fpdf2>=2.8.2
 pytz>=2024.1
 seaborn
 google-generativeai
+qrcode
+pillow

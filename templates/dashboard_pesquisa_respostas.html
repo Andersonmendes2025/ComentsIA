@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Métricas da Pesquisa - ComentsIA{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="text-decoration-none small text-muted fw-medium">
+      <i class="bi bi-arrow-left me-1"></i> Voltar para lista de pesquisas
+    </a>
+  </div>
+
+  <!-- CABEÇALHO DA PESQUISA -->
+  <div class="card border-0 shadow-sm rounded-3 p-4 bg-white mb-4 border-top border-primary border-4">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <span class="badge bg-success-subtle text-success border border-success border-opacity-25 mb-2 px-2 py-1">Formulário Ativo</span>
+        <h2 class="h4 fw-bold text-dark mb-1">{{ config.titulo }}</h2>
+        <p class="text-muted small mb-0">Slug de acesso: <code class="text-primary bg-light px-1 rounded">/p/{{ config.slug }}</code> | Total de captações: <strong class="text-dark">{{ envios|length }}</strong></p>
+      </div>
+    </div>
+  </div>
+
+  {% if envios|length > 0 %}
+  <!-- 🚀 DADOS ANALÍTICOS (GRÁFICOS PERCENTUAIS) -->
+  <div class="d-flex align-items-center mb-3 mt-5">
+    <i class="bi bi-pie-chart-fill text-primary fs-4 me-2"></i>
+    <h3 class="h6 fw-bold text-secondary text-uppercase tracking-wider mb-0">Relatório Analítico Global</h3>
+  </div>
+  
+  <div class="row g-4 mb-5">
+    {% for p in config.perguntas %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card h-100 shadow-sm border border-light-subtle rounded-3">
+        <div class="card-header bg-light border-bottom-0 pt-3 pb-2">
+          <h6 class="fw-bold text-dark mb-0 lh-base">{{ p.texto_pergunta }}</h6>
+        </div>
+        <div class="card-body pt-2">
+            {% set stats = estatisticas[p.id] %}
+            
+            <!-- SE FOR PERGUNTA FECHADA (ESTRELAS OU MÚLTIPLA ESCOLHA) -->
+            {% if stats.tipo in ['estrelas', 'stars', 'multipla_escolha'] %}
+               <p class="small text-muted mb-3 border-bottom pb-2">Total de respostas: <strong class="text-dark">{{ stats.total }}</strong></p>
+               
+               {% for det in stats.detalhes %}
+                  <div class="mb-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span class="text-secondary fw-medium">
+                            {{ det.opcao }} {% if stats.tipo in ['estrelas', 'stars'] %}Estrelas ⭐{% endif %}
+                        </span>
+                        <span class="fw-bold text-dark">{{ det.pct }}% <span class="text-muted fw-normal">({{ det.qtd }})</span></span>
+                    </div>
+                    <div class="progress" style="height: 8px; border-radius: 10px;">
+                        <!-- Destaca a nota 5 de verde, o resto de azul primário -->
+                        <div class="progress-bar {% if det.opcao == '5' and stats.tipo in ['estrelas', 'stars'] %}bg-success{% else %}bg-primary{% endif %}" style="width: {{ det.pct }}%"></div>
+                    </div>
+                  </div>
+               {% endfor %}
+               
+            <!-- SE FOR PERGUNTA ABERTA (TEXTO CURTO OU LONGO) -->
+            {% else %}
+               <p class="small text-muted mb-3 border-bottom pb-2">Total de relatos: <strong class="text-dark">{{ stats.total }}</strong></p>
+               
+               {% if stats.total > 0 %}
+                   <button class="btn btn-sm btn-outline-primary w-100 fw-medium shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseResp{{ p.id }}">
+                      <i class="bi bi-card-text me-1"></i> Ler respostas em texto
+                   </button>
+                   <div class="collapse mt-3" id="collapseResp{{ p.id }}">
+                      <div class="list-group list-group-flush rounded border" style="max-height: 250px; overflow-y: auto;">
+                      {% for t in stats.textos %}
+                         <div class="list-group-item small text-secondary py-2 border-bottom border-light">
+                             <i class="bi bi-quote text-muted opacity-50 me-1"></i>
+                             <span class="fst-italic text-dark">{{ t.texto }}</span>
+                         </div>
+                      {% endfor %}
+                      </div>
+                   </div>
+               {% else %}
+                   <div class="text-center mt-4">
+                       <i class="bi bi-chat-left-dots text-muted opacity-25 fs-3 d-block mb-1"></i>
+                       <p class="text-muted small">Nenhum texto registrado.</p>
+                   </div>
+               {% endif %}
+            {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- 📝 FEEDBACKS INDIVIDUAIS (LINHA DO TEMPO) -->
+  <div class="d-flex align-items-center mb-3 {% if envios|length > 0 %}mt-5 border-top pt-4{% endif %}">
+    <i class="bi bi-journal-text text-secondary fs-4 me-2"></i>
+    <h3 class="h6 fw-bold text-secondary text-uppercase tracking-wider mb-0">Linha do Tempo (Feedbacks)</h3>
+  </div>
+
+  <div class="row g-3">
+    {% for envio in envios %}
+    <div class="col-12">
+      <div class="card bg-white border border-light-subtle rounded-3 p-3 shadow-sm transition-hover">
+        
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center pb-2.5 mb-3 border-bottom border-light">
+          <div>
+            <strong class="text-dark d-block fs-6"><i class="bi bi-person-circle me-1 text-muted"></i> {{ envio.cliente_nome or 'Cliente Anônimo' }}</strong>
+            <span class="text-muted small fw-medium">
+              {% if envio.cliente_email %}<i class="bi bi-envelope me-1"></i> {{ envio.cliente_email }}{% endif %}
+              {% if envio.cliente_whatsapp %}<span class="mx-1 opacity-50">•</span><i class="bi bi-whatsapp me-1 text-success"></i> {{ envio.cliente_whatsapp }}{% endif %}
+            </span>
+          </div>
+          <div class="text-sm-end mt-2 mt-sm-0 bg-light px-2 py-1 rounded border border-light">
+            <span class="text-muted small fw-medium d-block"><i class="bi bi-clock me-1"></i> {{ envio.created_at.strftime('%d/%m/%Y às %H:%M') }}</span>
+          </div>
+        </div>
+
+        <div class="row g-2">
+          {% for resposta in envio.respostas %}
+          <div class="col-md-6 col-lg-4 mb-2">
+            <div class="p-2.5 rounded-2 bg-light border border-light-subtle h-100">
+              <span class="text-muted d-block text-truncate fw-semibold mb-1" style="font-size: 0.8rem;" title="{{ resposta.pergunta.texto_pergunta }}">
+                {{ resposta.pergunta.texto_pergunta }}
+              </span>
+              
+              {% if resposta.pergunta.tipo_resposta == 'estrelas' %}
+                <div class="text-warning">
+                  {% for star in range(1, 6) %}
+                    {% if star <= resposta.valor_resposta|int %}
+                      <i class="bi bi-star-fill"></i>
+                    {% else %}
+                      <i class="bi bi-star text-muted opacity-25"></i>
+                    {% endif %}
+                  {% endfor %}
+                  <span class="text-dark small ms-1 fw-bold">({{ resposta.valor_resposta }}/5)</span>
+                </div>
+              {% else %}
+                <p class="text-dark mb-0 small fw-medium text-wrap">{{ resposta.valor_resposta }}</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 bg-white border border-light-subtle rounded-3 shadow-sm">
+      <i class="bi bi-chat-square-dots text-primary opacity-50 display-4 mb-3 d-block"></i>
+      <h4 class="fw-bold text-dark h5">Nenhum envio para esta pesquisa</h4>
+      <p class="text-muted small mb-0 max-width-400 mx-auto">Compartilhe o link do formulário ou imprima o QR Code para começar a recolher respostas e gerar métricas.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<style>
+/* Efeito de hover suave para os cards de feedback individual */
+.transition-hover {
+    transition: all 0.2s ease-in-out;
+}
+.transition-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
+    border-color: #dee2e6!important;
+}
+</style>
+{% endblock %}

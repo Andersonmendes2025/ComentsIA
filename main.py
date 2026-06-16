@@ -39,7 +39,7 @@ import sys
 from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
-
+from routes_pesquisa import pesquisa_bp
 import flask
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -112,6 +112,7 @@ from models import (
     UserSettings,
     db,
 )
+from models_pesquisa import PesquisaConfig, PesquisaPergunta, PesquisaEnvio, PesquisaRespostaItem
 from relatorio import RelatorioAvaliacoes
 from routes_metrics import metrics_bp
 from utils.crypto import decrypt, encrypt
@@ -200,6 +201,8 @@ app.register_blueprint(admin_bp)
 scheduler = APScheduler()
 scheduler.init_app(app)
 
+
+
 register_gbp_cron(scheduler, app)
 # 👉 só então roda o seed (dentro do app_context)
 from sqlalchemy import inspect
@@ -256,7 +259,7 @@ Talisman(
 # -------------------------------------------------------------------
 app.register_blueprint(auto_reply_bp)
 app.register_blueprint(matriz_bp)
-
+app.register_blueprint(pesquisa_bp)
 # -------------------------------------------------------------------
 # OpenAI Client
 # -------------------------------------------------------------------
@@ -3047,6 +3050,8 @@ def aplicar_migracoes():
     """Executa o upgrade do banco se estiver no Render ou no modo principal."""
     with app.app_context():
         try:
+            db.create_all()
+            
             logging.info("📦 Aplicando migrações...")
             upgrade()
             logging.info("✅ Migrações aplicadas com sucesso.")

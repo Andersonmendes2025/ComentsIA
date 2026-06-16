@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}{{ config.titulo }} - ComentsIA{% endblock %}
+
+{% block extra_head %}
+<style>
+  .pesquisa-container {
+    max-width: 620px;
+    margin: 2rem auto;
+  }
+  
+  .card-pesquisa {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+    padding: 2.5rem 2rem;
+  }
+
+  /* Estilização das Estrelas Dinâmicas por Pergunta */
+  .rating-wrapper-dynamic {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: start;
+    gap: 8px;
+    margin: 0.5rem 0 1rem 0;
+  }
+
+  .rating-wrapper-dynamic input {
+    display: none;
+  }
+
+  .rating-wrapper-dynamic label {
+    font-size: 2.2rem;
+    color: #d1d5db;
+    cursor: pointer;
+    transition: color 0.15s ease-in-out;
+  }
+
+  .rating-wrapper-dynamic label:hover,
+  .rating-wrapper-dynamic label:hover ~ label,
+  .rating-wrapper-dynamic input:checked ~ label {
+    color: #fbbf24;
+  }
+
+  .comentsia-badge {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    text-align: center;
+    margin-top: 1.5rem;
+    display: block;
+    text-decoration: none;
+  }
+  .comentsia-badge strong {
+    color: #2563eb;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+  <div class="pesquisa-container">
+    
+    <div class="card-pesquisa">
+      
+      {% if request.args.get('sucesso') == 'true' %}
+        <div class="text-center py-5">
+          <div class="mb-3">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 4.5rem;"></i>
+          </div>
+          <h3 class="h4 fw-bold text-dark mb-2">Sua resposta foi enviada com sucesso!</h3>
+          <p class="text-muted small px-3">
+            Muito obrigado por dedicar o seu tempo para responder esta avaliação. 
+            A sua opinião é fundamental para nos ajudar a melhorar continuamente nossos serviços!
+          </p>
+        </div>
+      {% else %}
+        <div class="text-center mb-4">
+          <h2 class="h4 fw-bold text-dark mb-2">{{ config.titulo }}</h2>
+          <p class="text-muted small">{{ config.subtitulo }}</p>
+        </div>
+
+        <form id="formPesquisa" method="POST" action="/p/{{ config.slug }}/enviar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="p-3 bg-light rounded-3 border mb-4">
+            <h3 class="h6 fw-bold text-secondary mb-3"><i class="bi bi-person-circle me-1"></i> Identificação</h3>
+            <div class="mb-2">
+              <label for="nome" class="form-label small mb-1 fw-medium text-dark">Seu Nome:</label>
+              <input type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="Ex: Anderson Mendes" required>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="email" class="form-label small mb-1 text-muted">E-mail (Opcional):</label>
+                <input type="email" class="form-control form-control-sm" id="email" name="email" placeholder="nome@exemplo.com">
+              </div>
+              <div class="col-6">
+                <label for="whatsapp" class="form-label small mb-1 text-muted">WhatsApp (Opcional):</label>
+                <input type="tel" class="form-control form-control-sm" id="whatsapp" name="whatsapp" placeholder="(33) 99999-0000">
+              </div>
+            </div>
+          </div>
+
+          <hr class="text-muted my-4 opacity-25">
+
+          {% for pergunta in config.perguntas %}
+          <div class="mb-4">
+            <label class="form-label fw-semibold text-dark mb-1">
+              {{ pergunta.texto_pergunta }}
+              {% if pergunta.is_obrigatoria %}<span class="text-danger">*</span>{% endif %}
+            </label>
+
+            {% if pergunta.tipo_resposta == 'texto' %}
+              <textarea name="pergunta_{{ pergunta.id }}" class="form-control form-control-sm" rows="2" placeholder="Digite sua resposta aqui..." {% if pergunta.is_obrigatoria %}required{% endif %}></textarea>
+            
+            {% elif pergunta.tipo_resposta == 'multipla_escolha' %}
+              <div class="ps-1 mt-1">
+                {% for opcao in pergunta.opcoes %}
+                <div class="form-check mb-1">
+                  <input class="form-check-input" type="radio" name="pergunta_{{ pergunta.id }}" id="opt_{{ pergunta.id }}_{{ loop.index }}" value="{{ opcao }}" {% if pergunta.is_obrigatoria and loop.first %}required{% endif %}>
+                  <label class="form-check-label small text-secondary" for="opt_{{ pergunta.id }}_{{ loop.index }}">{{ opcao }}</label>
+                </div>
+                {% endfor %}
+              </div>
+
+            {% elif pergunta.tipo_resposta == 'stars' or pergunta.tipo_resposta == 'estrelas' %}
+              <div class="rating-wrapper-dynamic">
+                <input type="radio" id="st5_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="5" {% if pergunta.is_obrigatoria %}required{% endif %}/><label for="st5_{{ pergunta.id }}" class="bi bi-star-fill"></label>
+                <input type="radio" id="st4_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="4" /><label for="st4_{{ pergunta.id }}" class="bi bi-star-fill"></label>
+                <input type="radio" id="st3_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="3" /><label for="st3_{{ pergunta.id }}" class="bi bi-star-fill"></label>
+                <input type="radio" id="st2_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="2" /><label for="st2_{{ pergunta.id }}" class="bi bi-star-fill"></label>
+                <input type="radio" id="st1_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="1" /><label for="st1_{{ pergunta.id }}" class="bi bi-star-fill"></label>
+              </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <button type="submit" id="btnEnviar" class="btn btn-primary w-100 py-2.5 fw-medium rounded-3 shadow-sm mt-3">
+            <i class="bi bi-send-fill me-2"></i> Concluir e Salvar Avaliação
+          </button>
+        </form>
+      {% endif %}
+
+    </div>
+
+    <a href="https://comentsia.com" target="_blank" class="comentsia-badge">
+      Tecnologia e Satisfação garantida por <strong>ComentsIA</strong>
+    </a>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.getElementById("formPesquisa")?.addEventListener("submit", function() {
+    const btn = document.getElementById("btnEnviar");
+    btn.disabled = true;
+    btn.innerHTML = 'Enviando...';
+  });
+</script>
+{% endblock %}

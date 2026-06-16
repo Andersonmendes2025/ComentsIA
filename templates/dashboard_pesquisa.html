@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Criar Pesquisa - ComentsIA{% endblock %}
+
+{% block extra_head %}
+<style>
+  .card-config {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+  }
+  .bg-gradient-soft {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+  }
+  .pergunta-item {
+    transition: all 0.3s ease;
+    border-left: 4px solid #3b82f6 !important;
+  }
+  .pergunta-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      
+      <div class="card card-config p-4 bg-white mb-5">
+        
+        <div class="d-flex align-items-center mb-4">
+          <div class="bg-primary-subtle text-primary p-3 rounded-3 me-3">
+            <i class="bi bi-ui-checks fs-3"></i>
+          </div>
+          <div>
+            <h2 class="h4 fw-bold text-dark mb-1">Criar Pesquisa de Satisfação</h2>
+            <p class="text-muted small mb-0">Crie barreiras de contenção para notas baixas e direcione promotores para o seu Google Business Profile.</p>
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('pesquisa.criar_pesquisa') }}" id="formPesquisa">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <!-- BLOCO 1: CONFIGURAÇÕES BÁSICAS -->
+          <h5 class="fw-bold text-dark mb-3 mt-2"><i class="bi bi-1-circle text-primary me-2"></i> 1. Dados da Página</h5>
+          
+          <div class="mb-4 bg-gradient-soft p-3 rounded-3">
+            <label class="form-label fw-semibold text-secondary small d-block">Link Público (URL White Label):</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white text-muted small">comentsia.com/p/</span>
+              <input type="text" class="form-control fw-bold text-primary" id="slug" name="slug" 
+                     placeholder="ex: front-comfort" required>
+            </div>
+            <div class="form-text text-muted small mt-2">
+              Defina um endereço curto e exclusivo (use apenas letras, números e hífen sem espaços).
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-12">
+              <label for="titulo" class="form-label fw-medium text-dark">Título Principal da Pesquisa</label>
+              <input type="text" class="form-control" id="titulo" name="titulo" 
+                     value="Sua opinião é muito importante para nós!" required>
+              <div class="form-text text-muted small">Aparece em destaque no topo da página de votação.</div>
+            </div>
+            <div class="col-md-12">
+              <label for="subtitulo" class="form-label fw-medium text-dark">Subtítulo ou Instrução</label>
+              <textarea class="form-control" id="subtitulo" name="subtitulo" rows="2" required>Leve menos de 1 minuto para nos contar como foi sua experiência.</textarea>
+            </div>
+          </div>
+
+          <hr class="text-muted opacity-25 my-4">
+
+          <!-- BLOCO 2: INTEGRAÇÃO GOOGLE -->
+          <h5 class="fw-bold text-dark mb-3"><i class="bi bi-2-circle text-primary me-2"></i> 2. Automação de Reputação</h5>
+          
+          <div class="mb-4 p-4 rounded-3" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+            <div class="d-flex align-items-center mb-3">
+              <i class="bi bi-google text-primary me-2 fs-5"></i>
+              <h4 class="h6 fw-bold text-dark mb-0">Integração com Google Review</h4>
+            </div>
+            
+            <div class="mb-3">
+              <label for="link_google_feedback" class="form-label small fw-medium text-secondary">Link Direto de Avaliação do Google</label>
+              <input type="url" class="form-control" id="link_google_feedback" name="link_google_feedback" 
+                     placeholder="https://search.google.com/local/writereview?placeid=...">
+              <div class="form-text text-muted small mt-1">
+                Cole o link direto da sua ficha do Google Business Profile.
+              </div>
+            </div>
+
+            <div class="form-check form-switch mt-3 bg-white p-3 rounded border">
+              <input class="form-check-input ms-0 me-2" type="checkbox" id="redirecionar_positivo_auto" name="redirecionar_positivo_auto">
+              <label class="form-check-label small text-dark fw-bold" for="redirecionar_positivo_auto">
+                Ligar redirecionamento automático
+              </label>
+              <p class="text-muted small mb-0 mt-1 ms-4" style="font-size: 0.8rem;">
+                Ao ativar isso, você deve escolher uma pergunta do tipo "Estrelas" abaixo como gatilho. Apenas clientes que derem nota 5 irão para o Google.
+              </p>
+            </div>
+          </div>
+
+          <hr class="text-muted opacity-25 my-4">
+
+          <!-- BLOCO 3: CONSTRUTOR DE PERGUNTAS -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-3-circle text-primary me-2"></i> 3. Montar Formulário</h5>
+            <button type="button" class="btn btn-sm btn-outline-primary fw-medium" onclick="adicionarPergunta()">
+              <i class="bi bi-plus-lg me-1"></i> Nova Pergunta
+            </button>
+          </div>
+
+          <!-- Onde as perguntas vão aparecer dinamicamente -->
+          <div id="perguntas-container" class="mb-4"></div>
+
+          <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow-sm fs-5 mt-2">
+            <i class="bi bi-rocket-takeoff-fill me-2"></i> Criar Pesquisa e Gerar Link
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let questionIndex = 0;
+
+  // Carrega a primeira pergunta automaticamente ao abrir a tela
+  document.addEventListener("DOMContentLoaded", function() {
+      adicionarPergunta();
+  });
+
+  function adicionarPergunta() {
+      const container = document.getElementById('perguntas-container');
+      const html = `
+      <div class="card mb-3 bg-light border-light-subtle shadow-sm pergunta-item" data-index="${questionIndex}">
+          <div class="card-body p-4">
+              <div class="d-flex justify-content-between mb-3 align-items-center border-bottom pb-2">
+                  <h6 class="fw-bold text-secondary mb-0"><i class="bi bi-list-ol me-2"></i> Pergunta ${questionIndex + 1}</h6>
+                  <button type="button" class="btn btn-sm btn-light text-danger border-0 hover-danger" onclick="removerPergunta(this)" title="Excluir Pergunta">
+                      <i class="bi bi-trash3-fill"></i>
+                  </button>
+              </div>
+              
+              <div class="row g-3">
+                  <div class="col-md-8">
+                      <label class="form-label small fw-medium text-dark">Qual é a pergunta?</label>
+                      <input type="text" class="form-control" name="pergunta_texto[]" placeholder="Ex: Como você avalia o atendimento da recepção?" required>
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label small fw-medium text-dark">Tipo de Resposta</label>
+                      <select class="form-select tipo-select" name="pergunta_tipo[]" onchange="mudarTipoPergunta(this, ${questionIndex})">
+                          <option value="estrelas">Avaliação (1 a 5 Estrelas)</option>
+                          <option value="texto_curto">Texto Curto</option>
+                          <option value="texto_longo">Texto Longo (Parágrafo)</option>
+                          <option value="multipla_escolha">Múltipla Escolha</option>
+                      </select>
+                  </div>
+              </div>
+
+              <!-- Configurações Dinâmicas por Tipo -->
+              <div class="mt-3 config-extra">
+                  
+                  <!-- Container Oculto para Múltipla Escolha -->
+                  <div class="opcoes-container bg-white p-3 rounded border" style="display: none;">
+                      <label class="small fw-medium text-dark mb-1"><i class="bi bi-ui-radios me-1"></i> Digite as opções separadas por vírgula:</label>
+                      <input type="text" class="form-control form-control-sm" name="pergunta_opcoes[]" placeholder="Ex: Excelente, Muito Bom, Regular, Ruim">
+                      <div class="form-text text-muted" style="font-size: 0.75rem;">O usuário poderá escolher apenas uma dessas opções.</div>
+                  </div>
+
+                  <!-- Container Padrão para manter o array do backend alinhado caso não seja múltipla escolha -->
+                  <input type="hidden" class="opcoes-hidden" name="pergunta_opcoes[]" value="" disabled>
+
+                  <!-- Container de Gatilho do Google (Aparece só em Estrelas) -->
+                  <div class="gatilho-container mt-3 bg-success-subtle p-3 rounded border border-success border-opacity-50">
+                      <div class="form-check d-flex align-items-center">
+                          <input class="form-check-input ms-0 me-2" type="radio" name="pergunta_gatilho_idx" value="${questionIndex}" id="gatilho_${questionIndex}">
+                          <label class="form-check-label text-success fw-bold small" for="gatilho_${questionIndex}">
+                              <i class="bi bi-google me-1"></i> Usar esta pergunta como parâmetro para o Google
+                          </label>
+                      </div>
+                      <p class="mb-0 ms-4 text-success small mt-1 opacity-75">Se ativado, apenas a nota 5 ⭐ nesta pergunta vai liberar o link do Google.</p>
+                  </div>
+              </div>
+
+              <div class="form-check form-switch mt-4 pt-3 border-top border-light">
+                  <input type="hidden" name="pergunta_obrigatoria_raw[]" value="true">
+                  <input class="form-check-input" type="checkbox" onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'" checked>
+                  <label class="form-check-label small fw-medium text-dark">Tornar esta pergunta obrigatória</label>
+              </div>
+          </div>
+      </div>`;
+      
+      container.insertAdjacentHTML('beforeend', html);
+      
+      // Aciona o script para configurar a visibilidade inicial baseada no dropdown ("estrelas" é o padrão)
+      const novoSelect = container.lastElementChild.querySelector('.tipo-select');
+      mudarTipoPergunta(novoSelect, questionIndex);
+      
+      questionIndex++;
+  }
+
+  function removerPergunta(botao) {
+      if (document.querySelectorAll('.pergunta-item').length > 1) {
+          botao.closest('.pergunta-item').remove();
+      } else {
+          alert('O formulário precisa ter pelo menos uma pergunta.');
+      }
+  }
+
+  function mudarTipoPergunta(selectElement, idx) {
+      const container = selectElement.closest('.pergunta-item');
+      const opcoesContainer = container.querySelector('.opcoes-container');
+      const opcoesInput = opcoesContainer.querySelector('input');
+      const opcoesHidden = container.querySelector('.opcoes-hidden');
+      const gatilhoContainer = container.querySelector('.gatilho-container');
+      const gatilhoRadio = gatilhoContainer.querySelector('input[type="radio"]');
+
+      // Lógica da Múltipla Escolha
+      if (selectElement.value === 'multipla_escolha') {
+          opcoesContainer.style.display = 'block';
+          opcoesInput.disabled = false;
+          opcoesInput.required = true;
+          opcoesHidden.disabled = true; // Desativa o hidden
+      } else {
+          opcoesContainer.style.display = 'none';
+          opcoesInput.disabled = true;
+          opcoesInput.required = false;
+          opcoesHidden.disabled = false; // Ativa o hidden para manter o Array do Python alinhado
+      }
+
+      // Lógica do Gatilho do Google
+      if (selectElement.value === 'estrelas' || selectElement.value === 'stars') {
+          gatilhoContainer.style.display = 'block';
+      } else {
+          gatilhoContainer.style.display = 'none';
+          gatilhoRadio.checked = false; // Desmarca se o cliente mudar de ideia de tipo de pergunta
+      }
+  }
+
+  // Validação extra antes de enviar o formulário
+  document.getElementById('formPesquisa').addEventListener('submit', function(e) {
+      const redirectCheckbox = document.getElementById('redirecionar_positivo_auto');
+      const radioGatilhos = document.querySelectorAll('input[name="pergunta_gatilho_idx"]:checked');
+
+      if (redirectCheckbox.checked && radioGatilhos.length === 0) {
+          e.preventDefault();
+          alert('Atenção: Como você ativou o "Redirecionamento Automático", você precisa marcar o botão verde do Google em pelo menos UMA pergunta de Estrelas.');
+      }
+  });
+</script>
+{% endblock %}

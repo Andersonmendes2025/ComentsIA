@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Criar Formulário - ComentsIA{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      
+      <div class="mb-3">
+        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="text-decoration-none small text-muted fw-medium">
+          <i class="bi bi-arrow-left me-1"></i> Voltar para lista de pesquisas
+        </a>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white">
+        
+        <h2 class="h4 fw-bold mb-4 text-dark"><i class="bi bi-file-earmark-plus text-primary me-2"></i>Novo Construtor de Pesquisas</h2>
+        
+        <form method="POST" id="formsBuilder" action="{{ url_for('pesquisa.criar_pesquisa') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Endereço da Pesquisa (Slug)</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light small">comentsia.com/p/</span>
+              <input type="text" class="form-control" name="slug" placeholder="ex: cafe-frontcomfort" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Título do Formulário</label>
+            <input type="text" class="form-control" name="titulo" value="Sua opinião é muito importante para nós!" required>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-bold">Subtítulo</label>
+            <input type="text" class="form-control" name="subtitulo" value="Leve menos de 1 minuto para responder.">
+          </div>
+
+          <hr class="my-4 text-muted">
+          <h4 class="h6 fw-bold mb-3 text-secondary"><i class="bi bi-list-task me-2"></i>Estrutura de Perguntas</h4>
+          
+          <div id="questionsContainer"></div>
+
+          <button type="button" class="btn btn-outline-primary btn-sm mb-4" onclick="addQuestionField()">
+            <i class="bi bi-plus-circle-fill me-1"></i> Adicionar Pergunta
+          </button>
+
+          <div class="p-3 mb-4 rounded-3 border bg-light">
+            <label class="form-label fw-bold small text-dark">Link de Avaliação do Google (Opcional)</label>
+            <input type="url" class="form-control mb-2" name="link_google_feedback" placeholder="https://search.google.com/...">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="redirecionar_positivo_auto" name="redirecionar_positivo_auto">
+              <label class="form-check-input-label small text-muted fw-bold" for="redirecionar_positivo_auto">
+                 Redirecionar automaticamente avaliações de estrelas positivas (Nota 5) para o Google
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2.5 fw-bold rounded-3">
+            <i class="bi bi-cloud-arrow-up-fill me-2"></i> Publicar Pesquisa
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let questionIdx = 0;
+
+function addQuestionField() {
+    const container = document.getElementById("questionsContainer");
+    const div = document.createElement("div");
+    div.className = "card p-3 mb-3 border bg-white rounded-3 shadow-sm position-relative";
+    div.id = `q_block_${questionIdx}`;
+    
+    div.innerHTML = `
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted">Título da Pergunta</label>
+                <input type="text" name="pergunta_texto[]" class="form-control form-control-sm" placeholder="Ex: Como avalia o nosso café da manhã?" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Tipo de Resposta</label>
+                <select name="pergunta_tipo[]" class="form-select form-select-sm" onchange="toggleOpcoes(this, ${questionIdx})">
+                    <option value="texto">Texto Aberto</option>
+                    <option value="multipla_escolha">Múltipla Escolha</option>
+                    <option value="estrelas">Avaliação por Estrelas (1-5)</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end justify-content-between pb-1">
+                <div class="form-check form-switch">
+                    <input type="hidden" name="pergunta_obrigatoria_raw[]" id="hidden_ob_${questionIdx}" value="false">
+                    <input class="form-check-input" type="checkbox" id="ob_${questionIdx}" onchange="document.getElementById('hidden_ob_${questionIdx}').value = this.checked ? 'true' : 'false'">
+                    <label class="form-check-label small" for="ob_${questionIdx}">Obrigatória</label>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="document.getElementById('q_block_${questionIdx}').remove()">
+                    <i class="bi bi-trash-fill"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="mt-2" id="options_wrapper_${questionIdx}" style="display:none;">
+            <label class="form-label small text-primary fw-medium mb-1">Opções da Múltipla Escolha (Separadas por vírgula)</label>
+            <input type="text" name="pergunta_opcoes[]" class="form-control form-control-sm" placeholder="Ex: Excelente, Regular, Ruim" disabled>
+        </div>
+        <input type="hidden" class="opcoes-hidden" name="pergunta_opcoes[]" value="" id="hidden_opcoes_${questionIdx}">
+
+        <div class="mt-3 bg-success-subtle p-3 rounded border border-success border-opacity-50" id="gatilho_wrapper_${questionIdx}" style="display:none;">
+            <div class="form-check d-flex align-items-center">
+                <input class="form-check-input ms-0 me-2" type="radio" name="pergunta_gatilho_idx" value="${questionIdx}" id="gatilho_${questionIdx}">
+                <label class="form-check-label text-success fw-bold small" for="gatilho_${questionIdx}">
+                    <i class="bi bi-google me-1"></i> Usar esta pergunta como parâmetro para o Google
+                </label>
+            </div>
+            <p class="mb-0 ms-4 text-success small mt-1 opacity-75">Se ativado, apenas a nota 5 ⭐ nesta pergunta vai liberar o link do Google.</p>
+        </div>
+    `;
+    container.appendChild(div);
+    
+    // Configura o estado inicial da pergunta recém criada
+    const novoSelect = div.querySelector('select');
+    toggleOpcoes(novoSelect, questionIdx);
+    
+    questionIdx++;
+}
+
+function toggleOpcoes(selectEl, idx) {
+    const wrapperMultipla = document.getElementById(`options_wrapper_${idx}`);
+    const inputMultipla = wrapperMultipla.querySelector('input');
+    const inputHidden = document.getElementById(`hidden_opcoes_${idx}`);
+    
+    const wrapperGatilho = document.getElementById(`gatilho_wrapper_${idx}`);
+    const inputGatilho = document.getElementById(`gatilho_${idx}`);
+
+    // Controle Múltipla Escolha
+    if (selectEl.value === "multipla_escolha") {
+        wrapperMultipla.style.display = "block";
+        inputMultipla.disabled = false;
+        inputMultipla.required = true;
+        inputHidden.disabled = true;
+    } else {
+        wrapperMultipla.style.display = "none";
+        inputMultipla.disabled = true;
+        inputMultipla.required = false;
+        inputHidden.disabled = false;
+    }
+
+    // Controle Estrelas (Gatilho)
+    if (selectEl.value === "estrelas" || selectEl.value === "stars") {
+        wrapperGatilho.style.display = "block";
+    } else {
+        wrapperGatilho.style.display = "none";
+        inputGatilho.checked = false; // Limpa a seleção se o usuário mudar de ideia
+    }
+}
+
+// 🚀 Trava de Segurança no Botão Publicar COM NOTIFICAÇÃO BONITA
+document.getElementById('formsBuilder').addEventListener('submit', function(e) {
+    const redirecionar = document.getElementById('redirecionar_positivo_auto').checked;
+    
+    if (redirecionar) {
+        const radioGatilhos = document.querySelectorAll('input[name="pergunta_gatilho_idx"]:checked');
+        if (radioGatilhos.length === 0) {
+            e.preventDefault(); // Impede a página de recarregar/enviar
+            
+            // Chama o Toast animado do seu sistema. Caso não carregue, tem um fallback seguro.
+            if (typeof showToast === "function") {
+                showToast("Atenção: Selecione qual pergunta de estrelas será o gatilho para o Google (Opção Verde).", "warning");
+            } else {
+                alert("Atenção: Selecione a pergunta gatilho do Google (Opção Verde) para ativar o redirecionamento.");
+            }
+        }
+    }
+});
+
+// Inicializa
+document.addEventListener("DOMContentLoaded", () => { addQuestionField(); });
+</script>
+{% endblock %}
