@@ -893,18 +893,35 @@ def ratelimit_handler(e):
 
 
 @app.context_processor
-def inject_can():
-    def can(perm: str, mode: str = "read") -> bool:
-        """Usa a sessão para checar se o usuário atual possui a permissão."""
-        uid = (session.get("user_info") or {}).get("id")
-        if not uid:
-            return False
-        try:
-            return user_can(uid, perm, mode)
-        except Exception:
-            return False
+def inject_user_flags():
+    user_info = session.get("user_info") or {}
+    email = (user_info.get("email") or "").strip().lower()
+    admin_emails_norm = [e.strip().lower() for e in ADMIN_EMAILS]
+    is_admin = email in admin_emails_norm
 
-    return dict(can=can)
+    logged_in = ("credentials" in session) and bool(user_info.get("id"))
+    user_id = user_info.get("id")
+
+    # 🚀 NOVO: Busca o plano atual no banco de dados para injetar em TODAS as telas automaticamente
+    plano_atual = get_user_plan(user_id) if user_id else "free"
+
+    # helpers para o template (Agora se a tela não enviar o plano, ele usa o global)
+    def is_pro_plan(plan: str = None) -> bool:
+        p = plan if plan else plano_atual
+        return p in PLANO_EQUIVALENTES.get("pro", [])
+
+    def is_business_plan(plan: str = None) -> bool:
+        p = plan if plan else plano_atual
+        return p in PLANO_EQUIVALENTES.get("business", [])
+
+    return dict(
+        is_admin=is_admin,
+        logged_in=logged_in,
+        user=user_info,
+        is_pro_plan=is_pro_plan,
+        is_business_plan=is_business_plan,
+        user_plano=plano_atual  # 🚀 Variável garantida em 100% dos HTMLs
+    )
 
 
 from flask import session, url_for
@@ -1726,43 +1743,49 @@ def suggest_reply():
 
     data = request.get_json(silent=True) or {}
 
-    # ✅ 1. Recebe o ID da avaliação
+    # 🚀 SUPORTA 2 MODOS: Pelo ID da tela 'Reviews' OU pelo texto digitado na tela 'Add Review'
     review_id = data.get("review_id")
-    if not review_id:
-        return jsonify({"success": False, "error": "ID da avaliação não fornecido"})
-
-    # ✅ 2. Busca a avaliação no banco
-    review = Review.query.filter_by(
-        id=review_id,
-        user_id=user_id
-    ).first()
-
-    if not review:
-        return jsonify({"success": False, "error": "Avaliação não encontrada"})
-
-    # ✅ 3. Extrai os dados reais da avaliação
-    review_text = (review.text or "").strip()
-    reviewer_name = (review.reviewer_name or "Cliente").strip()
-    star_rating = review.rating or 5
-    tone = (data.get("tone") or "profissional").strip().lower()
+    if review_id:
+        review = Review.query.filter_by(id=review_id, user_id=user_id).first()
+        if not review:
+            return jsonify({"success": False, "error": "Avaliação não encontrada"})
+        review_text = (review.text or "").strip()
+        reviewer_name = (review.reviewer_name or "Cliente").strip()
+        star_rating = review.rating or 5
+    else:
+        review_text = (data.get("review_text") or "").strip()
+        reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
+        try:
+            star_rating = int(data.get("star_rating") or 5)
+        except:
+            star_rating = 5
 
     if not review_text:
-        return jsonify({"success": False, "error": "Avaliação sem texto para resposta"})
+        return jsonify({"success": False, "error": "A avaliação está sem texto. A IA precisa ler os comentários do cliente para gerar uma resposta."})
 
-    # ✅ 4. Limite de tamanho
-    MAX_LEN = 2000
-    if len(review_text) > MAX_LEN:
-        review_text = review_text[:MAX_LEN]
+    # 🚀 LÊ AS CONFIGURAÇÕES AVANÇADAS ENVIADAS DA MODAL
+    tone = (data.get("tone") or "profissional").strip().lower()
+    hiper_compreensiva = bool(data.get("hiper_compreensiva"))
+    consideracoes = (data.get("consideracoes") or "").strip()
 
-    # ✅ 5. Buscar configurações do usuário
+    if len(consideracoes) > 1500:
+        consideracoes = consideracoes[:1500]
+    if len(review_text) > 2000:
+        review_text = review_text[:2000]
+
+    # 🚀 VALIDA OS LIMITES DIÁRIOS (Planos Free/Pro)
+    if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
+        return jsonify({"success": False, "error": "limite diário de respostas hiper compreensivas atingido."})
+    
+    if consideracoes and not usuario_pode_usar_consideracoes(user_id):
+        return jsonify({"success": False, "error": "limite diário de uso de contexto extra atingido."})
+
     settings = get_user_settings(user_id)
 
     TONE_OK = {
         "profissional": "Use linguagem formal e respeitosa.",
         "amigavel": "Use uma linguagem calorosa, sutilmente informal e amigável.",
-        "empatico": "Demonstre empatia e compreensão genuína.",
-        "entusiasmado": "Use uma linguagem animada e positiva.",
-        "formal": "Use uma linguagem formal e estruturada.",
+        "empatico": "Demonstre empatia e compreensão genuína."
     }
     tone_instruction = TONE_OK.get(tone, TONE_OK["profissional"])
 
@@ -1770,21 +1793,13 @@ def suggest_reply():
     business = (settings.get("business_name") or "").strip()
     assinatura = f"{business}\n{manager}" if manager else business
 
-    # 🔒 PROMPT — NÃO MEXIDO
     prompt = ""
 
     if settings.get("contexto_personalizado"):
         contexto = settings["contexto_personalizado"].strip()
-        prompt += "####\n"
-        prompt += "🚨 INSTRUÇÃO CRÍTICA (CONTEXTO DA EMPRESA - CMNTS):\n"
-        prompt += "VOCÊ DEVE USAR ESTA INFORMAÇÃO COM PRIORIDADE ABSOLUTA. ELA DEFINE O TOM (INFORMAL) E O ALCANCE DOS SERVIÇOS (SOMENTE PEÇAS/NÃO MANUTENÇÃO).\n"
-        prompt += f"CONTEXTO ESPECÍFICO: {contexto}\n"
-        prompt += "####\n\n"
-        prompt += (
-            "INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA "
-            "na personalização da resposta.\n"
-            f"Contexto da empresa: {contexto}\n\n"
-        )
+        prompt += "🚨 INSTRUÇÃO CRÍTICA (CONTEXTO DA EMPRESA):\n"
+        prompt += "VOCÊ DEVE USAR ESTA INFORMAÇÃO COM PRIORIDADE ABSOLUTA.\n"
+        prompt += f"CONTEXTO ESPECÍFICO: {contexto}\n\n"
 
     prompt += f"""
 Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
@@ -1793,29 +1808,43 @@ Avaliação recebida:
 - Nome do cliente: {reviewer_name}
 - Nota: {star_rating} estrelas
 - Texto: "{review_text}"
+"""
 
+    if consideracoes:
+        prompt += f"""
+\nIMPORTANTE: O dono do negócio forneceu a seguinte observação extra para a IA usar como base da resposta:
+"{consideracoes}"
+"""
+
+    prompt += f"""
 Instruções:
 - Comece com: "{settings['default_greeting']} {reviewer_name},"
 - Siga este tom: {tone_instruction}
-- Comente os pontos mencionados, usando palavras diferentes
-- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução
-- Se a nota for de 4 ou 5, agradeça e convide para retornar
+- Comente os pontos mencionados no texto, usando palavras diferentes.
+- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução.
+- Se a nota for de 4 ou 5, agradeça e convide para retornar.
 - Finalize com: "{settings['default_closing']}"
-- Inclua as informações de contato: "{settings['contact_info']}"
-- Assine ao final exatamente assim, cada item em uma linha:
+- Inclua o contato: "{settings['contact_info']}"
+- Assine ao final exatamente assim (uma linha por item):
 {assinatura}
 - Não use cargos, não use "Atenciosamente", apenas os nomes.
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas, trevessao ou cacteres especiais, deve ser a mais proxima de uma escrita Humana possivel.
+- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar jargões robóticos.
 """
+
+    # 🚀 O MOTOR DA HIPER COMPREENSIVA: Se marcado na tela, o prompt muda!
+    if hiper_compreensiva:
+        prompt += (
+            "\n\nINSTRUÇÃO ESPECIAL (HIPER COMPREENSIVA): "
+            "Ignore o limite de frases anterior. Gere uma resposta longa, minuciosa e extremamente empática. Use de 8 a 15 frases. "
+            "Mostre escuta ativa profunda, reconhecendo detalhadamente cada elogio ou crítica que o cliente pontuou. "
+            "Se for crítica, justifique as ações que a empresa toma para melhorar."
+        )
 
     try:
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
-                },
+                {"role": "system", "content": "Você é um assistente de sucesso do cliente cordial, objetivo e muito empático."},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -1824,14 +1853,17 @@ Instruções:
         if not suggested_reply:
             return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
 
+        # 🚀 SUCESSO! AGORA DESCONTA OS CRÉDITOS DO CLIENTE NA HORA
+        if hiper_compreensiva:
+            registrar_uso_resposta_especial(user_id)
+        if consideracoes:
+            registrar_uso_consideracoes(user_id)
+
         return jsonify({"success": True, "suggested_reply": suggested_reply})
 
     except Exception:
         logging.exception("Erro na API OpenAI em suggest_reply")
-        return jsonify(
-            {"success": False, "error": "Erro ao gerar a resposta. Tente novamente mais tarde."}
-        )
-
+        return jsonify({"success": False, "error": "Erro ao gerar a resposta com a IA. Tente novamente."})
 
 
 @app.template_filter("formatar_data_brt")
@@ -2599,6 +2631,7 @@ def dashboard():
             total_reviews=0,
             avg_rating=0,
             rating_distribution={1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+            rating_distribution_values=[0, 0, 0, 0, 0],
             percent_responded=0,
             reviews=[],
             user=user_info,

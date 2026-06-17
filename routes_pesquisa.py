@@ -1,5 +1,6 @@
 import re
 import json
+import base64
 from flask import Blueprint, render_template, request, jsonify, redirect, flash, url_for, session
 from models import db, Company
 from models_pesquisa import PesquisaConfig, PesquisaPergunta, PesquisaEnvio, PesquisaRespostaItem
@@ -12,6 +13,7 @@ pesquisa_bp = Blueprint("pesquisa", __name__)
 
 @pesquisa_bp.route("/p/<string:slug>", methods=["GET"])
 def renderizar_pesquisa(slug):
+    # A página de votação continua pública
     config = PesquisaConfig.query.filter_by(slug=slug, is_active=True).first_or_404()
     return render_template("pesquisa_publica.html", config=config)
 
@@ -24,7 +26,6 @@ def enviar_resposta(slug):
     email = request.form.get("email")
     whatsapp = request.form.get("whatsapp")
 
-    # Instancia o registro mestre de envio
     envio = PesquisaEnvio(
         pesquisa_config_id=config.id,
         cliente_nome=nome,
@@ -32,15 +33,13 @@ def enviar_resposta(slug):
         cliente_whatsapp=whatsapp
     )
     db.session.add(envio)
-    db.session.flush() # Pega o ID sem commitar de fato ainda
+    db.session.flush()
 
     redirecionar_valido = False
     
-    # Itera sobre as perguntas do formulário para salvar as respostas individuais
     for pergunta in config.perguntas:
         valor = request.form.get(f"pergunta_{pergunta.id}")
         
-        # Validação de segurança no backend caso um campo obrigatório venha vazio
         if pergunta.is_obrigatoria and not valor:
             db.session.rollback()
             flash(f"A pergunta '{pergunta.texto_pergunta}' é obrigatória.", "danger")
@@ -54,18 +53,15 @@ def enviar_resposta(slug):
             )
             db.session.add(item)
             
-            # 🚀 LÓGICA DE GATILHO: Se a pergunta for a eleita pelo dono E o cliente der exatamente 5 estrelas
             if config.pergunta_gatilho_id and pergunta.id == config.pergunta_gatilho_id:
                 if str(valor).strip() == "5":
                     redirecionar_valido = True
 
     db.session.commit()
 
-    # 🚀 RECONHECE PROMOTORES: Manda direto para a ficha do Google Business Profile
     if redirecionar_valido and config.link_google_feedback and config.redirecionar_positivo_auto:
         return redirect(config.link_google_feedback)
 
-    # 🚀 RETENÇÃO / FEEDBACK CONCLUÍDO: Redireciona para a tela de sucesso nativa do formulário
     return redirect(url_for("pesquisa.renderizar_pesquisa", slug=slug, sucesso="true"))
 
 
@@ -80,20 +76,26 @@ def gerar_qrcode_backend(slug):
         
         img_buffer = io.BytesIO()
         img.save(img_buffer, format="PNG")
-        img_buffer.seek(0)
-        return send_file(img_buffer, mimetype="image/png", as_attachment=False)
+        img_b64 = base64.b64encode(img_buffer.getvalue()).decode('utf-8')
+        img_data_uri = f"data:image/png;base64,{img_b64}"
+        
+        return jsonify({"success": True, "qr_code": img_data_uri})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
     
 
 @pesquisa_bp.route("/dashboard/pesquisa", methods=["GET"])
 def listar_pesquisas():
     user_info = session.get("user_info") or {}
-    user_id = user_info.get("id") or "admin_local"
-    company = Company.query.filter_by(owner_user_id=user_id).first() or Company.query.first()
+    user_id = user_info.get("id")
+    
+    if not user_id:
+        return redirect(url_for("authorize"))
 
+    # 🚀 BLINDAGEM: Isola estritamente a empresa do usuário logado
+    company = Company.query.filter_by(owner_user_id=user_id).first()
     if not company:
-        company = Company(owner_user_id=user_id, name="Hotel Front Comfort", segmento="Hotelaria")
+        company = Company(owner_user_id=user_id, name="Minha Empresa", segmento="Geral")
         db.session.add(company)
         db.session.commit()
 
@@ -115,8 +117,16 @@ def listar_pesquisas():
 @pesquisa_bp.route("/dashboard/pesquisa/criar", methods=["GET", "POST"])
 def criar_pesquisa():
     user_info = session.get("user_info") or {}
-    user_id = user_info.get("id") or "admin_local"
-    company = Company.query.filter_by(owner_user_id=user_id).first() or Company.query.first()
+    user_id = user_info.get("id")
+    
+    if not user_id:
+        return redirect(url_for("authorize"))
+
+    company = Company.query.filter_by(owner_user_id=user_id).first()
+    if not company:
+        company = Company(owner_user_id=user_id, name="Minha Empresa", segmento="Geral")
+        db.session.add(company)
+        db.session.commit()
 
     if request.method == "POST":
         titulo = request.form.get("titulo")
@@ -124,14 +134,13 @@ def criar_pesquisa():
         slug_raw = request.form.get("slug", "").strip().lower()
         link_google = request.form.get("link_google_feedback", "").strip()
         redirecionar = request.form.get("redirecionar_positivo_auto") == "on"
-        pergunta_gatilho_idx = request.form.get("pergunta_gatilho_idx") # Pega o índice da pergunta escolhida como gatilho
+        pergunta_gatilho_idx = request.form.get("pergunta_gatilho_idx")
 
         slug_limpo = re.sub(r'[^a-zA-Z0-9-]', '', slug_raw)
-        if not slug_limpo or PesquisaConfig.query.filter_by(slug=slug_limpo, is_active=True).first():
-            flash("Endereço de acesso inválido ou já em uso.", "danger")
+        if not slug_limpo or PesquisaConfig.query.filter_by(slug=slug_limpo).first():
+            flash("Este endereço de link já está em uso. Por favor, escolha outro nome.", "danger")
             return redirect(url_for("pesquisa.criar_pesquisa"))
 
-        # 🚀 PROTEÇÃO BACKEND: Impede de salvar se ativou o redirecionamento mas não selecionou o gatilho
         if redirecionar and not pergunta_gatilho_idx:
             flash("Erro: Você ativou o redirecionamento automático mas não selecionou nenhuma pergunta de estrelas como parâmetro.", "danger")
             return redirect(url_for("pesquisa.criar_pesquisa"))
@@ -147,7 +156,6 @@ def criar_pesquisa():
         db.session.add(nova_pesquisa)
         db.session.flush()
 
-        # Captura as perguntas dinâmicas enviadas
         perguntas_texto = request.form.getlist("pergunta_texto[]")
         perguntas_tipo = request.form.getlist("pergunta_tipo[]")
         perguntas_obrigatoria = request.form.getlist("pergunta_obrigatoria_raw[]")
@@ -182,16 +190,36 @@ def criar_pesquisa():
 
 @pesquisa_bp.route("/dashboard/pesquisa/deletar/<int:id>", methods=["POST"])
 def deletar_pesquisa(id):
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+
     p = PesquisaConfig.query.get_or_404(id)
-    p.is_active = False # Soft delete limpo
+    company = Company.query.filter_by(owner_user_id=user_id).first()
+    
+    # 🚀 BLINDAGEM: Impede excluir pesquisa de outra pessoa
+    if not company or p.company_id != company.id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for("pesquisa.listar_pesquisas"))
+
+    db.session.delete(p)
     db.session.commit()
-    flash("Pesquisa removida com sucesso.", "success")
+    flash("Pesquisa apagada definitivamente para otimizar espaço.", "success")
     return redirect(url_for("pesquisa.listar_pesquisas"))
 
 
 @pesquisa_bp.route("/dashboard/pesquisa/<int:id>/respostas", methods=["GET"])
 def ver_respostas(id):
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    
     config = PesquisaConfig.query.get_or_404(id)
+    company = Company.query.filter_by(owner_user_id=user_id).first()
+    
+    # 🚀 BLINDAGEM: Impede ver respostas da empresa de outra pessoa
+    if not company or config.company_id != company.id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for("pesquisa.listar_pesquisas"))
+
     envios = PesquisaEnvio.query.filter_by(pesquisa_config_id=config.id).order_by(PesquisaEnvio.id.desc()).all()
     
     estatisticas = {}

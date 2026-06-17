@@ -99,6 +99,9 @@
   .modal-body { padding: 24px; }
   .modal-footer { border-top: 1px solid #f1f5f9; padding: 16px 24px; }
 
+  /* Extras para o limitador na modal */
+  .badge-limite { margin-left: 6px; font-size: 0.7rem; border-radius: 6px; padding: 4px 6px; }
+  .premium-locked-btn { opacity: 0.6; cursor: not-allowed !important; }
 </style>
 {% endblock %}
 
@@ -137,14 +140,20 @@
           <div class="ps-2 pe-3 text-muted"><i class="bi bi-chevron-down small"></i></div>
         </div>
 
-        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-light fw-semibold border" style="border-radius: 14px;" title="Gerenciar Pesquisas Internas">
+        {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
+        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" title="Gerenciar Pesquisas Internas">
           <i class="bi bi-qr-code-scan text-primary me-1"></i> Criar Pesquisa
         </a>
+        {% else %}
+        <button type="button" class="btn btn-light fw-semibold border premium-locked-btn" style="border-radius: 14px;" title="Disponível nos planos PRO e BUSINESS" disabled>
+          <i class="bi bi-lock-fill text-muted me-1"></i> Criar Pesquisa
+        </button>
+        {% endif %}
 
-        <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
+        <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
           <i class="bi bi-arrow-repeat me-1"></i>
-          <span id="reconcileText">Reconciliar ficha</span>
-          <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Reconciliando...</span>
+          <span id="reconcileText">Sincronizar Google</span>
+          <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Buscando...</span>
         </button>
 
       </div>
@@ -152,7 +161,6 @@
 
     <div class="filters-card">
       <div class="row g-2 align-items-end">
-
         <div class="col-12 col-lg-4">
           <label class="form-label small text-muted fw-bold mb-1">Nome/palavra</label>
           <input type="text" name="q" class="form-control" placeholder="Ex: atendimento, João, demora..." value="{{ request.args.get('q','') }}">
@@ -327,6 +335,7 @@
         <p class="text-muted">Tente mudar o filtro de loja ou aguarde novas sincronizações.</p>
       </div>
     {% endif %}
+    
     {% if pagination and pagination.pages > 1 %}
     <nav aria-label="Paginação de avaliações" class="mt-4">
       <ul class="pagination justify-content-center">
@@ -400,16 +409,57 @@
       </div>
 
       <div class="modal-body">
+        
+        <div id="ai-options" class="mb-4 p-3 bg-light rounded-3 border">
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders me-1"></i> Configurar a Inteligência Artificial</h6>
+            
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label for="tone" class="form-label small text-muted mb-1 fw-bold">Tom da resposta</label>
+                    <select class="form-select form-select-sm shadow-none border-secondary-subtle" id="tone">
+                        <option value="profissional">Profissional</option>
+                        <option value="amigavel">Amigável</option>
+                        <option value="empatico">Empático</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-7 d-flex flex-column justify-content-end pb-1">
+                    <div class="d-flex align-items-center">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="hiper_compreensiva" {% if user_plano == 'free' %}disabled{% endif %}>
+                            <label class="form-check-label small fw-medium text-dark" for="hiper_compreensiva">
+                                Usar resposta Hiper Compreensiva
+                            </label>
+                        </div>
+                        <span class="badge bg-secondary badge-limite" id="limite-hiper"><span id="hiper-restante">...</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <div class="d-flex align-items-center">
+                    <button type="button" class="btn btn-outline-info btn-sm rounded-pill" id="toggleConsideracoes" {% if user_plano == 'free' %}disabled{% endif %} style="font-size: 0.8rem;">
+                        <i class="bi bi-info-circle-fill me-1"></i>Adicionar contexto para a IA
+                    </button>
+                    <span class="badge bg-secondary badge-limite" id="limite-consideracoes"><span id="consideracoes-restante">...</span></span>
+                </div>
+
+                <div id="bloco-consideracoes" class="mt-2" style="display:none;">
+                    <textarea class="form-control form-control-sm border-info-subtle" id="consideracoes" rows="2" placeholder="Ex: Avise ao cliente que o problema no ar condicionado já foi resolvido..." {% if user_plano == 'free' %}disabled{% endif %}></textarea>
+                    <div class="form-text text-muted" style="font-size: 0.7rem;">Essa informação guiará a IA para escrever a resposta, mas não será enviada ao cliente de forma bruta.</div>
+                </div>
+            </div>
+        </div>
 
         <div id="loading-ai" class="text-center py-4" style="display:none;">
           <div class="spinner-border text-primary mb-3" role="status"></div>
-          <p class="text-muted mb-0">A Inteligência Artificial está escrevendo uma resposta personalizada...</p>
+          <p class="text-muted mb-0 fw-medium">A IA está escrevendo uma resposta personalizada...</p>
         </div>
 
         <div id="reply-area">
-          <label class="form-label fw-semibold text-secondary">Texto da Resposta</label>
-          <textarea id="reply-text" class="form-control form-control-lg bg-light border-0" rows="6" placeholder="A resposta gerada aparecerá aqui..."></textarea>
-          <div class="form-text mt-2"><i class="bi bi-info-circle me-1"></i> Você pode editar o texto antes de enviar.</div>
+          <label class="form-label fw-bold text-dark">Texto Final</label>
+          <textarea id="reply-text" class="form-control form-control-lg bg-white border border-primary-subtle shadow-sm" rows="6" placeholder="A resposta gerada aparecerá aqui..."></textarea>
+          <div class="form-text mt-2"><i class="bi bi-pencil-square me-1"></i> Você pode editar o texto livremente antes de publicar.</div>
         </div>
 
       </div>
@@ -419,14 +469,14 @@
         <input type="hidden" id="current-internal-id">
 
         <div class="me-auto">
-          <button type="button" id="btnNewSuggestion" class="btn btn-outline-primary fw-semibold d-none" style="border-radius: 14px;" onclick="generateNewSuggestion()">
-            <i class="bi bi-magic me-1"></i> Gerar nova sugestão
+          <button type="button" id="btnNewSuggestion" class="btn btn-outline-primary fw-semibold" style="border-radius: 14px;" onclick="generateNewSuggestion()">
+            <i class="bi bi-magic me-1"></i> Reescrever com IA
           </button>
         </div>
 
-        <button type="button" class="btn btn-light border" data-bs-dismiss="modal" style="border-radius: 14px;">Cancelar</button>
+        <button type="button" class="btn btn-light border fw-medium" data-bs-dismiss="modal" style="border-radius: 14px;">Cancelar</button>
 
-        <button type="button" class="btn btn-primary px-4" style="border-radius: 14px;" onclick="sendReply()">
+        <button type="button" class="btn btn-primary px-4 fw-bold" style="border-radius: 14px;" onclick="sendReply()">
           <span id="btn-send-text">Publicar Resposta</span>
           <span id="btn-send-loading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Enviando...</span>
         </button>
@@ -450,20 +500,80 @@
     alert(msg);
   }
 
+  // 🚀 LÓGICA DOS CONTADORES E BLOQUEIOS DA IA
+  const hiperCheck = document.getElementById('hiper_compreensiva');
+  const toggleCons = document.getElementById('toggleConsideracoes');
+  const blocoCons  = document.getElementById('bloco-consideracoes');
+
+  if (toggleCons) {
+      toggleCons.addEventListener('click', () => {
+          blocoCons.style.display = (blocoCons.style.display === 'block') ? 'none' : 'block';
+      });
+  }
+
+  function aplicarLimite(which) {
+      if (which === 'hiper' && hiperCheck) { hiperCheck.checked = false; hiperCheck.disabled = true; }
+      if (which === 'consideracoes' && toggleCons) { toggleCons.disabled = true; blocoCons.style.display = 'none'; }
+  }
+
+  function setBadge(idNumero, usados, total) {
+      const numeroEl = document.getElementById(idNumero);
+      if (!numeroEl) return;
+      const badgeEl = numeroEl.parentElement;
+
+      const avisoId = idNumero + '-aviso';
+      document.getElementById(avisoId)?.remove();
+
+      if (total === null) {
+          numeroEl.textContent = `${usados}/∞`;
+          badgeEl.className = 'badge bg-secondary badge-limite';
+          return;
+      }
+      const u = Math.max(0, Math.min(usados, total));
+      numeroEl.textContent = `${u}/${total}`;
+      const atingiu = u >= total;
+      badgeEl.className = 'badge badge-limite ' + (atingiu ? 'bg-danger' : 'bg-secondary');
+
+      if (atingiu) {
+          const aviso = document.createElement('span');
+          aviso.id = avisoId;
+          aviso.className = 'text-danger fst-italic small ms-1';
+          aviso.innerText = '(limite diário)';
+          badgeEl.insertAdjacentElement('afterend', aviso);
+          if (idNumero.includes('hiper')) aplicarLimite('hiper');
+          if (idNumero.includes('consideracoes')) aplicarLimite('consideracoes');
+      }
+  }
+
+  function carregarContadores() {
+      fetch('/get_hiper_count').then(r => r.json()).then(data => {
+          const total = {{ PLANOS[user_plano]['hiper_dia']|tojson if user_plano in PLANOS else 0 }};
+          if (total === null) { setBadge('hiper-restante', 0, null); return; }
+          const restantes = (typeof data.usos_restantes_hiper === 'number') ? data.usos_restantes_hiper : total;
+          setBadge('hiper-restante', total - restantes, total);
+      });
+      fetch('/get_consideracoes_count').then(r => r.json()).then(data => {
+          const total = {{ PLANOS[user_plano]['consideracoes_dia']|tojson if user_plano in PLANOS else 0 }};
+          if (total === null) { setBadge('consideracoes-restante', 0, null); return; }
+          const restantes = (typeof data.usos_restantes_consideracoes === 'number') ? data.usos_restantes_consideracoes : total;
+          setBadge('consideracoes-restante', total - restantes, total);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', carregarContadores);
+
+  // 🚀 RESTO DAS FUNÇÕES DO MODAL
   async function reconcileSelectedLocation() {
     const sel = document.getElementById('fichaSelect');
     const val = (sel?.value || 'todas').toString();
 
     if (!val || val === 'todas') {
-      toast("⚠️ Para reconciliar, escolha uma ficha (não pode estar em 'Todas as lojas').", "warning");
+      toast("⚠️ Para sincronizar o Google, escolha uma loja específica na caixa acima.", "warning");
       return;
     }
 
     const googleLocationId = parseInt(val, 10);
-    if (!Number.isFinite(googleLocationId) || googleLocationId <= 0) {
-      toast("Não consegui identificar o ID interno dessa ficha. Atualize a página e tente de novo.", "danger");
-      return;
-    }
+    if (!Number.isFinite(googleLocationId) || googleLocationId <= 0) return;
 
     const btn = document.getElementById('btnReconcile');
     const t = document.getElementById('reconcileText');
@@ -476,24 +586,19 @@
     try {
       const res = await fetch(`/auto/google/reconcile/${googleLocationId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
         body: JSON.stringify({ hard_delete: true })
       });
 
       const data = await res.json().catch(() => ({}));
-
       if (res.ok && data.ok) {
-        toast(`✅ Reconciliado! Google: ${data.google_count} | Inseridos: ${data.inserted} | Atualizados: ${data.updated} | Removidos: ${data.deleted}`, "success");
+        toast(`✅ Sincronizado! Google: ${data.google_count} | Inseridos: ${data.inserted} | Removidos: ${data.deleted}`, "success");
         setTimeout(() => window.location.reload(), 900);
       } else {
-        toast(data.error || data.message || "Erro ao reconciliar a ficha.", "danger");
+        toast(data.error || "Erro ao sincronizar a ficha.", "danger");
       }
     } catch (e) {
-      console.error(e);
-      toast("Erro de conexão ao reconciliar.", "danger");
+      toast("Erro de conexão.", "danger");
     } finally {
       btn.disabled = false;
       t.classList.remove('d-none');
@@ -506,23 +611,24 @@
     document.getElementById('current-internal-id').value = internalId;
 
     const textArea = document.getElementById('reply-text');
-    const btnSug = document.getElementById('btnNewSuggestion');
-
     currentIsEdit = !!isEdit;
 
     document.getElementById('loading-ai').style.display = 'none';
     document.getElementById('reply-area').style.display = 'block';
+    
+    // Reseta o textarea de considerações ao abrir
+    if(document.getElementById('consideracoes')) document.getElementById('consideracoes').value = '';
 
     if (currentIsEdit) {
       textArea.value = currentReply || "";
       document.getElementById('btn-send-text').innerText = "Atualizar Resposta";
-      btnSug.classList.remove('d-none');
       replyModal.show();
     } else {
       textArea.value = "";
       document.getElementById('btn-send-text').innerText = "Publicar Resposta";
-      btnSug.classList.add('d-none');
       replyModal.show();
+      // Em vez de gerar automático, forçamos o cliente a escolher as opções primeiro se ele quiser!
+      // Mas para manter sua dinâmica anterior, vamos gerar a resposta básica:
       generateAISuggestion(internalId);
     }
   }
@@ -530,35 +636,48 @@
   async function generateNewSuggestion() {
     const internalId = document.getElementById('current-internal-id').value;
     if (!internalId) return toast("Não achei o ID interno da avaliação.", "danger");
-
     await generateAISuggestion(internalId);
-    toast("✨ Nova sugestão gerada! Se quiser, edite e clique em Atualizar.", "success");
   }
 
   async function generateAISuggestion(reviewId) {
     document.getElementById('loading-ai').style.display = 'block';
     document.getElementById('reply-area').style.display = 'none';
+    document.getElementById('btnNewSuggestion').disabled = true;
+
+    // Pega as opções do modal!
+    const tone = document.getElementById('tone').value;
+    const hiper = document.getElementById('hiper_compreensiva').checked;
+    const consideracoes = document.getElementById('consideracoes').value;
 
     try {
       const res = await fetch('/suggest_reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ review_id: reviewId })
+        body: JSON.stringify({ 
+            review_id: reviewId,
+            tone: tone,
+            hiper_compreensiva: hiper,
+            consideracoes: consideracoes
+        })
       });
 
       const data = await res.json().catch(() => ({}));
 
       if (data.success) {
         document.getElementById('reply-text').value = data.suggested_reply || "";
+        toast("✨ Sugestão gerada! Edite se quiser e clique em Publicar.", "success");
+        carregarContadores(); // Atualiza os badges de limite!
       } else {
-        toast("Erro ao gerar sugestão: " + (data.error || "desconhecido"), "danger");
+        toast("Erro da IA: " + (data.error || "desconhecido"), "danger");
+        // Desmarca os botões caso tenha dado erro de limite
+        if (data.error.includes("limite")) carregarContadores();
       }
     } catch (e) {
-      console.error(e);
       toast("Erro de conexão com a IA.", "danger");
     } finally {
       document.getElementById('loading-ai').style.display = 'none';
       document.getElementById('reply-area').style.display = 'block';
+      document.getElementById('btnNewSuggestion').disabled = false;
     }
   }
 
@@ -584,14 +703,13 @@
 
       if (data.success) {
         replyModal.hide();
-        toast("Resposta publicada com sucesso!", "success");
+        toast("Resposta publicada no Google!", "success");
         setTimeout(() => window.location.reload(), 900);
       } else {
         toast("Erro ao publicar: " + (data.message || data.error || "desconhecido"), "danger");
       }
     } catch (e) {
-      console.error(e);
-      toast("Erro de conexão.", "danger");
+      toast("Erro de conexão ao publicar.", "danger");
     } finally {
       btnText.classList.remove('d-none');
       btnLoad.classList.add('d-none');
@@ -608,7 +726,6 @@
       });
 
       const data = await res.json().catch(() => ({}));
-
       if (data.success) {
         toast("Resposta excluída.", "success");
         setTimeout(() => window.location.reload(), 900);
@@ -616,7 +733,6 @@
         toast("Erro ao excluir: " + (data.message || data.error || "desconhecido"), "danger");
       }
     } catch (e) {
-      console.error(e);
       toast("Erro de conexão.", "danger");
     }
   }

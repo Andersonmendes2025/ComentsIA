@@ -30,7 +30,8 @@
             <span class="text-muted d-block small">Link público de acesso:</span>
             <div class="d-flex justify-content-between align-items-center">
               <code class="text-primary text-truncate pe-2">/p/{{ p.slug }}</code>
-              <button class="btn btn-link p-0 text-secondary border-0 small" onclick="copiarLink('{{ p.slug }}')" title="Copiar link">
+              
+              <button type="button" class="btn btn-link p-0 text-secondary border-0 small" onclick="copiarLink('{{ p.slug }}')" title="Copiar link">
                 <i class="bi bi-copy"></i>
               </button>
             </div>
@@ -43,9 +44,10 @@
               <i class="bi bi-box-arrow-up-right me-1"></i> Responder
             </a>
 
-            <button type="button" class="btn btn-sm btn-outline-primary rounded-2 btn-qr-trigger" 
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-2" 
                     data-slug="{{ p.slug }}" 
-                    data-titulo="{{ p.titulo }}">
+                    data-titulo="{{ p.titulo }}"
+                    onclick="abrirModalQR(this)">
               <i class="bi bi-qr-code"></i> QR Code
             </button>
           </div>
@@ -86,62 +88,85 @@
         
         <div class="p-3 bg-white d-inline-block rounded-3 border mb-3 shadow-sm" style="min-height: 180px; min-width: 180px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
           <div id="qrLoader" class="spinner-border text-primary" role="status"></div>
-          
-          <img id="qrCodeContainer" src="" alt="QR Code" style="width: 180px; height: 180px; display: none;" onload="this.style.display='block'; document.getElementById('qrLoader').style.display='none';">
+          <img id="qrCodeContainer" src="" alt="QR Code" style="width: 180px; height: 180px; display: none;">
         </div>
         
         <div class="px-2">
-          <a href="#" id="btnDownloadQR" download="qrcode-pesquisa.png" class="btn btn-primary btn-sm w-100 fw-medium py-2 rounded-2">
-            <i class="bi bi-download me-1"></i> Baixar Imagem (PNG)
+          <a href="#" id="btnDownloadQR" class="btn btn-primary btn-sm w-100 fw-medium py-2 rounded-2 disabled">
+            <i class="bi bi-hourglass-split me-1"></i> Aguarde...
           </a>
         </div>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
+console.log("🔥 JAVASCRIPT CARREGADO COM SUCESSO! 🔥");
+
 function copiarLink(slug) {
-    const urlCompleta = `${window.location.origin}/p/${slug}`;
-    navigator.clipboard.writeText(urlCompleta).then(() => {
+    try {
+        const urlCompleta = `${window.location.origin}/p/${slug}`;
+        const inputFalso = document.createElement("input");
+        inputFalso.value = urlCompleta;
+        document.body.appendChild(inputFalso);
+        inputFalso.select();
+        document.execCommand("copy");
+        document.body.removeChild(inputFalso);
+
         if (typeof showToast === "function") {
-            showToast("Link da pesquisa copiado com sucesso!", "success");
+            showToast("Link copiado com sucesso!", "success");
         } else {
             alert("Link copiado para a área de transferência!");
         }
-    });
+    } catch (e) {
+        console.error("Erro ao copiar:", e);
+        alert("O seu navegador bloqueou a cópia automática. Tente copiar o link manualmente.");
+    }
 }
 
-// 🚀 SCRIPT INQUEBRÁVEL: Modal abre instantaneamente, carregamento fica a cargo do HTML
-document.addEventListener("DOMContentLoaded", function() {
-    const botoesQR = document.querySelectorAll(".btn-qr-trigger");
-    const modalEl = document.getElementById("qrCodeModal");
-    const bootstrapModal = new bootstrap.Modal(modalEl);
+function abrirModalQR(botao) {
+    try {
+        const slug = botao.getAttribute("data-slug");
+        const titulo = botao.getAttribute("data-titulo");
 
-    botoesQR.forEach(botao => {
-        botao.addEventListener("click", function(e) {
-            e.preventDefault(); // Bloqueia comportamentos estranhos
-            
-            const slug = this.getAttribute("data-slug");
-            const titulo = this.getAttribute("data-titulo");
-            const rotaPython = `/dashboard/pesquisa/qrcode/${slug}`;
+        document.getElementById("qrTitleView").innerText = titulo;
+        document.getElementById("qrCodeContainer").style.display = "none";
+        document.getElementById("qrLoader").style.display = "block";
+        
+        const btnDownload = document.getElementById("btnDownloadQR");
+        btnDownload.classList.add("disabled");
+        btnDownload.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Aguarde...';
 
-            // 1. Prepara a tela inicial da Modal (Esconde a imagem antiga, mostra o spinner)
-            document.getElementById("qrTitleView").innerText = titulo;
-            document.getElementById("qrCodeContainer").style.display = "none";
-            document.getElementById("qrLoader").style.display = "block";
-            
-            // 2. Aponta os links para a sua rota local do Python
-            document.getElementById("qrCodeContainer").src = rotaPython;
-            document.getElementById("btnDownloadQR").href = rotaPython;
-            document.getElementById("btnDownloadQR").download = `qrcode-${slug}.png`;
+        const modalEl = document.getElementById("qrCodeModal");
+        const bootstrapModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bootstrapModal.show();
 
-            // 3. Abre a modal instantaneamente. A mágica de esconder o spinner acontece via "onload" direto na tag <img>
-            bootstrapModal.show();
-        });
-    });
-});
+        fetch(`/dashboard/pesquisa/qrcode/${slug}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById("qrCodeContainer").src = data.qr_code;
+                    document.getElementById("qrCodeContainer").style.display = "block";
+                    document.getElementById("qrLoader").style.display = "none";
+                    
+                    btnDownload.href = data.qr_code;
+                    btnDownload.download = `qrcode-comentsia-${slug}.png`;
+                    btnDownload.removeAttribute("target");
+                    btnDownload.classList.remove("disabled");
+                    btnDownload.innerHTML = '<i class="bi bi-download me-1"></i> Baixar Imagem (PNG)';
+                } else {
+                    alert("Erro interno do Servidor: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error("Erro na comunicação (Fetch):", error);
+                alert("Falha na comunicação com o servidor Python. Veja o console (F12).");
+            });
+    } catch(err) {
+        console.error("Erro fatal no Javascript:", err);
+        alert("Erro no navegador: " + err.message);
+    }
+}
 </script>
 {% endblock %}
