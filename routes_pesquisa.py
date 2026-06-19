@@ -68,7 +68,10 @@ def enviar_resposta(slug):
 @pesquisa_bp.route("/dashboard/pesquisa/qrcode/<string:slug>", methods=["GET"])
 def gerar_qrcode_backend(slug):
     try:
-        url_publica = url_for("pesquisa.renderizar_pesquisa", slug=slug, _external=True)
+        # 🚀 SOLUÇÃO: Captura a URL base real (seja localhost ou Render)
+        url_base = request.host_url.rstrip('/')
+        url_publica = f"{url_base}/p/{slug}"
+        
         qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=4)
         qr.add_data(url_publica)
         qr.make(fit=True)
