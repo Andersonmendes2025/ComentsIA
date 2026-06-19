@@ -73,8 +73,9 @@
                 <div class="card-body p-4">
                     <form method="POST" id="reviewForm" autocomplete="off">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" id="csrf_token">
+                        
+                        <input type="hidden" name="generated_reply" id="generated_reply" value="">
 
-                        <!-- Nome + nota -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <div class="form-floating">
@@ -94,7 +95,6 @@
                             </div>
                         </div>
 
-                        <!-- Texto -->
                         <div class="mb-4">
                             <div class="form-floating">
                                 <textarea class="form-control" id="text" name="text" placeholder="Texto da avaliação" required style="min-height: 150px;"></textarea>
@@ -102,7 +102,6 @@
                             </div>
                         </div>
 
-                        <!-- Tom -->
                         <div class="form-group mt-4">
                             <label for="tone">Tom da resposta:</label>
                             <select class="form-select mb-2" id="tone" name="tone">
@@ -112,7 +111,6 @@
                             </select>
                         </div>
 
-                        <!-- Hiper -->
                         <div id="hiper-info-row" class="mt-3">
                             <input class="form-check-input" type="checkbox" value="on"
                                 id="hiper_compreensiva" name="hiper_compreensiva"
@@ -125,7 +123,6 @@
                             </span>
                         </div>
 
-                        <!-- Considerações -->
                         <div class="mt-4 d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-outline-info btn-sm rounded-pill" id="toggleConsideracoes"
                                 {% if user_plano == 'free' %}disabled{% endif %}>
@@ -143,7 +140,6 @@
                             <div class="form-text">Essas informações não serão salvas no sistema.</div>
                         </div>
 
-                        <!-- Botões -->
                         <div class="d-flex justify-content-between mt-4">
                             <button type="button" class="btn btn-outline-primary btn-modern" id="gerarSugestaoBtn">
                                 <i class="bi bi-robot me-1"></i>Gerar sugestão
@@ -155,7 +151,6 @@
                             </button>
                         </div>
 
-                        <!-- Loader / resultado -->
                         <p id="loading" class="mt-3 text-muted" style="display: none;">
                             <span class="spinner-border spinner-border-sm me-2"></span>Gerando resposta...
                         </p>
@@ -248,14 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function carregarContadores() {
         // hiper
         fetch('/get_hiper_count').then(r => r.json()).then(data => {
-            const total = {{ PLANOS[user_plano]['hiper_dia']|tojson }};
+            const total = {{ PLANOS[user_plano]['hiper_dia']|tojson if user_plano in PLANOS else 0 }};
             if (total === null) { setBadge('hiper-restante', 0, null); return; }
             const restantes = (typeof data.usos_restantes_hiper === 'number') ? data.usos_restantes_hiper : total;
             setBadge('hiper-restante', total - restantes, total);
         });
         // consideracoes
         fetch('/get_consideracoes_count').then(r => r.json()).then(data => {
-            const total = {{ PLANOS[user_plano]['consideracoes_dia']|tojson }};
+            const total = {{ PLANOS[user_plano]['consideracoes_dia']|tojson if user_plano in PLANOS else 0 }};
             if (total === null) { setBadge('consideracoes-restante', 0, null); return; }
             const restantes = (typeof data.usos_restantes_consideracoes === 'number') ? data.usos_restantes_consideracoes : total;
             setBadge('consideracoes-restante', total - restantes, total);
@@ -282,13 +277,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 star_rating: parseInt(ratingInput.value) || 5,
                 reviewer_name: document.getElementById('reviewer_name').value,
                 tone: document.getElementById('tone').value,
-                consideracoes: document.getElementById('consideracoes')?.value || ''
+                consideracoes: document.getElementById('consideracoes')?.value || '',
+                hiper_compreensiva: document.getElementById('hiper_compreensiva')?.checked || false
             })
         })
         .then(r => r.json()).then(data => {
             document.getElementById('loading').style.display = 'none';
             if (data.success) {
                 document.getElementById('suggestion').innerText = data.suggested_reply || '';
+                
+                // 🚀 ESTA É A LINHA QUE SALVA A ECONOMIA DA SUA IA!
+                document.getElementById('generated_reply').value = data.suggested_reply || '';
+                
                 document.getElementById('suggestion').style.display = 'block';
                 document.getElementById('actions').style.display = 'block';
             } else {

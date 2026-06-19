@@ -411,6 +411,7 @@ def calcular_media(avaliacoes):
 
 
 # Função para confirmar aceitação dos termos
+# Função para confirmar aceitação dos termos
 def require_terms_accepted(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -419,21 +420,94 @@ def require_terms_accepted(f):
             return redirect(url_for("authorize"))
         user_id = user_info.get("id")
         settings = get_user_settings(user_id)
-        # Se faltar algum campo obrigatório, manda para settings
-        if not (
-            settings.get("business_name")
-            and settings.get("contact_info")
-            and settings.get("terms_accepted", False)
-        ):
-            flash(
-                "Complete seu cadastro inicial e aceite os Termos e Condições para acessar esta funcionalidade.",
-                "warning",
-            )
+        
+        # 🚀 AGORA SÓ EXIGE O NOME DA EMPRESA!
+        if not (settings.get("business_name") and settings.get("terms_accepted", False)):
+            flash("Complete seu cadastro informando o Nome da Empresa e aceite os Termos para continuar.", "warning")
             return redirect(url_for("settings"))
         return f(*args, **kwargs)
 
     return decorated_function
 
+def get_user_settings(user_id):
+    from utils.crypto import decrypt
+    defaults = {
+        "business_name": "",
+        "default_greeting": "",
+        "default_closing": "",
+        "contact_info": "",
+        "terms_accepted": False,
+        "logo": None,
+        "manager_name": "",
+        "idioma_resposta": "Português (Brasil)" # 🚀 NOVO
+    }
+
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    if not settings:
+        return defaults
+
+    try:
+        return {
+            "business_name": decrypt(settings.business_name) if settings.business_name else "",
+            "default_greeting": settings.default_greeting or "",
+            "default_closing": settings.default_closing or "",
+            "contact_info": decrypt(settings.contact_info) if settings.contact_info else "",
+            "terms_accepted": bool(settings.terms_accepted),
+            "logo": settings.logo,
+            "manager_name": decrypt(settings.manager_name) if settings.manager_name else "",
+            "gbp_tone": settings.gbp_tone or "neutro", 
+            "contexto_personalizado": settings.contexto_personalizado or "",
+            "idioma_resposta": getattr(settings, 'idioma_resposta', "Português (Brasil)") # 🚀 NOVO
+        }
+    except Exception as e:
+        logging.warning(f"[decrypt] erro ao descriptografar settings de user {user_id}: {e}")
+        return defaults
+
+def save_user_settings(user_id, settings_data):
+    from utils.crypto import encrypt
+    terms_accepted_raw = settings_data.get("terms_accepted")
+    terms_accepted = str(terms_accepted_raw).lower() in ["true", "on", "1"]
+
+    encrypted_name = encrypt(settings_data.get("business_name") or "")
+    encrypted_contact = encrypt(settings_data.get("contact_info") or "")
+    encrypted_manager = encrypt(settings_data.get("manager_name") or "")
+
+    existing = UserSettings.query.filter_by(user_id=user_id).first()
+    if existing:
+        existing.business_name = encrypted_name
+        # 🚀 AGORA ACEITA E SALVA OS CAMPOS VAZIOS SE O CLIENTE APAGAR
+        existing.default_greeting = settings_data.get("default_greeting", "")
+        existing.default_closing = settings_data.get("default_closing", "")
+        existing.contact_info = encrypted_contact
+        existing.terms_accepted = terms_accepted
+        existing.manager_name = encrypted_manager
+
+        if "contexto_personalizado" in settings_data:
+            existing.contexto_personalizado = (settings_data["contexto_personalizado"] or "")[:500]
+        
+        # 🚀 SALVA O NOVO IDIOMA
+        if "idioma_resposta" in settings_data:
+            existing.idioma_resposta = settings_data["idioma_resposta"]
+
+        if "logo" in settings_data and settings_data["logo"]:
+            existing.logo = settings_data["logo"]
+    else:
+        new_settings = UserSettings(
+            user_id=user_id,
+            business_name=encrypted_name,
+            default_greeting=settings_data.get("default_greeting", ""),
+            default_closing=settings_data.get("default_closing", ""),
+            contact_info=encrypted_contact,
+            terms_accepted=terms_accepted,
+            logo=settings_data.get("logo"),
+            manager_name=encrypted_manager,
+            contexto_personalizado=(settings_data.get("contexto_personalizado") or "")[:500],
+        )
+        if "idioma_resposta" in settings_data:
+            new_settings.idioma_resposta = settings_data["idioma_resposta"]
+            
+        db.session.add(new_settings)
+    db.session.commit()
 
 def contar_avaliacoes_mes(user_id):
     inicio_mes = agora_brt().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -599,50 +673,7 @@ def get_user_reviews(user_id):
     )
 
 
-def get_user_settings(user_id):
-    """Configurações do usuário com defaults estáveis e descriptografia segura."""
-    from utils.crypto import decrypt
 
-    defaults = {
-        "business_name": "",
-        "default_greeting": "Olá,",
-        "default_closing": "Agradecemos seu feedback!",
-        "contact_info": "Entre em contato pelo telefone (00) 0000-0000 ou email@exemplo.com",
-        "terms_accepted": False,
-        "logo": None,
-        "manager_name": "",
-    }
-
-    settings = UserSettings.query.filter_by(user_id=user_id).first()
-    if not settings:
-        return defaults
-
-    try:
-        return {
-            "business_name": (
-                decrypt(settings.business_name) if settings.business_name else ""
-            ),
-            "default_greeting": settings.default_greeting
-            or defaults["default_greeting"],
-            "default_closing": settings.default_closing or defaults["default_closing"],
-            "contact_info": (
-                decrypt(settings.contact_info)
-                if settings.contact_info
-                else defaults["contact_info"]
-            ),
-            "terms_accepted": bool(settings.terms_accepted),
-            "logo": settings.logo,
-            "manager_name": (
-                decrypt(settings.manager_name) if settings.manager_name else ""
-            ),
-            "gbp_tone": settings.gbp_tone or "neutro", 
-            "contexto_personalizado": settings.contexto_personalizado or "", # 👈 adicione esta linha
-        }
-    except Exception as e:
-        logging.warning(
-            f"[decrypt] erro ao descriptografar settings de user {user_id}: {e}"
-        )
-        return defaults
 
 
 from flask_wtf import CSRFProtect
@@ -652,53 +683,6 @@ from markupsafe import escape
 # csrf = CSRFProtect(app)
 
 
-def save_user_settings(user_id, settings_data):
-    from utils.crypto import encrypt  # seguro no escopo
-
-    # Normalizar checkbox/string em booleano
-    terms_accepted_raw = settings_data.get("terms_accepted")
-    terms_accepted = str(terms_accepted_raw).lower() in ["true", "on", "1"]
-
-    # Criptografar campos sensíveis
-    encrypted_name = encrypt(settings_data.get("business_name") or "")
-    encrypted_contact = encrypt(settings_data.get("contact_info") or "")
-    encrypted_manager = encrypt(settings_data.get("manager_name") or "")
-
-    existing = UserSettings.query.filter_by(user_id=user_id).first()
-
-    if existing:
-
-        # Campos SEMPRE enviados
-        existing.business_name = encrypted_name
-        existing.default_greeting = settings_data.get("default_greeting", "Olá,")
-        existing.default_closing = settings_data.get("default_closing", "Agradecemos seu feedback!")
-        existing.contact_info = encrypted_contact
-        existing.terms_accepted = terms_accepted
-        existing.manager_name = encrypted_manager
-
-        # Apenas atualiza SE o campo foi enviado no POST
-        if "contexto_personalizado" in settings_data:
-            existing.contexto_personalizado = (settings_data["contexto_personalizado"] or "")[:500]
-
-        # Atualiza logo apenas se vier no POST
-        if "logo" in settings_data and settings_data["logo"]:
-            existing.logo = settings_data["logo"]
-
-    else:
-        new_settings = UserSettings(
-            user_id=user_id,
-            business_name=encrypted_name,
-            default_greeting=settings_data.get("default_greeting", "Olá,"),
-            default_closing=settings_data.get("default_closing", "Agradecemos seu feedback!"),
-            contact_info=encrypted_contact,
-            terms_accepted=terms_accepted,
-            logo=settings_data.get("logo"),
-            manager_name=encrypted_manager,
-            contexto_personalizado=(settings_data.get("contexto_personalizado") or "")[:500],
-        )
-        db.session.add(new_settings)
-
-    db.session.commit()
 
 
 @app.route("/planos", methods=["GET"])
@@ -1730,140 +1714,6 @@ def delete_reply():
         )
 
 
-@app.route("/suggest_reply", methods=["POST"])
-@limiter.limit("15/minute")
-def suggest_reply():
-    if "credentials" not in flask.session:
-        return jsonify({"success": False, "error": "Usuário não autenticado"})
-
-    user_info = flask.session.get("user_info") or {}
-    user_id = user_info.get("id")
-    if not user_id:
-        return jsonify({"success": False, "error": "Usuário não identificado"})
-
-    data = request.get_json(silent=True) or {}
-
-    # 🚀 SUPORTA 2 MODOS: Pelo ID da tela 'Reviews' OU pelo texto digitado na tela 'Add Review'
-    review_id = data.get("review_id")
-    if review_id:
-        review = Review.query.filter_by(id=review_id, user_id=user_id).first()
-        if not review:
-            return jsonify({"success": False, "error": "Avaliação não encontrada"})
-        review_text = (review.text or "").strip()
-        reviewer_name = (review.reviewer_name or "Cliente").strip()
-        star_rating = review.rating or 5
-    else:
-        review_text = (data.get("review_text") or "").strip()
-        reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
-        try:
-            star_rating = int(data.get("star_rating") or 5)
-        except:
-            star_rating = 5
-
-    if not review_text:
-        return jsonify({"success": False, "error": "A avaliação está sem texto. A IA precisa ler os comentários do cliente para gerar uma resposta."})
-
-    # 🚀 LÊ AS CONFIGURAÇÕES AVANÇADAS ENVIADAS DA MODAL
-    tone = (data.get("tone") or "profissional").strip().lower()
-    hiper_compreensiva = bool(data.get("hiper_compreensiva"))
-    consideracoes = (data.get("consideracoes") or "").strip()
-
-    if len(consideracoes) > 1500:
-        consideracoes = consideracoes[:1500]
-    if len(review_text) > 2000:
-        review_text = review_text[:2000]
-
-    # 🚀 VALIDA OS LIMITES DIÁRIOS (Planos Free/Pro)
-    if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
-        return jsonify({"success": False, "error": "limite diário de respostas hiper compreensivas atingido."})
-    
-    if consideracoes and not usuario_pode_usar_consideracoes(user_id):
-        return jsonify({"success": False, "error": "limite diário de uso de contexto extra atingido."})
-
-    settings = get_user_settings(user_id)
-
-    TONE_OK = {
-        "profissional": "Use linguagem formal e respeitosa.",
-        "amigavel": "Use uma linguagem calorosa, sutilmente informal e amigável.",
-        "empatico": "Demonstre empatia e compreensão genuína."
-    }
-    tone_instruction = TONE_OK.get(tone, TONE_OK["profissional"])
-
-    manager = (settings.get("manager_name") or "").strip()
-    business = (settings.get("business_name") or "").strip()
-    assinatura = f"{business}\n{manager}" if manager else business
-
-    prompt = ""
-
-    if settings.get("contexto_personalizado"):
-        contexto = settings["contexto_personalizado"].strip()
-        prompt += "🚨 INSTRUÇÃO CRÍTICA (CONTEXTO DA EMPRESA):\n"
-        prompt += "VOCÊ DEVE USAR ESTA INFORMAÇÃO COM PRIORIDADE ABSOLUTA.\n"
-        prompt += f"CONTEXTO ESPECÍFICO: {contexto}\n\n"
-
-    prompt += f"""
-Você é um assistente especializado em atendimento ao cliente e deve escrever uma resposta personalizada para uma avaliação recebida por "{business}".
-
-Avaliação recebida:
-- Nome do cliente: {reviewer_name}
-- Nota: {star_rating} estrelas
-- Texto: "{review_text}"
-"""
-
-    if consideracoes:
-        prompt += f"""
-\nIMPORTANTE: O dono do negócio forneceu a seguinte observação extra para a IA usar como base da resposta:
-"{consideracoes}"
-"""
-
-    prompt += f"""
-Instruções:
-- Comece com: "{settings['default_greeting']} {reviewer_name},"
-- Siga este tom: {tone_instruction}
-- Comente os pontos mencionados no texto, usando palavras diferentes.
-- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução.
-- Se a nota for de 4 ou 5, agradeça e convide para retornar.
-- Finalize com: "{settings['default_closing']}"
-- Inclua o contato: "{settings['contact_info']}"
-- Assine ao final exatamente assim (uma linha por item):
-{assinatura}
-- Não use cargos, não use "Atenciosamente", apenas os nomes.
-- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar jargões robóticos.
-"""
-
-    # 🚀 O MOTOR DA HIPER COMPREENSIVA: Se marcado na tela, o prompt muda!
-    if hiper_compreensiva:
-        prompt += (
-            "\n\nINSTRUÇÃO ESPECIAL (HIPER COMPREENSIVA): "
-            "Ignore o limite de frases anterior. Gere uma resposta longa, minuciosa e extremamente empática. Use de 8 a 15 frases. "
-            "Mostre escuta ativa profunda, reconhecendo detalhadamente cada elogio ou crítica que o cliente pontuou. "
-            "Se for crítica, justifique as ações que a empresa toma para melhorar."
-        )
-
-    try:
-        completion = client.with_options(timeout=30.0).chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Você é um assistente de sucesso do cliente cordial, objetivo e muito empático."},
-                {"role": "user", "content": prompt},
-            ],
-        )
-
-        suggested_reply = (completion.choices[0].message.content or "").strip()
-        if not suggested_reply:
-            return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
-
-        # 🚀 SUCESSO! AGORA DESCONTA OS CRÉDITOS DO CLIENTE NA HORA
-        if hiper_compreensiva:
-            registrar_uso_resposta_especial(user_id)
-        if consideracoes:
-            registrar_uso_consideracoes(user_id)
-
-        return jsonify({"success": True, "suggested_reply": suggested_reply})
-
-    except Exception:
-        logging.exception("Erro na API OpenAI em suggest_reply")
-        return jsonify({"success": False, "error": "Erro ao gerar a resposta com a IA. Tente novamente."})
 
 
 @app.template_filter("formatar_data_brt")
@@ -2319,210 +2169,264 @@ def reviews():
 
 
 
+    
 
-# -- quem é o usuário atual (para blueprints como o booking.py) --
-def get_current_user_id():
-    info = session.get("user_info") or {}
-    return info.get("id")
+@app.route("/suggest_reply", methods=["POST"])
+@limiter.limit("15/minute")
+def suggest_reply():
+    if "credentials" not in flask.session:
+        return jsonify({"success": False, "error": "Usuário não autenticado"})
 
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não identificado"})
 
-# -- usado em booking.py para barrar acesso de quem não está logado --
-def require_login():
-    return ("credentials" in session) and bool(get_current_user_id())
+    data = request.get_json(silent=True) or {}
 
+    raw_review_id = data.get("review_id")
+    review_id = None
+    if raw_review_id not in [None, "", "null", "undefined", "0", 0]:
+        try:
+            review_id = int(raw_review_id)
+        except ValueError:
+            review_id = None
+
+    review = None
+    if review_id:
+        review = Review.query.filter_by(id=review_id, user_id=user_id).first()
+        if not review:
+            return jsonify({"success": False, "error": "Avaliação não encontrada."})
+        review_text = (review.text or "").strip()
+        reviewer_name = (review.reviewer_name or "Cliente").strip()
+        star_rating = review.rating or 5
+    else:
+        review_text = (data.get("review_text") or "").strip()
+        reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
+        try:
+            star_rating = int(data.get("star_rating") or 5)
+        except:
+            star_rating = 5
+
+    if not review_text:
+        return jsonify({"success": False, "error": "A avaliação está sem texto. A IA precisa ler os comentários."})
+
+    tone = (data.get("tone") or "profissional").strip().lower()
+    hiper_compreensiva = bool(data.get("hiper_compreensiva"))
+    consideracoes = (data.get("consideracoes") or "").strip()
+
+    if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
+        return jsonify({"success": False, "error": "limite diário de respostas hiper compreensivas atingido."})
+    if consideracoes and not usuario_pode_usar_consideracoes(user_id):
+        return jsonify({"success": False, "error": "limite diário de uso de contexto extra atingido."})
+
+    settings = get_user_settings(user_id)
+    idioma = settings.get("idioma_resposta", "Português (Brasil)")
+    
+    manager = (settings.get("manager_name") or "").strip()
+    business = (settings.get("business_name") or "").strip()
+    assinatura = f"{business}\n{manager}" if manager else business
+
+    contexto_da_ficha = ""
+    if review and review.google_location_id:
+        loc = GoogleLocation.query.filter_by(id=review.google_location_id).first()
+        if loc and getattr(loc, 'contexto_personalizado', None):
+            contexto_da_ficha = loc.contexto_personalizado
+
+    prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
+    
+    if contexto_da_ficha or settings.get("contexto_personalizado"):
+        prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
+        prompt += "Instrução: Use as informações abaixo APENAS se fizerem sentido e forem úteis para contextualizar a resposta ao comentário atual do cliente. Não force a inclusão destes dados se o assunto não tiver sido mencionado.\n"
+        if contexto_da_ficha:
+            prompt += f"- Contexto desta unidade local: {contexto_da_ficha}\n"
+        if settings.get("contexto_personalizado"):
+            prompt += f"- Diretrizes globais da marca: {settings['contexto_personalizado']}\n"
+        prompt += "---------------------------------------\n\n"
+
+    # 🚀 REGRA BLINDADA DO IDIOMA COM TRADUÇÃO REGIONAL
+    prompt += f"""AVALIAÇÃO RECEBIDA:
+- Cliente: {reviewer_name}
+- Nota: {star_rating} estrelas
+- Comentário: "{review_text}"
+
+REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
+1. IDIOMA OBRIGATÓRIO: A sua resposta final DEVE ser escrita INTEIRAMENTE em {idioma.upper()}. Adapte o vocabulário e a gramática para a região nativa deste idioma. É proibido usar outro idioma.
+2. TOM DE VOZ: A resposta deve ter um tom {tone}.
+"""
+    rule_n = 3
+    if consideracoes:
+        prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
+        rule_n += 1
+    
+    if settings.get('default_greeting'):
+        prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{settings['default_greeting']} {reviewer_name},\"\n"
+        rule_n += 1
+    if settings.get('default_closing'):
+        prompt += f"{rule_n}. DESPEDIDA: Finalize o texto exatamente com a frase \"{settings['default_closing']}\"\n"
+        rule_n += 1
+    if settings.get('contact_info'):
+        prompt += f"{rule_n}. CONTATO: Insira esta informação de contato no final: \"{settings['contact_info']}\"\n"
+        rule_n += 1
+        
+    prompt += f"""{rule_n}. ASSINATURA FINAL EXATA: Assine ao final exatamente assim:
+{assinatura}
+{rule_n+1}. TAMANHO E CONTEÚDO: Escreva entre 3 e 5 frases focadas no que o cliente disse. Nunca use a palavra "Atenciosamente".
+"""
+    if hiper_compreensiva:
+        prompt += f"\n🚨 ATENÇÃO - MODO HIPER COMPREENSIVO ATIVADO: Ignore a regra de tamanho acima. Escreva uma resposta longa, de 8 a 15 frases. Mostre escuta ativa profunda, empatia absoluta e responda detalhadamente a cada elogio ou crítica."
+
+    try:
+        completion = client.with_options(timeout=30.0).chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                # 🚀 INJEÇÃO DO IDIOMA DIRETO NO SUBCONSCIENTE DA IA
+                {"role": "system", "content": f"****** USE O IDIOMA A SEGUIR COMO IDIOMA NATIVO PARA RESPONDER A AVALIAÇÃO ****** Você é um especialista em sucesso do cliente NATIVO e FLUENTE em {idioma.upper()}. O SEU TEXTO DE SAÍDA DEVE SER 100% ESCRITO EM {idioma.upper()}."},
+                {"role": "user", "content": prompt},
+            ],
+        )
+
+        suggested_reply = (completion.choices[0].message.content or "").strip()
+        if not suggested_reply:
+            return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
+
+        if hiper_compreensiva:
+            registrar_uso_resposta_especial(user_id)
+        if consideracoes:
+            registrar_uso_consideracoes(user_id)
+
+        return jsonify({"success": True, "suggested_reply": suggested_reply})
+    except Exception:
+        logging.exception("suggest_reply: falha na IA")
+        return jsonify({"success": False, "error": "Erro de conexão com a Inteligência Artificial."})
+    
+    
 
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
 @require_terms_accepted
 @require_plano_ativo
 def add_review():
-    """Adiciona avaliação manualmente ou via robô; aplica limites do plano; gera resposta opcional com IA."""
     if "credentials" not in session:
         return redirect(url_for("authorize"))
 
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id")
     if not user_id:
-        flash("Erro ao identificar usuário. Por favor, faça login novamente.", "danger")
         return redirect(url_for("logout"))
 
     if request.method == "GET":
-        return render_template(
-            "add_review.html",
-            user=user_info,
-            now=datetime.now(),
-            user_plano=get_user_plan(user_id),
-            PLANOS=PLANOS,
-        )
+        return render_template("add_review.html", user=user_info, now=datetime.now(), user_plano=get_user_plan(user_id), PLANOS=PLANOS)
 
-    # ————— POST —————
-    # Aceita form ou JSON com fallback
     payload = request.get_json(silent=True) or request.form
 
     reviewer_name = (payload.get("reviewer_name") or "Cliente Anônimo").strip()[:120]
-    # rating: força int entre 1 e 5
-    try:
-        rating = int(payload.get("rating", 5))
-    except (TypeError, ValueError):
-        rating = 5
-    rating = max(1, min(5, rating))
+    rating = max(1, min(5, int(payload.get("rating", 5))))
+    text = (payload.get("text") or "").strip()[:5000]
 
-    text = (payload.get("text") or "").strip()
-    # Limites defensivos de tamanho para evitar abusos
-    if len(text) > 5000:
-        text = text[:5000]
+    hiper_compreensiva = str(payload.get("hiper_compreensiva", "")).lower() in {"on", "true", "1"}
+    consideracoes = (payload.get("consideracoes") or "").strip()[:1500]
 
-    hiper_compreensiva = str(payload.get("hiper_compreensiva", "")).lower() in {
-        "on",
-        "true",
-        "1",
-    }
-    consideracoes = (payload.get("consideracoes") or "").strip()
-    if len(consideracoes) > 1500:
-        consideracoes = consideracoes[:1500]
+    resposta_pre_gerada = (payload.get("generated_reply") or "").strip()
 
-    # BLOQUEIO POR PLANO - Limite de avaliações/mês
     if atingiu_limite_avaliacoes_mes(user_id):
-        msg = "Você atingiu o limite de avaliações do seu plano este mês."
-        if request.is_json:
-            return jsonify({"success": False, "error": msg}), 403
-        flash(msg, "warning")
-        return redirect(url_for("reviews"))
+        return jsonify({"success": False, "error": "Limite de avaliações atingido."}) if request.is_json else redirect(url_for("reviews"))
 
-    # BLOQUEIO POR PLANO - Resposta hiper
-    if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
-        msg = "Você atingiu o limite diário de respostas hiper compreensivas do seu plano."
-        if request.is_json:
-            return jsonify({"success": False, "error": msg}), 403
-        flash(msg, "warning")
-        return redirect(url_for("add_review"))
-
-    # Verifica duplicata simples (mesmo user, nome e texto)
-    existente = Review.query.filter_by(
-        user_id=user_id, reviewer_name=reviewer_name, text=text
-    ).first()
+    existente = Review.query.filter_by(user_id=user_id, reviewer_name=reviewer_name, text=text).first()
     if existente:
-        msg = "Avaliação já existente. Ignorada."
-        logging.info("add_review: duplicata ignorada (user=%s)", user_id)
-        if request.is_json:
-            return jsonify({"success": True, "message": msg})
-        flash(msg, "info")
-        return redirect(url_for("reviews"))
+        return jsonify({"success": True}) if request.is_json else redirect(url_for("reviews"))
 
-    # Configurações do usuário para template/assinatura
-    settings = get_user_settings(user_id)
-    manager = (settings.get("manager_name") or "").strip()
-    business = (settings.get("business_name") or "").strip()
-    assinatura = f"{business}\n{manager}".strip() if manager else business
+    resposta_gerada = resposta_pre_gerada
+    replied_flag = False
 
-    # 1. ✅ CORREÇÃO: Inicializa o prompt e adiciona o contexto PRIMEIRO
-    prompt = ""
+    if resposta_gerada:
+        replied_flag = True
+    else:
+        settings = get_user_settings(user_id)
+        idioma = settings.get("idioma_resposta", "Português (Brasil)")
+        
+        manager = (settings.get("manager_name") or "").strip()
+        business = (settings.get("business_name") or "").strip()
+        assinatura = f"{business}\n{manager}" if manager else business
 
-    if settings.get("contexto_personalizado"):
-        contexto = settings["contexto_personalizado"].strip()
-        # Adiciona o contexto no INÍCIO do prompt com uma instrução forte
-        prompt += "🚨 INSTRUÇÃO CRÍTICA: O contexto da empresa abaixo é PRIORIDADE MÁXIMA na personalização da resposta.\n"
-        prompt += f"Contexto da empresa: {contexto}\n\n"
-        prompt += "INSTRUÇÃO CRÍTICA: Use o contexto da empresa fornecido acima com PRIORIDADE MÁXIMA."
-        prompt += "\n\n"
-    # 2. ✅ Continua o prompt com o texto principal, usando +=
-    # O restante do prompt agora usa += para garantir que o contexto não seja apagado.
-    prompt += (
-        f"Você é um assistente especializado em atendimento ao cliente e deve escrever "
-        f'uma resposta personalizada para uma avaliação recebida por "{business}".\n'
-        f"Avaliação recebida:\n"
-        f"- Nome do cliente: {reviewer_name}\n"
-        f"- Nota: {rating} estrelas\n"
-        f'- Texto: "{text}"\n'
-    )
+        prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
+        
+        if settings.get("contexto_personalizado"):
+            prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
+            prompt += "Instrução: Use as informações abaixo APENAS se fizerem sentido e forem úteis para contextualizar a resposta ao comentário atual do cliente. Não force a inclusão destes dados se o assunto não tiver sido mencionado.\n"
+            prompt += f"- Diretrizes globais da marca: {settings['contexto_personalizado']}\n"
+            prompt += "---------------------------------------\n\n"
 
-    if consideracoes:
-        prompt += (
-            "\nIMPORTANTE: O usuário forneceu as seguintes considerações para personalizar a resposta. "
-            "Use essas informações com prioridade:\n"
-            f'"{consideracoes}"\n'
-        )
-        registrar_uso_consideracoes(user_id)
+        # 🚀 REGRA BLINDADA DO IDIOMA
+        prompt += f"""AVALIAÇÃO RECEBIDA:
+- Cliente: {reviewer_name}
+- Nota: {rating} estrelas
+- Comentário: "{text}"
 
-    prompt += (
-        "\nInstruções:\n"
-        f'- Comece com: "{settings["default_greeting"]} {reviewer_name},"'
-        "\n- Use palavras naturais e humanas, evite jargões."
-        "\n- Comente os pontos mencionados, usando palavras diferentes."
-        "\n- Se a nota for de 1 a 3, demonstre empatia, peça desculpas e ofereça uma solução."
-        "\n- Se a nota for de 4 ou 5, agradeça e convide para retornar."
-        f'\n- Finalize com: "{settings["default_closing"]}"'
-        f'\n- Inclua as informações de contato: "{settings["contact_info"]}"'
-        "\n- Assine ao final exatamente assim, cada item em uma linha:"
-        f"\n{assinatura}"
-        '\n- Não use cargos, não use "Atenciosamente", apenas os nomes.'
-        "\n- A resposta deve ter entre 3 e 5 frases, ser personalizada e evitar frases genéricas, uso de travessoes e texto com caracteriscas mais humanas possiveis."
-    )
+REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
+1. IDIOMA OBRIGATÓRIO: A sua resposta final DEVE ser escrita INTEIRAMENTE em {idioma.upper()}. Adapte o vocabulário e a gramática para a região nativa deste idioma. É proibido usar outro idioma.
+2. TOM DE VOZ: A resposta deve ter um tom Profissional e Empático.
+"""
+        rule_n = 3
+        if consideracoes:
+            prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
+            rule_n += 1
+        
+        if settings.get('default_greeting'):
+            prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{settings['default_greeting']} {reviewer_name},\"\n"
+            rule_n += 1
+        if settings.get('default_closing'):
+            prompt += f"{rule_n}. DESPEDIDA: Finalize o texto exatamente com a frase \"{settings['default_closing']}\"\n"
+            rule_n += 1
+        if settings.get('contact_info'):
+            prompt += f"{rule_n}. CONTATO: Insira esta informação de contato no final: \"{settings['contact_info']}\"\n"
+            rule_n += 1
+            
+        prompt += f"""{rule_n}. ASSINATURA FINAL EXATA: Assine ao final exatamente assim:
+{assinatura}
+{rule_n+1}. TAMANHO E CONTEÚDO: Escreva entre 3 e 5 frases focadas no que o cliente disse. Nunca use a palavra "Atenciosamente".
+"""
+        if hiper_compreensiva:
+            prompt += f"\n🚨 ATENÇÃO - MODO HIPER COMPREENSIVO ATIVADO: Ignore a regra de tamanho acima. Escreva uma resposta longa, de 8 a 15 frases. Mostre escuta ativa profunda, empatia absoluta e responda detalhadamente a cada elogio ou crítica."
 
-    if hiper_compreensiva:
-        prompt += (
-            "\n\nGere uma resposta mais longa, empática e detalhada. Use de 10 a 15 frases. "
-            "Mostre escuta ativa, reconhecimento das críticas e profissionalismo elevado. "
-            "Responda cuidadosamente aos principais pontos levantados pelo cliente."
-        )
+        try:
+            completion = client.with_options(timeout=30.0).chat.completions.create(
+                model="gpt-4o-mini", 
+                messages=[
+                    # 🚀 INJEÇÃO DO IDIOMA DIRETO NO SUBCONSCIENTE DA IA
+                    {"role": "system", "content": f"******USE O IDIOMA A SEGUIR COMO LINGUA NATIVA PARA RESPOSTA DA AVALIAÇÃO****** Você é um especialista em sucesso do cliente NATIVO e FLUENTE em {idioma.upper()}. O SEU TEXTO DE SAÍDA DEVE SER 100% ESCRITO EM {idioma.upper()}."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            resposta_gerada = (completion.choices[0].message.content or "").strip()
+            replied_flag = bool(resposta_gerada)
+            if hiper_compreensiva and replied_flag: registrar_uso_resposta_especial(user_id)
+            if consideracoes and replied_flag: registrar_uso_consideracoes(user_id)
+        except Exception:
+            logging.exception("add_review: falha na IA")
 
-    # Geração de resposta (melhor tratamento de erro)
-    resposta_gerada = ""
-    try:
-        completion = client.with_options(timeout=30.0).chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Você é um assistente cordial, objetivo e empático para atendimento ao cliente.",
-                },
-                {"role": "user", "content": prompt},
-            ],  # defensivo
-        )
-        resposta_gerada = (completion.choices[0].message.content or "").strip()
-    except Exception:
-        logging.exception("add_review: falha ao gerar resposta automática")
-
-    # Não marcar como 'replied' se a IA falhar
-    replied_flag = bool(resposta_gerada)
-
-    # Persistência
     try:
         new_review = Review(
-            user_id=user_id,
-            reviewer_name=reviewer_name,
-            rating=rating,
-            text=text,
-            date=agora_brt(),
-            reply=resposta_gerada,
+            user_id=user_id, 
+            reviewer_name=reviewer_name, 
+            rating=rating, 
+            text=text, 
+            date=agora_brt(), 
+            reply=resposta_gerada, 
             replied=replied_flag,
+            source="manual"
         )
         db.session.add(new_review)
-
-        if hiper_compreensiva and replied_flag:
-            # só registra uso se de fato gerou algo
-            registrar_uso_resposta_especial(user_id)
-
         db.session.commit()
-        logging.info(
-            "add_review: review salva (user=%s, replied=%s)", user_id, replied_flag
-        )
-    except SQLAlchemyError:
+    except Exception:
         db.session.rollback()
-        logging.exception("add_review: erro ao salvar avaliação")
-        if request.is_json:
-            return (
-                jsonify({"success": False, "error": "Erro ao salvar a avaliação."}),
-                500,
-            )
-        flash("Erro ao salvar a avaliação.", "danger")
-        return redirect(url_for("reviews"))
 
     if request.is_json:
         return jsonify({"success": True, "replied": replied_flag})
     else:
         flash("Avaliação adicionada com sucesso!", "success")
         return redirect(url_for("reviews"))
+    
     
 @app.route("/save_reply", methods=["POST"])
 @limiter.limit("10 per minute")
@@ -2846,11 +2750,13 @@ def settings():
 
         settings_data = {
             "business_name": cap(request.form.get("company_name"), 200),
-            "default_greeting": cap(request.form.get("default_greeting"), 120) or "Olá,",
-            "default_closing": cap(request.form.get("default_closing"), 240) or "Agradecemos seu feedback!",
+            "default_greeting": cap(request.form.get("default_greeting"), 120), # 🚀 REMOVIDO O 'or "Olá,"'
+            "default_closing": cap(request.form.get("default_closing"), 240),   # 🚀 REMOVIDO O 'or "Agradecemos..."'
             "contact_info": cap(request.form.get("contact_info"), 500),
             "terms_accepted": request.form.get("terms_accepted"),
             "manager_name": cap(request.form.get("manager_name"), 200),
+            "idioma_resposta": request.form.get("idioma_resposta"),
+            "contexto_personalizado": request.form.get("contexto_personalizado")
         }
 
         # Logo (imagem) — valida extensão, mimetype e tamanho

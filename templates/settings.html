@@ -47,14 +47,14 @@
     font-size: 0.9rem;
     margin-bottom: 6px;
   }
-  .form-control {
+  .form-control, .form-select {
     border-radius: 10px;
     border: 1px solid #cbd5e1;
     padding: 12px 15px;
     font-size: 0.95rem;
     transition: all 0.2s;
   }
-  .form-control:focus {
+  .form-control:focus, .form-select:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
@@ -135,6 +135,9 @@
       
       <form method="POST" enctype="multipart/form-data" id="settingsForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <!-- CAMPO INVISÍVEL QUE ESPELHA A CAIXA DE CONTEXTO DO MODAL -->
+        <input type="hidden" name="contexto_personalizado" id="hidden_contexto" value="{{ settings.contexto_personalizado or '' }}">
 
         <div class="card-settings">
           <div class="card-header-clean">
@@ -144,14 +147,26 @@
             
             <div class="row g-3 mb-4">
               <div class="col-md-6">
-                <label class="form-label">Nome da Empresa</label>
+                <label class="form-label">Nome da Empresa <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" name="company_name" id="company_name" 
                        value="{{ settings.business_name }}" placeholder="Ex: Pizzaria Bella Napoli" required>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Nome do Responsável</label>
+                <label class="form-label">Nome do Responsável <span class="text-muted fw-normal">(Opcional)</span></label>
                 <input type="text" class="form-control" name="manager_name" id="manager_name"
                        value="{{ settings.manager_name or '' }}" placeholder="Ex: João Silva">
+              </div>
+
+              <!-- Seletor de Idioma -->
+              <div class="col-md-12 mt-3">
+                  <label class="form-label fw-semibold"><i class="bi bi-globe me-2 text-primary"></i>Idioma das Respostas</label>
+                  <select class="form-select" name="idioma_resposta">
+                      <option value="Português (Brasil)" {% if settings.idioma_resposta == 'Português (Brasil)' %}selected{% endif %}>Português (Brasil)</option>
+                      <option value="Português (Portugal)" {% if settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>Português (Portugal)</option>
+                      <option value="Inglês (Estados Unidos)" {% if settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>Inglês (EUA)</option>
+                      <option value="Espanhol" {% if settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>Espanhol</option>
+                  </select>
+                  <div class="form-text">A Inteligência Artificial vai ler a avaliação e gerar o texto neste idioma.</div>
               </div>
             </div>
 
@@ -176,21 +191,21 @@
 
             <div class="row g-3">
               <div class="col-md-12">
-                <label class="form-label">Saudação Inicial</label>
+                <label class="form-label">Saudação Inicial <span class="text-muted fw-normal">(Opcional)</span></label>
                 <input type="text" class="form-control" id="default_greeting" name="default_greeting"
-                       value="{{ settings.default_greeting }}" placeholder="Ex: Olá," required>
+                       value="{{ settings.default_greeting }}" placeholder="Ex: Olá,">
               </div>
               
               <div class="col-md-12">
-                <label class="form-label">Despedida Padrão</label>
+                <label class="form-label">Despedida Padrão <span class="text-muted fw-normal">(Opcional)</span></label>
                 <textarea class="form-control" id="default_closing" name="default_closing" rows="2"
-                          required>{{ settings.default_closing }}</textarea>
+                          placeholder="Ex: Agradecemos muito pelo seu feedback!">{{ settings.default_closing }}</textarea>
               </div>
 
               <div class="col-md-12">
-                <label class="form-label">Assinatura / Contato</label>
+                <label class="form-label">Assinatura / Contato <span class="text-muted fw-normal">(Opcional)</span></label>
                 <input type="text" class="form-control" id="contact_info" name="contact_info"
-                       value="{{ settings.contact_info }}" placeholder="Ex: (11) 99999-9999 | www.site.com" required>
+                       value="{{ settings.contact_info }}" placeholder="Ex: (11) 99999-9999 | www.site.com">
               </div>
             </div>
 
@@ -267,7 +282,9 @@
             <div class="preview-box">
               <p class="small text-muted mb-2 text-center">Como sua resposta aparecerá:</p>
               <div class="preview-bubble">
-                <p class="mb-2 fw-bold text-dark" id="preview-greeting-text">{{ settings.default_greeting }} [Nome do Cliente],</p>
+                <p class="mb-2 fw-bold text-dark" id="preview-greeting-text">
+                  {% if settings.default_greeting %}{{ settings.default_greeting }} {% endif %}[Nome do Cliente],
+                </p>
                 <p class="text-muted fst-italic mb-3 small">
                   "Obrigado pela sua avaliação! Ficamos muito felizes em saber que gostou da experiência..."
                   <br>(Texto gerado pela IA)
@@ -326,9 +343,21 @@
           </div>
         {% else %}
           <label class="form-label text-muted small fw-bold text-uppercase">Instruções para a IA</label>
-          <textarea class="form-control bg-light border-0 p-3" id="contexto_personalizado_input" rows="6" 
-                    placeholder="Ex: Somos uma padaria tradicional fundada em 1990. Nosso tom é acolhedor e familiar. Nunca use gírias modernas.">{{ settings.contexto_personalizado or '' }}</textarea>
-          <div class="form-text mt-2">Isso ajuda a IA a escrever como se fosse você.</div>
+          
+          <!-- 🚀 ONINPUT ESPELHA PARA O HIDDEN E ATUALIZA O CONTADOR, MAXLENGTH BLOQUEIA EXCESSO -->
+          <textarea class="form-control bg-light border-0 p-3" id="contexto_personalizado_input" rows="6" maxlength="500"
+                    placeholder="Ex: Somos uma padaria tradicional fundada em 1990. Nosso tom é acolhedor e familiar. Nunca use gírias modernas."
+                    oninput="
+                        document.getElementById('hidden_contexto').value = this.value;
+                        document.getElementById('contexto-contador').innerText = this.value.length + '/500';
+                    ">{{ settings.contexto_personalizado or '' }}</textarea>
+          
+          <div class="d-flex justify-content-between align-items-center mt-2">
+              <div class="form-text mb-0">Isso ajuda a IA a escrever como se fosse você.</div>
+              <small class="text-muted fw-bold" id="contexto-contador">
+                  {{ (settings.contexto_personalizado or '')|length }}/500
+              </small>
+          </div>
         {% endif %}
       </div>
       
@@ -372,8 +401,7 @@ function getCSRF() {
 
 // --- FUNÇÃO AUXILIAR: GERAR CÓDIGO ALEATÓRIO ---
 function gerarCodigoAleatorio() {
-    // Gera uma string aleatória de 4 caracteres (ex: "A7B9", "X2Z1")
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Sem I, 1, O, 0 para evitar confusão
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; 
     let result = "";
     for (let i = 0; i < 4; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -387,7 +415,19 @@ fields.forEach(id => {
   const el = document.getElementById(id);
   if(el) {
     el.addEventListener('input', () => {
-      document.getElementById(id.replace('default_', 'preview-').replace('contact_info', 'preview-contact') + '-text').innerText = el.value;
+      let val = el.value;
+      if (id === 'default_greeting' && val.trim() !== '') {
+          val = val + ' ';
+      }
+      const previewId = id.replace('default_', 'preview-').replace('contact_info', 'preview-contact') + '-text';
+      const previewEl = document.getElementById(previewId);
+      if(previewEl) {
+          if(id === 'default_greeting') {
+              previewEl.innerText = val ? val + '[Nome do Cliente],' : '[Nome do Cliente],';
+          } else {
+              previewEl.innerText = val;
+          }
+      }
     });
   }
 });
@@ -430,41 +470,18 @@ document.getElementById('settingsForm').onsubmit = async function(e) {
   }
 };
 
-// --- SALVAR CONTEXTO IA ---
+// --- SALVAR CONTEXTO IA NO MODAL (SALVA TUDO JUNTO) ---
 const btnCtx = document.getElementById('btnSalvarContexto');
 if(btnCtx) {
-    btnCtx.addEventListener('click', async () => {
-        const texto = document.getElementById('contexto_personalizado_input').value;
-        btnCtx.disabled = true;
-        btnCtx.innerText = 'Salvando...';
-        
-        try {
-            const res = await fetch('/settings/contexto', { 
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCSRF() 
-                },
-                body: new URLSearchParams({ contexto_personalizado: texto })
-            });
-            const data = await res.json();
-            
-            if(data.success) {
-                showToast('Cérebro da IA atualizado!', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('modalContextoIA')).hide();
-            } else {
-                showToast('Erro ao salvar contexto.', 'error');
-            }
-        } catch(e) {
-            showToast('Erro de conexão.', 'error');
-        } finally {
-            btnCtx.disabled = false;
-            btnCtx.innerText = 'Salvar Contexto';
-        }
+    btnCtx.addEventListener('click', () => {
+        // Apenas fecha o modal e clica no botão principal de salvar
+        bootstrap.Modal.getInstance(document.getElementById('modalContextoIA')).hide();
+        const formSubmitBtn = document.getElementById('btnSaveSettings');
+        if(formSubmitBtn) formSubmitBtn.click();
     });
 }
 
-// --- ❌ CANCELAR ASSINATURA COM CONFIRMAÇÃO ALEATÓRIA ---
+// --- ❌ CANCELAR ASSINATURA ---
 function confirmarCancelamentoAssinatura() {
     const codigoConfirmacao = gerarCodigoAleatorio();
 
@@ -526,7 +543,7 @@ function confirmarCancelamentoAssinatura() {
     })
 }
 
-// --- ❌ EXCLUIR CONTA COM CONFIRMAÇÃO ALEATÓRIA ---
+// --- ❌ EXCLUIR CONTA ---
 function confirmarExclusaoConta() {
     const codigoConfirmacao = gerarCodigoAleatorio();
 

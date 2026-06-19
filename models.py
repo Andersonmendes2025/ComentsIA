@@ -108,8 +108,11 @@ class UserSettings(db.Model):
     stripe_subscription_id = db.Column(db.String(255), nullable=True)
     stripe_subscription_item_id = db.Column(db.String(255), nullable=True)
     gbp_slots_extras = db.Column(db.Integer, default=0)
-    is_parent = db.Column(db.Boolean, default=False)       
+    is_parent = db.Column(db.Boolean, default=False)
     parent_user_id = db.Column(db.String(150), nullable=True)
+    
+    # 👇 NOVA COLUNA ADICIONADA AQUI 👇
+    idioma_resposta = db.Column(db.String(50), default="Português (Brasil)")
 
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
