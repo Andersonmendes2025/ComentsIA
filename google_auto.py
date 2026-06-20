@@ -179,16 +179,27 @@ def escolher_ficha_google():
 
         # se já está usando todos os slots, precisa comprar add-on
             # 4. Se já está usando todos os slots
+        # Se já está usando todos os slots
         if fichas_ativas_count >= total_slots:
-            # 4.1. Sem assinatura Stripe → manda o usuário para a tela de planos
-            if not settings or not settings.stripe_subscription_id:
-                upgrade_url = url_for("planos")  # página de planos do app
+            plano_atual = (settings.plano if settings else "free").lower()
+            
+            # 4.1 Se for Free, manda pra tela de planos fazer o upgrade principal
+            if plano_atual == "free":
                 return jsonify({
                     "success": False,
                     "upgrade_required": True,
-                    "upgrade_url": upgrade_url,
-                    "message": "Para ativar mais locais, contrate um plano Pro ou Business.",
+                    "upgrade_url": url_for("planos"),
+                    "message": "Para ativar automação, contrate um plano Pro ou Business.",
                 }), 402
+
+            # 4.2 Se for Pro/Business, abre o Modal para comprar o Slot Extra
+            return jsonify({
+                "success": False,
+                "payment_required": True,
+                "message": "Você já atingiu o limite de fichas. Contrate um slot extra.",
+                "price_fmt": PRECO_ADDON_FMT,
+                "location_name": ficha_alvo.location_name,
+            }), 402
 
             # 4.2. Há assinatura Stripe → front mostra modal de slot extra (add-on)
             return jsonify({

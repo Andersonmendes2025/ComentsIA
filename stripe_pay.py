@@ -269,8 +269,35 @@ def create_checkout(product_key):
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 400
+    
 
+@stripe_bp.route("/checkout/adicionar-ficha", methods=["POST"])
+def checkout_adicionar_ficha():
+    user_info = session.get("user_info", {})
+    user_id = user_info.get("id")
+    email = user_info.get("email")
+    settings = UserSettings.query.filter_by(user_id=user_id).first()
+    
+    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") 
 
+    # Garante que o cliente existe no Stripe
+    customer_id = _get_or_create_stripe_customer(settings, email)
+
+    # 🚀 GERA A SESSÃO DO CHECKOUT NO STRIPE
+    checkout = stripe.checkout.Session.create(
+        mode="subscription",
+        customer=customer_id,
+        line_items=[{"price": price_id, "quantity": 1}],
+        success_url=_get_domain_url() + "/auto/locations",
+        cancel_url=_get_domain_url() + "/auto/locations",
+        client_reference_id=user_id
+    )
+    
+    # 🚀 CORREÇÃO AQUI: Em vez de jsonify, usamos redirect para forçar o navegador a ir pro Stripe
+    return redirect(checkout.url, code=303)
+    
+    # Retorna a URL para o HTML redirecionar a tela
+    return jsonify({"success": True, "checkout_url": checkout.url})
 @stripe_bp.route("/success")
 def success():
     session_id = request.args.get("session_id")
@@ -338,26 +365,31 @@ def stripe_webhook():
         # Se a assinatura não bater ou o payload estiver errado, retorna 400
         return jsonify({"error": str(e)}), 400
 
-    # ✅ Pagamento de fatura de assinatura (renovação/mensalidade/anual)
+    # 🚀 O BLOCO NOVO FICA AQUI:
+    # ✅ Pagamento de fatura de assinatura (renovação/mensalidade ou compra de slot extra)
     if event["type"] == "invoice.payment_succeeded":
         invoice = event["data"]["object"]
         sub_id = invoice.get("subscription")
+        customer_id = invoice.get("customer")
 
-        if sub_id:
-            settings = UserSettings.query.filter_by(stripe_subscription_id=sub_id).first()
+        if customer_id:
+            settings = UserSettings.query.filter_by(stripe_customer_id=customer_id).first()
             if settings:
-                # Atualiza validade do plano com base no período atual da assinatura
-                sub = stripe.Subscription.retrieve(sub_id)
-                settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
+                # Se for a assinatura principal, atualiza a validade do plano
+                if sub_id and settings.stripe_subscription_id == sub_id:
+                    sub = stripe.Subscription.retrieve(sub_id)
+                    settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
 
-                # 🔄 Sincroniza quantidade de ADD-ON (slots extras)
+                # 🔄 CONTA TODOS OS SLOTS EXTRAS ATIVOS DO CLIENTE
+                # Isso impede erros caso o slot extra seja uma assinatura separada no Stripe
+                subs = stripe.Subscription.list(customer=customer_id, status="active")
                 addon_qty = 0
-                for item in sub["items"]["data"]:
-                    if item.price.id == STRIPE_ADDON_PRICE_ID:
-                        addon_qty = item.quantity
+                for s in subs.auto_paging_iter():
+                    for item in s["items"]["data"]:
+                        if item.price.id == STRIPE_ADDON_PRICE_ID:
+                            addon_qty += item.quantity
 
                 settings.gbp_slots_extras = addon_qty
-
                 db.session.commit()
 
     # ❌ Assinatura cancelada (Stripe encerrou mesmo, não é só cancel_at_period_end)

@@ -684,7 +684,6 @@ from markupsafe import escape
 
 
 
-
 @app.route("/planos", methods=["GET"])
 def planos():
     user_info = session.get("user_info")
@@ -699,26 +698,28 @@ def planos():
 
     # Se não tiver settings → define como free
     user_plano = settings.plano if settings else "free"
+    
+    # 🚀 DEFINIÇÃO DA VARIÁVEL PARA O TEMPLATE
+    is_free_plan = (user_plano == "free")
 
     # Pega preços direto do admin
     pricing = get_pricing_catalog()  # já retorna price_cents e currency
 
     # Junta limitações + preços
     planos = {
-        "free": {**PLANOS["free"], **pricing["free"]},
-        "pro": {**PLANOS["pro"], **pricing["pro"]},
-        "pro_anual": {**PLANOS["pro_anual"], **pricing["pro_anual"]},
-        "business": {**PLANOS["business"], **pricing["business"]},
-        "business_anual": {**PLANOS["business_anual"], **pricing["business_anual"]},
+        "free": {**PLANOS["free"], **pricing.get("free", {})},
+        "pro": {**PLANOS["pro"], **pricing.get("pro", {})},
+        "pro_anual": {**PLANOS["pro_anual"], **pricing.get("pro_anual", {})},
+        "business": {**PLANOS["business"], **pricing.get("business", {})},
+        "business_anual": {**PLANOS["business_anual"], **pricing.get("business_anual", {})},
     }
 
     return render_template(
         "planos.html",
         user_plano=user_plano,
-        planos=planos
+        planos=planos,
+        is_free_plan=is_free_plan # 🚀 Passando para o template
     )
-
-
 
 # main.py (Adicione esta função, por exemplo, após calcular_projecao)
 

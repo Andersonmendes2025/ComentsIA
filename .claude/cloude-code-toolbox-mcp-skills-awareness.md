@@ -1,6 +1,6 @@
 # Cloude Code ToolBox — MCP & Skills awareness
 
-_Generated: 2026-06-19T15:37:57.940Z_
+_Generated: 2026-06-20T19:43:05.742Z_
 
 ## How to use this report
 
@@ -21,7 +21,7 @@ _No active workspace servers in mcp.json._
 
 ## MCP — user profile
 
-- **C:\Users\Anderson Mendes\.claude.json** — _File missing_
+- **C:\Users\Anderson Mendes\.claude.json** — _File exists — no servers defined_
 
 _No active user-scoped servers in mcp.json._
 
