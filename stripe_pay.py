@@ -404,6 +404,29 @@ def stripe_webhook():
             settings.stripe_subscription_item_id = None
             settings.gbp_slots_extras = 0
             db.session.commit()
+    # ❌ Pagamento Falhou (Dispara e-mail Imediato de falha no cartão)
+    if event["type"] == "invoice.payment_failed":
+        invoice = event["data"]["object"]
+        customer_id = invoice.get("customer")
+        ext_id = invoice.get("id")
 
+        if customer_id:
+            settings = UserSettings.query.filter_by(stripe_customer_id=customer_id).first()
+            if settings:
+                from admin import _send_billing_email
+                from models import BillingEvent, db
+                
+                # Registra o evento de falha no banco
+                ev = BillingEvent.query.filter_by(event="payment_failed", external_id=ext_id).first()
+                if not ev:
+                    ev = BillingEvent(user_id=settings.user_id, event="payment_failed", external_id=ext_id)
+                    db.session.add(ev)
+                    db.session.commit()
+                
+                # Dispara e-mail no minuto em que o Stripe avisar que recusou
+                if not getattr(ev, 'handled_immediate', False):
+                    _send_billing_email(settings.user_id, "billing_failed_immediate", ev.id)
+                    ev.handled_immediate = True
+                    db.session.commit()
     # Stripe só precisa saber que você recebeu o evento
     return jsonify({"status": "ok"})

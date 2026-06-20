@@ -21,12 +21,10 @@ from flask import (
 )
 from sqlalchemy import and_, func, or_
 
-# ====== EMAILS (usa teu utilitário existente) ======
-from email_utils import enviar_email  # usa SMTP configurado no projeto
+# ====== EMAILS ======
+from email_utils import enviar_email
 
-# ====== MODELOS EXISTENTES DO PROJETO ======
-# (integra com seu app)
-# admin.py — imports (substitua seu bloco atual de models por este)
+# ====== MODELOS ======
 from models import (
     Activity,
     AdminActionLog,
@@ -53,24 +51,13 @@ from models import (
 )
 
 
-# -----------------------------------------------------------------------------
-# Helpers de tempo (BRT)
-# -----------------------------------------------------------------------------
 def agora_brt():
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
 
 
-# -----------------------------------------------------------------------------
-# Blueprint
-# -----------------------------------------------------------------------------
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-# -----------------------------------------------------------------------------
-# RBAC: Papéis + Permissões granulares (ler/editar por recurso)
-# -----------------------------------------------------------------------------
 
-
-# Helpers de permissão
 def _get_current_user_id():
     info = session.get("user_info") or {}
     return info.get("id")
@@ -100,24 +87,15 @@ def _perm_level_to_int(level: str) -> int:
     return {"none": 0, "read": 1, "write": 2}.get((level or "none").lower(), 0)
 
 
-def _best_level(level_a: str, level_b: str) -> str:
-    # retorna o "maior" nível
-    la, lb = _perm_level_to_int(level_a), _perm_level_to_int(level_b)
-    return level_a if la >= lb else level_b
-
-
 def permission_level_for(user_id: str, perm: str) -> str:
-    # Admin sempre full
     role_key = _user_role_key(user_id) or ""
     if role_key == "admin":
         return "write"
 
-    # Override por usuário?
     uo = UserPermissionOverride.query.filter_by(user_id=user_id, perm=perm).first()
     if uo:
         return uo.level
 
-    # Nível do papel
     rp = (
         db.session.query(RolePermission.level)
         .join(Role, Role.id == RolePermission.role_id)
@@ -152,13 +130,6 @@ def require_perm(perm: str, mode: str = "read"):
     return deco
 
 
-# -----------------------------------------------------------------------------
-# Modelos Financeiros / CRM-Lite
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-# Pricing centralizado + cache
-# -----------------------------------------------------------------------------
 PLAN_KEYS = ["free", "pro", "pro_anual", "business", "business_anual"]
 
 
@@ -191,16 +162,11 @@ def invalidate_price_cache():
 
 def format_brl_cents(cents: int) -> str:
     try:
-        return (
-            f"R$ {cents/100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        )
+        return f"R$ {cents/100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return f"R$ {cents/100:.2f}"
 
 
-# -----------------------------------------------------------------------------
-# Métricas (Dia / MTD / YTD + por plano + séries 12m)
-# -----------------------------------------------------------------------------
 def month_floor(dt: datetime) -> datetime:
     return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -250,14 +216,13 @@ def period_paid_by_plan(start: datetime, end: datetime) -> Dict[str, int]:
 
 
 def _active_clients_at(end: datetime) -> int:
-    # ativos = plano != 'free' e plano_ate >= end
     try:
         return (
             UserSettings.query.filter(UserSettings.plano != "free")
             .filter(UserSettings.plano_ate != None)
             .filter(UserSettings.plano_ate >= end)
             .count()
-        )  # noqa
+        )
     except Exception:
         return 0
 
@@ -287,7 +252,6 @@ def calc_adjustments(start: datetime, end: datetime, gross_cents: int):
                 else:
                     cost_cents += part
             elif it.method == "fixed" and it.amount_cents:
-                # alocar em 1 mês (recorrência mensal — soma integral)
                 if it.kind == "tax":
                     tax_cents += int(it.amount_cents)
                 else:
@@ -307,7 +271,6 @@ def calc_adjustments(start: datetime, end: datetime, gross_cents: int):
 
 
 def avg_ticket(start: datetime, end: datetime) -> int:
-    # média por transação (bruto / n_transações)
     total = period_paid_sum(start, end)
     n = (
         db.session.query(func.count(PaymentTransaction.id))
@@ -323,7 +286,6 @@ def avg_ticket(start: datetime, end: datetime) -> int:
 
 
 def arpu_mtd(end: datetime) -> int:
-    # ARPU do mês corrente até agora
     start_m = month_floor(end)
     total = period_paid_sum(start_m, end)
     ativos = _active_clients_at(end)
@@ -331,19 +293,14 @@ def arpu_mtd(end: datetime) -> int:
 
 
 def cost_per_customer(start: datetime, end: datetime) -> int:
-    # custo médio por cliente (impostos + custos / ativos)
     total = calc_adjustments(start, end, period_paid_sum(start, end))
     ativos = _active_clients_at(end)
     return int((total["tax_cents"] + total["cost_cents"]) / ativos) if ativos else 0
 
 
-# -----------------------------------------------------------------------------
-# ROTAS: Dashboard
-# -----------------------------------------------------------------------------
 @admin_bp.route("/", methods=["GET"])
 @require_perm("dashboard.view", "read")
 def dashboard():
-    # KPIs simples (ativos, inadimplentes) + tabelas no template
     now = agora_brt()
     try:
         ativos = UserSettings.query.filter(
@@ -383,7 +340,6 @@ def metrics_json():
     adj_mtd = calc_adjustments(start_m, now, gross_mtd)
     adj_ytd = calc_adjustments(start_y, now, gross_ytd)
 
-    # séries 12 meses (bruto x líquido)
     months = last_n_month_starts(12, now)
     series = []
     for m0 in months:
@@ -430,9 +386,6 @@ def metrics_json():
     return jsonify(data)
 
 
-# -----------------------------------------------------------------------------
-# Pricing editor
-# -----------------------------------------------------------------------------
 @admin_bp.route("/pricing", methods=["GET", "POST"])
 @require_perm("pricing.view", "read")
 def pricing():
@@ -464,18 +417,17 @@ def pricing():
         invalidate_price_cache()
         flash("Preços atualizados.", "success")
         return redirect(url_for("admin.pricing"))
-    # adicionando os preços históricos no HTML
     return render_template(
         "admin_pricing.html",
         prices=get_plan_prices(),
         planos=get_pricing_catalog(),
-        historical=get_historical_sync_prices(),   # ⭐ ADICIONADO
+        historical=get_historical_sync_prices(),
         fmt=format_brl_cents,
     )
 
 
 @admin_bp.route("/coupons/create", methods=["POST"])
-@admin_bp.route("/coupons", methods=["POST"])  # compat: POST direto na list
+@admin_bp.route("/coupons", methods=["POST"])
 @require_perm("coupons.edit", "write")
 def coupon_create():
     code = (request.form.get("code") or "").upper().strip()
@@ -494,7 +446,7 @@ def coupon_create():
     c = Coupon(
         code=code,
         description=description or None,
-        discount_type=discount_type,  # 'percent' | 'fixed'
+        discount_type=discount_type,
         discount_value=discount_value,
         recurring=recurring,
         active=True,
@@ -528,9 +480,95 @@ def coupon_create():
     return redirect(url_for("admin.coupons"))
 
 
-# -----------------------------------------------------------------------------
-# Finance: impostos/custos (CRUD)
-# -----------------------------------------------------------------------------
+def _as_bool(v) -> bool:
+    return str(v).strip().lower() in ("on", "1", "true", "yes", "y")
+
+
+@admin_bp.route("/coupons", methods=["GET"])
+@require_perm("coupons.view", "read")
+def coupons():
+    coupons = Coupon.query.order_by(Coupon.code).all()
+    return render_template("admin_coupons.html", coupons=coupons)
+
+
+@admin_bp.route("/coupons/<int:coupon_id>/edit", methods=["GET", "POST"])
+@require_perm("coupons.edit", "write")
+def coupon_edit(coupon_id):
+    c = Coupon.query.get_or_404(coupon_id)
+    if request.method == "POST":
+        c.description = (request.form.get("description") or "").strip() or None
+        c.discount_type = (request.form.get("discount_type") or "").strip()
+        c.discount_value = int(request.form.get("discount_value") or 0)
+
+        max_uses_raw = request.form.get("max_uses")
+        try:
+            max_uses = (
+                int(max_uses_raw)
+                if max_uses_raw not in (None, "")
+                else None
+            )
+            c.max_uses = None if (max_uses is None or max_uses == 0) else max_uses
+        except Exception:
+            c.max_uses = None
+
+        c.recurring = _as_bool(request.form.get("recurring"))
+        c.active = _as_bool(request.form.get("active"))
+
+        vf = request.form.get("valid_from")
+        vu = request.form.get("valid_until")
+        try:
+            c.valid_from = datetime.fromisoformat(vf) if vf else None
+            c.valid_until = datetime.fromisoformat(vu) if vu else None
+        except Exception:
+            pass
+
+        db.session.add(
+            AdminActionLog(
+                admin_user_id=_get_current_user_id(),
+                action="coupon_edit",
+                meta={"coupon_id": coupon_id},
+            )
+        )
+        db.session.commit()
+        flash("Cupom atualizado.", "success")
+        return redirect(url_for("admin.coupons"))
+    return render_template("admin_coupon_edit.html", c=c)
+
+
+@admin_bp.route("/coupons/<int:coupon_id>/toggle", methods=["POST"])
+@require_perm("coupons.edit", "write")
+def coupon_toggle(coupon_id):
+    c = Coupon.query.get_or_404(coupon_id)
+    c.active = not c.active
+    db.session.add(
+        AdminActionLog(
+            admin_user_id=_get_current_user_id(),
+            action="coupon_toggle",
+            meta={"coupon_id": coupon_id, "active": c.active},
+        )
+    )
+    db.session.commit()
+    flash("Cupom atualizado.", "success")
+    return redirect(url_for("admin.coupons"))
+
+
+@admin_bp.route("/coupons/<int:coupon_id>/delete", methods=["POST"])
+@require_perm("coupons.edit", "write")
+def coupon_delete(coupon_id):
+    c = Coupon.query.get_or_404(coupon_id)
+    db.session.delete(c)
+    db.session.add(
+        AdminActionLog(
+            admin_user_id=_get_current_user_id(),
+            action="coupon_delete",
+            meta={"coupon_id": coupon_id},
+        )
+    )
+    db.session.commit()
+    flash("Cupom removido.", "success")
+    return redirect(url_for("admin.coupons"))
+
+
 @admin_bp.route("/finance", methods=["GET", "POST"])
 @require_perm("finance.view", "read")
 def finance_items():
@@ -622,129 +660,6 @@ def finance_delete(item_id):
     return redirect(url_for("admin.finance_items"))
 
 
-# -----------------------------------------------------------------------------
-# Cupons (CRUD)
-# -----------------------------------------------------------------------------
-def _as_bool(v) -> bool:
-    return str(v).strip().lower() in ("on", "1", "true", "yes", "y")
-
-
-@admin_bp.route("/coupons", methods=["GET"])
-@require_perm("coupons.view", "read")
-def coupons():
-    coupons = Coupon.query.order_by(Coupon.code).all()
-    return render_template("admin_coupons.html", coupons=coupons)
-
-
-@admin_bp.route("/coupons/<int:coupon_id>/edit", methods=["GET", "POST"])
-@require_perm("coupons.edit", "write")
-def coupon_edit(coupon_id):
-    c = Coupon.query.get_or_404(coupon_id)
-    if request.method == "POST":
-        c.description = (request.form.get("description") or "").strip() or None
-        c.discount_type = (request.form.get("discount_type") or "").strip()
-        c.discount_value = int(request.form.get("discount_value") or 0)
-
-        max_uses_raw = request.form.get("max_uses")
-        try:
-            max_uses = (
-                int(max_uses_raw)
-                if max_uses_raw
-                not in (
-                    None,
-                    "",
-                )
-                else None
-            )
-            c.max_uses = None if (max_uses is None or max_uses == 0) else max_uses
-        except Exception:
-            c.max_uses = None
-
-        c.recurring = _as_bool(request.form.get("recurring"))
-        c.active = _as_bool(request.form.get("active"))
-
-        vf = request.form.get("valid_from")
-        vu = request.form.get("valid_until")
-        try:
-            c.valid_from = datetime.fromisoformat(vf) if vf else None
-            c.valid_until = datetime.fromisoformat(vu) if vu else None
-        except Exception:
-            pass
-
-        db.session.add(
-            AdminActionLog(
-                admin_user_id=_get_current_user_id(),
-                action="coupon_edit",
-                meta={"coupon_id": coupon_id},
-            )
-        )
-        db.session.commit()
-        flash("Cupom atualizado.", "success")
-        return redirect(url_for("admin.coupons"))
-
-    # GET -> renderizar um template simples de edição
-    return render_template("admin_coupon_edit.html", c=c)
-
-
-@admin_bp.route("/coupons/<int:coupon_id>/toggle", methods=["POST"])
-@require_perm("coupons.edit", "write")
-def coupon_toggle(coupon_id):
-    c = Coupon.query.get_or_404(coupon_id)
-    c.active = not c.active
-    db.session.add(
-        AdminActionLog(
-            admin_user_id=_get_current_user_id(),
-            action="coupon_toggle",
-            meta={"coupon_id": coupon_id, "active": c.active},
-        )
-    )
-    db.session.commit()
-    flash("Cupom atualizado.", "success")
-    return redirect(url_for("admin.coupons"))
-
-
-@admin_bp.route("/coupons/<int:coupon_id>/delete", methods=["POST"])
-@require_perm("coupons.edit", "write")
-def coupon_delete(coupon_id):
-    c = Coupon.query.get_or_404(coupon_id)
-    db.session.delete(c)
-    db.session.add(
-        AdminActionLog(
-            admin_user_id=_get_current_user_id(),
-            action="coupon_delete",
-            meta={"coupon_id": coupon_id},
-        )
-    )
-    db.session.commit()
-    flash("Cupom removido.", "success")
-    return redirect(url_for("admin.coupons"))
-
-
-# -----------------------------------------------------------------------------
-# Campanhas/E-mails (segmentos simples + template HTML)
-# -----------------------------------------------------------------------------
-def _resolve_segment(segment: str):
-    q = UserSettings.query
-    now = agora_brt()
-    if segment == "pro":
-        return q.filter(UserSettings.plano.in_(["pro", "pro_anual"]))
-    if segment == "business":
-        return q.filter(UserSettings.plano.in_(["business", "business_anual"]))
-    if segment == "trial_expiring":
-        # aqui, como o projeto atual não tem trial explícito, exemplo: planos pagos vencendo em 7 dias
-        return q.filter(
-            UserSettings.plano != "free",
-            UserSettings.plano_ate != None,
-            UserSettings.plano_ate <= (now + timedelta(days=7)),
-        )
-    return q  # all
-
-
-def _render_template_html(html: str, vars_dict: Dict[str, str]) -> str:
-    out = html or ""
-    for k, v in (vars_dict or {}).items():
-        out = out.replace(f"{{{{{k}}}}}", str(v))
-    return out
 @lru_cache(maxsize=1)
 def get_historical_sync_prices():
     defaults = {
@@ -753,56 +668,112 @@ def get_historical_sync_prices():
         "90": {"price_cents": 1990, "currency": "BRL"},
         "180": {"price_cents": 3490, "currency": "BRL"},
     }
-
     rows = HistoricalSyncPrice.query.all()
     if not rows:
         return defaults
-
     out = {}
     for r in rows:
         out[r.period] = {
             "price_cents": r.price_cents,
             "currency": r.currency or "BRL"
         }
-
-    # Garante defaults para períodos não criados no banco
     for p, v in defaults.items():
         out.setdefault(p, v)
-
     return out
+
+
 def invalidate_historical_cache():
     get_historical_sync_prices.cache_clear()
+
 
 @admin_bp.route("/pricing/historical", methods=["GET", "POST"])
 def admin_historical_pricing():
     prices = get_historical_sync_prices()
-
     if request.method == "POST":
         for period in ["30", "60", "90", "180"]:
             field_name = f"price_{period}"
             value = request.form.get(field_name)
             if not value:
                 continue
-
-            # converte "9.90" para cents
             value_cents = int(float(value.replace(",", ".")) * 100)
-
             row = HistoricalSyncPrice.query.filter_by(period=period).first()
             if not row:
                 row = HistoricalSyncPrice(period=period)
-
             row.price_cents = value_cents
             db.session.add(row)
-
         db.session.commit()
         invalidate_historical_cache()
         flash("Preços atualizados!", "success")
-
-        # 🔥 CORREÇÃO AQUI — volta para /admin/pricing
         return redirect(url_for("admin.pricing"))
-
     return render_template("admin_historical_pricing.html", prices=prices)
 
+
+# -----------------------------------------------------------------------------
+# TEMPLATES DE EMAIL NO PAINEL
+# -----------------------------------------------------------------------------
+@admin_bp.route("/templates", methods=["GET", "POST"])
+@require_perm("templates.edit", "write")
+def email_templates():
+    if request.method == "POST":
+        action = request.form.get("action")
+        
+        if action == "create":
+            key = (request.form.get("key") or "").strip().lower().replace(" ", "_")
+            subject = request.form.get("subject")
+            html = request.form.get("html")
+            
+            if EmailTemplate.query.filter_by(key=key).first():
+                flash("Já existe um template com essa chave. Tente outro nome.", "danger")
+            else:
+                new_t = EmailTemplate(key=key, subject=subject, html=html)
+                db.session.add(new_t)
+                db.session.commit()
+                flash("Novo template criado com sucesso!", "success")
+                
+        elif action == "edit":
+            t_id = request.form.get("template_id")
+            t = EmailTemplate.query.get(t_id)
+            if t:
+                t.subject = request.form.get("subject")
+                t.html = request.form.get("html")
+                db.session.commit()
+                flash("Template salvo.", "success")
+                
+        elif action == "delete":
+            t_id = request.form.get("template_id")
+            t = EmailTemplate.query.get(t_id)
+            if t:
+                db.session.delete(t)
+                db.session.commit()
+                flash("Template removido.", "success")
+                
+        return redirect(url_for("admin.email_templates"))
+
+    templates = EmailTemplate.query.order_by(EmailTemplate.key).all()
+    return render_template("admin_templates.html", templates=templates)
+
+
+def _resolve_segment(segment: str):
+    q = UserSettings.query
+    now = agora_brt()
+    if segment == "pro":
+        return q.filter(UserSettings.plano.in_(["pro", "pro_anual"]))
+    if segment == "business":
+        return q.filter(UserSettings.plano.in_(["business", "business_anual"]))
+    if segment == "trial_expiring":
+        return q.filter(
+            UserSettings.plano != "free",
+            UserSettings.plano_ate != None,
+            UserSettings.plano_ate <= (now + timedelta(days=7)),
+        )
+    return q
+
+
+def _render_template_html(html: str, vars_dict: Dict[str, str]) -> str:
+    out = html or ""
+    for k, v in (vars_dict or {}).items():
+        out = out.replace(f"{{{{{k}}}}}", str(v))
+    return out
 
 
 @admin_bp.route("/broadcast", methods=["GET", "POST"])
@@ -813,46 +784,57 @@ def broadcast():
             abort(403)
         segment = request.form.get("segment") or "all"
         template_key = request.form.get("template_key")
+        
         t = EmailTemplate.query.filter_by(key=template_key).first()
         if not t:
             flash("Template não encontrado.", "danger")
             return redirect(url_for("admin.broadcast"))
-        users = _resolve_segment(segment)
+            
+        users_query = _resolve_segment(segment)
+        users = users_query.all()
+        
         sent = 0
-        for s in users.all():
-            # Email do contato: decrypt no teu settings (se vier criptografado)
-            email = (
-                User.query.get(s.user_id).email if User.query.get(s.user_id) else None
-            )
-            if not email:
+        erros = 0
+        ultimo_erro = ""
+        
+        for s in users:
+            u = User.query.get(s.user_id)
+            if not u or not u.email:
                 continue
-            html = _render_template_html(
-                t.html, {"nome_empresa": s.business_name or "Cliente"}
-            )
+                
+            html = _render_template_html(t.html, {"nome_empresa": s.business_name or "Cliente"})
+            
             try:
-                enviar_email(destinatario=email, assunto=t.subject, corpo_html=html)
+                enviar_email(destinatario=u.email, assunto=t.subject, corpo_html=html)
                 sent += 1
-            except Exception:
-                continue
+            except Exception as e:
+                erros += 1
+                ultimo_erro = str(e)
+                print(f"[ERRO BROADCAST] Falha ao enviar para {u.email}: {e}")
+
         db.session.add(
             AdminActionLog(
                 admin_user_id=_get_current_user_id(),
                 action="broadcast",
-                meta={"template": template_key, "segment": segment, "count": sent},
+                meta={"template": template_key, "segment": segment, "count": sent, "errors": erros},
             )
         )
         db.session.commit()
-        flash(f"E-mail enviado para {sent} contas.", "success")
+
+        if sent > 0:
+            flash(f"E-mail enviado com sucesso para {sent} contas! (Falhas: {erros})", "success")
+        elif erros > 0:
+            flash(f"Falha de SMTP: Não foi possível enviar. Erro: {ultimo_erro}", "danger")
+        else:
+            flash("Não havia ninguém nesse segmento para enviar o e-mail.", "warning")
+            
         return redirect(url_for("admin.broadcast"))
+        
     templates = EmailTemplate.query.order_by(EmailTemplate.key).all()
     return render_template("admin_broadcast.html", templates=templates)
 
 
-# -----------------------------------------------------------------------------
-# Cobrança automática: webhook de falha + D+1/D+2 + manual
-# -----------------------------------------------------------------------------
 def _send_billing_email(user_id: str, template_key: str, event_id: int):
-    # Usa EmailTemplate (tabela) + enviar_email
     u = User.query.get(user_id)
     if not u or not u.email:
         return
@@ -961,9 +943,6 @@ def overdue_send_now():
     return redirect(url_for("admin.dashboard"))
 
 
-# -----------------------------------------------------------------------------
-# Inadimplentes (lista simples)
-# -----------------------------------------------------------------------------
 @admin_bp.route("/delinquent", methods=["GET"])
 @require_perm("delinquent.view", "read")
 def delinquent_list():
@@ -976,9 +955,6 @@ def delinquent_list():
     return render_template("admin_delinquent.html", rows=rows)
 
 
-# -----------------------------------------------------------------------------
-# Acesso (convites, papéis e overrides)
-# -----------------------------------------------------------------------------
 @admin_bp.route("/access", methods=["GET", "POST"])
 @require_perm("access.manage_roles", "write")
 def access():
@@ -1018,7 +994,7 @@ def access():
 
         if action == "set_perm":
             perm = request.form.get("perm")
-            level = request.form.get("level")  # none|read|write
+            level = request.form.get("level")
             if perm not in PERMISSIONS_ALL:
                 flash("Permissão inválida.", "danger")
                 return redirect(url_for("admin.access"))
@@ -1071,9 +1047,6 @@ def access():
     )
 
 
-# -----------------------------------------------------------------------------
-# Permissões padrão por papel (seeds sugeridos)
-# -----------------------------------------------------------------------------
 PERMISSIONS_ALL = [
     "dashboard.view",
     "finance.view",
@@ -1096,7 +1069,6 @@ PERMISSIONS_ALL = [
 
 
 def seed_roles_permissions():
-    # Cria papéis e permissões padrão se não existirem
     defaults = {
         "admin": {
             "name": "Administrador",
@@ -1146,7 +1118,6 @@ def seed_roles_permissions():
             role = Role(key=key, name=cfg["name"])
             db.session.add(role)
             db.session.commit()
-        # Upsert de permissões
         for perm, level in cfg["perms"].items():
             rp = RolePermission.query.filter_by(role_id=role.id, perm=perm).first()
             if not rp:
@@ -1156,9 +1127,42 @@ def seed_roles_permissions():
     db.session.commit()
 
 
-# -----------------------------------------------------------------------------
-# TICKETS / ATIVIDADES (CRM-Lite) – rotas básicas de exemplo
-# -----------------------------------------------------------------------------
+def seed_email_templates():
+    from models import EmailTemplate, db
+    
+    html_premium = """<div style="background-color: #f1f5f9; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); border: 1px solid #e2e8f0;">
+            <tr>
+                <td align="center" style="background-color: #0f172a; padding: 45px 20px;">
+                    <img src="https://comentsia.com.br/static/logo-symbol.png" alt="ComentsIA" width="55" style="display: block; margin: 0 auto 20px auto; filter: brightness(0) invert(1);">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">A evolução do seu atendimento.</h1>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 40px; color: #334155; font-size: 16px; line-height: 1.7;">
+                    <p style="margin-top: 0; font-size: 18px; color: #0f172a;">Olá, <strong>{{nome_empresa}}</strong>,</p>
+                    <p>A sua conta corporativa está configurada e pronta a utilizar. A partir deste momento, a inteligência artificial da ComentsIA assumirá a gestão das suas avaliações, garantindo respostas de alta performance e à escala.</p>
+                </td>
+            </tr>
+        </table>
+    </div>"""
+
+    templates = [
+        {"key": "novidade_atualizacao", "subject": "Novidades na ComentsIA! ⚡", "html": html_premium},
+        {"key": "billing_failed_immediate", "subject": "Ação Necessária: Falha no pagamento da assinatura", "html": "<p>Olá <strong>{{nome_empresa}}</strong>,</p><p>Não conseguimos processar o pagamento da sua assinatura. Para não interromper as respostas automáticas, atualize seu cartão no painel.</p>"},
+        {"key": "billing_failed_day1", "subject": "Urgente: Sua automação será suspensa amanhã", "html": "<p>Olá <strong>{{nome_empresa}}</strong>,</p><p>Aviso amigável: Seu pagamento continua pendente. Sua automação de respostas será pausada amanhã.</p>"},
+        {"key": "billing_failed_day2", "subject": "Sua conta foi temporariamente suspensa", "html": "<p>Olá <strong>{{nome_empresa}}</strong>,</p><p>Como não identificamos o pagamento, sua automação foi pausada. Atualize a forma de pagamento para retomarmos as respostas instantaneamente.</p>"},
+        {"key": "billing_overdue_manual", "subject": "Aviso de Suspensão de Conta", "html": "<p>Olá <strong>{{nome_empresa}}</strong>,</p><p>Sua conta foi suspensa por inadimplência. Entre em contato conosco.</p>"}
+    ]
+    
+    for t_data in templates:
+        t = EmailTemplate.query.filter_by(key=t_data["key"]).first()
+        if not t:
+            new_t = EmailTemplate(key=t_data["key"], subject=t_data["subject"], html=t_data["html"])
+            db.session.add(new_t)
+    db.session.commit()
+
+
 @admin_bp.route("/tickets", methods=["GET", "POST"])
 @require_perm("tickets.view", "read")
 def tickets_board():
@@ -1190,7 +1194,7 @@ def tickets_board():
 @require_perm("tickets.edit", "write")
 def tickets_move(tid):
     t = Ticket.query.get_or_404(tid)
-    new_status = request.form.get("status")  # aberto|pendente|resolvido
+    new_status = request.form.get("status")
     if new_status not in ("aberto", "pendente", "resolvido"):
         abort(400)
     t.status = new_status
@@ -1198,7 +1202,6 @@ def tickets_move(tid):
     return redirect(url_for("admin.tickets_board"))
 
 
-# --- Helpers de catálogo de planos ---
 PLAN_META = {
     "free": {"nome": "Free", "duration_days": 0},
     "pro": {"nome": "Pro", "duration_days": 30},
@@ -1234,7 +1237,6 @@ def get_pricing_catalog() -> dict:
 @admin_bp.route("/access/logs", methods=["GET"])
 @require_perm("access.manage_roles", "write")
 def access_logs():
-    # Aceita ?user_id=<id> OU ?email=<email>. Se vier user_id com "@", trata como e-mail.
     raw_uid = (request.args.get("user_id") or "").strip()
     raw_email = (request.args.get("email") or "").strip().lower()
 
@@ -1255,7 +1257,6 @@ def access_logs():
     else:
         return jsonify({"ok": False, "error": "missing user_id or email"}), 400
 
-    # Admin actions (preços, impostos/custos, cupons, acessos, broadcasts etc.)
     admin_rows = (
         AdminActionLog.query.filter(
             or_(
@@ -1268,7 +1269,6 @@ def access_logs():
         .all()
     )
 
-    # Envios de e-mail (templates de cobrança, broadcast, etc.)
     email_rows = (
         MessageLog.query.filter_by(user_id=uid)
         .order_by(MessageLog.id.desc())
@@ -1276,7 +1276,6 @@ def access_logs():
         .all()
     )
 
-    # Eventos de cobrança (falhas e follow-ups)
     billing_rows = (
         BillingEvent.query.filter_by(user_id=uid)
         .order_by(BillingEvent.id.desc())
@@ -1295,7 +1294,7 @@ def access_logs():
             "kind": "admin",
             "id": l.id,
             "ts": ts_or_none(l),
-            "action": l.action,  # ex.: pricing_update, finance_edit, finance_toggle, finance_delete, coupon_create...
+            "action": l.action,
             "meta": l.meta or {},
             "actor_id": l.admin_user_id,
             "target_id": l.target_user_id,
@@ -1321,7 +1320,7 @@ def access_logs():
             "kind": "billing",
             "id": b.id,
             "ts": ts_or_none(b),
-            "action": b.event,  # ex.: payment_failed
+            "action": b.event,
             "meta": {
                 "external_id": b.external_id,
                 "handled_immediate": getattr(b, "handled_immediate", None),
@@ -1353,7 +1352,6 @@ def company_create():
         flash("Informe o nome da empresa.", "danger")
         return redirect(url_for("admin.tickets_board"))
 
-    # Só passa atributos que o model realmente tem
     attrs = {"name": name}
     if hasattr(Company, "email") and email:
         attrs["email"] = email
@@ -1365,16 +1363,15 @@ def company_create():
     db.session.commit()
     flash("Empresa criada.", "success")
     return redirect(url_for("admin.tickets_board"))
+
+
 import os
 
 STRIPE_PRICE_IDS = {
-    # planos recorrentes
     "pro_mensal": os.getenv("STRIPE_PRICE_PRO_MENSAL"),
     "pro_anual": os.getenv("STRIPE_PRICE_PRO_ANUAL"),
     "business_mensal": os.getenv("STRIPE_PRICE_BUSINESS_MENSAL"),
     "business_anual": os.getenv("STRIPE_PRICE_BUSINESS_ANUAL"),
-
-    # add-ons de sincronização retroativa
     "retro_30": os.getenv("STRIPE_PRICE_RETRO_30"),
     "retro_60": os.getenv("STRIPE_PRICE_RETRO_60"),
     "retro_90": os.getenv("STRIPE_PRICE_RETRO_90"),

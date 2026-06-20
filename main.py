@@ -42,7 +42,7 @@ from functools import wraps
 from routes_pesquisa import pesquisa_bp
 import flask
 from apscheduler.schedulers.background import BackgroundScheduler
-
+from admin import seed_roles_permissions, seed_email_templates
 from google_auto import google_auto_bp, register_gbp_cron
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -211,6 +211,7 @@ with app.app_context():
     insp = inspect(db.engine)
     if insp.has_table("roles"):
         seed_roles_permissions()
+        seed_email_templates()
     else:
         app.logger.info("Seed pulado: tabela 'roles' ainda não existe.")
 
@@ -2945,6 +2946,28 @@ def logo():
 def teste_limite():
     return "Acesso liberado!"
 
+@app.route("/debug/email-boas-vindas")
+def debug_email_boas_vindas():
+    from email_utils import montar_email_boas_vindas, enviar_email
+    
+    # Tenta apanhar os seus dados da sessão atual, ou usa um nome de teste
+    user_info = session.get("user_info") or {}
+    nome_teste = user_info.get("name") or "Anderson Mendes"
+    email_teste = user_info.get("email") or "anderson.mendesdossantos011@gmail.com"
+    
+    # Gera o HTML com o design premium
+    html = montar_email_boas_vindas(nome_teste)
+    
+    # Se adicionar "?enviar=1" no link, ele dispara o e-mail real para a sua caixa de entrada
+    if request.args.get("enviar") == "1":
+        try:
+            enviar_email(email_teste, "🚀 Teste do Novo E-mail ComentsIA", html)
+            return f"<h3>E-mail de teste enviado com sucesso para {email_teste}!</h3> Verifique a sua caixa de entrada."
+        except Exception as e:
+            return f"<h3>Erro ao enviar o e-mail:</h3> <p>{str(e)}</p>"
+            
+    # Se não pedir para enviar, apenas mostra o visual do e-mail diretamente no ecrã do navegador
+    return html
 
 @app.route("/apply_template", methods=["POST"])
 def apply_template():
@@ -3044,7 +3067,19 @@ if __name__ == "__main__":
 
     # Fecha o scheduler ao encerrar o app
     atexit.register(lambda: scheduler.shutdown(wait=False))
-
+    # 🚀 JOB DE COBRANÇA: Avisa devedores no dia 1 e 2
+    try:
+        from admin import run_daily_billing_followups
+        def job_cobranca():
+            with app.app_context():
+                run_daily_billing_followups()
+        
+        # Roda todo dia às 09:00 da manhã
+        scheduler.add_job(job_cobranca, 'cron', hour=9, minute=0, id='billing_followups')
+        print("[billing] ⏰ Job de cobrança diária ativado!")
+    except Exception as e:
+        import logging
+        logging.exception(f"[billing] Falha ao registrar job de cobrança: {e}")
     # --- Executa o servidor Flask ---
     print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
     app.run(host=host, port=port, debug=True)
