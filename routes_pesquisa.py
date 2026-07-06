@@ -8,7 +8,7 @@ from flask_wtf.csrf import generate_csrf
 import io  
 import qrcode  
 from flask import send_file  
-
+from datetime import datetime, timedelta
 pesquisa_bp = Blueprint("pesquisa", __name__)
 
 @pesquisa_bp.route("/p/<string:slug>", methods=["GET"])
@@ -18,8 +18,25 @@ def renderizar_pesquisa(slug):
     return render_template("pesquisa_publica.html", config=config)
 
 
+from datetime import datetime, timedelta
+
 @pesquisa_bp.route("/p/<string:slug>/enviar", methods=["POST"])
 def enviar_resposta(slug):
+    # --- 🛡️ CAMADA 1: BLINDAGEM DE SESSÃO (BACK-END) ---
+    session_key = f"pesquisa_enviada_{slug}"
+    ultimo_envio_str = session.get(session_key)
+    
+    if ultimo_envio_str:
+        try:
+            ultimo_envio = datetime.fromisoformat(ultimo_envio_str)
+            if datetime.now() < ultimo_envio + timedelta(minutes=15):
+                # Se tentou enviar de novo em menos de 15 min, finge que deu certo
+                # e NÃO salva nada no banco para evitar duplicação.
+                return redirect(url_for("pesquisa.renderizar_pesquisa", slug=slug, sucesso="true"))
+        except ValueError:
+            pass # Ignora se a data na sessão estiver corrompida
+
+    # Segue o fluxo normal de validação e salvamento
     config = PesquisaConfig.query.filter_by(slug=slug, is_active=True).first_or_404()
     
     nome = request.form.get("nome")
@@ -59,11 +76,13 @@ def enviar_resposta(slug):
 
     db.session.commit()
 
+    # --- 🔒 REGISTRA A TRAVA DE TEMPO APÓS O SUCESSO ---
+    session[session_key] = datetime.now().isoformat()
+
     if redirecionar_valido and config.link_google_feedback and config.redirecionar_positivo_auto:
         return redirect(config.link_google_feedback)
 
     return redirect(url_for("pesquisa.renderizar_pesquisa", slug=slug, sucesso="true"))
-
 
 @pesquisa_bp.route("/dashboard/pesquisa/qrcode/<string:slug>", methods=["GET"])
 def gerar_qrcode_backend(slug):

@@ -2173,6 +2173,10 @@ def reviews():
 
     
 
+
+    
+    
+
 @app.route("/suggest_reply", methods=["POST"])
 @limiter.limit("15/minute")
 def suggest_reply():
@@ -2229,21 +2233,30 @@ def suggest_reply():
     business = (settings.get("business_name") or "").strip()
     assinatura = f"{business}\n{manager}" if manager else business
 
-    contexto_da_ficha = ""
-    if review and review.google_location_id:
+    # ==========================================================
+    # 🚀 LÓGICA DE CONTEXTO: PRIORIDADE PARA FICHA LOCAL
+    # ==========================================================
+    contexto_final = ""
+    
+    # 1. Tenta pegar o contexto específico da Ficha
+    if review and getattr(review, 'google_location_id', None):
         loc = GoogleLocation.query.filter_by(id=review.google_location_id).first()
         if loc and getattr(loc, 'contexto_personalizado', None):
-            contexto_da_ficha = loc.contexto_personalizado
+            contexto_final = str(loc.contexto_personalizado).strip()
+            
+    # 2. Se a ficha estiver sem contexto, usa o Global da Empresa
+    if not contexto_final and settings.get("contexto_personalizado"):
+        contexto_final = str(settings["contexto_personalizado"]).strip()
 
     prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
     
-    if contexto_da_ficha or settings.get("contexto_personalizado"):
+    # ==========================================================
+    # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
+    # ==========================================================
+    if contexto_final:
         prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-        prompt += "Instrução: Use as informações abaixo APENAS se fizerem sentido e forem úteis para contextualizar a resposta ao comentário atual do cliente. Não force a inclusão destes dados se o assunto não tiver sido mencionado.\n"
-        if contexto_da_ficha:
-            prompt += f"- Contexto desta unidade local: {contexto_da_ficha}\n"
-        if settings.get("contexto_personalizado"):
-            prompt += f"- Diretrizes globais da marca: {settings['contexto_personalizado']}\n"
+        prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
+        prompt += f"Contexto: {contexto_final}\n"
         prompt += "---------------------------------------\n\n"
 
     # 🚀 REGRA BLINDADA DO IDIOMA COM TRADUÇÃO REGIONAL
@@ -2301,8 +2314,7 @@ REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
     except Exception:
         logging.exception("suggest_reply: falha na IA")
         return jsonify({"success": False, "error": "Erro de conexão com a Inteligência Artificial."})
-    
-    
+
 
 @app.route("/add_review", methods=["GET", "POST"])
 @limiter.limit("15 per minute")
@@ -2351,12 +2363,20 @@ def add_review():
         business = (settings.get("business_name") or "").strip()
         assinatura = f"{business}\n{manager}" if manager else business
 
+        # ==========================================================
+        # 🚀 LÓGICA DE CONTEXTO: MANUAL USA GLOBAL
+        # ==========================================================
+        contexto_final = str(settings.get("contexto_personalizado") or "").strip()
+
         prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
         
-        if settings.get("contexto_personalizado"):
+        # ==========================================================
+        # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
+        # ==========================================================
+        if contexto_final:
             prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-            prompt += "Instrução: Use as informações abaixo APENAS se fizerem sentido e forem úteis para contextualizar a resposta ao comentário atual do cliente. Não force a inclusão destes dados se o assunto não tiver sido mencionado.\n"
-            prompt += f"- Diretrizes globais da marca: {settings['contexto_personalizado']}\n"
+            prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
+            prompt += f"Contexto: {contexto_final}\n"
             prompt += "---------------------------------------\n\n"
 
         # 🚀 REGRA BLINDADA DO IDIOMA

@@ -689,7 +689,9 @@ def _upsert_review(
     stars = converter_nota_gbp_para_int(star_str)
     text = r.get("comment") or ""
     name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
-    create_time = r.get("createTime")
+    
+    # 🚀 AGORA USA A DATA DE ATUALIZAÇÃO PARA SUBIR AO TOPO DA LISTA
+    create_time = r.get("updateTime") or r.get("createTime")
 
     # Data (sempre em BRT)
     dt = _now_brt()
@@ -972,126 +974,7 @@ def configurar_ficha_especifica(location_id):
         global_settings=global_settings,
     )
 
-def run_sync_for_user(user_id: str) -> int:
-    try:
-        from main import (
-            registrar_uso_resposta_especial,
-            usuario_pode_usar_resposta_especial,
-        )
-    except ImportError:
-        def usuario_pode_usar_resposta_especial(uid): return False
-        def registrar_uso_resposta_especial(uid): pass
 
-    logging.info(f"[gbp] ▶️ Sync iniciado para user_id={user_id}")
-
-    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
-    if not creds:
-        logging.warning("[gbp] Sem credenciais")
-        return 0
-
-    fichas_ativas = GoogleLocation.query.filter_by(user_id=user_id, is_active=True).all()
-    if not fichas_ativas:
-        logging.info("[gbp] Nenhuma ficha ativa")
-        return 0
-
-    # só IDs (sem "locations/")
-    location_ids_ativas = {f.location_id for f in fichas_ativas}
-
-    accounts = _list_all_accounts(creds)
-    all_locations = _list_all_locations(creds, accounts)
-
-    tz_brt = pytz.timezone("America/Sao_Paulo")
-    agora = datetime.now(tz_brt)
-    inicio_dia = agora.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    total_processadas = 0
-
-    for loc in all_locations:
-        account_ref = loc.get("account_name")      # "accounts/..." ou "userAccounts/..."
-        location_ref = loc.get("location_name")    # "locations/..."
-        location_id = _extract_id(location_ref)    # só o id
-
-        if not account_ref or not location_id:
-            continue
-
-        if location_id not in location_ids_ativas:
-            continue
-
-        ficha_db = GoogleLocation.query.filter_by(user_id=user_id, location_id=location_id).first()
-
-        reviews = _list_reviews(creds, account_ref, location_id)
-        if not reviews:
-            continue
-
-        for r in reviews:
-            rid = r.get("reviewId")
-            if not rid:
-                continue
-
-            # ✅ não processa se já tem reply no Google
-            google_replied = bool((r.get("reviewReply") or {}).get("comment"))
-            if google_replied:
-                continue
-
-            # ✅ não processa se já existe localmente e está replied
-            review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
-            if review_local and getattr(review_local, "replied", False):
-                continue
-
-            # ✅ se já salvou no BD (mesmo sem replied), não duplica
-            if _already_saved(user_id, rid):
-                continue
-
-            # filtro: só hoje (BRT)
-            create_time = r.get("createTime")
-            if create_time:
-                try:
-                    dt_utc = datetime.fromisoformat(create_time.replace("Z", "+00:00"))
-                    dt_brt = dt_utc.astimezone(tz_brt)
-                    if dt_brt < inicio_dia:
-                        continue
-                except Exception:
-                    pass
-
-            stars = converter_nota_gbp_para_int(r.get("starRating"))
-            text = r.get("comment") or ""
-            name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
-
-            is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
-
-            reply = _generate_reply_for(
-                user_id=user_id,
-                stars=stars,
-                text=text,
-                reviewer_name=name,
-                is_hiper_enabled=is_hiper,
-                location_db_obj=ficha_db,
-            )
-
-            _upsert_review(
-                user_id=user_id,
-                r=r,
-                reply_text=reply,
-                location_name=location_ref,  # mantém "locations/xxx"
-            )
-
-            ok = _publish_reply(
-                creds=creds,
-                account_ref=account_ref,
-                location_ref=location_id,   # pode ser só id
-                review_id=rid,
-                reply_text=reply,
-                user_id_for_fallback=user_id,  # 👈 isso aqui
-            )
-
-            if ok:
-                _update_local_reply_status(user_id, rid, reply, True)
-                if is_hiper:
-                    registrar_uso_resposta_especial(user_id)
-
-            total_processadas += 1
-
-    return total_processadas
 
 
 def _update_local_reply_status(user_id: str, external_id: str, reply_text: Optional[str], is_auto: bool = True) -> bool:
@@ -1735,6 +1618,148 @@ def _list_all_locations(creds: Credentials, accounts: List[str]) -> List[Dict]:
     return list(unique)
 
 
+
+
+def run_sync_for_user(user_id: str) -> int:
+    try:
+        from main import (
+            registrar_uso_resposta_especial,
+            usuario_pode_usar_resposta_especial,
+        )
+    except ImportError:
+        def usuario_pode_usar_resposta_especial(uid): return False
+        def registrar_uso_resposta_especial(uid): pass
+
+    logging.info(f"[gbp] ▶️ Sync iniciado para user_id={user_id}")
+
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        logging.warning("[gbp] Sem credenciais")
+        return 0
+
+    fichas_ativas = GoogleLocation.query.filter_by(user_id=user_id, is_active=True).all()
+    if not fichas_ativas:
+        logging.info("[gbp] Nenhuma ficha ativa")
+        return 0
+
+    # só IDs (sem "locations/")
+    location_ids_ativas = {f.location_id for f in fichas_ativas}
+
+    accounts = _list_all_accounts(creds)
+    all_locations = _list_all_locations(creds, accounts)
+
+    tz_brt = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(tz_brt)
+    inicio_dia = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_processadas = 0
+
+    for loc in all_locations:
+        account_ref = loc.get("account_name")      # "accounts/..." ou "userAccounts/..."
+        location_ref = loc.get("location_name")    # "locations/..."
+        location_id = _extract_id(location_ref)    # só o id
+
+        if not account_ref or not location_id:
+            continue
+
+        if location_id not in location_ids_ativas:
+            continue
+
+        ficha_db = GoogleLocation.query.filter_by(user_id=user_id, location_id=location_id).first()
+
+        reviews = _list_reviews(creds, account_ref, location_id)
+        if not reviews:
+            continue
+
+        for r in reviews:
+            rid = r.get("reviewId")
+            if not rid:
+                continue
+
+            # ===================================================================
+            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
+            # ===================================================================
+            google_replied = bool((r.get("reviewReply") or {}).get("comment"))
+            review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
+
+            # Captura segura (se não houver texto, salva como "")
+            texto_google = r.get("comment") or ""
+            nota_google = converter_nota_gbp_para_int(r.get("starRating"))
+
+            if review_local:
+                texto_banco = review_local.text or ""
+                nota_banco = review_local.rating or 0
+                
+                # Comparação mágica: se o texto ou a nota mudaram, o cliente editou!
+                if texto_google != texto_banco or nota_google != nota_banco:
+                    logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
+                    review_local.replied = False  # Remove o status de respondida para a IA agir
+                    db.session.commit() # Salva a alteração de status
+                else:
+                    # Se não mudou nada e já foi respondida, pula.
+                    # Mas se falhou no passado (replied == False), deixa tentar de novo!
+                    if review_local.replied:
+                        continue  
+            else:
+                # É uma review nova. Se o dono já respondeu à mão no Google, pula.
+                if google_replied:
+                    continue
+
+            # ===================================================================
+            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
+            # ===================================================================
+            data_referencia = r.get("updateTime") or r.get("createTime")
+            if data_referencia:
+                try:
+                    dt_utc = datetime.fromisoformat(data_referencia.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    
+                    if dt_brt < inicio_dia:
+                        continue
+                except Exception:
+                    pass
+
+            stars = nota_google
+            text = texto_google
+            name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
+
+            is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
+
+            reply = _generate_reply_for(
+                user_id=user_id,
+                stars=stars,
+                text=text,
+                reviewer_name=name,
+                is_hiper_enabled=is_hiper,
+                location_db_obj=ficha_db,
+            )
+
+            _upsert_review(
+                user_id=user_id,
+                r=r,
+                reply_text=reply,
+                location_name=location_ref,  # mantém "locations/xxx"
+            )
+
+            ok = _publish_reply(
+                creds=creds,
+                account_ref=account_ref,
+                location_ref=location_id,   # pode ser só id
+                review_id=rid,
+                reply_text=reply,
+                user_id_for_fallback=user_id,  # 👈 isso aqui
+            )
+
+            if ok:
+                _update_local_reply_status(user_id, rid, reply, True)
+                if is_hiper:
+                    registrar_uso_resposta_especial(user_id)
+
+            total_processadas += 1
+
+    return total_processadas
+
+
 def run_sync_last_48h(user_id: str) -> int:
     try:
         from main import registrar_uso_resposta_especial, usuario_pode_usar_resposta_especial
@@ -1787,31 +1812,46 @@ def run_sync_last_48h(user_id: str) -> int:
             if not rid:
                 continue
 
-            # ✅ não processa se já tem reply no Google
+            # ===================================================================
+            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
+            # ===================================================================
             google_replied = bool((r.get("reviewReply") or {}).get("comment"))
-            if google_replied:
-                continue
-
-            # ✅ não processa se já existe localmente e está replied
             review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
-            if review_local and getattr(review_local, "replied", False):
-                continue
 
-            # ✅ se já salvou no BD, não duplica
-            if _already_saved(user_id, rid):
-                continue
+            texto_google = r.get("comment") or ""
+            nota_google = converter_nota_gbp_para_int(r.get("starRating"))
 
-            create_time = r.get("createTime")
-            if create_time:
+            if review_local:
+                texto_banco = review_local.text or ""
+                nota_banco = review_local.rating or 0
+                
+                if texto_google != texto_banco or nota_google != nota_banco:
+                    logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
+                    review_local.replied = False 
+                    db.session.commit()
+                else:
+                    if review_local.replied:
+                        continue  
+            else:
+                if google_replied:
+                    continue
+
+            # ===================================================================
+            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
+            # ===================================================================
+            data_referencia = r.get("updateTime") or r.get("createTime")
+            if data_referencia:
                 try:
-                    dt = datetime.fromisoformat(create_time.replace("Z", "+00:00")).astimezone(tz_brt)
-                    if dt < limite:
+                    dt_utc = datetime.fromisoformat(data_referencia.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    
+                    if dt_brt < limite:
                         continue
                 except Exception:
                     pass
 
-            stars = converter_nota_gbp_para_int(r.get("starRating"))
-            text = r.get("comment") or ""
+            stars = nota_google
+            text = texto_google
             name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
 
             is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
@@ -1847,7 +1887,6 @@ def run_sync_last_48h(user_id: str) -> int:
             total += 1
 
     return total
-
 
 
 def run_sync_historical(user_id: str, period: str) -> int:
@@ -1906,28 +1945,45 @@ def run_sync_historical(user_id: str, period: str) -> int:
             if not rid:
                 continue
 
-            # pula se já está respondida no Google
+            # ===================================================================
+            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
+            # ===================================================================
             google_replied = bool((r.get("reviewReply") or {}).get("comment"))
-            if google_replied:
-                continue
-
-            # pula se já respondida localmente
             review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
-            if review_local and getattr(review_local, "replied", False):
-                continue
 
-            # filtro por período (se não for "all")
-            create_time = r.get("createTime")
-            if limite and create_time:
+            texto_google = r.get("comment") or ""
+            nota_google = converter_nota_gbp_para_int(r.get("starRating"))
+
+            if review_local:
+                texto_banco = review_local.text or ""
+                nota_banco = review_local.rating or 0
+                
+                if texto_google != texto_banco or nota_google != nota_banco:
+                    logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
+                    review_local.replied = False 
+                    db.session.commit()
+                else:
+                    if review_local.replied:
+                        continue  
+            else:
+                if google_replied:
+                    continue
+
+            # ===================================================================
+            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
+            # ===================================================================
+            data_referencia = r.get("updateTime") or r.get("createTime")
+            if limite and data_referencia:
                 try:
-                    dt = datetime.fromisoformat(create_time.replace("Z", "+00:00")).astimezone(tz_brt)
-                    if dt < limite:
+                    dt_utc = datetime.fromisoformat(data_referencia.replace("Z", "+00:00"))
+                    dt_brt = dt_utc.astimezone(tz_brt)
+                    if dt_brt < limite:
                         continue
                 except Exception:
                     pass
 
-            stars = converter_nota_gbp_para_int(r.get("starRating"))
-            text = r.get("comment") or ""
+            stars = nota_google
+            text = texto_google
             name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
 
             is_hiper = stars in (1, 2) and usuario_pode_usar_resposta_especial(user_id)
@@ -1963,7 +2019,6 @@ def run_sync_historical(user_id: str, period: str) -> int:
             total += 1
 
     return total
-
 
 @google_auto_bp.route("/sync_historical/<period>", methods=["POST"])
 def sync_historical(period):

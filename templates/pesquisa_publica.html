@@ -153,10 +153,19 @@
 
 {% block extra_js %}
 <script>
-  document.getElementById("formPesquisa")?.addEventListener("submit", function() {
-    const btn = document.getElementById("btnEnviar");
-    btn.disabled = true;
-    btn.innerHTML = 'Enviando...';
+  document.addEventListener("DOMContentLoaded", function() {
+      const form = document.getElementById("formPesquisa");
+      const btnSubmit = document.getElementById("btnEnviar");
+
+      if (form && btnSubmit) {
+          form.addEventListener("submit", function() {
+              // Desativa o botão e muda o texto assim que ele clica a primeira vez
+              btnSubmit.disabled = true;
+              btnSubmit.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Enviando... Aguarde';
+              btnSubmit.style.opacity = "0.7";
+              btnSubmit.style.cursor = "not-allowed";
+          });
+      }
   });
 </script>
 {% endblock %}
