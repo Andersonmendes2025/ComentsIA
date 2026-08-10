@@ -650,9 +650,8 @@ def _publish_reply(
         logging.exception("[gbp] ❌ Erro inesperado no publish")
         return False
 
-
 # ---------------------------------------------------------
-# ✅ SUA FUNÇÃO DE SALVAR NO BANCO (MANTIDA IGUAL)
+# ✅ SUA FUNÇÃO DE SALVAR NO BANCO (ATUALIZADA)
 # ---------------------------------------------------------
 def _upsert_review(
     user_id: str,
@@ -662,38 +661,25 @@ def _upsert_review(
 ) -> None:
     """
     Salva ou atualiza uma avaliação automática do Google no banco.
-
-    Regras:
-    - Preserva respostas existentes (existing.reply / existing.replied).
-    - Só grava reply se ainda NÃO estava replied e reply_text veio preenchido.
-    - VINCULA a ficha correta via Review.google_location_id usando GoogleLocation (FK).
-    - Normaliza location_id: aceita "locations/123" ou "123".
     """
-
     rid = r.get("reviewId")
     if not rid:
         logging.warning("[gbp] Review recebida sem reviewId — ignorando.")
         return
 
-    # ---- Helpers locais ----
     def _extract_location_id(loc: Optional[str]) -> Optional[str]:
         if not loc:
             return None
-        # Pode vir "locations/123", "accounts/.../locations/123" ou só "123"
         return loc.split("/")[-1].strip() if "/" in loc else loc.strip()
 
     tz_brt = pytz.timezone("America/Sao_Paulo")
 
-    # ---- Extrai dados básicos ----
     star_str = r.get("starRating")
     stars = converter_nota_gbp_para_int(star_str)
     text = r.get("comment") or ""
     name = (r.get("reviewer") or {}).get("displayName") or "Cliente"
-    
-    # 🚀 AGORA USA A DATA DE ATUALIZAÇÃO PARA SUBIR AO TOPO DA LISTA
     create_time = r.get("updateTime") or r.get("createTime")
 
-    # Data (sempre em BRT)
     dt = _now_brt()
     if create_time:
         try:
@@ -702,7 +688,13 @@ def _upsert_review(
         except Exception:
             pass
 
-    # ---- 🔗 Vínculo com GoogleLocation ----
+    # 🚀 A MÁGICA: Extrai a resposta oficial do Google
+    google_reply = (r.get("reviewReply") or {}).get("comment") or ""
+    
+    # Se a IA não gerou uma resposta nova agora, usamos a que já estava no Google!
+    texto_final = reply_text if reply_text else google_reply
+    esta_respondida = bool(texto_final)
+
     db_location_id = None
     loc_id = _extract_location_id(location_name)
     if loc_id:
@@ -714,7 +706,6 @@ def _upsert_review(
             )
             .first()
         )
-
         if ficha_db:
             db_location_id = ficha_db.id
 
@@ -722,27 +713,29 @@ def _upsert_review(
         existing = Review.query.filter_by(user_id=user_id, external_id=rid).first()
 
         if existing:
-            # Atualiza campos "do Google"
             existing.rating = stars
             existing.text = text
             existing.source = "google"
             existing.reviewer_name = name
             existing.date = dt
 
-            # Mantém location_name por compatibilidade (pode ser "locations/123")
             if location_name:
                 existing.location_name = location_name
 
-            # Vincula FK se achou a ficha (não sobrescreve com None)
             if db_location_id and existing.google_location_id != db_location_id:
                 existing.google_location_id = db_location_id
 
-
-            # ✅ Preserva resposta existente: só grava reply se ainda não replied
-            if not existing.replied and reply_text:
-                existing.reply = reply_text
+            # 🛡️ BLINDAGEM DE STATUS: O app é a fonte da verdade local
+            if esta_respondida:
+                # Se o Google mandou uma resposta, atualizamos o banco local.
+                existing.reply = texto_final
                 existing.replied = True
-
+            elif not existing.replied:
+                # Se o Google NÃO mandou resposta, só marcamos como pendente 
+                # se JÁ ESTAVA pendente no nosso app. Jamais sobrescrevemos uma respondida!
+                existing.reply = ""
+                existing.replied = False
+                    
             if hasattr(existing, "is_auto"):
                 existing.is_auto = True
             if hasattr(existing, "auto_origin"):
@@ -751,7 +744,6 @@ def _upsert_review(
             db.session.commit()
             return
 
-        # Não existe no BD ainda → cria
         review_data = {
             "user_id": user_id,
             "source": "google",
@@ -759,11 +751,11 @@ def _upsert_review(
             "reviewer_name": name,
             "rating": stars,
             "text": text,
-            "reply": reply_text,
-            "replied": bool(reply_text),
+            "reply": texto_final,
+            "replied": esta_respondida,
             "date": dt,
-            "location_name": location_name,            # compat
-            "google_location_id": db_location_id,      # FK certo
+            "location_name": location_name,
+            "google_location_id": db_location_id,
             "is_auto": True,
             "auto_origin": "gbp",
         }
@@ -775,6 +767,7 @@ def _upsert_review(
     except Exception as e:
         db.session.rollback()
         logging.exception(f"[gbp] ❌ Erro ao salvar review {rid}: {e}")
+        
 @google_auto_bp.route("/debug/review_find_any/<external_id>", methods=["GET"])
 def debug_review_find_any(external_id):
     user_id = get_current_user_id()
@@ -1620,12 +1613,13 @@ def _list_all_locations(creds: Credentials, accounts: List[str]) -> List[Dict]:
 
 
 
+# ---------------------------------------------------------
+# ✅ FUNÇÕES DE SINCRONIZAÇÃO (COM PROTEÇÃO DE TRADUÇÃO)
+# ---------------------------------------------------------
+
 def run_sync_for_user(user_id: str) -> int:
     try:
-        from main import (
-            registrar_uso_resposta_especial,
-            usuario_pode_usar_resposta_especial,
-        )
+        from main import registrar_uso_resposta_especial, usuario_pode_usar_resposta_especial
     except ImportError:
         def usuario_pode_usar_resposta_especial(uid): return False
         def registrar_uso_resposta_especial(uid): pass
@@ -1642,7 +1636,6 @@ def run_sync_for_user(user_id: str) -> int:
         logging.info("[gbp] Nenhuma ficha ativa")
         return 0
 
-    # só IDs (sem "locations/")
     location_ids_ativas = {f.location_id for f in fichas_ativas}
 
     accounts = _list_all_accounts(creds)
@@ -1655,9 +1648,9 @@ def run_sync_for_user(user_id: str) -> int:
     total_processadas = 0
 
     for loc in all_locations:
-        account_ref = loc.get("account_name")      # "accounts/..." ou "userAccounts/..."
-        location_ref = loc.get("location_name")    # "locations/..."
-        location_id = _extract_id(location_ref)    # só o id
+        account_ref = loc.get("account_name")      
+        location_ref = loc.get("location_name")    
+        location_id = _extract_id(location_ref)    
 
         if not account_ref or not location_id:
             continue
@@ -1676,38 +1669,39 @@ def run_sync_for_user(user_id: str) -> int:
             if not rid:
                 continue
 
-            # ===================================================================
-            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
-            # ===================================================================
-            google_replied = bool((r.get("reviewReply") or {}).get("comment"))
+            google_reply = (r.get("reviewReply") or {}).get("comment") or ""
+            google_replied = bool(google_reply)
             review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
 
-            # Captura segura (se não houver texto, salva como "")
             texto_google = r.get("comment") or ""
             nota_google = converter_nota_gbp_para_int(r.get("starRating"))
+            
+            # Limpa as traduções automáticas do Google para não dar falso positivo
+            texto_google_limpo = texto_google.split("(Translated")[0].split("(Traduzido")[0].strip()
+
+            precisa_responder = False
 
             if review_local:
                 texto_banco = review_local.text or ""
+                texto_banco_limpo = texto_banco.split("(Translated")[0].split("(Traduzido")[0].strip()
                 nota_banco = review_local.rating or 0
                 
-                # Comparação mágica: se o texto ou a nota mudaram, o cliente editou!
-                if texto_google != texto_banco or nota_google != nota_banco:
+                if texto_google_limpo != texto_banco_limpo or nota_google != nota_banco:
                     logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
-                    review_local.replied = False  # Remove o status de respondida para a IA agir
-                    db.session.commit() # Salva a alteração de status
+                    precisa_responder = True
                 else:
-                    # Se não mudou nada e já foi respondida, pula.
-                    # Mas se falhou no passado (replied == False), deixa tentar de novo!
-                    if review_local.replied:
-                        continue  
+                    if not review_local.replied and not google_replied:
+                        precisa_responder = True
             else:
-                # É uma review nova. Se o dono já respondeu à mão no Google, pula.
-                if google_replied:
-                    continue
+                if not google_replied:
+                    precisa_responder = True
 
-            # ===================================================================
-            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
-            # ===================================================================
+            # 🚀 SALVA SEMPRE: Traz do Google pro seu BD o status verdadeiro
+            _upsert_review(user_id=user_id, r=r, reply_text=google_reply, location_name=location_ref)
+
+            if not precisa_responder:
+                continue
+
             data_referencia = r.get("updateTime") or r.get("createTime")
             if data_referencia:
                 try:
@@ -1738,16 +1732,16 @@ def run_sync_for_user(user_id: str) -> int:
                 user_id=user_id,
                 r=r,
                 reply_text=reply,
-                location_name=location_ref,  # mantém "locations/xxx"
+                location_name=location_ref,
             )
 
             ok = _publish_reply(
                 creds=creds,
                 account_ref=account_ref,
-                location_ref=location_id,   # pode ser só id
+                location_ref=location_id,   
                 review_id=rid,
                 reply_text=reply,
-                user_id_for_fallback=user_id,  # 👈 isso aqui
+                user_id_for_fallback=user_id,  
             )
 
             if ok:
@@ -1812,33 +1806,38 @@ def run_sync_last_48h(user_id: str) -> int:
             if not rid:
                 continue
 
-            # ===================================================================
-            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
-            # ===================================================================
-            google_replied = bool((r.get("reviewReply") or {}).get("comment"))
+            google_reply = (r.get("reviewReply") or {}).get("comment") or ""
+            google_replied = bool(google_reply)
             review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
 
             texto_google = r.get("comment") or ""
             nota_google = converter_nota_gbp_para_int(r.get("starRating"))
+            
+            texto_google_limpo = texto_google.split("(Translated")[0].split("(Traduzido")[0].strip()
+
+            precisa_responder = False
 
             if review_local:
                 texto_banco = review_local.text or ""
+                texto_banco_limpo = texto_banco.split("(Translated")[0].split("(Traduzido")[0].strip()
                 nota_banco = review_local.rating or 0
                 
-                if texto_google != texto_banco or nota_google != nota_banco:
+                if texto_google_limpo != texto_banco_limpo or nota_google != nota_banco:
                     logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
-                    review_local.replied = False 
-                    db.session.commit()
+                    precisa_responder = True
                 else:
-                    if review_local.replied:
-                        continue  
+                    if not review_local.replied and not google_replied:
+                        precisa_responder = True
             else:
-                if google_replied:
-                    continue
+                if not google_replied:
+                    precisa_responder = True
 
-            # ===================================================================
-            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
-            # ===================================================================
+            # 🚀 SALVA SEMPRE: Traz do Google pro seu BD o status verdadeiro
+            _upsert_review(user_id=user_id, r=r, reply_text=google_reply, location_name=location_ref)
+
+            if not precisa_responder:
+                continue
+
             data_referencia = r.get("updateTime") or r.get("createTime")
             if data_referencia:
                 try:
@@ -1878,7 +1877,7 @@ def run_sync_last_48h(user_id: str) -> int:
                 location_ref=location_id,
                 review_id=rid,
                 reply_text=reply,
-                user_id_for_fallback=user_id,  # 👈 ADD
+                user_id_for_fallback=user_id,
             ):
                 _update_local_reply_status(user_id, rid, reply, True)
                 if is_hiper:
@@ -1908,7 +1907,6 @@ def run_sync_historical(user_id: str, period: str) -> int:
         logging.info("[gbp] Nenhuma ficha ativa")
         return 0
 
-    # só IDs (sem "locations/")
     location_ids_ativas = {f.location_id for f in fichas_ativas}
 
     accounts = _list_all_accounts(creds)
@@ -1923,20 +1921,19 @@ def run_sync_historical(user_id: str, period: str) -> int:
     total = 0
 
     for loc in all_locations:
-        account_ref = loc.get("account_name")      # "accounts/..." ou "userAccounts/..."
-        location_ref = loc.get("location_name")    # "locations/..."
-        location_id = _extract_id(location_ref)    # só o id
+        account_ref = loc.get("account_name")
+        location_ref = loc.get("location_name")
+        location_id = _extract_id(location_ref)
 
         if not account_ref or not location_id:
             continue
 
-        # só processa se a ficha está ativa no seu DB
         if location_id not in location_ids_ativas:
             continue
 
         ficha_db = GoogleLocation.query.filter_by(user_id=user_id, location_id=location_id).first()
 
-        reviews = _list_reviews(creds, account_ref, location_id)  # helper garante prefixos
+        reviews = _list_reviews(creds, account_ref, location_id)
         if not reviews:
             continue
 
@@ -1945,33 +1942,37 @@ def run_sync_historical(user_id: str, period: str) -> int:
             if not rid:
                 continue
 
-            # ===================================================================
-            # 🛡️ 1. A BLINDAGEM DE EDIÇÃO E TEXTO VAZIO
-            # ===================================================================
-            google_replied = bool((r.get("reviewReply") or {}).get("comment"))
+            google_reply = (r.get("reviewReply") or {}).get("comment") or ""
+            google_replied = bool(google_reply)
             review_local = Review.query.filter_by(user_id=user_id, external_id=rid).first()
 
             texto_google = r.get("comment") or ""
             nota_google = converter_nota_gbp_para_int(r.get("starRating"))
+            texto_google_limpo = texto_google.split("(Translated")[0].split("(Traduzido")[0].strip()
+
+            precisa_responder = False
 
             if review_local:
                 texto_banco = review_local.text or ""
+                texto_banco_limpo = texto_banco.split("(Translated")[0].split("(Traduzido")[0].strip()
                 nota_banco = review_local.rating or 0
                 
-                if texto_google != texto_banco or nota_google != nota_banco:
+                if texto_google_limpo != texto_banco_limpo or nota_google != nota_banco:
                     logging.info(f"[gbp] ✏️ Edição detectada na review {rid}")
-                    review_local.replied = False 
-                    db.session.commit()
+                    precisa_responder = True
                 else:
-                    if review_local.replied:
-                        continue  
+                    if not review_local.replied and not google_replied:
+                        precisa_responder = True
             else:
-                if google_replied:
-                    continue
+                if not google_replied:
+                    precisa_responder = True
 
-            # ===================================================================
-            # ⏳ 2. O SEGREDO DO TEMPO (Pega edições usando updateTime)
-            # ===================================================================
+            # 🚀 SALVA SEMPRE: Traz do Google pro seu BD o status verdadeiro
+            _upsert_review(user_id=user_id, r=r, reply_text=google_reply, location_name=location_ref)
+
+            if not precisa_responder:
+                continue
+
             data_referencia = r.get("updateTime") or r.get("createTime")
             if limite and data_referencia:
                 try:
@@ -2001,7 +2002,7 @@ def run_sync_historical(user_id: str, period: str) -> int:
                 user_id=user_id,
                 r=r,
                 reply_text=reply,
-                location_name=location_ref,  # mantém "locations/xxx" por compat
+                location_name=location_ref,
             )
 
             if _publish_reply(
@@ -2010,7 +2011,7 @@ def run_sync_historical(user_id: str, period: str) -> int:
                 location_ref=location_id,
                 review_id=rid,
                 reply_text=reply,
-                user_id_for_fallback=user_id,  # 👈 ADD
+                user_id_for_fallback=user_id,
             ):
                 _update_local_reply_status(user_id, rid, reply, True)
                 if is_hiper:
