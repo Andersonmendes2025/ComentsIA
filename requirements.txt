@@ -32,7 +32,8 @@ matplotlib>=3.9.2
 wordcloud>=1.9.3
 fpdf2>=2.8.2
 pytz>=2024.1
-seaborn
+numpy==1.26.4
+seaborn==0.13.2
 google-generativeai
 qrcode
 pillow
