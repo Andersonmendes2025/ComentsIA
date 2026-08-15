@@ -1,0 +1,36 @@
+name: Jules Agent Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Instrução / Tarefa para o Jules'
+        required: true
+        type: string
+
+jobs:
+  jules_review:
+    name: Jules AI Agent Task
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Test Suite
+        run: |
+          pytest
