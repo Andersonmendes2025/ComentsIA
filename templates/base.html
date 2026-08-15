@@ -93,6 +93,7 @@
             <li class="nav-item"><a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a></li>
           {% endif %}
           <li class="nav-item"><a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('ajuda.ajuda') }}"><i class="bi bi-question-circle me-1"></i> Ajuda</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a></li>
 
           {# --- Menu Admin dinâmico (aparece só se houver acesso) --- #}
@@ -124,15 +125,69 @@
 
         <div class="d-flex align-items-center gap-2">
           {% if logged_in %}
-            <div class="position-relative">
-              <a class="btn btn-light rounded-circle p-2" href="{{ url_for('matriz.ver_convites') }}" title="Notificações">
+            <!-- Dropdown de Notificações In-App -->
+            <div class="dropdown position-relative me-1">
+              <button class="btn btn-light rounded-circle p-2 position-relative shadow-sm" type="button" id="notifMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Central de Notificações">
                 <i class="bi bi-bell-fill text-primary fs-5"></i>
-                {% if convites_pendentes %}
-                  <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {{ convites_pendentes|length }}
+                {% if app_notificacoes_unread_count and app_notificacoes_unread_count > 0 %}
+                  <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm">
+                    {{ app_notificacoes_unread_count }}
                   </span>
                 {% endif %}
-              </a>
+              </button>
+              
+              <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0" aria-labelledby="notifMenu" style="width: 340px; max-width: 90vw; z-index: 1050;">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top-4">
+                  <span class="fw-bold text-dark small"><i class="bi bi-bell me-1 text-primary"></i> Notificações</span>
+                  {% if app_notificacoes_unread_count and app_notificacoes_unread_count > 0 %}
+                    <button class="btn btn-link btn-sm text-decoration-none p-0 small text-primary" onclick="marcarNotificacoesComoLidas()">Marcar como lidas</button>
+                  {% endif %}
+                </div>
+
+                <div class="list-group list-group-flush" style="max-height: 320px; overflow-y: auto;">
+                  {% if convites_pendentes %}
+                    {% for conv in convites_pendentes %}
+                      <a href="{{ url_for('matriz.ver_convites') }}" class="list-group-item list-group-item-action p-3 bg-light border-bottom">
+                        <div class="d-flex align-items-start gap-2">
+                          <i class="bi bi-diagram-3-fill text-primary fs-5 mt-1"></i>
+                          <div class="flex-grow-1">
+                            <div class="fw-bold text-dark small">Convite de Matriz</div>
+                            <div class="text-muted small">Você recebeu um convite para vincular sua unidade.</div>
+                            <span class="badge bg-danger rounded-pill mt-1">Responder</span>
+                          </div>
+                        </div>
+                      </a>
+                    {% endfor %}
+                  {% endif %}
+
+                  {% if app_notificacoes %}
+                    {% for n in app_notificacoes %}
+                      <div class="list-group-item p-3 border-bottom {% if not n.is_read %}bg-light bg-opacity-50{% endif %}">
+                        <div class="d-flex align-items-start gap-2">
+                          <i class="bi {{ 'bi-exclamation-circle-fill text-warning' if n.tipo == 'warning' else ('bi-check-circle-fill text-success' if n.tipo == 'success' else 'bi-info-circle-fill text-primary') }} fs-5 mt-1"></i>
+                          <div class="flex-grow-1">
+                            <div class="fw-bold text-dark small">{{ n.titulo }}</div>
+                            <div class="text-muted small text-break">{{ n.mensagem|striptags|truncate(80) }}</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">
+                              {{ n.created_at.strftime('%d/%m às %H:%M') if n.created_at else '' }}
+                              {% if n.link %}
+                                &bull; <a href="{{ n.link }}" class="text-primary fw-semibold">Ver detalhes</a>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+
+                  {% if not convites_pendentes and not app_notificacoes %}
+                    <div class="text-center py-4 text-muted small">
+                      <i class="bi bi-bell-slash fs-4 d-block mb-1 text-secondary opacity-50"></i>
+                      Nenhuma notificação nova no momento.
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
             </div>
           {% endif %}
 
@@ -159,6 +214,21 @@
   </nav>
 
   <main class="py-4">
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category in ['error', 'danger'] else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show rounded-4 shadow-sm border-0 mb-4" role="alert">
+              <div class="d-flex align-items-center">
+                <i class="bi {{ 'bi-exclamation-triangle-fill text-danger' if category in ['error', 'danger'] else ('bi-exclamation-circle-fill text-warning' if category == 'warning' else 'bi-check-circle-fill text-success') }} fs-5 me-2"></i>
+                <div>{{ message }}</div>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+    </div>
     {% block content %}{% endblock %}
   </main>
 
@@ -249,6 +319,23 @@
       return m ? m.getAttribute('content') : '';
     }
 
+    // --------- Notificações In-App ---------
+    function marcarNotificacoesComoLidas() {
+      fetch('/api/notificacoes/marcar-lidas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRF()
+        }
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          const badge = document.getElementById('notifBadge');
+          if (badge) badge.remove();
+          document.querySelectorAll('.list-group-item.bg-light').forEach(el => el.classList.remove('bg-light', 'bg-opacity-50'));
+        }
+      }).catch(e => console.error('Erro ao marcar notificacoes:', e));
+    }
+
     // --------- Apagar conta (menu) ---------
     function deleteAccount(){
       askConfirm(
@@ -297,5 +384,11 @@
   </script>
 
   {% block extra_scripts %}{% endblock %}
+
+  {% if logged_in %}
+  <!-- Scripts de Suporte Inteligente e Onboarding (Carregados apenas para usuários logados) -->
+  <script src="{{ url_for('static', filename='js/support_chat.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/onboarding_tour.js') }}"></script>
+  {% endif %}
 </body>
 </html>

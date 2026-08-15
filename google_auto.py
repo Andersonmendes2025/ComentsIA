@@ -32,6 +32,7 @@ from models import (
     db,
 )
 from admin import get_historical_sync_prices
+from utils.crypto import decrypt as crypto_decrypt, encrypt as crypto_encrypt
 
 SLOT_FREE_COOLDOWN_DAYS = 90  # trava pra trocar a ficha grátis
 
@@ -304,10 +305,18 @@ def sync_google_locations():
 def _get_persisted_credentials(user_id: str) -> Optional[Credentials]:
     try:
         settings = UserSettings.query.filter_by(user_id=user_id).first()
-        refresh_token_antigo = getattr(settings, "google_refresh_token", None)
+        refresh_token_enc = getattr(settings, "google_refresh_token", None)
         
-        if not settings or not refresh_token_antigo:
+        if not settings or not refresh_token_enc:
             return None
+
+        # 🔐 Descriptografar o token antes de usar
+        try:
+            refresh_token_antigo = crypto_decrypt(refresh_token_enc)
+        except Exception:
+            # Fallback: token pode estar em texto plano (legado antes da criptografia)
+            logging.warning("[gbp] Token não pôde ser descriptografado — pode ser legado em texto plano. Usando como está.")
+            refresh_token_antigo = refresh_token_enc
         
         creds = Credentials(
             token=None,
@@ -321,9 +330,10 @@ def _get_persisted_credentials(user_id: str) -> Optional[Credentials]:
         creds.refresh(Request())
         
         if creds.refresh_token and creds.refresh_token != refresh_token_antigo:
-            settings.google_refresh_token = creds.refresh_token
-            db.session.commit() 
-            logging.info(f"[gbp] ✅ NOVO Refresh Token capturado e salvo para {user_id}.")
+            # 🔐 Salvar o novo token CRIPTOGRAFADO
+            settings.google_refresh_token = crypto_encrypt(creds.refresh_token)
+            db.session.commit()
+            logging.info(f"[gbp] ✅ NOVO Refresh Token capturado e salvo (criptografado) para {user_id}.")
             
         return creds
         

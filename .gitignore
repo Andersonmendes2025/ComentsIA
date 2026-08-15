@@ -2,6 +2,7 @@ venv/
 __pycache__/
 *.pyc
 *.sqlite
+*.sqlite3
 *.db
 instance/
 .env
@@ -9,3 +10,11 @@ instance/
 .DS_Store
 .venv/
 
+# Arquivos sensíveis - NUNCA commitar
+encryption_key.txt
+client_secrets.json
+blobs.txt
+
+# Arquivos de teste e cache
+.pytest_cache/
+scratch/

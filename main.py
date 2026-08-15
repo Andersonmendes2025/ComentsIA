@@ -256,11 +256,72 @@ Talisman(
 )
 
 # -------------------------------------------------------------------
-# Blueprints
-# -------------------------------------------------------------------
 app.register_blueprint(auto_reply_bp)
 app.register_blueprint(matriz_bp)
 app.register_blueprint(pesquisa_bp)
+
+from routes_ajuda import ajuda_bp
+app.register_blueprint(ajuda_bp)
+
+# -------------------------------------------------------------------
+# Injeção Global de Notificações In-App (Context Processor)
+# -------------------------------------------------------------------
+@app.context_processor
+def inject_global_notifications():
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    if not user_id and current_user and getattr(current_user, "is_authenticated", False):
+        user_id = getattr(current_user, "id", None) or getattr(current_user, "email", None)
+
+    if not user_id:
+        return {
+            "app_notificacoes": [],
+            "app_notificacoes_unread_count": 0,
+            "convites_pendentes": [],
+        }
+
+    from models import AppNotification, FilialVinculo
+    try:
+        notifs = AppNotification.query.filter_by(user_id=str(user_id)).order_by(AppNotification.created_at.desc()).limit(10).all()
+        unread_notifs = [n for n in notifs if not n.is_read]
+        
+        # Convites de filiais da matriz
+        convites = FilialVinculo.query.filter_by(child_user_id=str(user_id), status="pendente").all()
+        
+        return {
+            "app_notificacoes": notifs,
+            "app_notificacoes_unread_count": len(unread_notifs) + len(convites),
+            "convites_pendentes": convites,
+        }
+    except Exception:
+        return {
+            "app_notificacoes": [],
+            "app_notificacoes_unread_count": 0,
+            "convites_pendentes": [],
+        }
+
+
+@app.route("/api/notificacoes/marcar-lidas", methods=["POST"])
+def marcar_notificacoes_lidas():
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    if not user_id and current_user and getattr(current_user, "is_authenticated", False):
+        user_id = getattr(current_user, "id", None) or getattr(current_user, "email", None)
+
+    if not user_id:
+        return jsonify({"success": False, "error": "Não autenticado"}), 401
+
+    from models import AppNotification
+    try:
+        AppNotification.query.filter_by(user_id=str(user_id), is_read=False).update({"is_read": True})
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+csrf.exempt(marcar_notificacoes_lidas)
+
 # -------------------------------------------------------------------
 # OpenAI Client
 # -------------------------------------------------------------------
@@ -385,6 +446,10 @@ def agora_brt():
 
 from stripe_pay import stripe_bp
 app.register_blueprint(stripe_bp)
+# 🔐 Isenta o webhook do Stripe do CSRF global — a segurança é feita pela assinatura Stripe-Signature
+from routes_ajuda import support_chat, onboarding_done
+csrf.exempt(support_chat)
+csrf.exempt(onboarding_done)
 
 def analisar_pontos_mais_mencionados(comentarios):
     if not comentarios:
@@ -1909,9 +1974,9 @@ def oauth2callback():
             )
             db.session.add(settings)
 
-        # ✅ salva o refresh_token se existir
+        # ✅ salva o refresh_token CRIPTOGRAFADO se existir
         if credentials.refresh_token:
-            settings.google_refresh_token = credentials.refresh_token
+            settings.google_refresh_token = encrypt(credentials.refresh_token)
 
         db.session.commit()
     except SQLAlchemyError as e:
@@ -3035,6 +3100,23 @@ def aplicar_migracoes():
         try:
             db.create_all()
             
+            # Migração manual para adicionar a coluna onboarding_done
+            from sqlalchemy import text
+            try:
+                # Tenta para PostgreSQL
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE"))
+                db.session.commit()
+                logging.info("✅ Coluna onboarding_done verificada/adicionada em user_settings.")
+            except Exception as ex_pg:
+                db.session.rollback()
+                try:
+                    # Tenta para SQLite (sem IF NOT EXISTS, falha silenciosamente se existir)
+                    db.session.execute(text("ALTER TABLE user_settings ADD COLUMN onboarding_done BOOLEAN DEFAULT 0"))
+                    db.session.commit()
+                    logging.info("✅ Coluna onboarding_done adicionada no SQLite.")
+                except Exception:
+                    db.session.rollback()
+
             logging.info("📦 Aplicando migrações...")
             upgrade()
             logging.info("✅ Migrações aplicadas com sucesso.")

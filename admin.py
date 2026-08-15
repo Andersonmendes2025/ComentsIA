@@ -83,11 +83,24 @@ def _user_role_key(user_id: str) -> Optional[str]:
     return r[0] if r else None
 
 
+ADMIN_EMAILS = [
+    "anderson.mendesdossantos011@gmail.com",
+    "comentsia.2025@gmail.com",
+]
+
+
 def _perm_level_to_int(level: str) -> int:
     return {"none": 0, "read": 1, "write": 2}.get((level or "none").lower(), 0)
 
 
 def permission_level_for(user_id: str, perm: str) -> str:
+    if not user_id:
+        return "none"
+
+    uid_str = str(user_id).strip().lower()
+    if any(admin_e and uid_str == admin_e.lower() for admin_e in ADMIN_EMAILS):
+        return "write"
+
     role_key = _user_role_key(user_id) or ""
     if role_key == "admin":
         return "write"
@@ -394,11 +407,21 @@ def pricing():
             abort(403)
         for plan_key in PLAN_KEYS:
             cents_str = request.form.get(f"{plan_key}_cents")
-            if cents_str is None:
-                continue
-            try:
-                cents = int(cents_str)
-            except ValueError:
+            reais_str = request.form.get(f"{plan_key}_reais")
+            cents = None
+            if cents_str:
+                try:
+                    cents = int(cents_str)
+                except ValueError:
+                    pass
+            if cents is None and reais_str:
+                try:
+                    cleaned = reais_str.replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+                    val = float(cleaned)
+                    cents = int(round(val * 100))
+                except ValueError:
+                    pass
+            if cents is None:
                 continue
             row = PlanPrice.query.filter_by(plan_key=plan_key).first()
             if not row:
@@ -415,7 +438,7 @@ def pricing():
         )
         db.session.commit()
         invalidate_price_cache()
-        flash("Preços atualizados.", "success")
+        flash("Tabela oficial de preços atualizada com sucesso!", "success")
         return redirect(url_for("admin.pricing"))
     return render_template(
         "admin_pricing.html",
@@ -756,10 +779,18 @@ def email_templates():
 def _resolve_segment(segment: str):
     q = UserSettings.query
     now = agora_brt()
+    if segment == "free":
+        return q.filter(or_(UserSettings.plano == "free", UserSettings.plano == None))
     if segment == "pro":
         return q.filter(UserSettings.plano.in_(["pro", "pro_anual"]))
     if segment == "business":
         return q.filter(UserSettings.plano.in_(["business", "business_anual"]))
+    if segment == "delinquent":
+        return q.filter(
+            UserSettings.plano != "free",
+            UserSettings.plano_ate != None,
+            UserSettings.plano_ate < now,
+        )
     if segment == "trial_expiring":
         return q.filter(
             UserSettings.plano != "free",
@@ -784,50 +815,128 @@ def broadcast():
             abort(403)
         segment = request.form.get("segment") or "all"
         template_key = request.form.get("template_key")
-        
-        t = EmailTemplate.query.filter_by(key=template_key).first()
-        if not t:
-            flash("Template não encontrado.", "danger")
+        subject_custom = request.form.get("subject", "").strip()
+        html_custom = request.form.get("html", "").strip()
+        channel = request.form.get("channel", "email")
+
+        # Define assunto e corpo HTML
+        if template_key:
+            t = EmailTemplate.query.filter_by(key=template_key).first()
+            if not t:
+                flash("Template selecionado não foi encontrado.", "danger")
+                return redirect(url_for("admin.broadcast"))
+            assunto_base = t.subject
+            html_base = t.html
+        elif subject_custom and html_custom:
+            assunto_base = subject_custom
+            html_base = html_custom
+        else:
+            flash("Informe o assunto e a mensagem ou escolha um template.", "warning")
             return redirect(url_for("admin.broadcast"))
-            
+
+        # Trata imagem anexada/embutida caso enviada
+        image_file = request.files.get("image")
+        if image_file and image_file.filename:
+            try:
+                import base64
+                img_bytes = image_file.read()
+                if img_bytes:
+                    mime = image_file.mimetype or "image/png"
+                    b64_str = base64.b64encode(img_bytes).decode("utf-8")
+                    img_tag = f'<div style="text-align:center;margin:20px 0;"><img src="data:{mime};base64,{b64_str}" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);" alt="Imagem de Comunicação"/></div>'
+                    html_base = img_tag + html_base
+            except Exception as e_img:
+                print(f"[BROADCAST] Erro ao processar imagem: {e_img}")
+
         users_query = _resolve_segment(segment)
-        users = users_query.all()
-        
-        sent = 0
+        settings_list = users_query.all()
+
+        sent_email = 0
+        sent_inapp = 0
         erros = 0
         ultimo_erro = ""
-        
-        for s in users:
-            u = User.query.get(s.user_id)
-            if not u or not u.email:
-                continue
-                
-            html = _render_template_html(t.html, {"nome_empresa": s.business_name or "Cliente"})
-            
-            try:
-                enviar_email(destinatario=u.email, assunto=t.subject, corpo_html=html)
-                sent += 1
-            except Exception as e:
-                erros += 1
-                ultimo_erro = str(e)
-                print(f"[ERRO BROADCAST] Falha ao enviar para {u.email}: {e}")
+
+        # 1. Notificações In-App (se o canal for inapp ou both)
+        if channel in ("inapp", "both"):
+            from models import AppNotification
+            for s in settings_list:
+                uid = s.user_id
+                if not uid:
+                    continue
+                vars_dict = {
+                    "nome_empresa": s.business_name or "Sua Empresa",
+                    "nome_usuario": s.business_name or "Cliente",
+                    "email": s.user_id,
+                    "plano": (s.plano or "Free").upper(),
+                }
+                corpo_inapp = _render_template_html(html_base, vars_dict)
+                assunto_inapp = _render_template_html(assunto_base, vars_dict)
+
+                notif = AppNotification(
+                    user_id=uid,
+                    titulo=assunto_inapp,
+                    mensagem=corpo_inapp,
+                    tipo="info",
+                    is_read=False,
+                )
+                db.session.add(notif)
+                sent_inapp += 1
+
+        # 2. Envio de E-mails (se o canal for email ou both)
+        if channel in ("email", "both"):
+            for s in settings_list:
+                u = db.session.get(User, s.user_id) if s.user_id else None
+                email_dest = u.email if u and u.email else s.user_id
+                if not email_dest or "@" not in email_dest:
+                    continue
+
+                nome_usuario = (getattr(u, "nome", None) or getattr(u, "name", None) if u else None) or s.business_name or "Cliente"
+                vars_dict = {
+                    "nome_empresa": s.business_name or "Sua Empresa",
+                    "nome_usuario": nome_usuario,
+                    "email": email_dest,
+                    "plano": (s.plano or "Free").upper(),
+                }
+
+                corpo_final = _render_template_html(html_base, vars_dict)
+                assunto_final = _render_template_html(assunto_base, vars_dict)
+
+                try:
+                    enviar_email(destinatario=email_dest, assunto=assunto_final, corpo_html=corpo_final)
+                    sent_email += 1
+                except Exception as e:
+                    erros += 1
+                    ultimo_erro = str(e)
+                    print(f"[ERRO BROADCAST] Falha ao enviar para {email_dest}: {e}")
 
         db.session.add(
             AdminActionLog(
                 admin_user_id=_get_current_user_id(),
                 action="broadcast",
-                meta={"template": template_key, "segment": segment, "count": sent, "errors": erros},
+                meta={
+                    "segment": segment,
+                    "channel": channel,
+                    "count_email": sent_email,
+                    "count_inapp": sent_inapp,
+                    "errors": erros,
+                    "subject": assunto_base[:80],
+                },
             )
         )
         db.session.commit()
 
-        if sent > 0:
-            flash(f"E-mail enviado com sucesso para {sent} contas! (Falhas: {erros})", "success")
-        elif erros > 0:
-            flash(f"Falha de SMTP: Não foi possível enviar. Erro: {ultimo_erro}", "danger")
+        if channel == "inapp":
+            flash(f"🔔 Notificação in-app enviada com sucesso para o sininho de {sent_inapp} usuários!", "success")
+        elif channel == "both":
+            flash(f"🚀 Comunicação disparada: {sent_email} e-mails enviados e {sent_inapp} notificações in-app entregues! (Falhas: {erros})", "success")
         else:
-            flash("Não havia ninguém nesse segmento para enviar o e-mail.", "warning")
-            
+            if sent_email > 0:
+                flash(f"📧 E-mail enviado com sucesso para {sent_email} clientes! (Falhas: {erros})", "success")
+            elif erros > 0:
+                flash(f"❌ Falha de SMTP ao enviar e-mails: {ultimo_erro}", "danger")
+            else:
+                flash("Nenhum usuário foi encontrado no segmento selecionado.", "warning")
+
         return redirect(url_for("admin.broadcast"))
         
     templates = EmailTemplate.query.order_by(EmailTemplate.key).all()

@@ -1,102 +1,209 @@
 {% extends "base.html" %}
-{% block title %}Admin — Broadcast{% endblock %}
+{% block title %}Admin — Envio em Massa & Notificações{% endblock %}
 {% block content %}
 <div class="container py-4">
+
   <style>
-    .glass{
-      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
-      backdrop-filter:blur(8px);
-      border:1px solid rgba(143,164,255,.16);
-      border-radius:20px;
-      padding:18px
+    .admin-card {
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      padding: 24px;
+    }
+    .var-badge {
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .var-badge:hover {
+      transform: scale(1.05);
+      background-color: #2563eb !important;
+      color: #fff !important;
     }
   </style>
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h5 m-0">Enviar Comunicação</h1>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Dashboard
-    </a>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="bi bi-megaphone-fill text-primary me-2"></i>Comunicação em Massa (Broadcast)
+      </h1>
+      <p class="text-muted small mb-0">Envie e-mails informativos, atualizações de sistema ou avisos de cobrança para seus clientes.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <i class="bi bi-arrow-left me-1"></i> Painel Admin
+      </a>
+    </div>
   </div>
 
-  <form method="post" class="glass" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+  <div class="row g-4">
+    <div class="col-12 col-lg-8">
+      <form method="post" class="admin-card" enctype="multipart/form-data" id="broadcastForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-    <div class="row g-3">
-      <div class="col-12 col-lg-8">
-        <label class="form-label">Assunto</label>
-        <input type="text" name="subject" class="form-control" placeholder="Assunto do e-mail / notificação" required>
-      </div>
-      <div class="col-12 col-lg-4">
-        <label class="form-label">Canal</label>
-        <select name="channel" class="form-select">
-          <option value="email">E-mail</option>
-          <option value="inapp">Notificação in-app</option>
-        </select>
-      </div>
+        <!-- Templates salvos (opcional) -->
+        {% if templates %}
+        <div class="mb-3 pb-3 border-bottom">
+          <label class="form-label fw-bold text-dark small">Usar Modelo Pronto (Opcional)</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-file-earmark-richtext"></i></span>
+            <select id="templateSelect" class="form-select">
+              <option value="">-- Escrever mensagem personalizada do zero --</option>
+              {% for t in templates %}
+                <option value="{{ t.key }}" data-subject="{{ t.subject }}" data-html="{{ t.html }}">{{ t.subject }} ({{ t.key }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        {% endif %}
 
-      <div class="col-12">
-        <label class="form-label">HTML / Mensagem</label>
-        <textarea name="html" class="form-control" rows="10" placeholder="<h1>...</h1>" required></textarea>
-        <div class="form-text">Você pode usar HTML básico. Imagens online são suportadas.</div>
-      </div>
+        <div class="row g-3">
+          <!-- Assunto -->
+          <div class="col-12 col-md-8">
+            <label class="form-label fw-bold text-dark small">Assunto do E-mail</label>
+            <input type="text" id="subjectInput" name="subject" class="form-control form-control-lg" placeholder="Ex.: Novas funcionalidades disponíveis no ComentsIA" required>
+          </div>
 
-      <div class="col-12 col-lg-6">
-        <label class="form-label">Segmento</label>
-        <select name="segment" class="form-select">
-          <option value="all">Todos</option>
-          <option value="pro">Plano Pro</option>
-          <option value="business">Plano Business</option>
-          <option value="delinquent">Inadimplentes</option>
-          <option value="free">Free</option>
-        </select>
-      </div>
+          <!-- Canal -->
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold text-dark small">Canal de Envio</label>
+            <select name="channel" class="form-select form-select-lg">
+              <option value="email">📧 Apenas E-mail (SMTP)</option>
+              <option value="inapp">🔔 Apenas Notificação no Sistema (Sininho)</option>
+              <option value="both">🚀 Ambos (E-mail + Notificação no Sistema)</option>
+            </select>
+          </div>
 
-      <div class="col-12 col-lg-6">
-        <label class="form-label">Upload de imagem (opcional)</label>
-        <input type="file" name="image" class="form-control" accept="image/*">
-      </div>
+          <!-- Segmentação -->
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-bold text-dark small">Público-Alvo (Segmento)</label>
+            <select name="segment" class="form-select">
+              <option value="all">👥 Todos os Usuários Cadastrados</option>
+              <option value="pro">⭐ Assinantes do Plano Pro</option>
+              <option value="business">🏢 Assinantes do Plano Business</option>
+              <option value="free">🌱 Usuários no Plano Free (Gratuito)</option>
+              <option value="delinquent">⚠️ Contas com Assinatura Vencida</option>
+              <option value="trial_expiring">⏳ Assinaturas Expirando em até 7 dias</option>
+            </select>
+          </div>
+
+          <!-- Anexo / Imagem -->
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-bold text-dark small">Banner / Imagem (Opcional)</label>
+            <input type="file" name="image" class="form-control" accept="image/*">
+          </div>
+
+          <!-- Variáveis rápidas -->
+          <div class="col-12">
+            <div class="d-flex flex-wrap align-items-center gap-2 py-1">
+              <span class="small fw-semibold text-muted">Variáveis dinâmicas (clique para inserir):</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{nome_usuario}}')">&#123;&#123;nome_usuario&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{nome_empresa}}')">&#123;&#123;nome_empresa&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{email}}')">&#123;&#123;email&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{plano}}')">&#123;&#123;plano&#125;&#125;</span>
+            </div>
+          </div>
+
+          <!-- Corpo HTML / Mensagem -->
+          <div class="col-12">
+            <label class="form-label fw-bold text-dark small">Conteúdo da Mensagem (HTML ou Texto)</label>
+            <textarea id="htmlInput" name="html" class="form-control font-monospace" rows="9" placeholder="<p>Olá <strong>{{nome_usuario}}</strong>,</p><p>Temos novidades incríveis para a sua empresa!</p>" required></textarea>
+            <div class="form-text small text-muted">Tags HTML como &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;a href="..."&gt;, &lt;ul&gt; são suportadas.</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end mt-4 pt-3 border-top">
+          <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#previewModal" id="btnLivePreview">
+            <i class="bi bi-eye me-1"></i> Pré-visualizar
+          </button>
+          <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm" onclick="return confirm('Tem certeza que deseja disparar esta comunicação para todos os usuários do segmento selecionado?');">
+            <i class="bi bi-send-fill me-1"></i> Enviar Comunicação Agora
+          </button>
+        </div>
+      </form>
     </div>
 
-    <div class="d-flex gap-2 justify-content-end mt-3">
-      <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#previewModal">
-        <i class="bi bi-eye"></i> Pré-visualizar
-      </button>
-      <button class="btn btn-primary">
-        <i class="bi bi-send"></i> Enviar
-      </button>
+    <!-- Dicas & Instruções laterais -->
+    <div class="col-12 col-lg-4">
+      <div class="admin-card h-100 bg-light">
+        <h6 class="fw-bold text-dark mb-3">
+          <i class="bi bi-lightbulb-fill text-warning me-2"></i>Boas Práticas de Envio
+        </h6>
+        <ul class="small text-muted ps-3 mb-4 d-flex flex-column gap-2">
+          <li><strong>Assunto Claro:</strong> Use títulos diretos para garantir alta taxa de abertura.</li>
+          <li><strong>Personalização:</strong> Inclua <code>&#123;&#123;nome_usuario&#125;&#125;</code> na saudação.</li>
+          <li><strong>Prévia:</strong> Sempre clique em <em>"Pré-visualizar"</em> antes do envio para checar a formatação no e-mail.</li>
+          <li><strong>Segmentação:</strong> Evite mandar mensagens de cobrança para quem já está no plano Business.</li>
+        </ul>
+
+        <div class="p-3 bg-white border rounded-3 small">
+          <div class="fw-bold text-dark mb-1"><i class="bi bi-shield-check text-success me-1"></i> Disparo Seguro</div>
+          <p class="text-muted mb-0">Os envios utilizam a infraestrutura SMTP configurada. Cada disparo é registrado no log de auditoria administrativo.</p>
+        </div>
+      </div>
     </div>
-  </form>
+  </div>
 </div>
 
 <!-- Modal Preview -->
 <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header">
-        <h5 class="modal-title">Pré-visualização</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-envelope-paper me-2 text-primary"></i>Pré-visualização do E-mail</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <iframe id="previewFrame" style="width:100%;height:60vh;border:0;background:#111;border-radius:12px"></iframe>
+      <div class="modal-body p-4">
+        <div class="border-bottom pb-2 mb-3">
+          <div class="small text-muted"><strong>Assunto:</strong> <span id="previewSubject">(Sem assunto)</span></div>
+          <div class="small text-muted"><strong>Para:</strong> joao@exemplo.com.br</div>
+        </div>
+        <div id="previewContainer" class="p-3 bg-light rounded-3" style="min-height: 250px; font-family: Arial, sans-serif; line-height: 1.6;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Fechar</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  const previewBtn = document.querySelector('[data-bs-target="#previewModal"]');
-  if (previewBtn) {
-    previewBtn.addEventListener('click', () => {
-      const html = document.querySelector('textarea[name="html"]').value || '<p>(vazio)</p>';
-      const frameDoc = document.getElementById('previewFrame').contentWindow.document;
-      frameDoc.open();
-      frameDoc.write(html);
-      frameDoc.close();
+  function insertVar(varName) {
+    const textarea = document.getElementById('htmlInput');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + varName + text.substring(end);
+    textarea.focus();
+    textarea.selectionEnd = start + varName.length;
+  }
+
+  // Preenchimento por Template
+  const templateSelect = document.getElementById('templateSelect');
+  if (templateSelect) {
+    templateSelect.addEventListener('change', function() {
+      const selected = this.options[this.selectedIndex];
+      if (selected.value) {
+        document.getElementById('subjectInput').value = selected.getAttribute('data-subject') || '';
+        document.getElementById('htmlInput').value = selected.getAttribute('data-html') || '';
+      }
     });
   }
+
+  // Pré-visualização
+  document.getElementById('btnLivePreview').addEventListener('click', function() {
+    const subject = document.getElementById('subjectInput').value || '(Sem assunto)';
+    let html = document.getElementById('htmlInput').value || '<p class="text-muted">(Nenhum conteúdo digitado)</p>';
+    
+    // Substitui variáveis fictícias para a prévia
+    html = html.replaceAll('{{nome_usuario}}', 'João Silva')
+               .replaceAll('{{nome_empresa}}', 'Pizzaria Bella')
+               .replaceAll('{{email}}', 'joao@exemplo.com.br')
+               .replaceAll('{{plano}}', 'PRO');
+
+    document.getElementById('previewSubject').textContent = subject;
+    document.getElementById('previewContainer').innerHTML = html;
+  });
 </script>
 {% endblock %}

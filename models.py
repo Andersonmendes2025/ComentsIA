@@ -114,6 +114,9 @@ class UserSettings(db.Model):
     # 👇 NOVA COLUNA ADICIONADA AQUI 👇
     idioma_resposta = db.Column(db.String(50), default="Português (Brasil)")
 
+    # Tour de onboarding — marca True após o usuário concluir ou pular o tour
+    onboarding_done = db.Column(db.Boolean, default=False)
+
 class RelatorioHistorico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(255), nullable=False)
@@ -448,3 +451,16 @@ class Company(db.Model):
     email = db.Column(db.String(255))
     phone = db.Column(db.String(50))
     created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+
+
+class AppNotification(db.Model):
+    __tablename__ = "app_notifications"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), nullable=False, index=True)
+    titulo = db.Column(db.String(255), nullable=False)
+    mensagem = db.Column(db.Text, nullable=False)
+    tipo = db.Column(db.String(32), default="info")  # info|warning|success|danger
+    link = db.Column(db.String(512), nullable=True)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+

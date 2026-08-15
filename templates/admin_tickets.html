@@ -1,157 +1,321 @@
 {% extends "base.html" %}
-{% block title %}Admin — Tickets{% endblock %}
+{% block title %}Admin — Gestão de Chamados & Suporte{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container-fluid px-lg-5 py-4">
 
   <style>
-    .glass{background:#fff;border:1px solid rgba(2,6,23,.12);border-radius:16px;box-shadow:0 10px 24px rgba(2,6,23,.08);padding:16px}
-    @media (prefers-color-scheme: dark){
-      .glass{background:#0f1629;border-color:rgba(143,164,255,.18);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+    .kanban-col {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 500px;
     }
-    .badge-soft{border:1px solid rgba(2,6,23,.12);background:transparent;border-radius:999px;padding:.15rem .55rem}
+    .ticket-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .ticket-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+    }
+    .badge-priority-baixa { background: #e0f2fe; color: #0369a1; }
+    .badge-priority-normal { background: #f1f5f9; color: #475569; }
+    .badge-priority-alta { background: #fef3c7; color: #b45309; }
+    .badge-priority-critica { background: #fee2e2; color: #b91c1c; font-weight: bold; }
   </style>
 
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h5 m-0">Tickets</h1>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">
-      <i class="bi bi-arrow-left"></i> Dashboard
-    </a>
+  <!-- Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="bi bi-headset text-primary me-2"></i>Central de Chamados de Suporte
+      </h1>
+      <p class="text-muted small mb-0">Gerencie todos os chamados abertos via chat com IA, e-mail ou criados manualmente.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#newTicketModal">
+        <i class="bi bi-plus-lg me-1"></i> Abrir Novo Chamado
+      </button>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <i class="bi bi-arrow-left me-1"></i> Painel Admin
+      </a>
+    </div>
   </div>
 
-  <!-- Criar ticket -->
-  <div class="glass mb-3">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h6 class="m-0">Criar ticket</h6>
-      <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
-        <i class="bi bi-building-add"></i> Nova empresa
-      </button>
-    </div>
+  <!-- Contadores -->
+  {% set abertos = tickets | selectattr('status', 'equalto', 'aberto') | list %}
+  {% set pendentes = tickets | selectattr('status', 'equalto', 'pendente') | list %}
+  {% set resolvidos = tickets | selectattr('status', 'equalto', 'resolvido') | list %}
 
-    <form method="post" action="{{ url_for('admin.tickets_board') }}" class="row g-2">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-
-      <div class="col-12 col-md-6">
-        <label class="form-label">Empresa</label>
-        <div class="d-flex gap-2">
-          <select name="company_id" class="form-select" required>
-            <option value="" hidden>Selecione…</option>
-            {% for c in companies %}
-              <option value="{{ c.id }}">{{ c.name }}</option>
-            {% endfor %}
-          </select>
-          <button type="button" class="btn btn-outline-primary d-none d-md-inline"
-                  data-bs-toggle="modal" data-bs-target="#newCompanyModal" title="Criar empresa">
-            <i class="bi bi-plus-lg"></i>
-          </button>
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Total de Chamados</div>
+            <div class="fs-4 fw-bold text-dark">{{ tickets|length }}</div>
+          </div>
+          <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-circle">
+            <i class="bi bi-ticket-perforated-fill fs-5"></i>
+          </div>
         </div>
       </div>
-
-      <div class="col-12 col-md-6">
-        <label class="form-label">Assunto</label>
-        <input name="assunto" class="form-control" placeholder="Ex.: Corrigir cobrança" required>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Abertos / Novos</div>
+            <div class="fs-4 fw-bold text-danger">{{ abertos|length }}</div>
+          </div>
+          <div class="p-3 bg-danger bg-opacity-10 text-danger rounded-circle">
+            <i class="bi bi-exclamation-circle-fill fs-5"></i>
+          </div>
+        </div>
       </div>
-
-      <div class="col-12 col-md-4">
-        <label class="form-label">Prioridade</label>
-        <select name="prioridade" class="form-select">
-          <option value="baixa">Baixa</option>
-          <option value="normal" selected>Normal</option>
-          <option value="alta">Alta</option>
-          <option value="critica">Crítica</option>
-        </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Em Atendimento</div>
+            <div class="fs-4 fw-bold text-warning">{{ pendentes|length }}</div>
+          </div>
+          <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-circle">
+            <i class="bi bi-hourglass-split fs-5"></i>
+          </div>
+        </div>
       </div>
-
-      <div class="col-12 col-md-8 d-flex align-items-end justify-content-end">
-        <button class="btn btn-primary"><i class="bi bi-check2"></i> Criar</button>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small fw-semibold">Resolvidos</div>
+            <div class="fs-4 fw-bold text-success">{{ resolvidos|length }}</div>
+          </div>
+          <div class="p-3 bg-success bg-opacity-10 text-success rounded-circle">
+            <i class="bi bi-check-circle-fill fs-5"></i>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
 
-  <!-- Lista -->
-  <div class="glass">
-    <h6 class="mb-2">Fila de tickets</h6>
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Assunto</th>
-            <th>Empresa</th>
-            <th>Prioridade</th>
-            <th>Status</th>
-            <th>Atualizado em</th>
-            <th class="text-end">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in tickets %}
-          {% set c = (companies | selectattr('id', 'equalto', t.company_id) | list | first) %}
-          <tr>
-            <td>{{ t.assunto }}</td>
-            <td>{{ c.name if c else '—' }}</td>
-            <td>
-              <span class="badge-soft">
-                {{ t.prioridade|capitalize }}
-              </span>
-            </td>
-            <td>
-              <span class="badge {{ 'text-bg-secondary' if t.status=='aberto' else ('text-bg-warning' if t.status=='pendente' else 'text-bg-success') }}">
-                {{ t.status|capitalize }}
-              </span>
-            </td>
-            <td class="text-nowrap">{{ t.updated_at.strftime('%d/%m/%Y %H:%M') if t.updated_at else '—' }}</td>
-            <td class="text-end">
-              <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <select name="status" class="form-select form-select-sm d-inline-block" style="width:auto">
-                  <option value="aberto"   {% if t.status=='aberto' %}selected{% endif %}>Aberto</option>
-                  <option value="pendente" {% if t.status=='pendente' %}selected{% endif %}>Pendente</option>
-                  <option value="resolvido"{% if t.status=='resolvido' %}selected{% endif %}>Resolvido</option>
-                </select>
-                <button class="btn btn-sm btn-outline-primary">Mover</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="6" class="text-center text-muted py-4">Nenhum ticket.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <!-- Quadro Kanban -->
+  <div class="row g-3">
+    <!-- Coluna ABERTOS -->
+    <div class="col-12 col-lg-4">
+      <div class="kanban-col border-top border-danger border-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-envelope-exclamation-fill text-danger me-1"></i> Abertos / Aguardando
+          </h6>
+          <span class="badge bg-danger rounded-pill">{{ abertos|length }}</span>
+        </div>
+
+        {% for t in abertos %}
+        {% set c = (companies | selectattr('id', 'equalto', t.company_id) | list | first) %}
+        <div class="ticket-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge badge-priority-{{ t.prioridade|default('normal')|lower }} rounded-pill px-2 py-1 small">
+              {{ t.prioridade|default('Normal')|capitalize }}
+            </span>
+            <small class="text-muted">{{ t.created_at.strftime('%d/%m %H:%M') if t.created_at else '' }}</small>
+          </div>
+
+          <h6 class="fw-bold text-dark mb-1">{{ t.assunto }}</h6>
+          
+          <div class="small text-muted mb-2">
+            <i class="bi bi-building me-1"></i> {{ c.name if c else 'Cliente Direto' }}
+            {% if t.owner_id %}
+            <br><i class="bi bi-person me-1"></i> {{ t.owner_id }}
+            {% endif %}
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="status" value="pendente"/>
+              <button class="btn btn-sm btn-outline-warning rounded-pill">
+                <i class="bi bi-play-fill"></i> Atender
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="status" value="resolvido"/>
+              <button class="btn btn-sm btn-outline-success rounded-pill">
+                <i class="bi bi-check2"></i> Resolver
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted small">
+          <i class="bi bi-check-all fs-2 text-success d-block mb-1"></i>
+          Nenhum chamado aberto no momento!
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Coluna PENDENTES -->
+    <div class="col-12 col-lg-4">
+      <div class="kanban-col border-top border-warning border-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-hourglass-split text-warning me-1"></i> Em Análise / Pendente
+          </h6>
+          <span class="badge bg-warning text-dark rounded-pill">{{ pendentes|length }}</span>
+        </div>
+
+        {% for t in pendentes %}
+        {% set c = (companies | selectattr('id', 'equalto', t.company_id) | list | first) %}
+        <div class="ticket-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge badge-priority-{{ t.prioridade|default('normal')|lower }} rounded-pill px-2 py-1 small">
+              {{ t.prioridade|default('Normal')|capitalize }}
+            </span>
+            <small class="text-muted">{{ t.updated_at.strftime('%d/%m %H:%M') if t.updated_at else '' }}</small>
+          </div>
+
+          <h6 class="fw-bold text-dark mb-1">{{ t.assunto }}</h6>
+          
+          <div class="small text-muted mb-2">
+            <i class="bi bi-building me-1"></i> {{ c.name if c else 'Cliente Direto' }}
+            {% if t.owner_id %}
+            <br><i class="bi bi-person me-1"></i> {{ t.owner_id }}
+            {% endif %}
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+            <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="status" value="aberto"/>
+              <button class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-left"></i> Reabrir
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="status" value="resolvido"/>
+              <button class="btn btn-sm btn-success rounded-pill">
+                <i class="bi bi-check2"></i> Concluir
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted small">
+          Nenhum chamado em análise.
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Coluna RESOLVIDOS -->
+    <div class="col-12 col-lg-4">
+      <div class="kanban-col border-top border-success border-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="bi bi-check-circle-fill text-success me-1"></i> Resolvidos
+          </h6>
+          <span class="badge bg-success rounded-pill">{{ resolvidos|length }}</span>
+        </div>
+
+        {% for t in resolvidos %}
+        {% set c = (companies | selectattr('id', 'equalto', t.company_id) | list | first) %}
+        <div class="ticket-card opacity-75">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2 py-1 small">
+              Resolvido
+            </span>
+            <small class="text-muted">{{ t.updated_at.strftime('%d/%m %H:%M') if t.updated_at else '' }}</small>
+          </div>
+
+          <h6 class="fw-bold text-dark mb-1 text-decoration-line-through">{{ t.assunto }}</h6>
+          
+          <div class="small text-muted mb-2">
+            <i class="bi bi-building me-1"></i> {{ c.name if c else 'Cliente Direto' }}
+          </div>
+
+          <div class="d-flex justify-content-end pt-2 border-top">
+            <form method="post" action="{{ url_for('admin.tickets_move', tid=t.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="status" value="aberto"/>
+              <button class="btn btn-sm btn-outline-secondary rounded-pill">
+                <i class="bi bi-arrow-counterclockwise"></i> Reabrir
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted small">
+          Nenhum chamado arquivado.
+        </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Modal: Nova empresa -->
-<div class="modal fade" id="newCompanyModal" tabindex="-1" aria-hidden="true">
+<!-- Modal: Criar Ticket Manualmente -->
+<div class="modal fade" id="newTicketModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form class="modal-content" method="post" action="{{ url_for('admin.company_create') }}">
+    <form class="modal-content" method="post" action="{{ url_for('admin.tickets_board') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-building"></i> Nova empresa</h5>
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-ticket-plus me-2 text-primary"></i>Novo Chamado de Suporte</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <div class="mb-3">
-          <label class="form-label">Nome da empresa</label>
-          <input name="name" class="form-control" placeholder="Ex.: Acme Ltda" required>
+          <label class="form-label fw-semibold small">Empresa / Cliente</label>
+          <select name="company_id" class="form-select" required>
+            <option value="" hidden>Selecione a empresa...</option>
+            {% for c in companies %}
+              <option value="{{ c.id }}">{{ c.name }} ({{ c.owner_user_id or 'Sem e-mail' }})</option>
+            {% endfor %}
+          </select>
         </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Assunto / Título do Problema</label>
+          <input name="assunto" class="form-control" placeholder="Ex.: Dúvida com sincronização da ficha" required>
+        </div>
+
         <div class="row g-2">
           <div class="col-12 col-md-6">
-            <label class="form-label">E-mail (opcional)</label>
-            <input name="email" type="email" class="form-control" placeholder="contato@empresa.com">
+            <label class="form-label fw-semibold small">Prioridade</label>
+            <select name="prioridade" class="form-select">
+              <option value="baixa">Baixa</option>
+              <option value="normal" selected>Normal</option>
+              <option value="alta">Alta</option>
+              <option value="critica">Crítica 🚨</option>
+            </select>
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label">Telefone (opcional)</label>
-            <input name="phone" class="form-control" placeholder="(11) 99999-9999">
+            <label class="form-label fw-semibold small">Status Inicial</label>
+            <select name="status" class="form-select">
+              <option value="aberto" selected>Aberto</option>
+              <option value="pendente">Pendente</option>
+            </select>
           </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> Salvar</button>
+        <button class="btn btn-outline-secondary rounded-pill px-4" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary rounded-pill px-4" type="submit"><i class="bi bi-check2 me-1"></i> Criar Chamado</button>
       </div>
     </form>
   </div>

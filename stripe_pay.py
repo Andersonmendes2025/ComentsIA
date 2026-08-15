@@ -1,8 +1,9 @@
 import os
 import stripe
 from datetime import datetime, timedelta
+import logging
 
-from flask import Blueprint, request, jsonify, session, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, session, redirect, url_for, flash, current_app
 from models import db, PaymentTransaction, UserSettings
 from admin import STRIPE_PRICE_IDS, agora_brt
 
@@ -16,6 +17,16 @@ stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
 # -----------------------
 # HELPERS GERAIS
 # -----------------------
+
+def _safe_next_url(url: str, default: str = "/dashboard") -> str:
+    """Sanitiza o parâmetro de redirecionamento para prevenir Open Redirect (CWE-601).
+    Aceita apenas caminhos relativos internos (começam com '/' mas não com '//').
+    """
+    if url and isinstance(url, str) and url.startswith("/") and not url.startswith("//"):
+        return url
+    return default
+
+
 
 def _get_domain_url() -> str:
     domain = os.getenv("DOMAIN_URL")
@@ -301,14 +312,27 @@ def checkout_adicionar_ficha():
 @stripe_bp.route("/success")
 def success():
     session_id = request.args.get("session_id")
-    next_url = request.args.get("next") or "/dashboard"
+    next_url = _safe_next_url(request.args.get("next"), "/dashboard")
 
-    if not session_id: return redirect(next_url)
+    if not session_id:
+        return redirect(next_url)
 
     try:
         checkout = stripe.checkout.Session.retrieve(session_id)
+
+        # 🔒 VALIDAÇÃO DE PAGAMENTO: só ativa o plano se o pagamento estiver confirmado
+        payment_ok = (
+            checkout.get("payment_status") == "paid"
+            or checkout.get("status") == "complete"
+        )
+        if not payment_ok:
+            logging.warning("[stripe] Tentativa de acesso a /success com checkout não pago: %s", session_id)
+            flash("O pagamento ainda não foi confirmado. Se já finalizou, aguarde alguns instantes.", "warning")
+            return redirect(next_url)
+
         tx = PaymentTransaction.query.filter_by(external_id=checkout.id).first()
-        if not tx: return redirect(next_url)
+        if not tx:
+            return redirect(next_url)
 
         tx.status = "paid"
         tx.amount_cents = checkout.amount_total or 0
@@ -329,18 +353,20 @@ def success():
             settings.plano = _plano_from_product_key(tx.plan_key)
             try:
                 settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
-            except:
+            except Exception:
                 settings.plano_ate = agora_brt() + timedelta(days=30)
 
         db.session.commit()
         return redirect(next_url)
 
     except Exception:
+        logging.exception("[stripe] Erro ao processar /success para session_id=%s", session_id)
         return redirect(next_url)
+
 
 @stripe_bp.route("/cancel")
 def cancel():
-    next_url = request.args.get("next") or "/dashboard"
+    next_url = _safe_next_url(request.args.get("next"), "/dashboard")
     return redirect(next_url)
 
 @stripe_bp.route("/check_paid/<period>", methods=["GET"])
@@ -355,6 +381,9 @@ def check_paid(period):
 # -----------------------
 @stripe_bp.route("/webhook", methods=["POST"])
 def stripe_webhook():
+    # ⚠️ Isentar CSRF via csrf.exempt() em main.py após registrar o blueprint
+    # A segurança aqui é garantida pela validação da assinatura Stripe-Signature abaixo
+
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
     endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")

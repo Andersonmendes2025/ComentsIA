@@ -1,142 +1,142 @@
 {% extends "base.html" %}
-{% block title %}Admin — Preços{% endblock %}
+{% block title %}Admin — Gerenciamento de Preços e Planos{% endblock %}
 {% block content %}
 <div class="container py-4">
 
   <style>
-    :root{
-      --ink:#0f172a; --ink-muted:#475569; --surface:#ffffff; --bg:#f8fafc;
-      --border:rgba(2,6,23,.12); --shadow:0 10px 24px rgba(2,6,23,.08);
-      --brand:#2563eb; --accent:#8b5cf6;
+    .card-plan {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s;
     }
-    @media (prefers-color-scheme: dark){
-      :root{
-        --ink:#e5edff; --ink-muted:#9fb0d3; --surface:#0f1629; --bg:#0b1020;
-        --border:rgba(143,164,255,.18); --shadow:0 14px 28px rgba(0,0,0,.35);
-      }
+    .card-plan:hover {
+      border-color: #2563eb;
+      box-shadow: 0 15px 30px -5px rgba(37, 99, 235, 0.1);
     }
-    body{ background:var(--bg); }
-    .card-plan, .card-sync{
-      background:var(--surface); border:1px solid var(--border); border-radius:16px;
-      padding:16px; box-shadow:var(--shadow); height:100%;
+    .chip-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
     }
-    .chip{
-      font-size:.8rem; color:var(--ink-muted);
-      border:1px solid var(--border); border-radius:999px; padding:.15rem .5rem;
-    }
-    .btn-neon{
-      border:1px solid var(--border);
-      background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.04));
-      color:var(--ink);
-    }
-    .btn-neon:hover{ transform:translateY(-1px); box-shadow:var(--shadow); }
-    .price-preview{ font-weight:700; }
-    .form-text{ color:var(--ink-muted) !important; }
-    .muted{ color:var(--ink-muted); }
   </style>
 
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <h1 class="h5 m-0">Catálogo de Planos</h1>
-    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-neon">
-      <i class="bi bi-arrow-left"></i> Dashboard
-    </a>
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="bi bi-tag-fill text-primary me-2"></i>Catálogo & Precificação de Planos
+      </h1>
+      <p class="text-muted small mb-0">Defina os valores cobrados em cada plano do ComentsIA e valores de sincronização retroativa.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <i class="bi bi-arrow-left me-1"></i> Painel Admin
+      </a>
+    </div>
   </div>
 
-  <!-- ===================== PLANOS NORMAIS ===================== -->
+  <!-- ===================== PLANOS ===================== -->
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-    <div class="row g-3">
+    <div class="row g-4 mb-4">
       {% for key, plan in planos.items() %}
-      <div class="col-12 col-lg-6">
-        <div class="card-plan">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="d-flex align-items-center gap-2">
-              <h5 class="m-0">{{ plan.nome }}</h5>
-              <span class="chip">
-                {{ 'anual' if plan.duration_days >= 365 else ('mensal' if plan.duration_days >= 30 else 'livre') }}
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="card-plan h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold text-dark mb-0">{{ plan.nome }}</h5>
+              <span class="chip-badge {{ 'bg-success text-white' if 'anual' in key else ('bg-primary text-white' if key != 'free' else 'bg-secondary text-white') }}">
+                {{ 'Anual' if plan.duration_days >= 365 else ('Mensal' if plan.duration_days >= 30 else 'Gratuito') }}
               </span>
             </div>
-            <span class="muted">key: <code>{{ key }}</code></span>
-          </div>
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-muted">Preço em Reais (R$)</label>
+              <div class="input-group input-group-lg shadow-sm">
+                <span class="input-group-text bg-light fw-bold text-primary">R$</span>
+                <input type="number" step="0.01" min="0" class="form-control fw-bold fs-5 text-dark"
+                       name="{{ key }}_reais"
+                       value="{{ '%.2f' % (plan.price_cents/100.0) }}"
+                       {% if key == 'free' %}readonly style="background-color: #f8fafc;"{% endif %}>
+              </div>
+              <input type="hidden" name="{{ key }}_cents" value="{{ plan.price_cents }}">
+            </div>
 
-          <div class="row g-2">
-            <div class="col-7">
-              <label class="form-label">Preço (centavos)</label>
-              <input type="number" class="form-control" name="{{ key }}_cents"
-                     value="{{ plan.price_cents|default(0) }}" min="0" step="1"
-                     oninput="this.closest('.card-plan').querySelector('.price-preview').textContent = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((this.value||0)/100)">
-              <div class="form-text">
-                Prévia:
-                <span class="price-preview">
-                  {{ ('R$ ' ~ ('%.2f' % (plan.price_cents/100.0))).replace('.', ',') }}
-                </span>
+            <div class="p-3 bg-light rounded-3 small mb-3">
+              <div class="d-flex justify-content-between text-muted mb-1">
+                <span>Identificador (Key):</span>
+                <code class="fw-bold">{{ key }}</code>
+              </div>
+              <div class="d-flex justify-content-between text-muted mb-1">
+                <span>Duração do Ciclo:</span>
+                <span class="fw-semibold text-dark">{{ plan.duration_days }} dias</span>
+              </div>
+              <div class="d-flex justify-content-between text-muted">
+                <span>Moeda:</span>
+                <span class="fw-semibold text-dark">{{ plan.currency|default('BRL') }}</span>
               </div>
             </div>
+          </div>
 
-            <div class="col-5">
-              <label class="form-label">Moeda</label>
-              <input type="text" class="form-control" value="{{ plan.currency|default('BRL') }}" readonly>
-              <div class="form-text">Definido no sistema</div>
-            </div>
-
-            <div class="col-6">
-              <label class="form-label">Duração (dias)</label>
-              <input type="number" class="form-control" value="{{ plan.duration_days|default(0) }}" readonly>
-            </div>
-
-            <div class="col-6">
-              <label class="form-label">Status</label>
-              <input type="text" class="form-control"
-                     value="{{ 'Ativo' if plan.price_cents>0 or key=='free' else 'Inativo' }}"
-                     readonly>
-            </div>
+          <div class="pt-2 border-top">
+            <span class="badge {{ 'bg-success bg-opacity-10 text-success' if plan.price_cents > 0 or key == 'free' else 'bg-secondary text-white' }} w-100 py-2 rounded-pill">
+              <i class="bi bi-check-circle-fill me-1"></i> Plano Ativo na Plataforma
+            </span>
           </div>
         </div>
       </div>
       {% endfor %}
     </div>
 
-    <div class="d-flex justify-content-end mt-3 mb-5">
-      <button class="btn btn-neon">
-        <i class="bi bi-save"></i> Salvar catálogo
+    <div class="d-flex justify-content-end mb-5">
+      <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm">
+        <i class="bi bi-save-fill me-2"></i> Salvar Novos Preços
       </button>
     </div>
   </form>
 
+  <!-- ===================== SINCRONIZAÇÃO RETROATIVA ===================== -->
+  <div class="card-plan mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="fw-bold text-dark mb-1">
+          <i class="bi bi-clock-history text-primary me-2"></i>Preços de Sincronização Retroativa do Google
+        </h5>
+        <p class="text-muted small mb-0">Valores cobrados para sincronizar avaliações antigas (histórico).</p>
+      </div>
+    </div>
 
-  <!-- ===================== PREÇOS DE SINCRONIZAÇÃO RETROATIVA ===================== -->
-  <h1 class="h5 mt-4 mb-3">Preços — Sincronização Retroativa Google</h1>
+    <form method="post" action="{{ url_for('admin.admin_historical_pricing') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-  <form method="post" action="{{ url_for('admin.admin_historical_pricing') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-
-    <div class="row g-3">
-      {% for period, p in historical.items() %}
-      <div class="col-6 col-lg-3">
-        <div class="card-sync">
-          <h6 class="mb-2">{{ period }} dias</h6>
-
-          <label class="form-label">Preço (R$)</label>
-          <input type="number" step="0.01" min="0" class="form-control"
-                 name="price_{{ period }}"
-                 value="{{ '%.2f' % (p.price_cents/100) }}">
-          
-          <div class="form-text">
-            Valor atual: R$
-            {{ '%.2f' % (p.price_cents/100) }}
+      <div class="row g-3">
+        {% for period, p in historical.items() %}
+        <div class="col-6 col-md-3">
+          <div class="p-3 bg-light rounded-4 border">
+            <div class="fw-bold text-dark mb-2">{{ period }} dias de Histórico</div>
+            <div class="input-group shadow-sm">
+              <span class="input-group-text bg-white">R$</span>
+              <input type="number" step="0.01" min="0" class="form-control fw-bold"
+                     name="price_{{ period }}"
+                     value="{{ '%.2f' % (p.price_cents/100.0) }}">
+            </div>
           </div>
         </div>
+        {% endfor %}
       </div>
-      {% endfor %}
-    </div>
 
-    <div class="d-flex justify-content-end mt-3">
-      <button class="btn btn-neon">
-        <i class="bi bi-save"></i> Salvar preços
-      </button>
-    </div>
-  </form>
+      <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-outline-primary rounded-pill px-4">
+          <i class="bi bi-save me-1"></i> Salvar Preços de Histórico
+        </button>
+      </div>
+    </form>
+  </div>
 
 </div>
 {% endblock %}

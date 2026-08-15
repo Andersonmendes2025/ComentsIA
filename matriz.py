@@ -40,7 +40,7 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if "credentials" not in session:
-            return redirect(url_for("login"))
+            return redirect(url_for("authorize"))
         return f(*args, **kwargs)
 
     return decorated_function

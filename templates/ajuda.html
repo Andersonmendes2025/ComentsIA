@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Central de Ajuda - ComentsIA{% endblock %}
+
+{% block extra_head %}
+<style>
+  .help-hero {
+    background: linear-gradient(135deg, #0d6efd 0%, #4f46e5 100%);
+    color: white;
+    padding: 60px 0;
+    border-radius: 16px;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+  .search-box {
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .search-box input {
+    padding-left: 45px;
+    border-radius: 50px;
+    height: 54px;
+    font-size: 1.1rem;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: white;
+    backdrop-filter: blur(10px);
+  }
+  .search-box input::placeholder {
+    color: rgba(255,255,255,0.7);
+  }
+  .search-box input:focus {
+    background: white;
+    color: #333;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,0.25);
+  }
+  .search-box i {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.7);
+  }
+  .search-box input:focus + i {
+    color: #0d6efd;
+  }
+  .category-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+    cursor: pointer;
+  }
+  .category-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+  .category-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+  .markdown-content {
+    font-size: 1rem;
+    color: #4b5563;
+    line-height: 1.6;
+  }
+  .markdown-content h1 { font-size: 1.5rem; margin-top: 1rem; color: #1f2937; font-weight: 600; }
+  .markdown-content h2 { font-size: 1.25rem; margin-top: 1.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; color: #374151; font-weight: 600;}
+  .markdown-content h3 { font-size: 1.1rem; margin-top: 1rem; color: #4b5563; font-weight: 600;}
+  .markdown-content code { background: #f3f4f6; padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.875em; color: #ef4444; }
+  .markdown-content pre { background: #1f2937; color: #f9fafb; padding: 1rem; border-radius: 8px; overflow-x: auto; margin-top: 0.5rem; }
+  .markdown-content pre code { background: transparent; color: inherit; padding: 0; }
+  .markdown-content blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #6b7280; background: #eff6ff; padding: 1rem; border-radius: 0 8px 8px 0; margin: 1.5rem 0;}
+  .markdown-content table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .markdown-content th, .markdown-content td { border: 1px solid #e5e7eb; padding: 0.75rem; text-align: left; }
+  .markdown-content th { background: #f9fafb; font-weight: 600; color: #374151; }
+  
+  .help-section { display: none; }
+  .help-section.active { display: block; animation: fadeIn 0.3s ease; }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .nav-pills .nav-link {
+    color: #4b5563;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .nav-pills .nav-link:hover {
+    background-color: #f3f4f6;
+  }
+  .nav-pills .nav-link.active {
+    background-color: #ebf5ff;
+    color: #0d6efd;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    display: none;
+  }
+  .empty-state i {
+    font-size: 48px;
+    color: #9ca3af;
+    margin-bottom: 16px;
+  }
+</style>
+
+<!-- Marked.js para converter Markdown em HTML no front-end -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Hero Section -->
+  <div class="help-hero">
+    <h1 class="fw-bold mb-3">Como podemos ajudar?</h1>
+    <p class="fs-5 text-white-50 mb-4">Busque tutoriais, resolva problemas ou fale com nossa Inteligência Artificial.</p>
+    
+    <div class="search-box px-3">
+      <input type="text" class="form-control" id="searchInput" placeholder="Busque por 'fichas', 'planos', 'Google'..." onkeyup="filterContent()">
+      <i class="bi bi-search"></i>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-5" id="categoriesGrid">
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('primeiro_acesso')">
+        <div class="category-icon bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-rocket-takeoff"></i>
+        </div>
+        <h5 class="fw-bold">1. Primeiro Acesso</h5>
+        <p class="text-muted small mb-0">Como entrar, primeiros passos e guia rápido de navegação.</p>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('google_business')">
+        <div class="category-icon bg-success bg-opacity-10 text-success">
+          <i class="bi bi-google"></i>
+        </div>
+        <h5 class="fw-bold">2. Google Business (Fichas)</h5>
+        <p class="text-muted small mb-0">Regra de ouro dos Grupos de Locais (Dono vs Gerente).</p>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('configuracao_ia')">
+        <div class="category-icon bg-warning bg-opacity-10 text-warning">
+          <i class="bi bi-robot"></i>
+        </div>
+        <h5 class="fw-bold">3. Configuração da IA</h5>
+        <p class="text-muted small mb-0">Tons de voz, caixa de contexto e respostas automáticas.</p>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('relatorios')">
+        <div class="category-icon bg-info bg-opacity-10 text-info">
+          <i class="bi bi-file-earmark-pdf"></i>
+        </div>
+        <h5 class="fw-bold">4. Relatórios em PDF</h5>
+        <p class="text-muted small mb-0">Análise de sentimento, gráficos e histórico de relatórios.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('pesquisas_matriz')">
+        <div class="category-icon bg-secondary bg-opacity-10 text-secondary">
+          <i class="bi bi-qr-code-scan"></i>
+        </div>
+        <h5 class="fw-bold">5. Pesquisas e Matriz</h5>
+        <p class="text-muted small mb-0">NPS via QR Code nas mesas e gestão de redes/filiais.</p>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('planos_cobranca')">
+        <div class="category-icon bg-purple bg-opacity-10" style="color: #6f42c1; background-color: rgba(111, 66, 193, 0.1);">
+          <i class="bi bi-credit-card"></i>
+        </div>
+        <h5 class="fw-bold">6. Planos e Cobrança</h5>
+        <p class="text-muted small mb-0">Valores, upgrades, slots extras e política de cancelamento.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Reader Section -->
+  <div class="row d-none" id="readerSection">
+    <div class="col-12 mb-3">
+      <button class="btn btn-light rounded-pill px-4 shadow-sm" onclick="backToCategories()">
+        <i class="bi bi-arrow-left me-2"></i> Voltar às Categorias
+      </button>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="nav flex-column nav-pills shadow-sm p-2 bg-white rounded-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+        <button class="nav-link text-start" id="nav-primeiro_acesso" onclick="showSection('primeiro_acesso')">
+          <i class="bi bi-rocket-takeoff me-2"></i> Primeiro Acesso
+        </button>
+        <button class="nav-link text-start" id="nav-google_business" onclick="showSection('google_business')">
+          <i class="bi bi-google me-2"></i> Google Business
+        </button>
+        <button class="nav-link text-start" id="nav-configuracao_ia" onclick="showSection('configuracao_ia')">
+          <i class="bi bi-robot me-2"></i> Configuração da IA
+        </button>
+        <button class="nav-link text-start" id="nav-relatorios" onclick="showSection('relatorios')">
+          <i class="bi bi-file-earmark-pdf me-2"></i> Relatórios PDF
+        </button>
+        <button class="nav-link text-start" id="nav-pesquisas_matriz" onclick="showSection('pesquisas_matriz')">
+          <i class="bi bi-qr-code-scan me-2"></i> Pesquisas e Matriz
+        </button>
+        <button class="nav-link text-start" id="nav-planos_cobranca" onclick="showSection('planos_cobranca')">
+          <i class="bi bi-credit-card me-2"></i> Planos e Cobrança
+        </button>
+      </div>
+    </div>
+    
+    <div class="col-md-9">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 p-md-5 markdown-content" id="markdown-container">
+          <!-- O conteúdo Markdown convertido em HTML será inserido aqui -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State Search -->
+  <div class="empty-state" id="searchEmptyState">
+    <i class="bi bi-search"></i>
+    <h3 class="fw-bold">Nenhum resultado encontrado</h3>
+    <p class="text-muted">Não encontramos tutoriais com os termos digitados.</p>
+    <button class="btn btn-primary mt-3 rounded-pill px-4" onclick="document.getElementById('chat-float-btn').click()">
+      Perguntar à Inteligência Artificial
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Dicionário com o conteúdo em Markdown enviado pelo back-end
+  const guiasData = {
+    primeiro_acesso: `{{ guias.primeiro_acesso | safe | replace('`', '\\`') }}`,
+    google_business: `{{ guias.google_business | safe | replace('`', '\\`') }}`,
+    configuracao_ia: `{{ guias.configuracao_ia | safe | replace('`', '\\`') }}`,
+    relatorios: `{{ guias.relatorios | safe | replace('`', '\\`') }}`,
+    pesquisas_matriz: `{{ guias.pesquisas_matriz | safe | replace('`', '\\`') }}`,
+    planos_cobranca: `{{ guias.planos_cobranca | safe | replace('`', '\\`') }}`
+  };
+
+  let currentSection = null;
+
+  function showSection(sectionId) {
+    currentSection = sectionId;
+    
+    // Esconde grid de categorias e mostra a leitura
+    document.getElementById('categoriesGrid').classList.add('d-none');
+    document.getElementById('readerSection').classList.remove('d-none');
+    document.getElementById('searchEmptyState').style.display = 'none';
+    
+    // Atualiza menu lateral ativo
+    document.querySelectorAll('.nav-pills .nav-link').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-' + sectionId).classList.add('active');
+    
+    // Renderiza o Markdown com marked.js
+    const rawMd = guiasData[sectionId];
+    if (rawMd.trim()) {
+      document.getElementById('markdown-container').innerHTML = marked.parse(rawMd);
+    } else {
+      document.getElementById('markdown-container').innerHTML = "<p class='text-muted'>Conteúdo ainda não disponível para esta categoria.</p>";
+    }
+    
+    // Rola para o topo do conteúdo
+    window.scrollTo({ top: document.querySelector('.help-hero').offsetHeight, behavior: 'smooth' });
+  }
+
+  function backToCategories() {
+    currentSection = null;
+    document.getElementById('searchInput').value = '';
+    filterContent(); // Reseta busca
+    document.getElementById('readerSection').classList.add('d-none');
+    document.getElementById('categoriesGrid').classList.remove('d-none');
+  }
+
+  // Busca simples: converte todos os MD para texto e busca ocorrências
+  function filterContent() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const categoriesGrid = document.getElementById('categoriesGrid');
+    const readerSection = document.getElementById('readerSection');
+    const emptyState = document.getElementById('searchEmptyState');
+    
+    if (query === '') {
+      if (!currentSection) {
+        categoriesGrid.classList.remove('d-none');
+        readerSection.classList.add('d-none');
+      }
+      emptyState.style.display = 'none';
+      
+      // Restaura todos os cards
+      document.querySelectorAll('.category-card').forEach(c => c.parentElement.style.display = 'block');
+      return;
+    }
+
+    // Se estiver lendo, volta pro modo busca
+    categoriesGrid.classList.remove('d-none');
+    readerSection.classList.add('d-none');
+
+    let foundAny = false;
+    
+    // Mapeamento de id do guia para o respectivo card na DOM
+    const cardMap = {
+      'primeiro_acesso': categoriesGrid.children[0],
+      'google_business': categoriesGrid.children[1],
+      'configuracao_ia': categoriesGrid.children[2],
+      'relatorios': categoriesGrid.children[3],
+      'pesquisas_matriz': categoriesGrid.children[4],
+      'planos_cobranca': categoriesGrid.children[5]
+    };
+
+    for (const [key, text] of Object.entries(guiasData)) {
+      const match = text.toLowerCase().includes(query);
+      if (cardMap[key]) {
+        cardMap[key].style.display = match ? 'block' : 'none';
+        if (match) foundAny = true;
+      }
+    }
+
+    if (!foundAny && !chatMatch) {
+      categoriesGrid.classList.add('d-none');
+      emptyState.style.display = 'block';
+    } else {
+      categoriesGrid.classList.remove('d-none');
+      emptyState.style.display = 'none';
+    }
+  }
+</script>
+{% endblock %}
