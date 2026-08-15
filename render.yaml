@@ -2,7 +2,7 @@ services:
   - type: web
     name: comentsia
     env: python
-    buildCommand: ""
+    buildCommand: "pip install --upgrade pip && pip install --retries 5 --timeout 60 -r requirements.txt"
     startCommand: gunicorn main:app
     envVars:
       - key: OPENAI_API_KEY
@@ -13,3 +13,4 @@ services:
         fromEnv: GOOGLE_CLIENT_SECRET
       - key: FLASK_SECRET_KEY
         fromEnv: FLASK_SECRET_KEY
+
