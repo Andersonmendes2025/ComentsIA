@@ -4,171 +4,164 @@
 
 {% block extra_head %}
 <style>
-    .privacy-container {
-        max-width: 860px;
-        margin: 40px auto 40px auto;
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 6px 32px rgba(0,0,0,0.08), 0 1.5px 3px rgba(0,0,0,0.02);
-        padding: 38px 28px 28px 28px;
+    .privacy-doc-card {
+        max-width: 900px;
+        margin: 20px auto 40px auto;
+        background: #ffffff;
+        border: 1px solid var(--google-border, #dadce0);
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(60,64,67,0.08);
+        padding: 40px 36px;
     }
-    h1 {
-        color: #007bff;
-        font-size: 2.1rem;
-        margin-bottom: 18px;
-        letter-spacing: -1px;
+    .privacy-doc-title {
+        color: #202124;
+        font-family: 'Outfit', 'Inter', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin-bottom: 8px;
         text-align: center;
+        letter-spacing: -0.02em;
     }
-    h2, h3 {
-        color: #007bff;
-        margin-top: 32px;
-        font-size: 1.2rem;
+    .privacy-doc-date {
+        color: #5f6368;
+        text-align: center;
+        font-size: 0.92rem;
+        margin-bottom: 32px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #dadce0;
     }
-    ul, ol {
-        margin-left: 1.2em;
-        padding-left: 1.2em;
-    }
-    a {
-        color: #007bff;
-        text-decoration: none;
-    }
-    a:hover {
-        text-decoration: underline;
-    }
-    .section-title {
-        font-weight: bold;
-        color: #333;
+    .privacy-section-title {
+        font-weight: 700;
+        color: #202124;
         margin-top: 28px;
-        font-size: 1.05rem;
+        margin-bottom: 8px;
+        font-size: 1.15rem;
+        font-family: 'Outfit', 'Inter', sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .privacy-section-title::before {
+        content: "";
+        display: inline-block;
+        width: 4px;
+        height: 18px;
+        background: #1e8e3e;
+        border-radius: 2px;
+    }
+    .privacy-doc-card p {
+        color: #3c4043;
+        font-size: 0.98rem;
+        line-height: 1.7;
+        margin-bottom: 14px;
+    }
+    .privacy-doc-card ul {
+        color: #3c4043;
+        font-size: 0.98rem;
+        line-height: 1.7;
+        margin-bottom: 16px;
+        padding-left: 1.5rem;
+    }
+    .privacy-doc-card li {
+        margin-bottom: 8px;
+    }
+    .privacy-doc-card a {
+        color: #1a73e8;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .privacy-doc-card a:hover {
+        text-decoration: underline;
     }
     .item-bold {
         font-weight: 600;
-        color: #333;
+        color: #202124;
     }
-    .links-uteis {
-        background: #f0f5ff;
-        border-left: 4px solid #007bff;
-        padding: 12px 16px;
-        border-radius: 7px;
-        margin-top: 26px;
+    .links-uteis-box {
+        background: #f8fafd;
+        border: 1px solid #d2e3fc;
+        border-left: 4px solid #1e8e3e;
+        padding: 20px 24px;
+        border-radius: 12px;
+        margin-top: 32px;
     }
-    .atualizacao {
-        color: #666;
-        text-align: right;
-        font-size: 0.96rem;
-        margin-bottom: 8px;
+    .links-uteis-box h6 {
+        font-weight: 700;
+        color: #1e8e3e;
+        margin-bottom: 12px;
     }
-    @media (max-width: 620px) {
-        .privacy-container { padding: 18px 3vw; }
-        h1 { font-size: 1.4rem; }
+    @media (max-width: 640px) {
+        .privacy-doc-card { padding: 24px 18px; margin: 10px auto 30px auto; }
+        .privacy-doc-title { font-size: 1.6rem; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="privacy-container">
-    <h1>Política de Privacidade</h1>
-    <div class="atualizacao">Última atualização: 18/07/2025</div>
+<div class="container">
+    <div class="privacy-doc-card">
+        <h1 class="privacy-doc-title">Política de Privacidade</h1>
+        <div class="privacy-doc-date">Última atualização: 18 de Julho de 2025 &bull; Versão 2.4</div>
 
-    <div class="section-title">1. Compromisso com a privacidade</div>
-    <p>
-        A ComentsIA respeita e valoriza a privacidade dos seus usuários. Esta Política de Privacidade descreve como coletamos, usamos, protegemos e compartilhamos informações pessoais em conformidade com a <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">Lei Geral de Proteção de Dados (LGPD)</a>, o <a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a> e as diretrizes internacionais de proteção de dados.
-    </p>
+        <div class="privacy-section-title">1. Compromisso com a Privacidade</div>
+        <p>
+            A ComentsIA respeita e valoriza a privacidade dos seus usuários. Esta Política de Privacidade descreve de forma clara e transparente como tratamos e protegemos as informações em total conformidade com a <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018)</a>, o <a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a> e as diretrizes oficiais de segurança da informação do Google.
+        </p>
 
-    <div class="section-title">2. Dados coletados</div>
-    <ul>
-        <li><span class="item-bold">Dados cadastrais:</span> Nome da empresa, informações de contato, e-mail, e dados de autenticação pelo Google (OAuth).</li>
-        <li><span class="item-bold">Dados de uso:</span> Avaliações, respostas, preferências de configuração, métricas de uso do serviço.</li>
-        <li><span class="item-bold">Dados técnicos:</span> Informações do dispositivo, navegador, endereço IP, logs de acesso e cookies.</li>
-    </ul>
-
-    <div class="section-title">3. Finalidade do tratamento de dados</div>
-    <p>
-        Os dados são utilizados para:
-    </p>
-    <ul>
-        <li>Viabilizar o funcionamento e a segurança do serviço;</li>
-        <li>Gerar, analisar e personalizar respostas automáticas e relatórios;</li>
-        <li>Cumprir obrigações legais e regulatórias;</li>
-        <li>Prevenir fraudes e garantir a segurança dos usuários;</li>
-        <li>Aprimorar a experiência e o suporte ao cliente.</li>
-    </ul>
-
-    <div class="section-title">4. Compartilhamento de dados</div>
-    <p>
-        Não vendemos dados pessoais a terceiros.<br>
-        O compartilhamento ocorre apenas:
-    </p>
-    <ul>
-        <li>Com parceiros essenciais para o funcionamento da plataforma (ex: APIs Google);</li>
-        <li>Para cumprimento de obrigação legal, judicial ou regulatória;</li>
-        <li>Mediante consentimento expresso do usuário.</li>
-    </ul>
-
-    <div class="section-title">5. Armazenamento e segurança</div>
-    <p>
-        Utilizamos práticas de segurança, criptografia e controles de acesso para proteger seus dados contra acessos não autorizados, perda, destruição ou alteração indevida.<br>
-        Os dados podem ser armazenados em servidores no Brasil ou no exterior, sempre respeitando a legislação aplicável.
-    </p>
-
-    <div class="section-title">6. Cookies e tecnologias de rastreamento</div>
-    <p>
-        Usamos cookies e tecnologias similares para:
-    </p>
-    <ul>
-        <li>Garantir a funcionalidade da plataforma;</li>
-        <li>Analisar uso e melhorar o serviço;</li>
-        <li>Lembrar preferências do usuário.</li>
-    </ul>
-    <p>
-        Você pode desativar cookies nas configurações do navegador, mas algumas funções podem ser afetadas.
-    </p>
-
-    <div class="section-title">7. Direitos do titular dos dados</div>
-    <p>
-        Conforme os artigos 18 e seguintes da LGPD, você tem direito a:
-    </p>
-    <ul>
-        <li>Confirmar a existência de tratamento;</li>
-        <li>Acessar, corrigir, atualizar ou solicitar exclusão dos dados;</li>
-        <li>Solicitar portabilidade ou revogar consentimento;</li>
-        <li>Obter informações sobre uso e compartilhamento dos dados.</li>
-    </ul>
-    <p>
-        Para exercer seus direitos, entre em contato pelo e-mail: <b>contato@comentsia.com.br</b>
-    </p>
-
-    <div class="section-title">8. Retenção e exclusão de dados</div>
-    <p>
-        Os dados são mantidos enquanto necessários para cumprir as finalidades descritas ou conforme exigido por lei.<br>
-        Após o encerramento da conta, podem ser anonimizados ou excluídos definitivamente, salvo obrigações legais de retenção.
-    </p>
-
-    <div class="section-title">9. Transferência internacional de dados</div>
-    <p>
-        Caso ocorra transferência internacional, adotaremos medidas adequadas para garantir a proteção dos dados conforme a legislação aplicável.
-    </p>
-
-    <div class="section-title">10. Alterações nesta política</div>
-    <p>
-        Podemos atualizar esta Política de Privacidade a qualquer momento.<br>
-        Mudanças relevantes serão comunicadas por e-mail ou aviso na plataforma.
-    </p>
-
-    <div class="section-title">11. Contato e dúvidas</div>
-    <p>
-        Em caso de dúvidas ou solicitações relacionadas à privacidade, entre em contato com nosso DPO (Encarregado de Dados): <b>contato@comentsia.com.br</b>
-    </p>
-
-    <div class="section-title">12. Referências Oficiais</div>
-    <div class="links-uteis">
+        <div class="privacy-section-title">2. Dados Coletados</div>
         <ul>
-            <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD - Lei Geral de Proteção de Dados</a></li>
-            <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a></li>
-            <li><a href="https://policies.google.com/" target="_blank">Política de Privacidade do Google</a></li>
+            <li><span class="item-bold">Dados Cadastrais:</span> Nome comercial, e-mail de contato, ID de usuário e credenciais de autorização OAuth 2.0 fornecidas com seu consentimento via Google.</li>
+            <li><span class="item-bold">Dados de Avaliações:</span> Textos, notas e data das avaliações do Google Meu Negócio necessárias para a prestação do serviço de respostas e relatórios.</li>
+            <li><span class="item-bold">Dados Técnicos:</span> Logs de navegação, endereço IP de acesso e cookies essenciais para autenticação e segurança de sessão.</li>
         </ul>
-        <div style="margin-top:10px;">
-            <b>Ao continuar utilizando o ComentsIA, você declara ter lido, compreendido e concordado com esta Política de Privacidade.</b>
+
+        <div class="privacy-section-title">3. Finalidade do Tratamento</div>
+        <p>
+            Os dados são utilizados estritamente para:
+        </p>
+        <ul>
+            <li>Viabilizar a sincronização e resposta às avaliações com inteligência artificial;</li>
+            <li>Gerar relatórios de desempenho, gráficos de notas e diagnósticos de atendimento;</li>
+            <li>Prevenir fraudes e garantir a segurança das contas conectadas;</li>
+            <li>Cumprir obrigações legais e regulatórias da legislação brasileira.</li>
+        </ul>
+
+        <div class="privacy-section-title">4. Não Comercialização de Dados</div>
+        <p>
+            <b>A ComentsIA não vende, não aluga e não compartilha seus dados com corretores ou terceiros para fins de marketing.</b> O compartilhamento ocorre exclusivamente com provedores de infraestrutura essenciais (ex: Google Cloud, Stripe para pagamentos) mediante rígidos acordos de confidencialidade e segurança.
+        </p>
+
+        <div class="privacy-section-title">5. Armazenamento e Criptografia</div>
+        <p>
+            Adotamos padrões modernos de segurança digital: criptografia SSL/TLS em trânsito (HTTPS ativo) e criptografia em repouso de tokens e chaves de acesso. Nossos servidores seguem as melhores práticas de isolamento e monitoramento contínuo.
+        </p>
+
+        <div class="privacy-section-title">6. Direitos do Titular dos Dados (LGPD)</div>
+        <p>
+            Em conformidade com o Artigo 18 da LGPD, você pode a qualquer momento:
+        </p>
+        <ul>
+            <li>Confirmar a existência do tratamento e acessar seus dados;</li>
+            <li>Solicitar a correção de dados incompletos ou inexatos;</li>
+            <li>Solicitar a portabilidade ou a <strong>exclusão definitiva</strong> da sua conta e de todos os dados associados diretamente no painel de configurações ou via suporte.</li>
+        </ul>
+
+        <div class="privacy-section-title">7. Contato do Encarregado de Dados (DPO)</div>
+        <p>
+            Para exercer seus direitos ou tirar dúvidas sobre privacidade, entre em contato pelo e-mail: <a href="mailto:contato@comentsia.com.br">contato@comentsia.com.br</a>
+        </p>
+
+        <div class="links-uteis-box">
+            <h6><i class="bi bi-shield-check me-2"></i>Referências Oficiais e Links de Conformidade</h6>
+            <ul class="mb-2">
+                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD - Lei Geral de Proteção de Dados Pessoais</a></li>
+                <li><a href="https://policies.google.com/privacy" target="_blank">Política de Privacidade Oficial do Google</a></li>
+                <li><a href="https://developers.google.com/terms" target="_blank">Termos de Serviço de APIs do Google</a></li>
+                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet (Lei nº 12.965/2014)</a></li>
+            </ul>
+            <div class="small text-muted mt-2">
+                Ao utilizar a plataforma ComentsIA, você declara ter lido, compreendido e concordado com esta Política de Privacidade.
+            </div>
         </div>
     </div>
 </div>

@@ -157,16 +157,32 @@
                        value="{{ settings.manager_name or '' }}" placeholder="Ex: João Silva">
               </div>
 
-              <!-- Seletor de Idioma -->
-              <div class="col-md-12 mt-3">
-                  <label class="form-label fw-semibold"><i class="bi bi-globe me-2 text-primary"></i>Idioma das Respostas</label>
-                  <select class="form-select" name="idioma_resposta">
-                      <option value="Português (Brasil)" {% if settings.idioma_resposta == 'Português (Brasil)' %}selected{% endif %}>Português (Brasil)</option>
-                      <option value="Português (Portugal)" {% if settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>Português (Portugal)</option>
-                      <option value="Inglês (Estados Unidos)" {% if settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>Inglês (EUA)</option>
-                      <option value="Espanhol" {% if settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>Espanhol</option>
+              <!-- Seletor de Tom e Idioma Global -->
+              <div class="col-md-6 mt-3">
+                  <label class="form-label fw-semibold"><i class="bi bi-chat-heart me-2 text-primary"></i>Tom de Resposta Padrão</label>
+                  <select class="form-select" name="gbp_tone">
+                      <option value="profissional" {% if settings.gbp_tone in ['profissional', 'neutro', None, ''] %}selected{% endif %}>👔 Profissional & Corporativo</option>
+                      <option value="amigavel" {% if settings.gbp_tone in ['amigavel', 'amigável', 'descontraido'] %}selected{% endif %}>😊 Amigável & Descontraído</option>
+                      <option value="empatico" {% if settings.gbp_tone in ['empatico', 'empático', 'compreensivo'] %}selected{% endif %}>💛 Empático & Humanizado</option>
+                      <option value="direto" {% if settings.gbp_tone in ['direto', 'objetivo', 'curto'] %}selected{% endif %}>⚡ Curto & Direto</option>
+                      <option value="luxo" {% if settings.gbp_tone in ['luxo', 'sofisticado', 'premium'] %}selected{% endif %}>✨ Luxo & Sofisticado</option>
                   </select>
-                  <div class="form-text">A Inteligência Artificial vai ler a avaliação e gerar o texto neste idioma.</div>
+                  <div class="form-text">Define a personalidade e o estilo de escrita da IA nas respostas.</div>
+              </div>
+
+              <div class="col-md-6 mt-3">
+                  <label class="form-label fw-semibold"><i class="bi bi-globe me-2 text-primary"></i>Idioma Padrão das Respostas</label>
+                  <select class="form-select" name="idioma_resposta">
+                      <option value="auto" {% if settings.idioma_resposta in ['auto', 'Detectar automaticamente (mesmo idioma do cliente)'] %}selected{% endif %}>🌐 Detectar automaticamente (mesmo do cliente)</option>
+                      <option value="Português (Brasil)" {% if settings.idioma_resposta == 'Português (Brasil)' or not settings.idioma_resposta %}selected{% endif %}>🇧🇷 Português (Brasil)</option>
+                      <option value="Português (Portugal)" {% if settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>🇵🇹 Português (Portugal)</option>
+                      <option value="Inglês (Estados Unidos)" {% if settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 Inglês (EUA / Global)</option>
+                      <option value="Espanhol" {% if settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Espanhol</option>
+                      <option value="Francês" {% if settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Francês</option>
+                      <option value="Alemão" {% if settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Alemão</option>
+                      <option value="Italiano" {% if settings.idioma_resposta == 'Italiano' %}selected{% endif %}>🇮🇹 Italiano</option>
+                  </select>
+                  <div class="form-text">A Inteligência Artificial responderá neste idioma selecionado.</div>
               </div>
             </div>
 

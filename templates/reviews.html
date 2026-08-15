@@ -269,11 +269,26 @@
             {% endfor %}
           </div>
 
-          <div class="review-text">
-            {% if review.text %}
-              "{{ review.text }}"
-            {% else %}
-              <span class="text-muted fst-italic">Sem comentário escrito.</span>
+          {% set p = review.parsed_text %}
+          <div class="review-text-container mb-3"
+               data-review-id="{{ review.id }}"
+               data-original="{{ p.original|e }}"
+               data-orig-lang="{{ p.orig_lang }}"
+               data-translated="{{ p.translated|e if p.translated else '' }}"
+               data-trans-lang="{{ p.trans_lang or '' }}">
+            <div class="review-text" id="review-text-{{ review.id }}">
+              {% if p.original %}
+                "{{ p.original }}"
+              {% else %}
+                <span class="text-muted fst-italic">Sem comentário escrito.</span>
+              {% endif %}
+            </div>
+            {% if p.translated %}
+              <div class="translation-meta mt-1" id="trans-meta-{{ review.id }}" style="display: none;">
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" style="font-size: 0.78rem;" onclick="toggleReviewLanguage({{ review.id }})">
+                  <i class="bi bi-translate me-1 text-primary"></i><span id="trans-btn-label-{{ review.id }}">Ver tradução</span>
+                </button>
+              </div>
             {% endif %}
           </div>
 
@@ -298,7 +313,7 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                       <li>
-                        <button class="dropdown-item small" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', `{{ review.reply|e }}`, true)">
+                        <button class="dropdown-item small" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', `{{ review.reply|e }}`, true, '{{ review.google_location.tone if review.google_location and review.google_location.tone else '' }}', '{{ review.google_location.idioma_resposta if review.google_location and review.google_location.idioma_resposta else '' }}')">
                           <i class="bi bi-pencil me-2"></i>Editar
                         </button>
                       </li>
@@ -315,7 +330,7 @@
               </div>
             {% else %}
               <div class="d-grid">
-                <button class="btn btn-outline-primary fw-semibold" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', '', false)">
+                <button class="btn btn-outline-primary fw-semibold" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', '', false, '{{ review.google_location.tone if review.google_location and review.google_location.tone else '' }}', '{{ review.google_location.idioma_resposta if review.google_location and review.google_location.idioma_resposta else '' }}')">
                   <i class="bi bi-stars me-1"></i> Gerar Resposta com IA
                 </button>
               </div>
@@ -414,21 +429,37 @@
             <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders me-1"></i> Configurar a Inteligência Artificial</h6>
             
             <div class="row g-3">
-                <div class="col-md-5">
-                    <label for="tone" class="form-label small text-muted mb-1 fw-bold">Tom da resposta</label>
-                    <select class="form-select form-select-sm shadow-none border-secondary-subtle" id="tone">
-                        <option value="profissional">Profissional</option>
-                        <option value="amigavel">Amigável</option>
-                        <option value="empatico">Empático</option>
+                <div class="col-md-6">
+                    <label for="tone" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-chat-heart me-1 text-primary"></i>Tom da resposta</label>
+                    <select class="form-select form-select-sm shadow-none border-secondary-subtle fw-medium" id="tone">
+                        <option value="profissional">👔 Profissional & Corporativo</option>
+                        <option value="amigavel">😊 Amigável & Descontraído</option>
+                        <option value="empatico">💛 Empático & Humanizado</option>
+                        <option value="direto">⚡ Curto & Direto</option>
+                        <option value="luxo">✨ Luxo & Sofisticado</option>
                     </select>
                 </div>
-                
-                <div class="col-md-7 d-flex flex-column justify-content-end pb-1">
-                    <div class="d-flex align-items-center">
+
+                <div class="col-md-6">
+                    <label for="reply_lang" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-globe me-1 text-primary"></i>Idioma da resposta</label>
+                    <select class="form-select form-select-sm shadow-none border-secondary-subtle fw-medium" id="reply_lang">
+                        <option value="auto">🌐 Detectar automaticamente (mesmo do cliente)</option>
+                        <option value="Português (Brasil)" {% if user_settings and user_settings.idioma_resposta == 'Português (Brasil)' %}selected{% endif %}>🇧🇷 Português (Brasil)</option>
+                        <option value="Português (Portugal)" {% if user_settings and user_settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>🇵🇹 Português (Portugal)</option>
+                        <option value="Inglês (Estados Unidos)" {% if user_settings and user_settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 Inglês (EUA / Global)</option>
+                        <option value="Espanhol" {% if user_settings and user_settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Espanhol</option>
+                        <option value="Francês" {% if user_settings and user_settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Francês</option>
+                        <option value="Alemão" {% if user_settings and user_settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Alemão</option>
+                        <option value="Italiano" {% if user_settings and user_settings.idioma_resposta == 'Italiano' %}selected{% endif %}>🇮🇹 Italiano</option>
+                    </select>
+                </div>
+
+                <div class="col-12 mt-2">
+                    <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-white border">
                         <div class="form-check form-switch mb-0">
                             <input class="form-check-input" type="checkbox" id="hiper_compreensiva" {% if user_plano == 'free' %}disabled{% endif %}>
                             <label class="form-check-label small fw-medium text-dark" for="hiper_compreensiva">
-                                Usar resposta Hiper Compreensiva
+                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Modo Hiper Compreensivo (resposta detalhada e longa)
                             </label>
                         </div>
                         <span class="badge bg-secondary badge-limite" id="limite-hiper"><span id="hiper-restante">...</span></span>
@@ -606,9 +637,25 @@
     }
   }
 
-  function openReplyModal(internalId, externalId, currentReply, isEdit) {
+  function openReplyModal(internalId, externalId, currentReply, isEdit, locationTone, locationLang) {
     document.getElementById('current-external-id').value = externalId;
     document.getElementById('current-internal-id').value = internalId;
+
+    // Configura tom e idioma (Prioridade: Ficha da Avaliação > Padrão Global da Conta)
+    const defaultGlobalTone = {{ (user_settings.gbp_tone or 'profissional')|tojson }};
+    const defaultGlobalLang = {{ (user_settings.idioma_resposta or 'Português (Brasil)')|tojson }};
+
+    if (locationTone && locationTone.trim() !== '') {
+      document.getElementById('tone').value = locationTone;
+    } else {
+      document.getElementById('tone').value = defaultGlobalTone;
+    }
+
+    if (locationLang && locationLang.trim() !== '') {
+      document.getElementById('reply_lang').value = locationLang;
+    } else {
+      document.getElementById('reply_lang').value = defaultGlobalLang;
+    }
 
     const textArea = document.getElementById('reply-text');
     currentIsEdit = !!isEdit;
@@ -627,8 +674,7 @@
       textArea.value = "";
       document.getElementById('btn-send-text').innerText = "Publicar Resposta";
       replyModal.show();
-      // Em vez de gerar automático, forçamos o cliente a escolher as opções primeiro se ele quiser!
-      // Mas para manter sua dinâmica anterior, vamos gerar a resposta básica:
+      // Gera a sugestão com as opções pré-selecionadas da ficha/global:
       generateAISuggestion(internalId);
     }
   }
@@ -646,6 +692,7 @@
 
     // Pega as opções do modal!
     const tone = document.getElementById('tone').value;
+    const idioma = document.getElementById('reply_lang').value;
     const hiper = document.getElementById('hiper_compreensiva').checked;
     const consideracoes = document.getElementById('consideracoes').value;
 
@@ -656,6 +703,7 @@
         body: JSON.stringify({ 
             review_id: reviewId,
             tone: tone,
+            idioma: idioma,
             hiper_compreensiva: hiper,
             consideracoes: consideracoes
         })
@@ -736,5 +784,102 @@
       toast("Erro de conexão.", "danger");
     }
   }
+
+  // 🌐 Detecção e adaptação inteligente do idioma do navegador
+  function setupMultilingualReviews() {
+    const rawNavLang = (navigator.language || navigator.userLanguage || 'pt').toLowerCase();
+    const userLang = rawNavLang.split('-')[0]; // 'pt', 'en', 'es', etc.
+
+    const langNames = {
+      'pt': 'Português',
+      'en': 'Inglês',
+      'es': 'Espanhol',
+      'fr': 'Francês',
+      'de': 'Alemão',
+      'it': 'Italiano'
+    };
+
+    document.querySelectorAll('.review-text-container').forEach(container => {
+      const reviewId = container.dataset.reviewId;
+      const original = container.dataset.original;
+      const origLang = (container.dataset.origLang || 'pt').toLowerCase();
+      const translated = container.dataset.translated;
+      const transLang = (container.dataset.transLang || '').toLowerCase();
+      
+      const textElem = document.getElementById(`review-text-${reviewId}`);
+      const metaElem = document.getElementById(`trans-meta-${reviewId}`);
+      const btnLabel = document.getElementById(`trans-btn-label-${reviewId}`);
+      if (!textElem) return;
+
+      if (!original) return;
+
+      // CASO 1: O idioma original da avaliação É o mesmo do navegador do usuário
+      if (origLang === userLang || (!translated && origLang.startsWith(userLang))) {
+        textElem.innerText = `"${original}"`;
+        textElem.dataset.currentShowing = 'original';
+        if (metaElem) metaElem.style.display = 'none'; // Esconde botão pois já está na língua nativa
+        return;
+      }
+
+      // CASO 2: A avaliação está em OUTRO idioma e temos tradução disponível
+      if (translated) {
+        // Mostra a tradução com opção de alternar para o texto original
+        textElem.innerText = `"${translated}"`;
+        textElem.dataset.currentShowing = 'translated';
+        if (metaElem && btnLabel) {
+          metaElem.style.display = 'block';
+          const origName = langNames[origLang] || origLang.toUpperCase();
+          btnLabel.innerText = `🌐 Traduzido automaticamente · Ver original (${origName})`;
+        }
+      } else {
+        // Avaliação em outro idioma sem tradução embutida
+        textElem.innerText = `"${original}"`;
+        textElem.dataset.currentShowing = 'original';
+        if (metaElem && btnLabel) {
+          metaElem.style.display = 'block';
+          const origName = langNames[origLang] || origLang.toUpperCase();
+          btnLabel.innerText = `🌐 Idioma original: ${origName}`;
+        }
+      }
+    });
+  }
+
+  function toggleReviewLanguage(reviewId) {
+    const container = document.querySelector(`.review-text-container[data-review-id="${reviewId}"]`);
+    if (!container) return;
+    
+    const original = container.dataset.original;
+    const origLang = (container.dataset.origLang || 'pt').toLowerCase();
+    const translated = container.dataset.translated;
+    const textElem = document.getElementById(`review-text-${reviewId}`);
+    const btnLabel = document.getElementById(`trans-btn-label-${reviewId}`);
+    
+    if (!textElem || !translated) return;
+
+    const langNames = {
+      'pt': 'Português',
+      'en': 'Inglês',
+      'es': 'Espanhol',
+      'fr': 'Francês',
+      'de': 'Alemão',
+      'it': 'Italiano'
+    };
+    const origName = langNames[origLang] || origLang.toUpperCase();
+
+    if (textElem.dataset.currentShowing === 'translated') {
+      textElem.innerText = `"${original}"`;
+      textElem.dataset.currentShowing = 'original';
+      if (btnLabel) btnLabel.innerText = `🌐 Ver tradução`;
+    } else {
+      textElem.innerText = `"${translated}"`;
+      textElem.dataset.currentShowing = 'translated';
+      if (btnLabel) btnLabel.innerText = `🌐 Traduzido automaticamente · Ver original (${origName})`;
+    }
+  }
+
+  // Executa na inicialização
+  document.addEventListener('DOMContentLoaded', () => {
+    setupMultilingualReviews();
+  });
 </script>
 {% endblock %}

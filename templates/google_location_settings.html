@@ -69,9 +69,40 @@
 
         <div class="card shadow-sm border-0">
           <div class="card-header bg-white py-3">
-            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-chat-quote me-2"></i>Estilo de Resposta</h6>
+            <h6 class="fw-bold text-dark mb-0"><i class="bi bi-chat-quote me-2"></i>Estilo & IA da Unidade</h6>
           </div>
           <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label small text-muted text-uppercase fw-bold"><i class="bi bi-chat-heart me-1 text-primary"></i>Tom de Resposta</label>
+              <select name="tone" class="form-select">
+                <option value="" {% if not ficha.tone %}selected{% endif %}>⚙️ Usar tom global da conta ({{ global_settings.get('gbp_tone', 'profissional')|title }})</option>
+                <option value="profissional" {% if ficha.tone == 'profissional' %}selected{% endif %}>👔 Profissional & Corporativo</option>
+                <option value="amigavel" {% if ficha.tone in ['amigavel', 'amigável', 'descontraido'] %}selected{% endif %}>😊 Amigável & Descontraído</option>
+                <option value="empatico" {% if ficha.tone in ['empatico', 'empático', 'compreensivo'] %}selected{% endif %}>💛 Empático & Humanizado</option>
+                <option value="direto" {% if ficha.tone in ['direto', 'objetivo', 'curto'] %}selected{% endif %}>⚡ Curto & Direto</option>
+                <option value="luxo" {% if ficha.tone in ['luxo', 'sofisticado', 'premium'] %}selected{% endif %}>✨ Luxo & Sofisticado</option>
+              </select>
+              <div class="form-text" style="font-size: 0.75rem;">Se não escolher, herda a configuração global.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small text-muted text-uppercase fw-bold"><i class="bi bi-globe me-1 text-primary"></i>Idioma das Respostas</label>
+              <select name="idioma_resposta" class="form-select">
+                <option value="" {% if not ficha.idioma_resposta %}selected{% endif %}>⚙️ Usar idioma global da conta</option>
+                <option value="auto" {% if ficha.idioma_resposta == 'auto' %}selected{% endif %}>🌐 Detectar automaticamente (mesmo do cliente)</option>
+                <option value="Português (Brasil)" {% if ficha.idioma_resposta == 'Português (Brasil)' %}selected{% endif %}>🇧🇷 Português (Brasil)</option>
+                <option value="Português (Portugal)" {% if ficha.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>🇵🇹 Português (Portugal)</option>
+                <option value="Inglês (Estados Unidos)" {% if ficha.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 Inglês (EUA / Global)</option>
+                <option value="Espanhol" {% if ficha.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Espanhol</option>
+                <option value="Francês" {% if ficha.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Francês</option>
+                <option value="Alemão" {% if ficha.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Alemão</option>
+                <option value="Italiano" {% if ficha.idioma_resposta == 'Italiano' %}selected{% endif %}>🇮🇹 Italiano</option>
+              </select>
+              <div class="form-text" style="font-size: 0.75rem;">A IA responderá avaliações desta ficha neste idioma.</div>
+            </div>
+
+            <hr class="my-3 border-light">
+
             <div class="mb-3">
               <label class="form-label small text-muted text-uppercase fw-bold">Saudação Inicial</label>
               <input type="text" name="default_greeting" class="form-control" 
@@ -84,6 +115,21 @@
                      value="{{ ficha.default_closing or '' }}" 
                      placeholder="Ex: Atenciosamente, Equipe X">
             </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0 border-danger border-opacity-25 mt-4">
+          <div class="card-header bg-white py-3">
+            <h6 class="fw-bold text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Zona de Perigo</h6>
+          </div>
+          <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+              <h6 class="fw-bold mb-1 text-dark">Excluir esta Ficha</h6>
+              <p class="text-muted small mb-0">Remove esta ficha do seu aplicativo ComentsIA.</p>
+            </div>
+            <button type="button" class="btn btn-outline-danger btn-sm px-3 fw-semibold rounded-pill" onclick="excluirFichaAtual()">
+              <i class="bi bi-trash me-1"></i> Excluir Ficha
+            </button>
           </div>
         </div>
 
@@ -104,4 +150,37 @@
   <div style="height: 100px;"></div>
 
 </div>
+
+<script>
+async function excluirFichaAtual() {
+  const locName = {{ ficha.location_name|tojson }};
+  const locId = {{ ficha.location_id|tojson }};
+  const csrf = document.querySelector('input[name="csrf_token"]').value;
+
+  if (!confirm(`Deseja realmente excluir a ficha "${locName}" do aplicativo?\n\nEla será removida da lista da ComentsIA.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/auto/location/${locId}/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.success) {
+      alert(data.message || 'Ficha excluída com sucesso!');
+      window.location.href = "{{ url_for('google_auto.escolher_ficha_google') }}";
+    } else {
+      alert(data.error || 'Erro ao excluir ficha.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Erro de conexão ao excluir.');
+  }
+}
+</script>
+
 {% endblock %}

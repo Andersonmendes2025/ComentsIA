@@ -148,7 +148,20 @@ def escolher_ficha_google():
         if not ficha_alvo:
             return jsonify({"success": False, "error": "Ficha inválida."}), 400
 
-        # 2. DESATIVAR
+        # 2. EXCLUIR / REMOVER FICHA
+        if action in ["excluir", "delete", "remover"]:
+            if ficha_alvo.is_active:
+                ficha_alvo.is_active = False
+            
+            # Desvincula avaliações associadas
+            Review.query.filter_by(user_id=user_id, google_location_id=ficha_alvo.id).update({"google_location_id": None})
+
+            location_title = ficha_alvo.location_name or "Ficha"
+            db.session.delete(ficha_alvo)
+            db.session.commit()
+            return jsonify({"success": True, "message": f"Ficha '{location_title}' excluída com sucesso."})
+
+        # 3. DESATIVAR
         if action == "desativar":
             if not ficha_alvo.is_active:
                 return jsonify({"success": True, "message": "Ficha já está inativa."})
@@ -161,7 +174,7 @@ def escolher_ficha_google():
             db.session.commit()
             return jsonify({"success": True, "message": "Ficha desativada."})
 
-        # 3. ATIVAR (padrão)
+        # 4. ATIVAR (padrão)
         if ficha_alvo.is_active:
             return jsonify({"success": True, "message": "Ficha já está ativa."})
 
@@ -878,8 +891,10 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
     try:
         from main import client as openai_client
         from main import get_user_settings
+        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
 
         settings = get_user_settings(user_id)
+        clean_text = limpar_texto_review(text)
 
         def pick(field_ficha, key_global):
             if location_db_obj and getattr(location_db_obj, field_ficha, None):
@@ -893,11 +908,11 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         closing = pick("default_closing", "default_closing")
         contexto = pick("contexto_personalizado", "contexto_personalizado")
 
-        tone = settings.get("gbp_tone")
-        tone_instruction = {
-            "empatico": "Demonstre empatia e cuidado.",
-            "profissional": "Mantenha tom neutro e educado.",
-        }.get(tone, "Seja cordial e útil.")
+        tone = pick("tone", "gbp_tone") or "profissional"
+        idioma = pick("idioma_resposta", "idioma_resposta") or "Português (Brasil)"
+
+        system_inst, prompt_lang_rule = get_language_instructions(idioma)
+        tone_inst = get_tone_instructions(tone)
 
         assinatura = business_name
         if manager_name:
@@ -907,28 +922,31 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         if contexto:
             prompt += f"🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: {contexto}\n\n"
 
-        prompt += f"""
-Você é um assistente de atendimento ao cliente da empresa "{business_name}".
+        prompt += f"""Você é um especialista em sucesso e experiência do cliente da empresa "{business_name}".
 Avaliação recebida:
 - Nome: {reviewer_name}
 - Nota: {stars} estrelas
-- Texto: "{text}"
+- Comentário Original: "{clean_text}"
 
-Responda começando com: "{greeting} {reviewer_name},"
-- {tone_instruction}
-- Reescreva com naturalidade
-- Feche com "{closing}"
-- Contato: {contact_info}
-- Assine:
+REGRAS ESTRITAS DE RESPOSTA:
+{prompt_lang_rule}
+
+2. {tone_inst}
+
+3. SAUDAÇÃO: Comece com "{greeting} {reviewer_name},"
+4. DESPEDIDA: Finalize com "{closing}"
+5. CONTATO: "{contact_info}"
+6. ASSINATURA EXATA:
 {assinatura}
+7. TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas. Nunca use a palavra "Atenciosamente".
 """
         if is_hiper_enabled:
-            prompt += "\n\n**Gere uma resposta mais longa, empática e detalhada.**"
+            prompt += "\n\n🚨 MODO HIPER COMPREENSIVO: Ignore a regra de tamanho e escreva de 8 a 15 frases com escuta ativa profunda e empatia total."
 
         cp = openai_client.with_options(timeout=30.0).chat.completions.create(
-            model="gpt-4o-mini", # Use um modelo válido
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Você é um assistente cordial e empático."},
+                {"role": "system", "content": system_inst},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -963,6 +981,8 @@ def configurar_ficha_especifica(location_id):
         ficha.default_greeting = request.form.get("default_greeting") or None
         ficha.default_closing = request.form.get("default_closing") or None
         ficha.contexto_personalizado = request.form.get("contexto_personalizado") or None
+        ficha.tone = request.form.get("tone") or None
+        ficha.idioma_resposta = request.form.get("idioma_resposta") or None
 
         db.session.commit()
         flash(f"Configurações da unidade '{ficha.location_name}' salvas!", "success")
@@ -976,6 +996,42 @@ def configurar_ficha_especifica(location_id):
         ficha=ficha,
         global_settings=global_settings,
     )
+
+
+@google_auto_bp.route("/location/<path:location_id>/delete", methods=["POST"])
+def excluir_ficha_especifica(location_id):
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"success": False, "error": "Não autenticado."}), 401
+
+    location_id_norm = _extract_id(location_id) or location_id
+    ficha = GoogleLocation.query.filter_by(
+        user_id=user_id,
+        location_id=location_id_norm
+    ).first()
+
+    if not ficha:
+        if request.is_json:
+            return jsonify({"success": False, "error": "Ficha não encontrada."}), 404
+        flash("Ficha não encontrada.", "danger")
+        return redirect(url_for("google_auto.escolher_ficha_google"))
+
+    if ficha.is_active:
+        ficha.is_active = False
+
+    # Desvincula avaliações associadas
+    Review.query.filter_by(user_id=user_id, google_location_id=ficha.id).update({"google_location_id": None})
+
+    location_title = ficha.location_name or "Ficha"
+    db.session.delete(ficha)
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({"success": True, "message": f"Ficha '{location_title}' excluída com sucesso."})
+    
+    flash(f"Ficha '{location_title}' excluída com sucesso.", "success")
+    return redirect(url_for("google_auto.escolher_ficha_google"))
+
 
 
 

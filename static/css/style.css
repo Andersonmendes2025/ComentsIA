@@ -1,275 +1,274 @@
-/* ===== VARIÁVEIS ===== */
+/* ==========================================================================
+   COMENTSIA - DESIGN SYSTEM (Google Material 3 + Futuristic Glass & Colors)
+   ========================================================================== */
+
 :root {
-  --primary-color: #0057d8;
-  --primary-hover: #0046b3;
-  --info-color: #60a5fa;
-  --light-color: #f9fafb;
-  --dark-color: #111827;
-  --success-color: #22c55e;
-  --warning-color: #facc15;
-  --danger-color: #ef4444;
-  --border-radius: 0.75rem;
-  --box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-  --box-shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.15);
-  --transition: all 0.3s ease;
+  /* Google & Futuristic Palette */
+  --google-blue: #1a73e8;
+  --google-blue-hover: #1557b0;
+  --google-blue-active: #174ea6;
+  --google-blue-surface: #e8f0fe;
+  --google-blue-border: #d2e3fc;
+
+  --google-indigo: #4f46e5;
+  --google-indigo-surface: #eef2ff;
+  --google-indigo-border: #e0e7ff;
+
+  --google-green: #1e8e3e;
+  --google-green-hover: #137333;
+  --google-green-surface: #e6f4ea;
+  --google-green-border: #ceead6;
+
+  --google-yellow: #f9ab00;
+  --google-yellow-hover: #e37400;
+  --google-yellow-surface: #fef7e0;
+  --google-yellow-border: #feefc3;
+
+  --google-red: #d93025;
+  --google-red-hover: #b31412;
+  --google-red-surface: #fce8e6;
+  --google-red-border: #fad2cf;
+
+  --google-cyan: #06b6d4;
+  --google-cyan-surface: #e0f2fe;
+
+  /* Surfaces with Subtle Glassmorphism */
+  --glass-surface: rgba(255, 255, 255, 0.88);
+  --glass-surface-hover: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(226, 232, 240, 0.85);
+  --glass-border-glow: rgba(26, 115, 232, 0.25);
+  --google-bg: #f8fafd;
+
+  /* Typography */
+  --google-text-primary: #1e293b;
+  --google-text-secondary: #475569;
+  --google-text-muted: #64748b;
+
+  /* Shadows (Futuristic Soft Glow & Elevation) */
+  --shadow-futuristic-sm: 0 2px 8px -1px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-futuristic-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-futuristic-hover: 0 10px 30px -4px rgba(26, 115, 232, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-glow-blue: 0 4px 18px rgba(26, 115, 232, 0.25);
+  --shadow-glow-green: 0 4px 18px rgba(30, 142, 62, 0.22);
+  --shadow-glow-yellow: 0 4px 18px rgba(249, 171, 0, 0.25);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 9999px;
 }
 
-/* Painel retrátil estilo Google */
-.filtro-header {
-    cursor: pointer;
-    background: #f7f9fc;
-    padding: 12px 18px;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid #e3e6ee;
-    box-shadow: 0px 1px 4px rgba(0,0,0,0.05);
-}
-
-.filtro-header:hover {
-    background: #eef2ff;
-}
-
-.btn-google {
-    background: #1a73e8;
-    color: #fff;
-    border: none;
-    transition: .2s;
-}
-.btn-google:hover {
-    background: #175fc7;
-}
-/* --- Filtro retrátil estilo Google --- */
-
-.filtro-header {
-    background: #fff;
-    padding: 12px 16px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 600;
-    font-size: 15px;
-    margin-bottom: 10px;
-}
-
-.filtro-header:hover {
-    background: #f7f9fc;
-}
-
-/* ====== FILTRO RETRÁTIL — FIX FINAL ====== */
-.filtro-body {
-    display: none; 
-}
-
-
-@keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Botão azul Google style */
-.btn-google {
-    background: #1a73e8;
-    color: white;
-    border: none;
-}
-.btn-google:hover {
-    background: #1665d8;
-}
-
-/* ===== FONTE ===== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-
+/* Base Body with Soft Luminous Futuristic Mesh */
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--light-color);
-  color: var(--dark-color);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(1100px 750px at 0% 0%, rgba(26, 115, 232, 0.07), transparent 60%),
+    radial-gradient(1100px 750px at 100% 0%, rgba(99, 102, 241, 0.06), transparent 60%),
+    radial-gradient(900px 650px at 50% 100%, rgba(6, 182, 212, 0.05), transparent 70%),
+    var(--google-bg) !important;
+  color: var(--google-text-primary);
   margin: 0;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ===== HERO ICON COM ANIMAÇÃO ===== */
-.hero-icon {
-  animation: float 4s ease-in-out infinite;
-  color: var(--primary-color);
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  color: var(--google-text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
-/* ===== BOTÕES ===== */
+/* Futuristic Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #1a73e8 0%, #4f46e5 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Futuristic Glass Cards */
+.card, .glass-card, .google-card {
+  background: var(--glass-surface);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-futuristic-card);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover, .glass-card:hover, .google-card:hover {
+  transform: translateY(-3px);
+  background: var(--glass-surface-hover);
+  box-shadow: var(--shadow-futuristic-hover);
+  border-color: rgba(26, 115, 232, 0.3);
+}
+
+/* Buttons - Futuristic Google Style */
 .btn {
-  border-radius: var(--border-radius);
   font-weight: 600;
-  transition: var(--transition);
-  box-shadow: var(--box-shadow);
-}
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--box-shadow-hover);
-}
-.btn:active {
-  transform: translateY(0);
+  font-size: 0.92rem;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1.25rem;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
 }
 
 .btn-primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: white;
+  background: linear-gradient(135deg, var(--google-blue) 0%, var(--google-indigo) 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: var(--shadow-glow-blue);
 }
 .btn-primary:hover {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: linear-gradient(135deg, #1557b0 0%, #4338ca 100%) !important;
+  box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
+  transform: translateY(-2px);
+}
+.btn-primary:active {
+  transform: translateY(0);
 }
 
-/* ===== CARDS ===== */
-.card {
-  border: none;
-  border-radius: var(--border-radius);
-  box-shadow: var(--box-shadow);
-  transition: var(--transition);
+.btn-outline-primary {
+  color: var(--google-blue) !important;
+  border: 1.5px solid rgba(26, 115, 232, 0.4) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(8px);
 }
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--box-shadow-hover);
-}
-
-/* CORES DE CARDS DE MÉTRICA */
-.card.bg-primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-}
-.card.bg-success {
-  background: linear-gradient(135deg, var(--success-color), #16a34a);
-}
-.card.bg-warning {
-  background: linear-gradient(135deg, var(--warning-color), #eab308);
-}
-.card.bg-info {
-  background: linear-gradient(135deg, var(--info-color), #3b82f6);
+.btn-outline-primary:hover {
+  background: var(--google-blue-surface) !important;
+  border-color: var(--google-blue) !important;
+  color: var(--google-blue-hover) !important;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.15);
+  transform: translateY(-1px);
 }
 
-/* ===== LINKS ===== */
-a, .nav-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  transition: color 0.2s ease;
+.btn-google-tonal {
+  background: linear-gradient(135deg, rgba(232, 240, 254, 0.9), rgba(224, 231, 255, 0.9));
+  color: var(--google-blue);
+  border: 1px solid rgba(210, 227, 252, 0.9);
+  font-weight: 600;
+  backdrop-filter: blur(8px);
 }
-a:hover, .nav-link:hover {
-  color: var(--primary-hover);
-  text-decoration: underline;
-}
-
-/* ===== ANIMAÇÃO DE APARECER SUAVE ===== */
-.container {
-  animation: fadeIn 0.7s ease-out;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.btn-google-tonal:hover {
+  background: linear-gradient(135deg, #d2e3fc, #c7d2fe);
+  color: var(--google-blue-hover);
+  transform: translateY(-1px);
 }
 
-/* ===== AJUSTES DE TEXTO ===== */
-.display-4 {
-  font-weight: 700;
-}
-.lead {
-  font-size: 1.125rem;
-  color: #6b7280;
-}
-
-/* ===== BOTÃO TEMA ESCURO FIXO ===== */
-.theme-toggle {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  font-size: 1.25rem;
-  cursor: pointer;
-  box-shadow: var(--box-shadow);
-  z-index: 1000;
-}
-.theme-toggle:hover {
-  background: var(--primary-hover);
+/* Glass Filial Selector Bar */
+.filial-selector-bar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 14px 20px;
+  box-shadow: var(--shadow-futuristic-card);
+  margin-bottom: 1.5rem;
 }
 
-/* ===== RESPONSIVIDADE LEVE ===== */
-@media (max-width: 768px) {
-  .display-4 {
-    font-size: 2rem;
-  }
-  .lead {
-    font-size: 1rem;
-  }
+/* Futuristic KPI Cards with Glowing Accents */
+.kpi-google-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-futuristic-card);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+.kpi-google-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-futuristic-hover);
 }
 
-/* ===== MODO ESCURO ===== */
-body.dark {
-  background-color: #1e1e2f;
-  color: #e4e4e4;
+.kpi-google-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
 }
-body.dark .text-muted,
-body.dark .lead,
-body.dark .card-text {
-  color: #c0c0c0 !important;
+.kpi-google-card.blue::before { background: linear-gradient(90deg, #1a73e8, #4f46e5); }
+.kpi-google-card.green::before { background: linear-gradient(90deg, #1e8e3e, #10b981); }
+.kpi-google-card.yellow::before { background: linear-gradient(90deg, #f9ab00, #f59e0b); }
+.kpi-google-card.cyan::before { background: linear-gradient(90deg, #06b6d4, #3b82f6); }
+
+.kpi-google-card .kpi-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
 }
-body.dark .card,
-body.dark .navbar,
-body.dark .dropdown-menu {
-  background-color: #2c2c3a;
-  color: #e4e4e4;
+.kpi-google-card.blue .kpi-icon-wrap {
+  background: linear-gradient(135deg, #e8f0fe, #d2e3fc);
+  color: #1a73e8;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.18);
 }
-body.dark .btn,
-body.dark .navbar .nav-link,
-body.dark .dropdown-item {
-  color: #e4e4e4;
+.kpi-google-card.green .kpi-icon-wrap {
+  background: linear-gradient(135deg, #e6f4ea, #ceead6);
+  color: #1e8e3e;
+  box-shadow: 0 4px 12px rgba(30, 142, 62, 0.18);
 }
-body.dark .dropdown-item:hover {
-  background-color: #3c3c4a;
+.kpi-google-card.yellow .kpi-icon-wrap {
+  background: linear-gradient(135deg, #fef7e0, #feefc3);
+  color: #e37400;
+  box-shadow: 0 4px 12px rgba(249, 171, 0, 0.2);
 }
-body.dark .navbar .navbar-brand span,
-body.dark .navbar .nav-link.active {
-  color: #ffffff;
+.kpi-google-card.cyan .kpi-icon-wrap {
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #0284c7;
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
 }
 
-/* ===== NAVBAR ===== */
-.navbar .nav-link,
-.navbar .btn-link {
-  border-bottom: 2px solid transparent;
-  transition: border-color 0.3s ease;
-}
-.navbar .nav-link:hover,
-.navbar .btn-link:hover {
-  border-bottom: 2px solid currentColor;
+.kpi-google-card .kpi-number {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--google-text-primary);
+  line-height: 1.1;
+  margin: 6px 0 2px 0;
 }
 
-/* ===== TOAST MODERNO ===== */
-.toast-container {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 1055;
+/* Badges with Soft Glow */
+.badge-futuristic-blue {
+  background: linear-gradient(135deg, rgba(232, 240, 254, 0.9), rgba(210, 227, 252, 0.9));
+  color: #1a73e8;
+  border: 1px solid rgba(194, 216, 250, 0.8);
+  font-weight: 600;
 }
-.toast-success {
-  background-color: var(--success-color);
-  color: white;
+.badge-futuristic-green {
+  background: linear-gradient(135deg, rgba(230, 244, 234, 0.9), rgba(206, 234, 214, 0.9));
+  color: #1e8e3e;
+  border: 1px solid rgba(188, 226, 199, 0.8);
+  font-weight: 600;
 }
-.toast-error {
-  background-color: var(--danger-color);
-  color: white;
+
+/* Inputs & Form Controls */
+.form-control, .form-select {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.85rem;
+  font-size: 0.95rem;
+  color: var(--google-text-primary);
+  background-color: rgba(255, 255, 255, 0.95);
+  transition: all 0.15s ease;
 }
-.toast-info {
-  background-color: var(--info-color, #60a5fa);
-  color: white;
+.form-control:focus, .form-select:focus {
+  border-color: var(--google-blue);
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.18);
+  background-color: #ffffff;
+  outline: none;
 }

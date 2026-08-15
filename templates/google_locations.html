@@ -34,14 +34,24 @@
           <div class="card-body d-flex flex-column">
             
             <div class="d-flex justify-content-between align-items-start mb-3">
-              <div class="icon-shape icon-md bg-light text-primary rounded-circle">
-                <i class="bi bi-geo-alt-fill fs-5 p-2"></i>
+              <div class="d-flex align-items-center gap-2">
+                <div class="icon-shape icon-md bg-light text-primary rounded-circle">
+                  <i class="bi bi-geo-alt-fill fs-5 p-2"></i>
+                </div>
+                {% if ficha.is_active %}
+                  <span class="badge bg-success">Monitorando</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inativa</span>
+                {% endif %}
               </div>
-              {% if ficha.is_active %}
-                <span class="badge bg-success">Monitorando</span>
-              {% else %}
-                <span class="badge bg-secondary">Inativa</span>
-              {% endif %}
+
+              <button type="button" 
+                      class="btn btn-sm btn-outline-danger border-0 rounded-circle btn-excluir-ficha p-2" 
+                      data-id="{{ ficha.location_id }}" 
+                      data-name="{{ ficha.location_name }}"
+                      title="Excluir esta ficha do aplicativo">
+                <i class="bi bi-trash fs-6"></i>
+              </button>
             </div>
 
             <h5 class="card-title fw-bold text-truncate" title="{{ ficha.location_name }}">
@@ -246,9 +256,47 @@ document.addEventListener('DOMContentLoaded', function() {
         formBuyAddon.addEventListener('submit', function() {
             btnBuyAddon.disabled = true;
             btnBuyAddon.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Redirecionando...';
-            // O formulário fará o POST natural e a página será redirecionada pelo backend
         });
     }
+
+    // 4. Exclusão de Ficha
+    document.querySelectorAll('.btn-excluir-ficha').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            const locId = this.getAttribute('data-id');
+            const locName = this.getAttribute('data-name');
+            
+            if (!confirm(`Deseja realmente remover a ficha "${locName}" do seu aplicativo?\n\nEla será excluída da lista da ComentsIA.`)) {
+                return;
+            }
+
+            loaderText.innerText = "Removendo ficha...";
+            loader.style.display = 'flex';
+
+            try {
+                const res = await fetch(`/auto/location/${locId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrf
+                    }
+                });
+                const data = await res.json().catch(() => ({}));
+                loader.style.display = 'none';
+
+                if (data.success) {
+                    alert(data.message || 'Ficha excluída com sucesso!');
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erro ao excluir ficha.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Erro de conexão ao excluir.');
+                loader.style.display = 'none';
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

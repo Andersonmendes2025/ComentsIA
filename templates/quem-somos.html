@@ -4,165 +4,264 @@
 
 {% block extra_head %}
 <style>
-  :root{
-    --bg:#0b1020; --panel:#0f1630; --ink:#eaf1ff; --muted:#9fb0d3;
-    --brand:#2f7bff; --neon:#8a5bff; --hot:#ff4fb5; --ok:#22c55e; --warn:#f59e0b;
+  /* Quem Somos - Futuristic Google Light & Crisp Aesthetics */
+  .qs-hero-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 20px;
+    padding: 50px 24px 40px;
+    text-align: center;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .qs-hero-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #1a73e8, #4f46e5, #06b6d4, #1e8e3e);
+  }
+  .qs-logo-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.2);
+  }
+  .qs-main-title {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  .qs-subtitle {
+    font-size: 1.15rem;
+    color: #475569;
+    max-width: 740px;
+    margin: 0 auto 24px;
+    line-height: 1.65;
   }
 
-  /* Fundo da página */
-  body.qs-dark{
-    background:
-      radial-gradient(1200px 700px at 10% -10%, rgba(47,123,255,.16), transparent 60%),
-      radial-gradient(900px 600px at 120% -20%, rgba(138,91,255,.14), transparent 60%),
-      linear-gradient(180deg,#0a0f1e 0%,#0b1020 60%);
-    color:var(--ink);
+  /* Cards de Pilares */
+  .qs-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 18px;
+    padding: 28px 24px;
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+    height: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .qs-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px -4px rgba(26, 115, 232, 0.12);
+    border-color: rgba(26, 115, 232, 0.3);
+  }
+  .qs-icon-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.45rem;
+    margin-bottom: 16px;
   }
 
-  /* HERO */
-  .qs-hero{
-    border-radius:24px;
-    padding:48px 18px 56px;
-    text-align:center;
-    background:
-      radial-gradient(1600px 900px at -10% -30%, rgba(47,123,255,.20), transparent 60%),
-      radial-gradient(1200px 700px at 120% -20%, rgba(255,79,181,.16), transparent 60%),
-      linear-gradient(160deg,#1d2a55 0%, #0e87e9 100%);
-    box-shadow: inset 0 0 0 1px rgba(143,164,255,.12), 0 40px 80px rgba(0,0,0,.35);
+  .qs-card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #202124;
+    margin-bottom: 10px;
   }
-  .qs-logo{ width:92px; border-radius:16px; filter:drop-shadow(0 0 16px rgba(227,231,251,.5)); }
-  .qs-title{
-    margin:16px 0 8px;
-    font-weight:900; font-size:2.2rem; letter-spacing:-.02em; color:#fff;
-  }
-  .qs-sub{
-    color:#e7efff; max-width:760px; margin:0 auto; font-size:1.08rem;
+  .qs-card-text {
+    font-size: 0.95rem;
+    color: #5f6368;
+    line-height: 1.6;
+    margin: 0;
   }
 
-  /* Glass cards */
-  .qs-section{ margin:28px 0; }
-  .glass{
-    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-    backdrop-filter: blur(8px);
-    border:1px solid rgba(143,164,255,.16);
-    border-radius:20px; padding:22px;
-    box-shadow:0 12px 40px rgba(0,0,0,.35);
-    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-    height:100%;
+  /* Lista de Diferenciais */
+  .qs-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0 0;
   }
-  .glass:hover{ transform:translateY(-6px); border-color:rgba(143,164,255,.28); box-shadow:0 18px 60px rgba(0,0,0,.45); }
-
-  .qs-h3{ font-weight:800; font-size:1.25rem; color:#fff; margin-bottom:8px; }
-  .qs-p{ color:var(--muted); margin:0; }
-
-  .qs-icon{
-    width:46px;height:46px; display:grid;place-items:center; border-radius:12px; margin-bottom:10px;
-    background: radial-gradient(80% 80% at 30% 20%, rgba(47,123,255,.45), rgba(138,91,255,.25));
-    color:#fff; font-size:1.2rem; box-shadow: inset 0 0 0 1px rgba(143,164,255,.18);
+  .qs-checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 0.96rem;
+    color: #3c4043;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .qs-checklist li i {
+    color: #1e8e3e;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    margin-top: 1px;
   }
 
-  /* Feature list */
-  .qs-list{ list-style:none; padding-left:0; margin:0; }
-  .qs-list li{ display:flex; gap:10px; align-items:flex-start; margin:8px 0; color:var(--muted); }
-  .qs-list i{ color:#79b7ff; margin-top:2px; }
-
-  /* Blocos com cores */
-  .tinted-blue{ background: linear-gradient(180deg, rgba(47,123,255,.10), rgba(15,30,65,.30)); }
-  .tinted-green{ background: linear-gradient(180deg, rgba(34,197,94,.10), rgba(15,30,65,.30)); }
-  .tinted-yellow{ background: linear-gradient(180deg, rgba(245,158,11,.12), rgba(15,30,65,.30)); }
-
-  /* CTA */
-  .btn-neon{
-    background: linear-gradient(135deg, var(--brand), var(--neon));
-    border:none; color:#fff; border-radius:14px; padding:12px 18px; font-weight:800;
-    box-shadow:0 10px 30px rgba(47,123,255,.35), 0 0 0 1px rgba(143,164,255,.18) inset;
-    transition: transform .2s, box-shadow .2s;
+  /* Step Badges */
+  .step-number-badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
   }
-  .btn-neon:hover{ transform: translateY(-2px) rotateX(6deg); box-shadow:0 18px 42px rgba(138,91,255,.42); }
 
-  @media (max-width: 768px){
-    .qs-title{ font-size:1.6rem; }
-    .qs-sub{ font-size:1rem; }
+  @media (max-width: 768px) {
+    .qs-main-title { font-size: 2rem; }
+    .qs-subtitle { font-size: 1rem; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<script>document.body.classList.add('qs-dark');</script>
-
 <div class="container py-3">
 
-  <!-- HERO -->
-  <section class="qs-hero mb-4 text-center">
-    <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="qs-logo">
-    <h1 class="qs-title">Quem Somos</h1>
-    <p class="qs-sub">
-      A ComentsIA é uma plataforma de <strong>gestão de avaliações com IA</strong>.  
-      Nós coletamos, analisamos e geramos respostas no <em>tom da sua marca</em>, para você aumentar reputação,
-      melhorar nota e ganhar tempo — tudo em um só lugar.
+  <!-- HERO SECTION -->
+  <section class="qs-hero-card">
+    <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="qs-logo-img">
+    <h1 class="qs-main-title">Quem Somos</h1>
+    <p class="qs-subtitle">
+      A <strong>ComentsIA</strong> é a plataforma líder em gestão e inteligência de avaliações online. 
+      Nós unimos Inteligência Artificial de última geração a fluxos de atendimento humanizados para que sua empresa 
+      fortaleça a autoridade local, encante clientes e maximize a conversão de vendas.
     </p>
-    <div class="mt-3">
-      <a href="{{ url_for('authorize') }}" class="btn-neon"><i class="bi bi-magic me-2"></i>Experimente grátis</a>
+    <div>
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary px-4 py-2 fw-semibold">
+        <i class="bi bi-google me-2"></i> Experimentar Grátis com Google
+      </a>
     </div>
   </section>
 
-  <!-- O QUE FAZEMOS -->
-  <section class="qs-section">
-    <div class="row g-3">
+  <!-- O QUE FAZEMOS (3 PILARES) -->
+  <section class="mb-5">
+    <div class="text-center mb-4">
+      <h2 class="fw-bold text-dark fs-3">Como transformamos sua reputação online</h2>
+      <p class="text-muted mb-0">Tecnologia desenvolvida para simplificar cada etapa do relacionamento pós-venda.</p>
+    </div>
+
+    <div class="row g-4">
       <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="qs-icon"><i class="bi bi-collection"></i></div>
-          <h3 class="qs-h3">Coletamos</h3>
-          <p class="qs-p">Centralizamos as avaliações do Google e mantemos tudo organizado e pronto pra ação.</p>
+        <div class="qs-card">
+          <div class="qs-icon-box" style="background:#e8f0fe; color:#1a73e8;">
+            <i class="bi bi-collection-fill"></i>
+          </div>
+          <h3 class="qs-card-title">1. Coleta Centralizada</h3>
+          <p class="qs-card-text">
+            Sincronização oficial com as APIs do Google Meu Negócio. Todas as avaliações de todas as suas lojas e filiais unificadas em uma única fila de atendimento organizada.
+          </p>
         </div>
       </div>
+
       <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="qs-icon"><i class="bi bi-robot"></i></div>
-          <h3 class="qs-h3">Respondemos com IA</h3>
-          <p class="qs-p">Respostas empáticas, personalizadas e consistentes com a sua identidade — em segundos.</p>
+        <div class="qs-card">
+          <div class="qs-icon-box" style="background:#e6f4ea; color:#1e8e3e;">
+            <i class="bi bi-robot"></i>
+          </div>
+          <h3 class="qs-card-title">2. Respostas com IA</h3>
+          <p class="qs-card-text">
+            IA treinada no português brasileiro para gerar respostas empáticas, educadas e alinhadas ao tom da sua marca com 1 clique. Personalize saudações, assinatura e contatos de suporte.
+          </p>
         </div>
       </div>
+
       <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="qs-icon"><i class="bi bi-graph-up"></i></div>
-          <h3 class="qs-h3">Analisamos</h3>
-          <p class="qs-p">Média, taxa de resposta, temas recorrentes e relatórios PDF prontos para compartilhar.</p>
+        <div class="qs-card">
+          <div class="qs-icon-box" style="background:#fef7e0; color:#e37400;">
+            <i class="bi bi-graph-up-arrow"></i>
+          </div>
+          <h3 class="qs-card-title">3. Diagnóstico & Métricas</h3>
+          <p class="qs-card-text">
+            Painéis em tempo real com nota média, taxa de respostas, análise de sentimentos e relatórios em PDF prontos para compartilhamento com gestores e equipes.
+          </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- DIFERENCIAIS -->
-  <section class="qs-section">
-    <div class="row g-3">
+  <!-- DIFERENCIAIS E MISSÃO -->
+  <section class="mb-5">
+    <div class="row g-4">
       <div class="col-12 col-lg-6">
-        <div class="glass tinted-blue">
-          <div class="qs-icon"><i class="bi bi-stars"></i></div>
-          <h3 class="qs-h3">Por que a ComentsIA?</h3>
-          <ul class="qs-list">
-            <li><i class="bi bi-check2-circle"></i> IA afinada para português do Brasil e contexto de atendimento.</li>
-            <li><i class="bi bi-check2-circle"></i> <strong>Tom da marca</strong>, saudações, assinatura e canais configuráveis.</li>
-            <li><i class="bi bi-check2-circle"></i> Multiunidades com visão por filial e consolidação na matriz.</li>
-            <li><i class="bi bi-check2-circle"></i> Relatórios elegantes em PDF para reuniões e acompanhamento.</li>
-            <li><i class="bi bi-check2-circle"></i> Segurança e privacidade em linha com a LGPD.</li>
+        <div class="qs-card">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
+              <i class="bi bi-stars fs-4"></i>
+            </div>
+            <h3 class="qs-card-title mb-0">Por que escolher a ComentsIA?</h3>
+          </div>
+          
+          <ul class="qs-checklist">
+            <li>
+              <i class="bi bi-check2-circle"></i>
+              <div><strong>IA Humanizada:</strong> Respostas naturais e personalizadas de acordo com a nota recebida (1 a 5 estrelas).</div>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle"></i>
+              <div><strong>Multiunidades & Filiais:</strong> Controle individual por loja ou visão consolidada no Painel Matriz.</div>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle"></i>
+              <div><strong>Relatórios Executivos:</strong> Documentos em PDF elegantes para apresentação em reuniões de diretoria.</div>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle"></i>
+              <div><strong>Conformidade e Segurança:</strong> Respeito rigoroso às diretrizes do Google e às normas da LGPD.</div>
+            </li>
+            <li>
+              <i class="bi bi-check2-circle"></i>
+              <div><strong>Agilidade Operacional:</strong> Redução de até 80% no tempo gasto pela sua equipe para manter 100% dos clientes respondidos.</div>
+            </li>
           </ul>
         </div>
       </div>
+
       <div class="col-12 col-lg-6">
-        <div class="glass tinted-green">
-          <div class="qs-icon"><i class="bi bi-bullseye"></i></div>
-          <h3 class="qs-h3">Nossa missão</h3>
-          <p class="qs-p">
-            Tirar o trabalho manual da sua equipe e transformar feedbacks em crescimento real:
-            mais respostas, melhor nota e maior conversão — com eficiência e cuidado com o cliente.
+        <div class="qs-card">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <div class="p-2 bg-success bg-opacity-10 text-success rounded-3">
+              <i class="bi bi-bullseye fs-4"></i>
+            </div>
+            <h3 class="qs-card-title mb-0">Nossa Missão</h3>
+          </div>
+          
+          <p class="qs-card-text mb-4" style="font-size: 1.02rem;">
+            Nossa missão é eliminar o trabalho repetitivo e transformar cada feedback recebido em uma oportunidade real de crescimento, retenção de clientes e aumento de receita.
           </p>
-          <div class="mt-2">
-            <span class="badge ms-1" style="background:#22c55e33;border:1px solid #22c55e55;">
-              <i class="bi bi-lightning-charge"></i> Ganho de tempo
+
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock-fill text-primary me-1"></i> Compromisso com a Privacidade</h6>
+            <p class="small text-muted mb-0">Seus dados nunca são comercializados. A plataforma utiliza autenticação segura OAuth 2.0 oficial do Google e criptografia em repouso.</p>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
+              <i class="bi bi-lightning-charge me-1"></i> Produtividade
             </span>
-            <span class="badge ms-1" style="background:#2f7bff22;border:1px solid #2f7bff55;color:#cfe1ff;">
-              <i class="bi bi-star-fill"></i> Reputação forte
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+              <i class="bi bi-star-fill me-1"></i> Reputação 5 Estrelas
+            </span>
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2">
+              <i class="bi bi-shield-check me-1"></i> 100% Seguro
             </span>
           </div>
         </div>
@@ -170,25 +269,57 @@
     </div>
   </section>
 
-  <!-- COMO FUNCIONA -->
-  <section class="qs-section">
-    <div class="glass tinted-yellow">
-      <div class="qs-icon"><i class="bi bi-diagram-3"></i></div>
-      <h3 class="qs-h3">Como funciona na prática</h3>
-      <ul class="qs-list">
-        <li><i class="bi bi-1-square"></i> Conecte sua empresa e personalize saudação, assinatura e tom de voz.</li>
-        <li><i class="bi bi-2-square"></i> Receba as avaliações numa fila única e gere respostas com 1 clique.</li>
-        <li><i class="bi bi-3-square"></i> Publique, acompanhe métricas e baixe relatórios com os principais insights.</li>
-      </ul>
+  <!-- COMO FUNCIONA (PASSO A PASSO) -->
+  <section class="mb-5">
+    <div class="qs-card p-4 p-md-5">
+      <div class="text-center mb-4">
+        <h3 class="fw-bold text-dark">Como funciona na prática</h3>
+        <p class="text-muted mb-0">Você começa a operar em menos de 2 minutos.</p>
+      </div>
+
+      <div class="row g-4 mt-1">
+        <div class="col-12 col-md-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="step-number-badge">1</div>
+            <div>
+              <h5 class="fw-bold text-dark mb-1">Conecte sua Conta</h5>
+              <p class="text-muted small mb-0">Faça login com sua conta Google e selecione as fichas que deseja monitorar.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="step-number-badge">2</div>
+            <div>
+              <h5 class="fw-bold text-dark mb-1">Personalize a IA</h5>
+              <p class="text-muted small mb-0">Defina o tom de voz (amigável, formal, etc.), nome do gerente e canais de contato.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="d-flex align-items-start gap-3">
+            <div class="step-number-badge">3</div>
+            <div>
+              <h5 class="fw-bold text-dark mb-1">Responda & Converta</h5>
+              <p class="text-muted small mb-0">Gere respostas com 1 clique, publique diretamente e acompanhe a nota subir.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- CTA FINAL -->
-  <section class="text-center mt-3 mb-4">
-    <a href="{{ url_for('authorize') }}" class="btn-neon">
-      <i class="bi bi-google me-2"></i>Entrar com Google e começar agora
+  <section class="text-center py-4 mb-4">
+    <h3 class="fw-bold text-dark mb-2">Pronto para transformar sua reputação?</h3>
+    <p class="text-muted mb-4">Junte-se a empresas que já economizam tempo e aumentam sua nota no Google.</p>
+    <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-5 py-2 fw-semibold">
+      <i class="bi bi-google me-2"></i> Começar Gratuitamente Agora
     </a>
   </section>
 
 </div>
+
 {% endblock %}

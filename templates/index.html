@@ -1,581 +1,838 @@
 {% extends "base.html" %}
-{% block title %}Início - ComentsIA - Gerenciador de Avaliações Google{% endblock %}
+
+{% block title %}ComentsIA - Gestão Inteligente de Avaliações Google{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* =======================================================
+     FUTURISTIC GOOGLE DESIGN STYLES (Light, Glass & Vibrant)
+     ======================================================= */
+  
+  /* Luminous Gradient Text */
+  .hero-gradient-title {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 3.2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #1a73e8 0%, #4f46e5 50%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.25rem;
+  }
+
+  .hero-subtext {
+    font-size: 1.2rem;
+    color: #475569;
+    line-height: 1.65;
+    max-width: 680px;
+    margin: 0 auto 2rem auto;
+  }
+
+  /* Glass Cards */
+  .glass-card-futuristic {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 18px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .glass-card-futuristic:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(26, 115, 232, 0.3);
+    box-shadow: 0 12px 30px -4px rgba(26, 115, 232, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  /* Futuristic Feature Grid */
+  .feature-item-card {
+    padding: 30px 24px;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-item-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .feature-item-card:hover::before {
+    opacity: 1;
+  }
+  .feature-item-card.blue::before { background: linear-gradient(90deg, #1a73e8, #4f46e5); }
+  .feature-item-card.green::before { background: linear-gradient(90deg, #1e8e3e, #10b981); }
+  .feature-item-card.yellow::before { background: linear-gradient(90deg, #f9ab00, #f59e0b); }
+  .feature-item-card.cyan::before { background: linear-gradient(90deg, #06b6d4, #3b82f6); }
+
+  .feature-icon-bubble {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+    transition: transform 0.2s ease;
+  }
+  .feature-item-card:hover .feature-icon-bubble {
+    transform: scale(1.08);
+  }
+
+  .bubble-blue {
+    background: linear-gradient(135deg, #e8f0fe, #d2e3fc);
+    color: #1a73e8;
+    box-shadow: 0 4px 14px rgba(26, 115, 232, 0.2);
+  }
+  .bubble-green {
+    background: linear-gradient(135deg, #e6f4ea, #ceead6);
+    color: #1e8e3e;
+    box-shadow: 0 4px 14px rgba(30, 142, 62, 0.2);
+  }
+  .bubble-yellow {
+    background: linear-gradient(135deg, #fef7e0, #feefc3);
+    color: #e37400;
+    box-shadow: 0 4px 14px rgba(249, 171, 0, 0.25);
+  }
+  .bubble-cyan {
+    background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+    color: #0284c7;
+    box-shadow: 0 4px 14px rgba(6, 182, 212, 0.2);
+  }
+
+  /* Futuristic Mini Pricing Cards */
+  .pricing-mini-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 18px;
+    padding: 32px 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    transition: all 0.22s ease;
+    position: relative;
+  }
+  .pricing-mini-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px -4px rgba(26, 115, 232, 0.14);
+  }
+  .pricing-mini-card.highlight {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #1a73e8;
+    box-shadow: 0 8px 30px rgba(26, 115, 232, 0.15);
+  }
+
+  /* Pulsing live badge */
+  .live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(232, 240, 254, 0.9);
+    border: 1px solid rgba(194, 216, 250, 0.9);
+    border-radius: 9999px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #1a73e8;
+    margin-bottom: 1.5rem;
+    backdrop-filter: blur(8px);
+  }
+  .pulsing-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #1a73e8;
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7);
+    animation: pulse-blue 1.8s infinite;
+  }
+  @keyframes pulse-blue {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(26, 115, 232, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+  }
+
+  /* Logged In Dashboard Cards */
+  .dashboard-header-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 18px;
+    padding: 24px 28px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    margin-bottom: 20px;
+  }
+  .branch-filter-bar {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
+
+  .kpi-stat-card {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+    height: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px -4px rgba(26, 115, 232, 0.12);
+  }
+  .kpi-stat-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-stat-card.blue::before { background: linear-gradient(90deg, #1a73e8, #4f46e5); }
+  .kpi-stat-card.green::before { background: linear-gradient(90deg, #1e8e3e, #10b981); }
+  .kpi-stat-card.yellow::before { background: linear-gradient(90deg, #f9ab00, #f59e0b); }
+  .kpi-stat-card.cyan::before { background: linear-gradient(90deg, #06b6d4, #3b82f6); }
+
+  .kpi-icon-pill {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+  .kpi-stat-card.blue .kpi-icon-pill {
+    background: linear-gradient(135deg, #e8f0fe, #d2e3fc);
+    color: #1a73e8;
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.2);
+  }
+  .kpi-stat-card.green .kpi-icon-pill {
+    background: linear-gradient(135deg, #e6f4ea, #ceead6);
+    color: #1e8e3e;
+    box-shadow: 0 4px 12px rgba(30, 142, 62, 0.2);
+  }
+  .kpi-stat-card.yellow .kpi-icon-pill {
+    background: linear-gradient(135deg, #fef7e0, #feefc3);
+    color: #e37400;
+    box-shadow: 0 4px 12px rgba(249, 171, 0, 0.25);
+  }
+  .kpi-stat-card.cyan .kpi-icon-pill {
+    background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+    color: #0284c7;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+  }
+
+  .kpi-stat-value {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.1;
+    margin: 8px 0 4px 0;
+  }
+  .kpi-stat-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .kpi-stat-sub {
+    font-size: 0.82rem;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  /* Donut SVG Progress */
+  .donut-container {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    flex-shrink: 0;
+  }
+  .donut-container svg {
+    transform: rotate(-90deg);
+  }
+  .donut-container .donut-center-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: #1e8e3e;
+  }
+
+  @media (max-width: 768px) {
+    .hero-gradient-title { font-size: 2.2rem; }
+    .hero-subtext { font-size: 1.05rem; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-
-<div class="container py-4">
+<div class="container py-2">
 
   {% if not logged_in %}
+  <!-- =======================================================
+       SEÇÃO NÃO LOGADO (LANDING PAGE FUTURISTA GOOGLE CLEAN)
+       ======================================================= -->
 
-  <!-- ====== SEÇÃO NÃO LOGADO ====== -->
-  <!-- === CSS Dark Futurista (neon) + Hero, Cards, Métricas, Carrossel e Planos === -->
-  <style>
-    :root {
-      --landing-bg: #f5f7fb;
-      --landing-ink: #0f172a;
-      --landing-muted: #6b7280;
-      --landing-accent: #2563eb;
-      --landing-accent-soft: #e0ecff;
-      --landing-border: #e5e7eb;
-      --landing-card: #ffffff;
-      --landing-radius-lg: 20px;
-      --landing-radius-md: 14px;
-      --landing-shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
-      --landing-shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
-    }
+  <!-- Hero Section -->
+  <section class="text-center pt-4 pb-5">
+    <div class="live-pill">
+      <span class="pulsing-dot"></span>
+      <span>Inteligência Artificial Integrada ao Google Meu Negócio</span>
+    </div>
 
-    body {
-      background:
-        radial-gradient(900px 600px at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
-        radial-gradient(900px 600px at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
-        linear-gradient(180deg, #f9fafb 0%, #eef2ff 45%, #f5f7fb 100%);
-      color: var(--landing-ink) !important;
-    }
+    <h1 class="hero-gradient-title">
+      Eleve a reputação da sua empresa com respostas automáticas e inteligentes
+    </h1>
 
-    .hero {
-      position: relative;
-      border-radius: var(--landing-radius-lg);
-      padding: 40px 20px 36px;
-      background:
-        radial-gradient(120% 160% at 0% 0%, rgba(37,99,235,0.18), transparent 60%),
-        radial-gradient(140% 180% at 100% 0%, rgba(79,70,229,0.16), transparent 60%),
-        linear-gradient(135deg, #ffffff, #eef2ff);
-      box-shadow: var(--landing-shadow-soft);
-      overflow: hidden;
-    }
+    <p class="hero-subtext">
+      Monitore, interprete e responda todas as avaliações no <strong>Google Meu Negócio</strong> em tempo real com o tom ideal da sua marca e relatórios completos.
+    </p>
 
-    .title-gradient {
-      background: linear-gradient(90deg, #2563eb, #1d4ed8, #7c3aed);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-4 shadow">
+        <i class="bi bi-google me-2"></i> Conectar com o Google
+      </a>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4">
+        Conhecer os Planos
+      </a>
+    </div>
 
-    .btn-neon {
-      border-radius: 999px;
-      padding: 10px 18px;
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      color: #ffffff !important;
-      font-weight: 700;
-      border: none;
-      box-shadow: 0 12px 30px rgba(37,99,235,0.25);
-    }
-    .btn-neon:hover {
-      transform: translateY(-2px);
-    }
-
-    .btn-ghost {
-      border-radius: 999px;
-      padding: 10px 18px;
-      background: #ffffff;
-      border: 1px solid rgba(148,163,184,0.4);
-      font-weight: 600;
-      color: #0f172a !important;
-    }
-
-    .glass {
-      background: #ffffff;
-      border: 1px solid rgba(226,232,240,0.9);
-      border-radius: var(--landing-radius-md);
-      padding: 18px;
-      box-shadow: var(--landing-shadow-card);
-    }
-
-    .stat {
-      background: #ffffff;
-      color: var(--landing-ink);
-      border-radius: var(--landing-radius-md);
-      border: 1px solid rgba(226,232,240,0.9);
-      padding: 16px;
-      box-shadow: var(--landing-shadow-card);
-    }
-
-    .qs-panel {
-      background: #ffffff;
-      border-radius: var(--landing-radius-lg);
-      padding: 28px 24px;
-      border: 1px solid rgba(226,232,240,0.9);
-      box-shadow: var(--landing-shadow-card);
-    }
-
-    .qs-text,
-    .qs-list,
-    .text-muted {
-      color: var(--landing-muted) !important;
-    }
-  </style>
-  <style>
-
-    /* ===== Estilo da seção "Quem Somos" no INDEX (dark + glass) ===== */
-    .qs-panel{
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid rgba(143,164,255,.16);
-      border-radius: 20px;
-      padding: 32px 22px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.35);
-      color: #eaf1ff;
-    }
-    .qs-logo{
-      max-width: 160px;
-      margin: 0 auto 18px auto;
-      display:block;
-      filter: drop-shadow(0 0 12px rgba(143,164,255,.35));
-    }
-    .qs-title{
-      font-size: 2rem;
-      font-weight: 900;
-      letter-spacing: -.02em;
-      margin-bottom: 10px;
-      background: linear-gradient(90deg,#fff,#a4adf5 30%,#a4adf5 60%,#fff);
-      -webkit-background-clip:text;background-clip:text;color:transparent;
-    }
-    .qs-text{
-      font-size: 1.08rem;
-      line-height: 1.75;
-      color: #dbe7ff;
-      text-align: justify;
-      margin-bottom: 14px;
-    }
-    .qs-list{
-      color:#dbe7ff;
-      font-size:1.05rem;
-      margin: 14px auto 2px auto;
-      max-width: 880px;
-    }
-    .qs-list li{ margin-bottom: 10px; }
-    .qs-band{ height:2px; margin:28px 0; background:linear-gradient(90deg,transparent,#2f7bff80,#8a5bff80,#ff4fb580,transparent); border-radius:999px; }
-
-    @media (max-width: 700px){
-      .qs-title{ font-size: 1.5rem; }
-      .qs-text{ font-size: 1rem; }
-      .qs-logo{ max-width: 120px; }
-    }
-  </style>
-
-  <section class="hero mb-4">
-    <div class="text-center">
-      <img src="{{ url_for('static', filename='favicon.png') }}" alt="ComentsIA" style="width:120px;" class="mb-3" />
-      <h1 class="display-5 fw-extrabold title-gradient">Gerenciador de Avaliações Google</h1>
-      <p class="lead text-muted mt-2 mb-3">IA + automação para responder, analisar e converter mais com sua reputação online.</p>
-      <div class="d-flex justify-content-center gap-2">
-        <a href="{{ url_for('authorize') }}" class="btn btn-neon"><i class="bi bi-google me-2"></i> Entrar ou Cadastrar com Google</a>
-        <a href="{{ url_for('planos') }}" class="btn btn-ghost"><i class="bi bi-box-seam me-2"></i> Ver Planos</a>
-      </div>
-      <div class="mt-3"><span class="badge bg-transparent border text-uppercase" style="border-color:rgba(143, 164, 255, 0.549); color:#4c00ff">Site seguro — HTTPS</span></div>
+    <div class="d-flex justify-content-center align-items-center gap-4 text-muted small flex-wrap mt-3">
+      <span><i class="bi bi-shield-check text-success me-1"></i> 100% Conforme LGPD</span>
+      <span><i class="bi bi-check2-circle text-primary me-1"></i> Sem instalação complexa</span>
+      <span><i class="bi bi-star-fill text-warning me-1"></i> Suporte a Multiunidades</span>
     </div>
   </section>
 
-  <div class="band my-4"></div>
-
+  <!-- Grid de Recursos (Futuristic Glass Cards) -->
   <section class="mb-5">
-    <div class="row g-3">
-      <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="icon-plate mb-2"><i class="bi bi-robot"></i></div>
-          <h4 class="mb-1">IA Inteligente</h4>
-          <p class="text-muted mb-0">Gere respostas empáticas e consistentes, no tom da sua marca, com um clique. Personalize saudações, assinatura e contatos.</p>
+    <div class="text-center mb-4">
+      <h3 class="fw-bold text-dark">Tudo o que você precisa para gerenciar sua presença online</h3>
+      <p class="text-muted">Projetado com velocidade, tecnologia de ponta e foco total em conversão.</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card-futuristic feature-item-card blue">
+          <div class="feature-icon-bubble bubble-blue">
+            <i class="bi bi-robot"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2">IA com Voz de Marca</h5>
+          <p class="text-muted small mb-0">
+            Respostas contextuais, educadas e empáticas que protegem sua autoridade e encantam o cliente.
+          </p>
         </div>
       </div>
-      <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="icon-plate mb-2"><i class="bi bi-graph-up"></i></div>
-          <h4 class="mb-1">Dashboard & Insights</h4>
-          <p class="text-muted mb-0">Acompanhe média, taxa de resposta e pontos críticos com destaque visual. Gere relatórios PDF prontos.</p>
+
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card-futuristic feature-item-card green">
+          <div class="feature-icon-bubble bubble-green">
+            <i class="bi bi-arrow-repeat"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2">Sincronização 48h</h5>
+          <p class="text-muted small mb-0">
+            Coleta contínua de novas avaliações direto da API oficial do Google sem você precisar conferir manualmente.
+          </p>
         </div>
       </div>
-      <div class="col-12 col-md-4">
-        <div class="glass h-100">
-          <div class="icon-plate mb-2"><i class="bi bi-hourglass-split"></i></div>
-          <h4 class="mb-1">Fluxo Rápido</h4>
-          <p class="text-muted mb-0">Cole a avaliação, revise a sugestão e publique em segundos.</p>
+
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card-futuristic feature-item-card yellow">
+          <div class="feature-icon-bubble bubble-yellow">
+            <i class="bi bi-shop"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2">Gestão de Filiais</h5>
+          <p class="text-muted small mb-0">
+            Painel Matriz com visão consolidada e individual de todas as suas lojas, franquias e filiais.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card-futuristic feature-item-card cyan">
+          <div class="feature-icon-bubble bubble-cyan">
+            <i class="bi bi-file-earmark-pdf"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2">Relatórios em PDF</h5>
+          <p class="text-muted small mb-0">
+            Diagnósticos executivos com gráficos de sentimentos, notas por período e destaques de atendimento.
+          </p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Estatísticas de Impacto (Glass Cards) -->
   <section class="mb-5">
     <div class="row g-3">
       <div class="col-6 col-lg-3">
-        <div class="stat"><i class="bi bi-stars fs-4"></i>
-          <div><div class="value count" data-target="9" data-suffix="%">0%</div><small>+ faturamento por ⭐ a mais</small></div>
+        <div class="glass-card-futuristic text-center p-4">
+          <div class="fs-2 fw-bold text-primary count" data-target="93" data-suffix="%">93%</div>
+          <div class="small text-muted mt-1">dos clientes leem avaliações antes de comprar</div>
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="stat"><i class="bi bi-reply-all fs-4"></i>
-          <div><div class="value count" data-target="35" data-suffix="%">0%</div><small>+ receita respondendo ≥ 25%</small></div>
+        <div class="glass-card-futuristic text-center p-4">
+          <div class="fs-2 fw-bold text-success count" data-target="5" data-suffix="x">5x</div>
+          <div class="small text-muted mt-1">mais velocidade para responder seus feedbacks</div>
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="stat"><i class="bi bi-graph-up-arrow fs-4"></i>
-          <div><div class="value count" data-target="12" data-suffix="%">0%</div><small>+ reviews e +0,12 na nota</small></div>
+        <div class="glass-card-futuristic text-center p-4">
+          <div class="fs-2 fw-bold text-warning count" data-target="4.9" data-suffix="★">4.9★</div>
+          <div class="small text-muted mt-1">média de reputação alcançada por nossos clientes</div>
         </div>
       </div>
       <div class="col-6 col-lg-3">
-        <div class="stat"><i class="bi bi-lightning-charge fs-4"></i>
-          <div><div class="value count" data-target="144" data-suffix="%">0%</div><small>↑ conversão com reviews</small></div>
+        <div class="glass-card-futuristic text-center p-4">
+          <div class="fs-2 fw-bold count gradient-text" data-target="144" data-suffix="%">+144%</div>
+          <div class="small text-muted mt-1">de conversão e alcance orgânico no Google Maps</div>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Carrossel de Demonstração -->
   <section class="mb-5">
-    <div class="text-center mb-3">
-      <h3 class="title-gradient">Veja na prática</h3>
-      <p class="text-muted m-0">Algumas telas reais do ComentsIA.</p>
+    <div class="text-center mb-4">
+      <h3 class="fw-bold text-dark">Veja a plataforma em ação</h3>
+      <p class="text-muted mb-0">Interface moderna, fluida e inspirada nos melhores produtos de tecnologia.</p>
     </div>
-    <div id="printsCarousel" class="carousel slide" data-bs-ride="carousel">
-      <div class="carousel-inner rounded-4 overflow-hidden shadow">
+    <div id="printsCarousel" class="carousel slide shadow-sm rounded-4 overflow-hidden border" data-bs-ride="carousel">
+      <div class="carousel-inner bg-white">
         <div class="carousel-item active">
-          <img src="{{ url_for('static', filename='prints/dashboard.png') }}" class="d-block w-100" alt="Dashboard">
-          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">Dashboard Analítico</h5><p class="mb-0">Média, taxa de resposta e análise automática.</p></div>
+          <img src="{{ url_for('static', filename='prints/dashboard.png') }}" class="d-block w-100" alt="Dashboard Analítico">
+          <div class="carousel-caption bg-white text-dark shadow-sm border p-3 rounded-3" style="bottom: 24px; opacity: 0.96;">
+            <h6 class="fw-bold mb-1 text-primary">Dashboard Inteligente</h6>
+            <p class="small text-muted mb-0">Nota média, taxa de respostas e análises automáticas consolidadas.</p>
+          </div>
         </div>
         <div class="carousel-item">
-          <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" class="d-block w-100" alt="IA">
-          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">IA que responde por você</h5><p class="mb-0">Respostas empáticas no tom da marca.</p></div>
+          <img src="{{ url_for('static', filename='prints/avaliacoes.png') }}" class="d-block w-100" alt="IA de Respostas">
+          <div class="carousel-caption bg-white text-dark shadow-sm border p-3 rounded-3" style="bottom: 24px; opacity: 0.96;">
+            <h6 class="fw-bold mb-1 text-primary">IA que responde com contexto</h6>
+            <p class="small text-muted mb-0">Sugestões humanizadas e empáticas no tom da sua empresa.</p>
+          </div>
         </div>
         <div class="carousel-item">
-          <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" class="d-block w-100" alt="Adicionar">
-          <div class="carousel-caption rounded-3 p-3"><h5 class="fw-bold mb-1">Fluxo simples</h5><p class="mb-0">Cole, gere e publique.</p></div>
+          <img src="{{ url_for('static', filename='prints/adicionar-avaliacao.png') }}" class="d-block w-100" alt="Gestão e Adição">
+          <div class="carousel-caption bg-white text-dark shadow-sm border p-3 rounded-3" style="bottom: 24px; opacity: 0.96;">
+            <h6 class="fw-bold mb-1 text-primary">Operação Ágil e Eficiente</h6>
+            <p class="small text-muted mb-0">Gerencie avaliações e publique em segundos.</p>
+          </div>
         </div>
       </div>
       <button class="carousel-control-prev" type="button" data-bs-target="#printsCarousel" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Anterior</span>
+        <span class="carousel-control-prev-icon bg-dark bg-opacity-50 rounded-circle p-3" aria-hidden="true"></span>
+        <span class="visually-hidden">Anterior</span>
       </button>
       <button class="carousel-control-next" type="button" data-bs-target="#printsCarousel" data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Próximo</span>
+        <span class="carousel-control-next-icon bg-dark bg-opacity-50 rounded-circle p-3" aria-hidden="true"></span>
+        <span class="visually-hidden">Próximo</span>
       </button>
-      <div class="carousel-indicators mt-3">
-        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="1"></button>
-        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="1" aria-label="2"></button>
-        <button type="button" data-bs-target="#printsCarousel" data-bs-slide-to="2" aria-label="3"></button>
+    </div>
+  </section>
+
+  <!-- Planos Resumidos -->
+  <section class="mb-5">
+    <div class="text-center mb-4">
+      <h3 class="fw-bold text-dark">Planos transparentes e escaláveis</h3>
+      <p class="text-muted">Comece sem custos e evolua conforme o crescimento do seu negócio.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div class="pricing-mini-card">
+          <span class="badge bg-light text-secondary border align-self-start mb-2">Início</span>
+          <h4 class="fw-bold text-dark mb-1">Starter Free</h4>
+          <div class="fs-2 fw-bold text-dark my-2">R$ 0<small class="fs-6 text-muted">/mês</small></div>
+          <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>20 avaliações/mês</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Dashboard de métricas</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Personalização de tom</li>
+          </ul>
+          <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Começar Grátis</a>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="pricing-mini-card highlight">
+          <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-1 bg-primary text-white shadow">Recomendado</span>
+          <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 align-self-start mb-2">Profissional</span>
+          <h4 class="fw-bold text-dark mb-1">Pro</h4>
+          <div class="fs-2 fw-bold text-dark my-2">R$ 49,99<small class="fs-6 text-muted">/mês</small></div>
+          <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas com IA Ilimitadas</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Automação Google Meu Negócio</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Contexto e Branding avançados</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas hiper empáticas</li>
+          </ul>
+          <a href="{{ url_for('planos') }}" class="btn btn-primary w-100">Assinar Plano Pro</a>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="pricing-mini-card">
+          <span class="badge bg-light text-secondary border align-self-start mb-2">Multiunidades</span>
+          <h4 class="fw-bold text-dark mb-1">Business</h4>
+          <div class="fs-2 fw-bold text-dark my-2">R$ 79,99<small class="fs-6 text-muted">/mês</small></div>
+          <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Relatórios Executivos em PDF</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Sincronização prioritária</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Suporte VIP dedicado</li>
+          </ul>
+          <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Assinar Business</a>
+        </div>
       </div>
     </div>
   </section>
 
-  <div class="band my-4"></div>
-
-  <section class="plans-band py-5 rounded-4">
-    <div class="container">
+  <!-- Quem Somos (Versão Nítida e Clara na Landing Page) -->
+  <section class="mb-5">
+    <div class="glass-card-futuristic p-4 p-md-5">
       <div class="text-center mb-4">
-        <h3 class="title-gradient">Planos ComentsIA</h3>
-        <p class="text-muted m-0">Escolha o melhor para o seu momento. Você pode alterar quando quiser.</p>
+        <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" style="width: 52px; height: 52px;" class="mb-2">
+        <h2 class="fw-bold text-dark">Sobre a ComentsIA</h2>
       </div>
+
+      <p class="text-secondary fs-6 leading-relaxed mb-3">
+        A <strong>ComentsIA</strong> é a solução definitiva em inteligência de reputação digital. Criada para ajudar empresas a interpretar feedbacks e responder com velocidade, empatia e assertividade no <strong>Google Meu Negócio</strong>.
+      </p>
+      <p class="text-secondary fs-6 leading-relaxed mb-4">
+        Hoje, mais de 90% dos consumidores leem avaliações antes de visitar ou comprar de um negócio. Empresas que respondem com regularidade geram maior autoridade no algoritmo de busca local e convertem muito mais clientes.
+      </p>
+
       <div class="row g-3">
-        <div class="col-12 col-md-4">
-          <div class="glass h-100">
-            <span class="badge bg-transparent border mb-2" style="border-color:rgba(143,164,255,.25);">Início</span>
-            <h5 class="fw-bold">Free</h5>
-            <div class="price">R$ 0</div>
-            <ul class="mt-2 list-unstyled text-muted">
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>20 respostas/mês</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Dashboard básico</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Personalização simples</li>
-            </ul>
-            <a href="{{ url_for('planos') }}" class="btn btn-ghost w-100 mt-2">Começar grátis</a>
+        <div class="col-md-6">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
+            <div><strong>Centralização Completa:</strong> Monitore todas as avaliações da sua empresa e filiais em um único lugar seguro.</div>
           </div>
         </div>
-        <div class="col-12 col-md-4">
-          <div class="glass h-100 position-relative">
-            <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-2" style="background:linear-gradient(135deg,#ff4fb5,#8a5bff);color:#fff">Recomendado</span>
-            <div class="mt-3"></div>
-            <h5 class="fw-bold">Pro</h5>
-            <div class="price">R$ 49,99<span class="fs-6 fw-semibold text-muted">/mês</span></div>
-            <ul class="mt-2 list-unstyled text-muted">
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Respostas ilimitadas</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>IA avançada + análise</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Templates e branding</li>
-            </ul>
-            <small class="text-muted d-block">ou R$ 499,00/ano</small>
-            <a href="{{ url_for('planos') }}" class="btn btn-neon w-100 mt-2">Assinar Pro</a>
+        <div class="col-md-6">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
+            <div><strong>IA Especializada em Atendimento:</strong> Modelos ajustados para responder no português do Brasil com respeito à voz da sua marca.</div>
           </div>
         </div>
-        <div class="col-12 col-md-4">
-          <div class="glass h-100">
-            <span class="badge bg-transparent border mb-2" style="border-color:rgba(143,164,255,.25);">Escala</span>
-            <h5 class="fw-bold">Business Pro</h5>
-            <div class="price">R$ 79,99<span class="fs-6 fw-semibold text-muted">/mês</span></div>
-            <ul class="mt-2 list-unstyled text-muted">
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Multi-filiais (até 5)</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Relatórios em PDF</li>
-              <li class="mb-1"><i class="bi bi-check2-circle text-info me-2"></i>Suporte prioritário</li>
-            </ul>
-            <small class="text-muted d-block">ou R$ 799,99/ano</small>
-            <a href="{{ url_for('planos') }}" class="btn btn-ghost w-100 mt-2">Assinar Business Pro</a>
+        <div class="col-md-6">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
+            <div><strong>Diagnóstico e Relatórios:</strong> Identifique reclamações recorrentes, elogie colaboradores e exporte relatórios em PDF.</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
+            <div><strong>Segurança e LGPD:</strong> Autenticação direta pelo Google com criptografia de ponta a ponta e respeito à privacidade.</div>
           </div>
         </div>
       </div>
 
-      <div class="text-center mt-4">
-        <a href="{{ url_for('authorize') }}" class="btn btn-neon btn-lg px-5"><i class="bi bi-magic me-2"></i>Experimente grátis agora</a>
+      <div class="text-center mt-4 pt-2">
+        <a href="{{ url_for('quem_somos') }}" class="btn btn-outline-primary px-4">
+          Conhecer Nossa História Completa <i class="bi bi-arrow-right ms-1"></i>
+        </a>
       </div>
     </div>
   </section>
 
-  <!-- ===== NOVA SEÇÃO: QUEM SOMOS (VERSÃO INDEX) ===== -->
-  <div class="band my-5"></div>
-  <section id="quem-somos" class="mb-5">
-    <div class="qs-panel">
-      <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="Logo ComentsIA" class="qs-logo">
-      <h3 class="qs-title text-center">Quem Somos</h3>
-
-      <div class="qs-text">
-        A <b>ComentsIA</b> é uma plataforma para gerir e analisar avaliações com <b>IA de ponta</b>. Ajudamos empresas a interpretar feedbacks e <b>responder com empatia</b> — especialmente no <b>Google Meu Negócio</b> — para fortalecer reputação e impulsionar resultados.
-      </div>
-      <div class="qs-text">
-        Hoje, a maioria dos clientes consulta avaliações antes de comprar. Marcas que cultivam reviews e respondem com qualidade geram <b>mais confiança, mais conversões e mais receita</b>. Nosso foco é tornar isso simples e escalável.
-      </div>
-
-      <div class="qs-band"></div>
-
-      <ul class="qs-list">
-        <li><b>Monitoramento contínuo</b> das avaliações em um só lugar, com alertas e visão consolidada.</li>
-        <li><b>Respostas automatizadas</b> (NLP) no tom da sua marca — empáticas, consistentes e personalizáveis.</li>
-        <li><b>Relatórios analíticos</b> com métricas, tendências e insights para decisões baseadas em dados.</li>
-        <li><b>Integração segura e escalável</b>, alinhada a privacidade e conformidade.</li>
-      </ul>
-
-      <div class="qs-band"></div>
-
-      <div class="qs-text mb-0">
-        Em resumo, a ComentsIA <b>une tecnologia e estratégia</b> para elevar sua reputação digital, aprimorar a experiência do cliente e <b>acelerar o crescimento</b> do seu negócio.
-      </div>
-    </div>
-  </section>
-  <!-- ===== FIM: QUEM SOMOS ===== -->
-
-  <!-- Scripts visuais (reveal, contadores, legendas do carrossel) -->
+  <!-- JS: Contadores da Landing Page -->
   <script>
-    const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');io.unobserve(e.target)}})},{threshold:.14});
-    document.querySelectorAll('.glass,.stat').forEach((el,i)=>{ el.classList.add('reveal'); el.style.transition='all .6s ease'; el.style.transitionDelay=(i*0.03)+'s'; io.observe(el); });
-    function animateCount(el){ const tgt=parseFloat(el.dataset.target||'0'), suf=el.dataset.suffix||'', dur=1100, s=performance.now(), float=!Number.isInteger(tgt);
-      function f(n){const p=Math.min(1,(n-s)/dur),v=tgt*p; el.textContent=(float?v.toFixed(1):Math.round(v))+(suf? (suf.startsWith(' ')?suf:' '+suf):''); if(p<1) requestAnimationFrame(f);}
+    function animateCount(el){
+      const tgt=parseFloat(el.dataset.target||'0'), suf=el.dataset.suffix||'', dur=1100, s=performance.now(), float=!Number.isInteger(tgt);
+      function f(n){
+        const p=Math.min(1,(n-s)/dur), v=tgt*p;
+        el.textContent=(float?v.toFixed(1):Math.round(v))+(suf? (suf.startsWith(' ')?suf:' '+suf):'');
+        if(p<1) requestAnimationFrame(f);
+      }
       requestAnimationFrame(f);
     }
     document.querySelectorAll('.count').forEach(animateCount);
-    document.addEventListener('DOMContentLoaded', function () {
-      const carousel = document.getElementById('printsCarousel'); if (!carousel) return;
-      const captions = carousel.querySelectorAll('.carousel-caption'); captions.forEach(c=>{c.style.opacity=0;c.style.transition='opacity .6s ease';});
-      function showActive(){ captions.forEach(c=>c.style.opacity=0); const a=carousel.querySelector('.carousel-item.active .carousel-caption'); if(a){ setTimeout(()=>a.style.opacity=1,2000);} }
-      showActive(); carousel.addEventListener('slid.bs.carousel', showActive);
-    });
   </script>
+
   <!-- ====== FIM NÃO LOGADO ====== -->
 
   {% else %}
 
-  {# =================== VERSÃO LOGADO (CLARA + INTERATIVA) =================== #}
+  <!-- =======================================================
+       SEÇÃO LOGADO (DASHBOARD METRICS COM SELETOR DE FILIAL/FICHAS)
+       ======================================================= -->
 
-  {# Totais brutos #}
-  {% set total = reviews|length if reviews else 0 %}
-  {% set responded = reviews|selectattr('replied')|list|length if reviews else 0 %}
-  {% set pending = (total - responded) if total else 0 %}
+  <!-- Header da Home Logada -->
+  <div class="dashboard-header-card">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h2 class="fw-bold text-dark mb-0 fs-3">Gerenciador de Avaliações Google</h2>
+          <span class="badge-futuristic-blue px-2.5 py-1 rounded-pill small">
+            <i class="bi bi-activity me-1"></i> Painel Ativo
+          </span>
+        </div>
+        <p class="text-muted mb-0 small">Monitore, responda com inteligência artificial e acompanhe sua reputação em tempo real.</p>
+      </div>
 
-  {# Apenas ratings válidos (ignora None) #}
-  {% set valid_ratings = reviews
-      |selectattr('rating','ne', none)
-      |map(attribute='rating')
-      |list
-  %}
-  {% set total_valid = valid_ratings|length %}
-  {% set avg = "%.1f"|format( (valid_ratings|sum) / total_valid ) if total_valid>0 else "0.0" %}
-
-  {# taxa de resposta em % (sobre todas as avaliações) #}
-  {% set response_rate = (responded/total*100) if total>0 else 0 %}
-  {% set response_rate_str = "%.0f"|format(response_rate) %}
-
-  <style>
-    /* —— Light UI apenas para a home logada —— */
-    .logged-home{ --bg:#f7f9fc; --card:#ffffff; --ink:#0f172a; --muted:#6b7280; --brand:#2f7bff; --ok:#22c55e; --warn:#f59e0b; --info:#06b6d4; }
-    .logged-home .hero-lite{
-      background: linear-gradient(160deg, #1e3a8a 0%, #0ea5e9 100%);
-      color: #fff;
-      border-radius: 0 0 50% 50% / 0 0 10% 10%;
-      padding: 48px 18px 80px;
-      box-shadow: 0 10px 30px rgba(2,8,23,.06);
-    }
-    .logged-home .hero-lite h1,
-    .logged-home .hero-lite p {
-      color: #fff;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    }
-    .logged-home h1,.logged-home h2,.logged-home h3{ color:var(--ink); }
-    .logged-home .lead{ color:var(--muted); }
-
-    /* Botão secundário SEMPRE branco (mesmo desativado) */
-    .logged-home .hero-lite .btn-outline-primary{
-      background:#ffffff !important;
-      color:#0f172a !important;
-      border-color:#ffffff !important;
-      opacity:.9;
-    }
-    .logged-home .hero-lite .btn-outline-primary:disabled,
-    .logged-home .hero-lite .btn-outline-primary[disabled]{
-      background:#ffffff !important;
-      color:#0f172a !important;
-      border-color:#ffffff !important;
-      opacity:.5;
-      cursor:not-allowed;
-    }
-
-    .logged-home .btn-primary{ background:var(--brand); border-color:var(--brand); border-radius:14px; padding:.825rem 1.15rem; font-weight:700; }
-    .logged-home .btn-outline-primary{ border-radius:14px; padding:.825rem 1.15rem; font-weight:700; }
-
-    /* Cards de métricas */
-    .logged-home .kpi-card{
-      border-radius:22px;
-      padding:22px;
-      color:#fff !important;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 12px 28px rgba(2,8,23,.15);
-      transition:transform .18s ease, box-shadow .18s ease;
-    }
-    .logged-home .kpi-card.blue { background:#2563eb; }
-    .logged-home .kpi-card.green { background:#16a34a; }
-    .logged-home .kpi-card.yellow { background:#f59e0b; }
-    .logged-home .kpi-card.cyan { background:#06b6d4; }
-    .logged-home .kpi-card:hover{ transform:translateY(-4px); box-shadow:0 16px 36px rgba(2,8,23,.10); }
-
-    /* Textos SEM fundo */
-    .logged-home .kpi-card .kpi-title,
-    .logged-home .kpi-card .kpi-value,
-    .logged-home .kpi-card .kpi-sub{
-      color:#fff !important;
-      background:transparent !important;
-      text-shadow:0 1px 2px rgba(0,0,0,.18);
-    }
-    .logged-home .kpi-card .kpi-value{ font-size:2rem; font-weight:900; line-height:1; }
-
-    /* Ícone clean no canto */
-    .logged-home .kpi-card .icon{
-      width:42px;height:42px; display:grid; place-items:center; margin-bottom:10px;
-      border-radius:12px;
-      background:rgba(255,255,255,.12);
-      color:#fff;
-      backdrop-filter:blur(2px);
-      box-shadow:0 2px 4px rgba(0,0,0,.08);
-    }
-
-    /* Donut (SVG) com contraste */
-    .donut-wrap{ position:relative; width:120px; height:120px; margin-inline:auto; }
-    .donut-wrap .center-label{ position:absolute; inset:0; display:grid; place-items:center; font-weight:900; color:#fff; }
-    .donut-note{ text-align:center; color:rgba(255,255,255,.9); font-size:.92rem; margin-top:.35rem; }
-    .kpi-card.green .donut-svg circle:first-child{ stroke:rgba(255,255,255,.28); }
-    .kpi-card.green .donut-progress{ stroke:#ffffff; }
-
-    /* contadores */
-    .countup{ opacity:0; transform:translateY(6px); }
-    .countup.visible{ opacity:1; transform:translateY(0); transition:opacity .35s ease, transform .35s ease; }
-  </style>
-
-  <section class="logged-home">
-    <!-- HERO claro -->
-    <div class="hero-lite text-center mb-4">
-      <h1 class="fw-bold mb-2">Gerenciador de Avaliações Google</h1>
-      <p class="lead mb-3">Gerencie, responda e analise suas avaliações com IA de forma simples e segura.</p>
-      <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-        <a href="{{ url_for('reviews') }}" class="btn btn-primary">
-          <i class="bi bi-chat-square-text me-2"></i> Ver Avaliações
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-primary shadow-sm">
+          <i class="bi bi-chat-square-text me-1"></i> Ver Avaliações
         </a>
-        <a href="{{ url_for('google_auto.configurar_automacao_google') }}" class="btn btn-outline-primary">
+        <a href="{{ url_for('google_auto.configurar_automacao_google') }}" class="btn btn-google-tonal">
           <i class="bi bi-gear-wide-connected me-1"></i> Automação Google
         </a>
         <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary">
-          <i class="bi bi-plus-circle me-2"></i> Adicionar Avaliação
+          <i class="bi bi-plus-circle me-1"></i> Adicionar
         </a>
       </div>
     </div>
+  </div>
 
-    <!-- KPIs -->
-    <div class="row g-3">
-      <!-- Avaliações -->
-      <div class="col-6 col-md-3">
-        <div class="kpi-card blue h-100 text-center">
-          <div class="icon"><i class="bi bi-chat-square-text"></i></div>
-          <div class="kpi-title">Avaliações</div>
-          <div class="kpi-value countup" data-target="{{ total }}">0</div>
-          <div class="kpi-sub">&nbsp;</div>
+  <!-- SELETOR DE FILIAL / FICHAS GOOGLE -->
+  <div class="branch-filter-bar">
+    <form method="GET" action="{{ url_for('index') }}" class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap mb-0" id="filialFilterForm">
+      <div class="d-flex align-items-center gap-2">
+        <div class="p-1.5 rounded-3 bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-shop fs-5"></i>
         </div>
+        <label for="filtroFichaSelect" class="fw-semibold text-dark mb-0 small text-nowrap">
+          Visualizar Filial / Unidade:
+        </label>
       </div>
 
-      <!-- Respondidas (rosca + %) -->
-      <div class="col-6 col-md-3">
-        <div class="kpi-card green h-100 text-center">
-          <div class="icon"><i class="bi bi-check2-circle"></i></div>
-          <div class="kpi-title">Respondidas (%)</div>
+      <div class="flex-grow-1" style="max-width: 420px; min-width: 240px;">
+        <select name="ficha" id="filtroFichaSelect" class="form-select form-select-sm shadow-sm" onchange="document.getElementById('filialFilterForm').submit()">
+          <option value="todas" {% if filtro_ficha == 'todas' %}selected{% endif %}>
+            📍 Todas as Lojas / Filiais (Visão Consolidada)
+          </option>
 
-          <div class="donut-wrap my-1">
-            <svg viewBox="0 0 120 120" width="120" height="120" class="donut-svg">
-              <!-- trilha -->
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" stroke-width="14"/>
-              <!-- progresso -->
-              <circle cx="60" cy="60" r="50" fill="none"
-                      stroke="#ffffff"
-                      stroke-width="14" stroke-linecap="round"
-                      stroke-dasharray="314" stroke-dashoffset="314"
-                      class="donut-progress" />
-            </svg>
-            <div class="center-label"><span class="countup" data-target="{{ response_rate_str }}">0</span>%</div>
-          </div>
-          <div class="donut-note">{{ responded }} de {{ total }} respondidas</div>
-        </div>
+          {% if fichas %}
+            <optgroup label="Fichas do Google Meu Negócio">
+              {% for f in fichas %}
+                <option value="{{ f.id }}" {% if filtro_ficha|string == f.id|string %}selected{% endif %}>
+                  🏢 {{ f.location_name or f.business_name or ('Ficha #' ~ f.id) }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+
+          {% if filiais %}
+            <optgroup label="Filiais Vinculadas (Painel Matriz)">
+              {% for fil in filiais %}
+                <option value="filial:{{ fil.id }}" {% if filtro_ficha == 'filial:' ~ fil.id %}selected{% endif %}>
+                  🏬 Filial: {{ fil.nome }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+        </select>
       </div>
+    </form>
 
-      <!-- Média -->
-      <div class="col-6 col-md-3">
-        <div class="kpi-card yellow h-100 text-center">
-          <div class="icon"><i class="bi bi-star-fill"></i></div>
-          <div class="kpi-title">Média</div>
-          <div class="kpi-value countup" data-target="{{ avg|float }}">{{ avg }}</div>
-          <div class="kpi-sub">de 5,0</div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-sm btn-outline-primary text-nowrap" title="Configurar e sincronizar fichas do Google">
+        <i class="bi bi-sliders me-1"></i> Gerenciar Locais
+      </a>
+      {% if filiais %}
+        <a href="{{ url_for('matriz.dashboard') }}" class="btn btn-sm btn-light border text-nowrap" title="Acessar o Painel Consolidado de Matriz">
+          <i class="bi bi-diagram-3 me-1 text-primary"></i> Painel Matriz
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KPI CARDS (Futuristic Google Glass Style) -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Total Avaliações -->
+    <div class="col-6 col-md-3">
+      <div class="kpi-stat-card blue">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="kpi-stat-label">Avaliações</div>
+          <div class="kpi-icon-pill"><i class="bi bi-chat-square-text-fill"></i></div>
         </div>
-      </div>
-
-      <!-- Pendentes -->
-      <div class="col-6 col-md-3">
-        <div class="kpi-card cyan h-100 text-center">
-          <div class="icon"><i class="bi bi-clock"></i></div>
-          <div class="kpi-title">Pendentes</div>
-          <div class="kpi-value countup" data-target="{{ pending }}">0</div>
-          <div class="kpi-sub">aguardando resposta</div>
+        <div>
+          <div class="kpi-stat-value countup" data-target="{{ total_reviews }}">{{ total_reviews }}</div>
+          <div class="kpi-stat-sub">Volume total de reviews</div>
         </div>
       </div>
     </div>
 
-  </section>
+    <!-- Card 2: Respondidas (%) com Rosca SVG -->
+    <div class="col-6 col-md-3">
+      <div class="kpi-stat-card green">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="kpi-stat-label">Taxa Resposta</div>
+            <div class="kpi-stat-value">
+              <span class="countup" data-target="{{ response_rate_str }}">{{ response_rate_str }}</span>%
+            </div>
+          </div>
+          <div class="donut-container">
+            <svg viewBox="0 0 80 80" width="76" height="76">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#e6f4ea" stroke-width="8"/>
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#1e8e3e" stroke-width="8"
+                      stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"
+                      class="donut-progress-svg" />
+            </svg>
+            <div class="donut-center-text">
+              <i class="bi bi-check2-all" style="font-size: 1.25rem;"></i>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-stat-sub">{{ responded_reviews }} de {{ total_reviews }} respondidas</div>
+      </div>
+    </div>
 
-  <!-- JS: anima contadores + rosca -->
+    <!-- Card 3: Nota Média -->
+    <div class="col-6 col-md-3">
+      <div class="kpi-stat-card yellow">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="kpi-stat-label">Nota Média</div>
+          <div class="kpi-icon-pill"><i class="bi bi-star-fill"></i></div>
+        </div>
+        <div>
+          <div class="kpi-stat-value countup" data-target="{{ avg_rating }}">{{ avg_rating }}</div>
+          <div class="kpi-stat-sub">
+            <span class="text-warning">
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-fill"></i>
+              <i class="bi bi-star-half"></i>
+            </span>
+            de 5,0 estrelas
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Pendentes -->
+    <div class="col-6 col-md-3">
+      <div class="kpi-stat-card cyan">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="kpi-stat-label">Pendentes</div>
+          <div class="kpi-icon-pill"><i class="bi bi-clock-history"></i></div>
+        </div>
+        <div>
+          <div class="kpi-stat-value countup" data-target="{{ pending_reviews }}">{{ pending_reviews }}</div>
+          <div class="kpi-stat-sub">
+            {% if pending_reviews > 0 %}
+              <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Aguardando resposta</span>
+            {% else %}
+              <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Tudo em dia!</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ações Rápidas & Relatórios (Glass Cards) -->
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <div class="glass-card-futuristic p-4 h-100 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-3">
+            <i class="bi bi-chat-left-quote-fill fs-3"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 text-dark">Gerenciar Avaliações</h5>
+            <p class="text-muted small mb-0">Responda seus clientes com IA, consulte histórico e filtre por estrelas.</p>
+          </div>
+        </div>
+        <div class="mt-2">
+          <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-outline-primary w-100 fw-semibold">
+            Abrir Central de Avaliações <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+      <div class="glass-card-futuristic p-4 h-100 d-flex flex-column justify-content-between">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="p-3 bg-success bg-opacity-10 text-success rounded-3">
+            <i class="bi bi-file-earmark-pdf-fill fs-3"></i>
+          </div>
+          <div>
+            <h5 class="fw-bold mb-1 text-dark">Relatórios Executivos</h5>
+            <p class="text-muted small mb-0">Gere relatórios completos em PDF com gráficos de sentimento e notas.</p>
+          </div>
+        </div>
+        <div class="mt-2">
+          <a href="{{ url_for('gerar_relatorio') }}" class="btn btn-outline-primary w-100 fw-semibold">
+            Gerar Relatório em PDF <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script da Animação dos Contadores e Rosca -->
   <script>
     (function(){
-      const cards = document.querySelectorAll('.countup');
-      const obs = new IntersectionObserver((entries)=>{
-        entries.forEach(e=>{
-          if(!e.isIntersecting) return;
-          const el=e.target, tgt=parseFloat(el.dataset.target||'0');
-          const dur=900, start=performance.now(), float=!Number.isInteger(tgt);
-          function step(now){
-            const p=Math.min(1,(now-start)/dur), v=tgt*p;
-            el.textContent = float ? v.toFixed( (el.dataset.target||'').includes('.') ? 1 : 0 ) : Math.round(v);
-            if(p<1) requestAnimationFrame(step);
-          }
-          el.classList.add('visible'); requestAnimationFrame(step); obs.unobserve(el);
-        });
-      },{threshold:.5});
-      cards.forEach(c=>obs.observe(c));
+      // Contadores
+      const countEls = document.querySelectorAll('.countup');
+      countEls.forEach(el => {
+        const tgt = parseFloat(el.dataset.target || '0');
+        const dur = 900;
+        const start = performance.now();
+        const float = !Number.isInteger(tgt);
+        function step(now){
+          const p = Math.min(1, (now - start) / dur);
+          const v = tgt * p;
+          el.textContent = float ? v.toFixed( (el.dataset.target||'').includes('.') ? 1 : 0 ) : Math.round(v);
+          if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      });
 
-      // donut
-      const donut = document.querySelector('.donut-progress');
-      if(donut){
-        const per = {{ response_rate|round(0,'floor')|int }};
-        const CIRC = 2*Math.PI*50; // r=50 -> ~314
-        const targetOffset = CIRC * (1 - per/100);
-        const dur=900, start=performance.now();
-        function animate(now){
-          const p=Math.min(1,(now-start)/dur);
-          const current = CIRC - (CIRC-targetOffset)*p;
+      // Donut SVG progress
+      const donut = document.querySelector('.donut-progress-svg');
+      if (donut) {
+        const rate = {{ response_rate|round(0, 'floor')|int if response_rate is defined and response_rate is not none else 0 }};
+        const CIRC = 2 * Math.PI * 32; // ~201
+        const targetOffset = CIRC * (1 - rate / 100);
+        const dur = 900;
+        const start = performance.now();
+        function animateDonut(now){
+          const p = Math.min(1, (now - start) / dur);
+          const current = CIRC - (CIRC - targetOffset) * p;
           donut.style.strokeDasharray = CIRC.toString();
           donut.style.strokeDashoffset = current.toString();
-          if(p<1) requestAnimationFrame(animate);
+          if (p < 1) requestAnimationFrame(animateDonut);
         }
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animateDonut);
       }
     })();
   </script>
@@ -583,4 +840,5 @@
   {% endif %}
 
 </div>
+
 {% endblock %}

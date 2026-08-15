@@ -37,6 +37,8 @@ class GoogleLocation(db.Model):
     default_greeting = db.Column(db.String(255))     
     default_closing = db.Column(db.String(255))    
     contexto_personalizado = db.Column(db.Text)
+    tone = db.Column(db.String(32), nullable=True)
+    idioma_resposta = db.Column(db.String(50), nullable=True)
     __table_args__ = (
         db.UniqueConstraint("user_id", "location_id", name="uq_user_location"),
     )
@@ -75,7 +77,17 @@ class Review(db.Model):
         index=True,
         nullable=True
     )
-    
+
+    @property
+    def clean_text(self):
+        from services.ai_service import limpar_texto_review
+        return limpar_texto_review(self.text)
+
+    @property
+    def parsed_text(self):
+        from services.ai_service import parse_review_text
+        return parse_review_text(self.text)
+
 
 class HistoricalSyncPrice(db.Model):
     __tablename__ = "historical_sync_prices"

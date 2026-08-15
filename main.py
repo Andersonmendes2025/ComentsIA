@@ -2,6 +2,12 @@
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
 import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+
 from flask_apscheduler import APScheduler
 class ColorFormatter(logging.Formatter):
     COLORS = {
@@ -100,7 +106,7 @@ from email_utils import (
     montar_email_boas_vindas,
     montar_email_conta_apagada,
 )
-from matriz import matriz_bp
+from matriz import get_business_display_name, is_parent_of, matriz_bp
 from models import (
     ConsideracoesUso,
     GoogleLocation,
@@ -551,9 +557,11 @@ def save_user_settings(user_id, settings_data):
         if "contexto_personalizado" in settings_data:
             existing.contexto_personalizado = (settings_data["contexto_personalizado"] or "")[:500]
         
-        # 🚀 SALVA O NOVO IDIOMA
+        # 🚀 SALVA O NOVO IDIOMA E TOM
         if "idioma_resposta" in settings_data:
             existing.idioma_resposta = settings_data["idioma_resposta"]
+        if "gbp_tone" in settings_data:
+            existing.gbp_tone = settings_data["gbp_tone"]
 
         if "logo" in settings_data and settings_data["logo"]:
             existing.logo = settings_data["logo"]
@@ -568,6 +576,7 @@ def save_user_settings(user_id, settings_data):
             logo=settings_data.get("logo"),
             manager_name=encrypted_manager,
             contexto_personalizado=(settings_data.get("contexto_personalizado") or "")[:500],
+            gbp_tone=settings_data.get("gbp_tone", "profissional"),
         )
         if "idioma_resposta" in settings_data:
             new_settings.idioma_resposta = settings_data["idioma_resposta"]
@@ -795,6 +804,7 @@ def planos():
 def calcular_metricas_reviews(reviews: list) -> dict:
     """
     Calcula as métricas chave (KPIs) com base em uma lista de objetos Review.
+    Garante total consistência matemática entre todos os dashboards e relatórios.
     """
     total = len(reviews)
     if total == 0:
@@ -802,46 +812,57 @@ def calcular_metricas_reviews(reviews: list) -> dict:
             "total": 0,
             "respondidas": 0,
             "pendentes": 0,
-            "media": "0.0",
+            "media": "0.00",
+            "media_float": 0.0,
             "percent_respondidas": "0.0",
+            "star_counts": {5: 0, 4: 0, 3: 0, 2: 0, 1: 0},
+            "nps": 0,
         }
 
     responded = 0
     ratings = []
+    star_counts = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
 
     for review in reviews:
         if getattr(review, "replied", False):
             responded += 1
 
-        # Coleta apenas ratings numéricos válidos
         rating_value = getattr(review, "rating", None)
         if rating_value is not None:
             try:
-                ratings.append(float(rating_value))
+                r_float = float(rating_value)
+                ratings.append(r_float)
+                s_int = int(round(r_float))
+                if s_int in star_counts:
+                    star_counts[s_int] += 1
             except (ValueError, TypeError):
                 pass
 
-    pendentes = total - responded
-
-    # Média robusta (arredondada para 1 casa decimal para exibição)
+    pendentes = max(0, total - responded)
     total_validos = len(ratings)
-    avg_rating = round(sum(ratings) / total_validos, 1) if total_validos > 0 else 0.0
-
-    # Porcentagem de respondidas
+    avg_rating = round(sum(ratings) / total_validos, 2) if total_validos > 0 else 0.0
     percent_respondidas = round((responded / total) * 100, 1) if total > 0 else 0.0
+
+    promotores = star_counts[5] + star_counts[4]
+    detratores = star_counts[1] + star_counts[2]
+    nps_score = round(((promotores - detratores) / total_validos) * 100) if total_validos > 0 else 0
 
     return {
         "total": total,
         "respondidas": responded,
         "pendentes": pendentes,
-        "media": f"{avg_rating:.1f}",  # Formato string para 1 casa decimal
+        "media": f"{avg_rating:.2f}",
+        "media_float": avg_rating,
         "percent_respondidas": f"{percent_respondidas:.1f}",
+        "star_counts": star_counts,
+        "nps": nps_score,
     }
+
 
 
 @app.route("/")
 def index():
-    """Página inicial do aplicativo com resumo das avaliações."""
+    """Página inicial do aplicativo com resumo das avaliações e suporte a seleção de filial/fichas."""
     if "credentials" not in flask.session:
         return render_template("index.html", logged_in=False, now=datetime.now())
 
@@ -862,17 +883,66 @@ def index():
     ):
         return redirect(url_for("settings"))
 
-    user_reviews = get_user_reviews(user_id)
+    # Lista de fichas Google (GoogleLocation)
+    fichas = (
+        GoogleLocation.query
+        .filter_by(user_id=user_id)
+        .order_by(GoogleLocation.location_name)
+        .all()
+    )
 
-    # (mantém fluxo/variáveis caso o template use)
+    # Lista de filiais vinculadas (se for matriz / parent)
+    vinculos = FilialVinculo.query.filter_by(parent_user_id=user_id, status="aceito").all()
+    filiais = []
+    for v in vinculos:
+        nome_filial = get_business_display_name(v.child_user_id)
+        filiais.append({
+            "id": v.child_user_id,
+            "nome": nome_filial,
+            "user_id": v.child_user_id
+        })
+
+    # Filtro da ficha/filial selecionada
+    filtro_ficha = flask.request.args.get("ficha", "todas")
+
+    if filtro_ficha.startswith("filial:"):
+        filial_target_id = filtro_ficha.split("filial:", 1)[1]
+        if filial_target_id == user_id or is_parent_of(user_id, filial_target_id):
+            user_reviews = Review.query.filter(Review.user_id == filial_target_id).order_by(Review.date.desc()).all()
+        else:
+            user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
+    elif filtro_ficha != "todas":
+        try:
+            ficha_id = int(filtro_ficha)
+            q = Review.query.filter(Review.user_id == user_id)
+            q_ficha = q.filter(Review.google_location_id == ficha_id)
+            gl = GoogleLocation.query.filter_by(id=ficha_id, user_id=user_id).first()
+            if gl:
+                loc_id = str(gl.location_id).split("/")[-1].strip()
+                q_ficha = q_ficha.union(
+                    q.filter(
+                        (Review.google_location_id.is_(None)) &
+                        (Review.location_name.in_([loc_id, f"locations/{loc_id}"]))
+                    )
+                )
+            user_reviews = q_ficha.order_by(Review.date.desc()).all()
+        except ValueError:
+            user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
+    else:
+        user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
+
     total_reviews = len(user_reviews)
     responded_reviews = sum(1 for review in user_reviews if review.replied)
     pending_reviews = total_reviews - responded_reviews
+
+    valid_ratings = [r.rating for r in user_reviews if r.rating is not None]
     avg_rating = (
-        round(sum((r.rating or 0) for r in user_reviews) / total_reviews, 1)
-        if total_reviews
+        round(sum(valid_ratings) / len(valid_ratings), 1)
+        if valid_ratings
         else 0.0
     )
+    response_rate = (responded_reviews / total_reviews * 100) if total_reviews > 0 else 0
+    response_rate_str = f"{response_rate:.0f}"
 
     return render_template(
         "index.html",
@@ -880,11 +950,15 @@ def index():
         user=user_info,
         now=datetime.now(),
         reviews=user_reviews,
-        # se o template usar:
         total_reviews=total_reviews,
         responded_reviews=responded_reviews,
         pending_reviews=pending_reviews,
         avg_rating=avg_rating,
+        response_rate=response_rate,
+        response_rate_str=response_rate_str,
+        fichas=fichas,
+        filiais=filiais,
+        filtro_ficha=filtro_ficha,
     )
 
 
@@ -1246,6 +1320,22 @@ def gerar_relatorio():
 
         metrics = calcular_metricas_reviews(avaliacoes_query)
 
+        # Monta dados mensais ordenados para os gráficos no front-end
+        mensal_dict = {}
+        for r in reversed(avaliacoes_query):
+            if r.date and r.rating is not None:
+                try:
+                    d_local = r.date.astimezone(agora_brt().tzinfo) if r.date.tzinfo else r.date
+                    chave_mes = d_local.strftime("%b/%y").capitalize()
+                    if chave_mes not in mensal_dict:
+                        mensal_dict[chave_mes] = []
+                    mensal_dict[chave_mes].append(float(r.rating))
+                except Exception:
+                    pass
+
+        chart_labels = list(mensal_dict.keys())[-12:]
+        chart_values = [round(sum(mensal_dict[k]) / len(mensal_dict[k]), 2) for k in chart_labels]
+
         return render_template(
             "relatorio.html",
             PLANOS=PLANOS,
@@ -1256,6 +1346,8 @@ def gerar_relatorio():
             limite_relatorio_atingido=limite_atingido,
             fichas=fichas,
             ficha_selecionada=ficha,
+            chart_labels=chart_labels,
+            chart_values=chart_values,
         )
 
     # =====================================================================
@@ -1800,6 +1892,18 @@ def formatar_data_brt(data):
         return ""
 
 
+@app.template_filter("limpar_texto_review")
+def limpar_texto_review_filter(text):
+    from services.ai_service import limpar_texto_review
+    return limpar_texto_review(text)
+
+
+@app.template_filter("parse_review_text")
+def parse_review_text_filter(text):
+    from services.ai_service import parse_review_text
+    return parse_review_text(text)
+
+
 @app.route("/get_hiper_count")
 @limiter.limit("10 per minute")
 def get_hiper_count():
@@ -2221,6 +2325,7 @@ def reviews():
     )
 
     user_plano = get_user_plan(user_id)
+    user_settings = get_user_settings(user_id)
 
     return render_template(
         "reviews.html",
@@ -2230,6 +2335,7 @@ def reviews():
         now=datetime.now(),
         PLANOS=PLANOS,
         user_plano=user_plano,
+        user_settings=user_settings,
         fichas=fichas,
         ficha_selecionada=ficha_selecionada,
     )
@@ -2263,16 +2369,19 @@ def suggest_reply():
         except ValueError:
             review_id = None
 
+    from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
+
     review = None
     if review_id:
         review = Review.query.filter_by(id=review_id, user_id=user_id).first()
         if not review:
             return jsonify({"success": False, "error": "Avaliação não encontrada."})
-        review_text = (review.text or "").strip()
+        review_text = limpar_texto_review(review.text or "")
         reviewer_name = (review.reviewer_name or "Cliente").strip()
         star_rating = review.rating or 5
     else:
-        review_text = (data.get("review_text") or "").strip()
+        raw_text = (data.get("review_text") or "").strip()
+        review_text = limpar_texto_review(raw_text)
         reviewer_name = (data.get("reviewer_name") or "Cliente").strip()
         try:
             star_rating = int(data.get("star_rating") or 5)
@@ -2292,28 +2401,40 @@ def suggest_reply():
         return jsonify({"success": False, "error": "limite diário de uso de contexto extra atingido."})
 
     settings = get_user_settings(user_id)
-    idioma = settings.get("idioma_resposta", "Português (Brasil)")
-    
-    manager = (settings.get("manager_name") or "").strip()
-    business = (settings.get("business_name") or "").strip()
-    assinatura = f"{business}\n{manager}" if manager else business
 
     # ==========================================================
-    # 🚀 LÓGICA DE CONTEXTO: PRIORIDADE PARA FICHA LOCAL
+    # 🚀 LÓGICA DE PRIORIDADE: FICHA LOCAL > GLOBAL DA CONTA
     # ==========================================================
-    contexto_final = ""
-    
-    # 1. Tenta pegar o contexto específico da Ficha
+    loc = None
     if review and getattr(review, 'google_location_id', None):
         loc = GoogleLocation.query.filter_by(id=review.google_location_id).first()
-        if loc and getattr(loc, 'contexto_personalizado', None):
-            contexto_final = str(loc.contexto_personalizado).strip()
-            
-    # 2. Se a ficha estiver sem contexto, usa o Global da Empresa
+
+    contexto_final = ""
+    if loc and getattr(loc, 'contexto_personalizado', None):
+        contexto_final = str(loc.contexto_personalizado).strip()
     if not contexto_final and settings.get("contexto_personalizado"):
         contexto_final = str(settings["contexto_personalizado"]).strip()
 
-    prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
+    # Identidade
+    business = (loc.business_name if loc and loc.business_name else None) or (settings.get("business_name") or "").strip()
+    manager = (loc.manager_name if loc and loc.manager_name else None) or (settings.get("manager_name") or "").strip()
+    contact_info = (loc.contact_info if loc and loc.contact_info else None) or (settings.get("contact_info") or "").strip()
+    greeting_info = (loc.default_greeting if loc and loc.default_greeting else None) or (settings.get("default_greeting") or "").strip()
+    closing_info = (loc.default_closing if loc and loc.default_closing else None) or (settings.get("default_closing") or "").strip()
+
+    assinatura = f"{business}\n{manager}" if manager else business
+
+    # Tom e Idioma (Requisição do Modal > Ficha > Global > Default)
+    default_tone = (loc.tone if loc and loc.tone else None) or settings.get("gbp_tone") or "profissional"
+    tone = (data.get("tone") or default_tone).strip().lower()
+
+    default_idioma = (loc.idioma_resposta if loc and loc.idioma_resposta else None) or settings.get("idioma_resposta") or "Português (Brasil)"
+    idioma = (data.get("idioma") or default_idioma).strip()
+
+    system_inst, prompt_lang_rule = get_language_instructions(idioma)
+    tone_inst = get_tone_instructions(tone)
+
+    prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
     
     # ==========================================================
     # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
@@ -2324,29 +2445,29 @@ def suggest_reply():
         prompt += f"Contexto: {contexto_final}\n"
         prompt += "---------------------------------------\n\n"
 
-    # 🚀 REGRA BLINDADA DO IDIOMA COM TRADUÇÃO REGIONAL
     prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
 - Nota: {star_rating} estrelas
-- Comentário: "{review_text}"
+- Comentário Original: "{review_text}"
 
-REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
-1. IDIOMA OBRIGATÓRIO: A sua resposta final DEVE ser escrita INTEIRAMENTE em {idioma.upper()}. Adapte o vocabulário e a gramática para a região nativa deste idioma. É proibido usar outro idioma.
-2. TOM DE VOZ: A resposta deve ter um tom {tone}.
+REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
+{prompt_lang_rule}
+
+2. {tone_inst}
 """
     rule_n = 3
     if consideracoes:
         prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
         rule_n += 1
     
-    if settings.get('default_greeting'):
-        prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{settings['default_greeting']} {reviewer_name},\"\n"
+    if greeting_info:
+        prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{greeting_info} {reviewer_name},\"\n"
         rule_n += 1
-    if settings.get('default_closing'):
-        prompt += f"{rule_n}. DESPEDIDA: Finalize o texto exatamente com a frase \"{settings['default_closing']}\"\n"
+    if closing_info:
+        prompt += f"{rule_n}. DESPEDIDA: Finalize o texto exatamente com a frase \"{closing_info}\"\n"
         rule_n += 1
-    if settings.get('contact_info'):
-        prompt += f"{rule_n}. CONTATO: Insira esta informação de contato no final: \"{settings['contact_info']}\"\n"
+    if contact_info:
+        prompt += f"{rule_n}. CONTATO: Insira esta informação de contato no final: \"{contact_info}\"\n"
         rule_n += 1
         
     prompt += f"""{rule_n}. ASSINATURA FINAL EXATA: Assine ao final exatamente assim:
@@ -2360,8 +2481,7 @@ REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                # 🚀 INJEÇÃO DO IDIOMA DIRETO NO SUBCONSCIENTE DA IA
-                {"role": "system", "content": f"****** USE O IDIOMA A SEGUIR COMO IDIOMA NATIVO PARA RESPONDER A AVALIAÇÃO ****** Você é um especialista em sucesso do cliente NATIVO e FLUENTE em {idioma.upper()}. O SEU TEXTO DE SAÍDA DEVE SER 100% ESCRITO EM {idioma.upper()}."},
+                {"role": "system", "content": system_inst},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -2421,8 +2541,12 @@ def add_review():
     if resposta_gerada:
         replied_flag = True
     else:
+        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
+        
+        clean_comment = limpar_texto_review(text)
         settings = get_user_settings(user_id)
-        idioma = settings.get("idioma_resposta", "Português (Brasil)")
+        idioma = (payload.get("idioma") or "").strip() or settings.get("idioma_resposta", "Português (Brasil)")
+        tone = (payload.get("tone") or "profissional").strip()
         
         manager = (settings.get("manager_name") or "").strip()
         business = (settings.get("business_name") or "").strip()
@@ -2433,7 +2557,10 @@ def add_review():
         # ==========================================================
         contexto_final = str(settings.get("contexto_personalizado") or "").strip()
 
-        prompt = f"Você é um assistente de sucesso do cliente da empresa '{business}'.\n\n"
+        system_inst, prompt_lang_rule = get_language_instructions(idioma)
+        tone_inst = get_tone_instructions(tone)
+
+        prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
         
         # ==========================================================
         # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
@@ -2444,15 +2571,15 @@ def add_review():
             prompt += f"Contexto: {contexto_final}\n"
             prompt += "---------------------------------------\n\n"
 
-        # 🚀 REGRA BLINDADA DO IDIOMA
         prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
 - Nota: {rating} estrelas
-- Comentário: "{text}"
+- Comentário Original: "{clean_comment}"
 
-REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
-1. IDIOMA OBRIGATÓRIO: A sua resposta final DEVE ser escrita INTEIRAMENTE em {idioma.upper()}. Adapte o vocabulário e a gramática para a região nativa deste idioma. É proibido usar outro idioma.
-2. TOM DE VOZ: A resposta deve ter um tom Profissional e Empático.
+REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
+{prompt_lang_rule}
+
+2. {tone_inst}
 """
         rule_n = 3
         if consideracoes:
@@ -2480,8 +2607,7 @@ REGRAS ESTRITAS DE RESPOSTA (Você DEVE seguir todas na ordem exata):
             completion = client.with_options(timeout=30.0).chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=[
-                    # 🚀 INJEÇÃO DO IDIOMA DIRETO NO SUBCONSCIENTE DA IA
-                    {"role": "system", "content": f"******USE O IDIOMA A SEGUIR COMO LINGUA NATIVA PARA RESPOSTA DA AVALIAÇÃO****** Você é um especialista em sucesso do cliente NATIVO e FLUENTE em {idioma.upper()}. O SEU TEXTO DE SAÍDA DEVE SER 100% ESCRITO EM {idioma.upper()}."},
+                    {"role": "system", "content": system_inst},
                     {"role": "user", "content": prompt}
                 ]
             )
@@ -2581,17 +2707,31 @@ def dashboard():
         .all()
     )
 
-    # 🔥 LÊ O FILTRO DO FRONT (GET) -> deve vir GoogleLocation.id (int) ou "todas"
+    # 🔥 LISTA DE FILIAIS VINCULADAS (se for matriz / parent)
+    vinculos = FilialVinculo.query.filter_by(parent_user_id=user_id, status="aceito").all()
+    filiais = []
+    for v in vinculos:
+        nome_filial = get_business_display_name(v.child_user_id)
+        filiais.append({
+            "id": v.child_user_id,
+            "nome": nome_filial,
+            "user_id": v.child_user_id
+        })
+
+    # 🔥 LÊ O FILTRO DO FRONT (GET) -> deve vir GoogleLocation.id (int), "filial:<id>" ou "todas"
     filtro_ficha = flask.request.args.get("ficha", "todas")
 
-    # 🔥 BASE QUERY
-    q = Review.query.filter(Review.user_id == user_id)
-
     # 🔥 BUSCA AS REVIEWS DE ACORDO COM O FILTRO
-    if filtro_ficha != "todas":
+    if filtro_ficha.startswith("filial:"):
+        filial_target_id = filtro_ficha.split("filial:", 1)[1]
+        if filial_target_id == user_id or is_parent_of(user_id, filial_target_id):
+            user_reviews = Review.query.filter(Review.user_id == filial_target_id).order_by(Review.date.desc()).all()
+        else:
+            user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
+    elif filtro_ficha != "todas":
         try:
             ficha_id = int(filtro_ficha)
-
+            q = Review.query.filter(Review.user_id == user_id)
             q_ficha = q.filter(Review.google_location_id == ficha_id)
 
             # fallback: reviews antigas sem FK (usa location_name "locations/123" ou "123")
@@ -2608,15 +2748,12 @@ def dashboard():
             user_reviews = q_ficha.order_by(Review.date.desc()).all()
 
         except ValueError:
-            # veio algo inválido -> mostra tudo
-            user_reviews = q.order_by(Review.date.desc()).all()
+            user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
     else:
-        # se você quiser manter seu helper, beleza:
-        # user_reviews = get_user_reviews(user_id)
-        user_reviews = q.order_by(Review.date.desc()).all()
+        user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
 
     if not user_reviews:
-        flash("Ainda não há avaliações para esta ficha.", "info")
+        flash("Ainda não há avaliações para esta ficha ou filial.", "info")
         return render_template(
             "dashboard.html",
             total_reviews=0,
@@ -2629,6 +2766,7 @@ def dashboard():
             user_plano=plano,
             PLANOS=PLANOS,
             fichas=fichas,
+            filiais=filiais,
             filtro_ficha=filtro_ficha,
             now=datetime.now(),
         )
@@ -2680,6 +2818,7 @@ def dashboard():
         user_plano=plano,
         PLANOS=PLANOS,
         fichas=fichas,
+        filiais=filiais,
         filtro_ficha=filtro_ficha,
         now=datetime.now(),
     )
@@ -2843,6 +2982,7 @@ def settings():
             "terms_accepted": request.form.get("terms_accepted"),
             "manager_name": cap(request.form.get("manager_name"), 200),
             "idioma_resposta": request.form.get("idioma_resposta"),
+            "gbp_tone": request.form.get("gbp_tone") or "profissional",
             "contexto_personalizado": request.form.get("contexto_personalizado")
         }
 
@@ -3100,22 +3240,28 @@ def aplicar_migracoes():
         try:
             db.create_all()
             
-            # Migração manual para adicionar a coluna onboarding_done
+            # Migração manual para adicionar a coluna onboarding_done e campos de ficha
             from sqlalchemy import text
             try:
                 # Tenta para PostgreSQL
                 db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS tone VARCHAR(32)"))
+                db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS idioma_resposta VARCHAR(50)"))
                 db.session.commit()
-                logging.info("✅ Coluna onboarding_done verificada/adicionada em user_settings.")
+                logging.info("✅ Colunas verificadas/adicionadas no PostgreSQL.")
             except Exception as ex_pg:
                 db.session.rollback()
-                try:
-                    # Tenta para SQLite (sem IF NOT EXISTS, falha silenciosamente se existir)
-                    db.session.execute(text("ALTER TABLE user_settings ADD COLUMN onboarding_done BOOLEAN DEFAULT 0"))
-                    db.session.commit()
-                    logging.info("✅ Coluna onboarding_done adicionada no SQLite.")
-                except Exception:
-                    db.session.rollback()
+                for col_sql in [
+                    "ALTER TABLE user_settings ADD COLUMN onboarding_done BOOLEAN DEFAULT 0",
+                    "ALTER TABLE google_locations ADD COLUMN tone VARCHAR(32)",
+                    "ALTER TABLE google_locations ADD COLUMN idioma_resposta VARCHAR(50)",
+                ]:
+                    try:
+                        db.session.execute(text(col_sql))
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+
 
             logging.info("📦 Aplicando migrações...")
             upgrade()

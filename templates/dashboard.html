@@ -46,13 +46,26 @@
       <form method="GET" action="{{ url_for('dashboard') }}" class="d-flex">
           <div class="input-group shadow-sm">
               <span class="input-group-text bg-white border-end-0"><i class="bi bi-shop"></i></span>
-              <select name="ficha" class="form-select border-start-0" onchange="this.form.submit()" style="max-width: 250px;">
-                  <option value="todas" {% if filtro_ficha == 'todas' %}selected{% endif %}>Todas as Lojas</option>
-                  {% for f in fichas %}
-                      <option value="{{ f.id }}" {% if filtro_ficha|int == f.id %}selected{% endif %}>
-                        {{ f.location_name or f.business_name or 'Loja sem nome' }}
-                      </option>
-                  {% endfor %}
+              <select name="ficha" class="form-select border-start-0" onchange="this.form.submit()" style="max-width: 280px;">
+                  <option value="todas" {% if filtro_ficha == 'todas' %}selected{% endif %}>📍 Todas as Lojas / Filiais</option>
+                  {% if fichas %}
+                    <optgroup label="Fichas do Google">
+                      {% for f in fichas %}
+                        <option value="{{ f.id }}" {% if filtro_ficha|string == f.id|string %}selected{% endif %}>
+                          🏢 {{ f.location_name or f.business_name or ('Ficha #' ~ f.id) }}
+                        </option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endif %}
+                  {% if filiais %}
+                    <optgroup label="Filiais Vinculadas">
+                      {% for fil in filiais %}
+                        <option value="filial:{{ fil.id }}" {% if filtro_ficha == 'filial:' ~ fil.id %}selected{% endif %}>
+                          🏬 Filial: {{ fil.nome }}
+                        </option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endif %}
               </select>
           </div>
       </form>
