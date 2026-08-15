@@ -3262,6 +3262,12 @@ def aplicar_migracoes():
                     except Exception:
                         db.session.rollback()
 
+            try:
+                # Normaliza avaliações vindas do Google
+                db.session.execute(text("UPDATE reviews SET source = 'google' WHERE (external_id IS NOT NULL OR auto_origin = 'gbp' OR google_location_id IS NOT NULL) AND (source IS NULL OR source = '' OR source = 'booking')"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             logging.info("📦 Aplicando migrações...")
             upgrade()
