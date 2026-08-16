@@ -88,7 +88,13 @@ class MercadoLivreAccount(db.Model):
             "2_orange": {"nome": "Laranja (Risco)", "cor": "#ff7733", "status": "Risco", "rank": 2},
             "1_red": {"nome": "Vermelho (Crítico)", "cor": "#f04449", "status": "Crítico", "rank": 1},
         }
-        level_data = level_map.get(self.level_id or "5_green", level_map["5_green"])
+        
+        is_new_or_buyer = (self.completed_transactions or 0) == 0 and not self.power_seller_status and (not self.level_id or self.level_id in ["none", "null", "sem_reputacao"])
+        
+        if is_new_or_buyer:
+            level_data = {"nome": "Sem Termômetro Ativo", "cor": "#64748b", "status": "Sem Vendas", "rank": 0}
+        else:
+            level_data = level_map.get(self.level_id or "5_green", level_map["5_green"])
 
         medal_map = {
             "platinum": {"nome": "MercadoLíder Platinum", "badge": "Platinum", "cor": "#708090", "icon": "bi-gem"},
@@ -102,16 +108,14 @@ class MercadoLivreAccount(db.Model):
         cancel_pct = (self.cancellations_rate or 0.0) * 100
 
         # Margens de risco:
-        # Claims teto 3.0%
         claims_risk = "danger" if claims_pct >= 2.8 else ("warning" if claims_pct >= 2.0 else "success")
-        # Delay teto 15.0%
         delay_risk = "danger" if delay_pct >= 13.5 else ("warning" if delay_pct >= 10.0 else "success")
-        # Cancel teto 2.5%
         cancel_risk = "danger" if cancel_pct >= 2.0 else ("warning" if cancel_pct >= 1.5 else "success")
 
         return {
             "level": level_data,
             "medal": medal_data,
+            "is_new_or_buyer": is_new_or_buyer,
             "claims_pct": round(claims_pct, 2),
             "delay_pct": round(delay_pct, 2),
             "cancel_pct": round(cancel_pct, 2),
@@ -149,14 +153,56 @@ class MercadoLivreAccount(db.Model):
 
     def calculate_account_health(self) -> dict:
         """
-        Calcula o diagnóstico consolidado de Saúde e Desempenho da Conta nos 4 Pilares:
-        1. 🚚 Logística & Entrega (Pontualidade vs teto 15%)
-        2. 🛡️ Qualidade dos Produtos & Pós-Venda (Reclamações vs teto 3%)
-        3. 💬 Atendimento Pré-Venda (Tempo e Taxa de Resposta das Perguntas)
-        4. 📦 Operação & Estoque (Cancelamentos vs teto 2.5%)
+        Calcula o diagnóstico consolidado de Saúde e Desempenho da Conta nos 4 Pilares.
         """
         reputation = self.get_reputation_info()
-        level_rank = reputation["level"]["rank"]  # 1 a 5
+        level_rank = reputation["level"]["rank"]
+
+        # Se for conta sem vendas ativas / perfil novo
+        if reputation.get("is_new_or_buyer"):
+            return {
+                "overall_score": 100,
+                "badge": {"label": "Conta Sem Histórico de Vendas", "cor": "secondary", "icon": "bi-person-badge"},
+                "reputation": reputation,
+                "pillars": {
+                    "logistics": {
+                        "score": 100,
+                        "on_time_pct": 100.0,
+                        "delay_pct": 0.0,
+                        "ceiling_pct": 15.0,
+                        "risk": "success",
+                        "status": "Sem Envios"
+                    },
+                    "quality": {
+                        "score": 100,
+                        "claims_pct": 0.0,
+                        "ceiling_pct": 3.0,
+                        "risk": "success",
+                        "status": "Sem Reclamações"
+                    },
+                    "service": {
+                        "score": 100,
+                        "avg_time_min": 0.0,
+                        "response_rate_pct": 100.0,
+                        "unanswered_count": 0,
+                        "total_count": 0,
+                        "status": "0 Perguntas"
+                    },
+                    "operation": {
+                        "score": 100,
+                        "cancel_pct": 0.0,
+                        "ceiling_pct": 2.5,
+                        "risk": "success",
+                        "status": "Sem Cancelamentos"
+                    }
+                },
+                "store_ratings": {
+                    "average": 0.0,
+                    "total_reviews": 0,
+                    "breakdown": {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0},
+                    "positive_pct": 100.0
+                }
+            }
 
         # 1. Pilar Logística (0 a 100) - Teto atraso 15%
         delay_pct = reputation["delay_pct"]
@@ -172,9 +218,10 @@ class MercadoLivreAccount(db.Model):
         operation_score = max(0, int(100 - (cancel_pct / 2.5) * 100)) if cancel_pct <= 2.5 else 0
 
         # 4. Pilar Atendimento / Perguntas (0 a 100)
-        # Resposta em menos de 15 min = 100, até 60 min = 80, até 4h = 60, > 4h = 40
-        resp_time = self.avg_response_time_minutes or 30.0
-        if resp_time <= 15:
+        resp_time = self.avg_response_time_minutes or 0.0
+        if resp_time == 0:
+            resp_score = 100
+        elif resp_time <= 15:
             resp_score = 100
         elif resp_time <= 60:
             resp_score = 85
@@ -187,7 +234,7 @@ class MercadoLivreAccount(db.Model):
         service_score = int((resp_score * 0.6) + (resp_rate_pct * 0.4))
 
         # Score de Termômetro (0 a 100)
-        term_score = level_rank * 20  # 5_green = 100, 4 = 80, 3 = 60, 2 = 40, 1 = 20
+        term_score = max(20, level_rank * 20)
 
         # Score Global Ponderado (0 a 100)
         overall_health = int(
@@ -208,6 +255,50 @@ class MercadoLivreAccount(db.Model):
             health_badge = {"label": "Atenção", "cor": "warning", "icon": "bi-exclamation-triangle"}
         else:
             health_badge = {"label": "Crítica / Risco", "cor": "danger", "icon": "bi-x-octagon"}
+
+        return {
+            "overall_score": overall_health,
+            "badge": health_badge,
+            "reputation": reputation,
+            "pillars": {
+                "logistics": {
+                    "score": logistics_score,
+                    "on_time_pct": round(on_time_pct, 1),
+                    "delay_pct": delay_pct,
+                    "ceiling_pct": 15.0,
+                    "risk": reputation["delay_risk"],
+                    "status": "No Prazo" if delay_pct < 10.0 else ("Atenção" if delay_pct < 13.5 else "Crítico")
+                },
+                "quality": {
+                    "score": quality_score,
+                    "claims_pct": claims_pct,
+                    "ceiling_pct": 3.0,
+                    "risk": reputation["claims_risk"],
+                    "status": "Excelente" if claims_pct < 2.0 else ("Atenção" if claims_pct < 2.8 else "Crítico")
+                },
+                "service": {
+                    "score": service_score,
+                    "avg_time_min": round(self.avg_response_time_minutes or 0.0, 1),
+                    "response_rate_pct": round(resp_rate_pct, 1),
+                    "unanswered_count": self.unanswered_questions or 0,
+                    "total_count": self.total_questions or 0,
+                    "status": "Rápido" if (self.avg_response_time_minutes or 0) <= 20 else "Lento"
+                },
+                "operation": {
+                    "score": operation_score,
+                    "cancel_pct": cancel_pct,
+                    "ceiling_pct": 2.5,
+                    "risk": reputation["cancel_risk"],
+                    "status": "Excelente" if cancel_pct < 1.5 else ("Atenção" if cancel_pct < 2.0 else "Crítico")
+                }
+            },
+            "store_ratings": {
+                "average": self.store_rating_average or 0.0,
+                "total_reviews": self.total_store_reviews or 0,
+                "breakdown": self.get_rating_breakdown(),
+                "positive_pct": round((self.positive_rating_pct or 1.0) * 100, 1)
+            }
+        }
 
         return {
             "overall_score": overall_health,

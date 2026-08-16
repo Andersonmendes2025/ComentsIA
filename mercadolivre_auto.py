@@ -163,25 +163,25 @@ def fetch_seller_reputation_data(seller_id: str, access_token: Optional[str] = N
     except Exception as e:
         logger.debug(f"[MercadoLivre] Fallback de busca falhou: {e}")
 
-    # 4. Baseline estruturado para evitar travar a sincronização
+    # 4. Baseline limpo para contas sem histórico de vendas
     return {
         "id": seller_id,
-        "nickname": f"Loja_{seller_id}",
-        "permalink": f"https://www.mercadolivre.com.br/perfil/Loja_{seller_id}",
+        "nickname": f"Conta_{seller_id}",
+        "permalink": f"https://www.mercadolivre.com.br/perfil/Conta_{seller_id}",
         "seller_reputation": {
-            "level_id": "5_green",
-            "power_seller_status": "gold",
+            "level_id": None,
+            "power_seller_status": None,
             "transactions": {
-                "completed": 150,
-                "canceled": 3,
-                "total": 153,
-                "ratings": {"positive": 0.98, "negative": 0.01, "neutral": 0.01}
+                "completed": 0,
+                "canceled": 0,
+                "total": 0,
+                "ratings": {"positive": 1.0, "negative": 0.0, "neutral": 0.0}
             },
             "metrics": {
-                "sales": {"completed": 65},
-                "claims": {"rate": 0.008},
-                "delayed_handling_time": {"rate": 0.025},
-                "cancellations": {"rate": 0.005}
+                "sales": {"completed": 0},
+                "claims": {"rate": 0.0},
+                "delayed_handling_time": {"rate": 0.0},
+                "cancellations": {"rate": 0.0}
             }
         }
     }
@@ -327,32 +327,13 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha ao consultar perguntas da conta {seller_id}: {e}")
 
-    # Baseline seguro caso endpoint público não retorne
+    # Baseline limpo para contas sem perguntas
     return {
-        "total_questions": 45,
-        "unanswered_questions": 1,
-        "avg_response_time_minutes": 22.0,
-        "questions_response_rate": 0.98,
-        "recent_questions": [
-            {
-                "id": "q-101",
-                "item_id": "MLB-EXEMPLO",
-                "text": "Tem pronta entrega na cor preta?",
-                "status": "ANSWERED",
-                "date_created": (default_brt_now() - timedelta(hours=2)).isoformat(),
-                "answer_text": "Olá! Sim, temos estoque disponível para envio imediato com nota fiscal. Aguardamos sua compra!",
-                "answer_date": (default_brt_now() - timedelta(hours=1, minutes=45)).isoformat()
-            },
-            {
-                "id": "q-102",
-                "item_id": "MLB-EXEMPLO",
-                "text": "O produto acompanha garantia de 1 ano?",
-                "status": "UNANSWERED",
-                "date_created": (default_brt_now() - timedelta(minutes=35)).isoformat(),
-                "answer_text": None,
-                "answer_date": None
-            }
-        ]
+        "total_questions": 0,
+        "unanswered_questions": 0,
+        "avg_response_time_minutes": 0.0,
+        "questions_response_rate": 1.0,
+        "recent_questions": []
     }
 
 
