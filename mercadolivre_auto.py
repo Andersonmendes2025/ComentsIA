@@ -84,6 +84,8 @@ def get_ml_credentials() -> Tuple[str, str, str]:
     client_id = os.getenv("MERCADOLIVRE_APP_ID", "").strip()
     client_secret = os.getenv("MERCADOLIVRE_SECRET_KEY", "").strip()
     redirect_uri = os.getenv("MERCADOLIVRE_REDIRECT_URI", "").strip()
+    
+    # Se não configurado explicitamente, monta com base no domínio
     if not redirect_uri:
         domain = os.getenv("DOMAIN_URL", "https://comentsia.com.br").rstrip("/")
         redirect_uri = f"{domain}/mercadolivre/callback"
