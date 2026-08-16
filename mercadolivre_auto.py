@@ -818,12 +818,68 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
         return output
 
 
+def refresh_ml_token(account: MercadoLivreAccount) -> Optional[str]:
+    """
+    Renova o access_token do Mercado Livre usando o refresh_token (criptografado em repouso com AES-256).
+    Em conformidade com as diretrizes oficiais de segurança do Mercado Livre (OWASP / OAuth 2.0).
+    """
+    if not account.refresh_token:
+        return None
+
+    try:
+        raw_refresh_token = crypto_decrypt(account.refresh_token)
+    except Exception as e:
+        logger.error(f"[MercadoLivre Security] Falha ao descriptografar refresh_token: {e}")
+        return None
+
+    client_id, client_secret, _ = get_ml_credentials()
+    payload = {
+        "grant_type": "refresh_token",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": raw_refresh_token
+    }
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+
+    try:
+        resp = requests.post(ML_TOKEN_URL, data=payload, headers=headers, timeout=15)
+        if resp.status_code == 200:
+            token_data = resp.json()
+            new_access_token = token_data.get("access_token")
+            new_refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 21600)
+
+            if new_access_token:
+                account.access_token = crypto_encrypt(new_access_token)
+            if new_refresh_token:
+                account.refresh_token = crypto_encrypt(new_refresh_token)
+            account.token_expires_at = default_brt_now() + timedelta(seconds=expires_in)
+            db.session.commit()
+            logger.info(f"[MercadoLivre Security] Token da conta {account.seller_id} renovado com sucesso e criptografado.")
+            return new_access_token
+        else:
+            logger.warning(f"[MercadoLivre Security] Falha ao renovar token (HTTP {resp.status_code}): {resp.text}")
+            return None
+    except Exception as e:
+        logger.error(f"[MercadoLivre Security] Erro de rede ao renovar token: {e}")
+        return None
+
+
 def sync_all_account_data(account: MercadoLivreAccount) -> None:
     """Executa sincronização completa dos dados e histórico da conta do Mercado Livre."""
     token = None
     if account.access_token:
         try:
-            token = crypto_decrypt(account.access_token)
+            # Auto-refresh se o token estiver a menos de 30 min de expirar
+            if account.token_expires_at and account.token_expires_at <= default_brt_now() + timedelta(minutes=30):
+                token = refresh_ml_token(account)
+            
+            if not token:
+                token = crypto_decrypt(account.access_token)
         except Exception:
             token = None
 
