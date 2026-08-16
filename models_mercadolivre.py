@@ -107,10 +107,15 @@ class MercadoLivreAccount(db.Model):
         delay_pct = (self.delayed_rate or 0.0) * 100
         cancel_pct = (self.cancellations_rate or 0.0) * 100
 
-        # Margens de risco:
-        claims_risk = "danger" if claims_pct >= 2.8 else ("warning" if claims_pct >= 2.0 else "success")
-        delay_risk = "danger" if delay_pct >= 13.5 else ("warning" if delay_pct >= 10.0 else "success")
-        cancel_risk = "danger" if cancel_pct >= 2.0 else ("warning" if cancel_pct >= 1.5 else "success")
+        # Margens oficiais do Mercado Livre Brasil (MLB):
+        # Reclamações (Claims): Green <= 2.0%, Yellow <= 4.5%, Orange <= 8.0%, Red > 8.0%
+        claims_risk = "danger" if claims_pct > 2.0 else ("warning" if claims_pct > 1.0 else "success")
+        
+        # Atrasos de Envio (Delayed Handling Time): Green <= 10.0%, Yellow <= 18.0%, Orange <= 22.0%, Red > 22.0%
+        delay_risk = "danger" if delay_pct > 10.0 else ("warning" if delay_pct > 6.0 else "success")
+        
+        # Cancelamentos pelo Vendedor (Cancellations): Green <= 1.5%, Yellow <= 3.5%, Orange <= 4.0%, Red > 4.0%
+        cancel_risk = "danger" if cancel_pct > 1.5 else ("warning" if cancel_pct > 0.5 else "success")
 
         return {
             "level": level_data,

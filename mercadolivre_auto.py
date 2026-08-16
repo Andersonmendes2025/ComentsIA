@@ -246,18 +246,26 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
     if access_token:
         try:
             auth_headers = {**headers_base, "Authorization": f"Bearer {access_token}"}
-            url = f"{ML_API_BASE}/my/received_questions/search?api_version=4&sort=date_desc&limit=50"
+            url = f"{ML_API_BASE}/questions/search?seller_id={seller_id}&sort_fields=date_created&sort_types=DESC&api_version=4"
             resp = requests.get(url, headers=auth_headers, timeout=12)
             if resp.status_code == 200:
                 data = resp.json()
                 raw_questions = data.get("questions") or []
                 total_count = int((data.get("paging") or {}).get("total", len(raw_questions)))
+            else:
+                # Tenta /my/received_questions/search
+                url_my = f"{ML_API_BASE}/my/received_questions/search?api_version=4&sort=date_desc&limit=50"
+                resp_my = requests.get(url_my, headers=auth_headers, timeout=12)
+                if resp_my.status_code == 200:
+                    data = resp_my.json()
+                    raw_questions = data.get("questions") or []
+                    total_count = int((data.get("paging") or {}).get("total", len(raw_questions)))
         except Exception as e:
             logger.debug(f"[MercadoLivre] Consulta de perguntas com token falhou: {e}")
 
     if not raw_questions:
         try:
-            url_pub = f"{ML_API_BASE}/questions/search?seller_id={seller_id}&sort=date_desc&limit=50"
+            url_pub = f"{ML_API_BASE}/questions/search?seller_id={seller_id}&sort_fields=date_created&sort_types=DESC&api_version=4"
             resp_pub = requests.get(url_pub, headers=headers_base, timeout=12)
             if resp_pub.status_code == 200:
                 data = resp_pub.json()
@@ -265,6 +273,21 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
                 total_count = int((data.get("paging") or {}).get("total", len(raw_questions)))
         except Exception as e:
             logger.debug(f"[MercadoLivre] Consulta de perguntas pública falhou: {e}")
+
+    # Consulta endpoint oficial de tempo de resposta se houver token
+    official_avg_time = None
+    if access_token:
+        try:
+            auth_headers = {**headers_base, "Authorization": f"Bearer {access_token}"}
+            url_rt = f"{ML_API_BASE}/users/{seller_id}/questions/response_time"
+            resp_rt = requests.get(url_rt, headers=auth_headers, timeout=10)
+            if resp_rt.status_code == 200:
+                rt_data = resp_rt.json()
+                total_rt = (rt_data.get("total") or {}).get("response_time")
+                if total_rt is not None:
+                    official_avg_time = float(total_rt)
+        except Exception as e:
+            logger.debug(f"[MercadoLivre] Consulta de response_time oficial falhou: {e}")
 
     try:
         if raw_questions:
@@ -312,7 +335,8 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
                     "answer_date": answer_obj.get("date_created")
                 })
 
-            avg_time = float(np.mean(response_times)) if response_times else 25.0
+            calculated_time = float(np.mean(response_times)) if response_times else 0.0
+            avg_time = official_avg_time if official_avg_time is not None else calculated_time
             answered_count = max(0, total_count - unanswered)
             rate = float(answered_count / total_count) if total_count > 0 else 1.0
 
