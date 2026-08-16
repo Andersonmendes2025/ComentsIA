@@ -44,6 +44,7 @@ def client(app):
 def ml_setup(app):
     with app.app_context():
         db.session.rollback()
+        db.session.expire_on_commit = False
         # Migração das colunas se necessário
         cols = [
             "total_questions INTEGER DEFAULT 0",
@@ -80,10 +81,9 @@ def ml_setup(app):
             settings = UserSettings(user_id="test_ml_user", plano="pro")
             db.session.add(settings)
 
-        accounts = MercadoLivreAccount.query.filter_by(user_id="test_ml_user").all()
-        for acc in accounts:
-            db.session.delete(acc)
+        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
         db.session.commit()
+        db.session.expunge_all()
         yield
         db.session.rollback()
 
@@ -179,9 +179,6 @@ def test_account_questions_and_response_time():
 def test_ai_health_report_and_answer_suggestion(app):
     """Testa geração do Parecer Estratégico por IA e sugestão de resposta para pré-venda."""
     with app.app_context():
-        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
-        db.session.commit()
-
         account = MercadoLivreAccount(
             user_id="test_ml_user",
             seller_id="ai_rep_111",
@@ -213,9 +210,6 @@ def test_ai_health_report_and_answer_suggestion(app):
 def test_gerar_pdf_relatorio_mercadolivre(app):
     """Testa a emissão do Relatório Executivo da Conta em PDF."""
     with app.app_context():
-        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
-        db.session.commit()
-
         account = MercadoLivreAccount(
             user_id="test_ml_user",
             seller_id="pdf_rep_222",
@@ -258,9 +252,6 @@ def test_conectar_oauth_and_dashboard_flow(app, client):
 
     # 3. Conta conectada carrega perfeitamente no Dashboard
     with app.app_context():
-        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
-        db.session.commit()
-
         account = MercadoLivreAccount(
             user_id="test_ml_user",
             seller_id="oauth_rep_333",
