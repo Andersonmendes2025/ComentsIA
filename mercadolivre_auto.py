@@ -478,90 +478,99 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
     }
 
 
-def fetch_account_store_ratings_and_items(seller_id: str) -> Dict[str, Any]:
+def fetch_account_store_ratings_and_items(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Busca os anúncios da loja do vendedor e agrega:
-    - Total de itens ativos
-    - Nota média geral da loja
-    - Total de avaliações recebidas
-    - Distribuição consolidada de estrelas (5★ a 1★)
+    Busca os anúncios da loja do vendedor segundo a documentação oficial:
+    1. Se houver access_token: GET /users/{seller_id}/items/search?status=active&limit=50
+       seguido de multiget GET /items?ids=...
+    2. Fallback público: GET /sites/MLB/search?seller_id={seller_id}&limit=20
     """
-    url = f"{ML_API_BASE}/sites/MLB/search?seller_id={seller_id}&limit=20"
-    headers = {"User-Agent": "ComentsIA-AnalyticsML/1.0"}
+    items_list = []
+    total_items = 0
 
-    try:
-        resp = requests.get(url, headers=headers, timeout=12)
-        if resp.status_code == 200:
-            data = resp.json()
-            results = data.get("results") or []
-            total_items = int((data.get("paging") or {}).get("total", len(results)))
-
-            ratings_list = []
-            total_reviews = 0
-            breakdown = {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
-            items_summary = []
-
-            for item in results[:10]:
-                item_id = item.get("id")
-                title = item.get("title", "")
-                price = float(item.get("price", 0.0))
-                thumbnail = item.get("thumbnail")
-                permalink = item.get("permalink")
-
-                # Busca reviews do item
-                rev_data = fetch_item_reviews_data(item_id)
-                rating_avg = float(rev_data.get("rating_average", 0.0))
-                item_rev_count = int((rev_data.get("paging") or {}).get("total", len(rev_data.get("reviews", []))))
-
-                if rating_avg > 0:
-                    ratings_list.append(rating_avg)
-                total_reviews += item_rev_count
-
-                dist = rev_data.get("rating_levels") or {}
-                for star in ["1", "2", "3", "4", "5"]:
-                    breakdown[star] += int(dist.get(star, 0))
-
-                items_summary.append({
-                    "item_id": item_id,
-                    "title": title,
-                    "price": price,
-                    "thumbnail": thumbnail,
-                    "permalink": permalink,
-                    "rating_average": rating_avg,
-                    "total_reviews": item_rev_count
-                })
-
-            total_sold_quantity = sum(int(item.get("sold_quantity", 0)) for item in results)
-
-            store_avg = float(np.mean(ratings_list)) if ratings_list else 4.8
-            if sum(breakdown.values()) == 0 and total_reviews > 0:
-                # Distribuição proporcional estimada se o item não detalhar níveis
-                breakdown = {
-                    "5": int(total_reviews * 0.85),
-                    "4": int(total_reviews * 0.10),
-                    "3": int(total_reviews * 0.03),
-                    "2": int(total_reviews * 0.01),
-                    "1": int(total_reviews * 0.01)
-                }
-
-            return {
-                "total_active_items": total_items,
-                "total_sold_quantity": total_sold_quantity,
-                "store_rating_average": round(store_avg, 2),
-                "total_store_reviews": total_reviews,
-                "rating_breakdown": breakdown,
-                "items_summary": items_summary
+    if access_token:
+        try:
+            auth_headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/json",
+                "User-Agent": "ComentsIA/1.0"
             }
+            url_user_items = f"{ML_API_BASE}/users/{seller_id}/items/search?status=active&limit=50"
+            resp_items = requests.get(url_user_items, headers=auth_headers, timeout=12)
+            if resp_items.status_code == 200:
+                data_items = resp_items.json()
+                item_ids = data_items.get("results") or []
+                total_items = int((data_items.get("paging") or {}).get("total", len(item_ids)))
+                
+                if item_ids:
+                    ids_chunk = ",".join(item_ids[:20])
+                    resp_multi = requests.get(f"{ML_API_BASE}/items?ids={ids_chunk}", headers=auth_headers, timeout=12)
+                    if resp_multi.status_code == 200:
+                        for entry in resp_multi.json():
+                            if entry.get("code") == 200 and entry.get("body"):
+                                items_list.append(entry["body"])
+        except Exception as e:
+            logger.debug(f"[MercadoLivre Items] Busca de itens autenticada falhou: {e}")
 
-    except Exception as e:
-        logger.warning(f"[MercadoLivre] Falha ao agregar avaliações da loja {seller_id}: {e}")
+    if not items_list:
+        try:
+            url_pub = f"{ML_API_BASE}/sites/MLB/search?seller_id={seller_id}&limit=20"
+            headers_pub = {"User-Agent": "ComentsIA-AnalyticsML/1.0"}
+            resp_pub = requests.get(url_pub, headers=headers_pub, timeout=12)
+            if resp_pub.status_code == 200:
+                data_pub = resp_pub.json()
+                items_list = data_pub.get("results") or []
+                total_items = int((data_pub.get("paging") or {}).get("total", len(items_list)))
+        except Exception as e:
+            logger.debug(f"[MercadoLivre Items] Busca de itens pública falhou: {e}")
+
+    ratings_list = []
+    total_reviews = 0
+    total_sold_quantity = 0
+    breakdown = {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
+    items_summary = []
+
+    for item in items_list[:10]:
+        item_id = item.get("id")
+        title = item.get("title", "")
+        price = float(item.get("price", 0.0))
+        thumbnail = item.get("thumbnail")
+        permalink = item.get("permalink")
+        sold_qty = int(item.get("sold_quantity", 0))
+        total_sold_quantity += sold_qty
+
+        # Busca reviews do item
+        rev_data = fetch_item_reviews_data(item_id)
+        rating_avg = float(rev_data.get("rating_average", 0.0))
+        item_rev_count = int((rev_data.get("paging") or {}).get("total", len(rev_data.get("reviews", []))))
+
+        if rating_avg > 0:
+            ratings_list.append(rating_avg)
+        total_reviews += item_rev_count
+
+        dist = rev_data.get("rating_levels") or {}
+        for star in ["1", "2", "3", "4", "5"]:
+            breakdown[star] += int(dist.get(star, 0))
+
+        items_summary.append({
+            "item_id": item_id,
+            "title": title,
+            "price": price,
+            "thumbnail": thumbnail,
+            "permalink": permalink,
+            "rating_average": rating_avg,
+            "total_reviews": item_rev_count
+        })
+
+    store_avg = float(np.mean(ratings_list)) if ratings_list else 0.0
 
     return {
-        "total_active_items": 12,
-        "store_rating_average": 4.8,
-        "total_store_reviews": 320,
-        "rating_breakdown": {"5": 270, "4": 35, "3": 10, "2": 3, "1": 2},
-        "items_summary": []
+        "total_active_items": total_items,
+        "total_sold_quantity": total_sold_quantity,
+        "store_rating_average": round(store_avg, 2),
+        "total_store_reviews": total_reviews,
+        "rating_breakdown": breakdown,
+        "items": items_summary
     }
 
 
@@ -1062,7 +1071,7 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
 
     # 3. Avaliações agregadas da loja e contagem de itens
     try:
-        store_data = fetch_account_store_ratings_and_items(account.seller_id)
+        store_data = fetch_account_store_ratings_and_items(account.seller_id, token)
         account.total_active_items = store_data["total_active_items"]
         account.store_rating_average = store_data["store_rating_average"]
         account.total_store_reviews = store_data["total_store_reviews"]
