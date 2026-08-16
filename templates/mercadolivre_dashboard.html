@@ -9,8 +9,8 @@
   <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
       <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="badge px-3 py-1.5 rounded-pill fw-bold" style="background-color: #fff159; color: #2d3277; font-size: 0.85rem;">
-          <i class="bi bi-shop me-1"></i> Mercado Livre Store Hub
+        <span class="badge px-3 py-1.5 rounded-pill fw-bold d-inline-flex align-items-center" style="background-color: #fff159; color: #2d3277; font-size: 0.85rem;">
+          <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 24px; height: 16px;" class="me-1.5"> Mercado Livre Store Hub
         </span>
         {% if current_account %}
           <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill small">

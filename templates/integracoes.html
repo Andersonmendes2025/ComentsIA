@@ -170,8 +170,8 @@
         <div>
           <div class="d-flex align-items-start justify-content-between mb-3">
             <div class="d-flex align-items-center gap-3">
-              <div class="app-icon-bubble bubble-ifood">
-                <i class="bi bi-bag-heart-fill"></i>
+              <div class="p-2 rounded-3 bg-white shadow-sm border" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 36px; height: 20px;">
               </div>
               <div>
                 <h4 class="fw-bold text-dark mb-0">{{ t('integrations.ifood.name') }}</h4>
@@ -180,9 +180,9 @@
             </div>
             <div>
               {% if has_ifood_addon %}
-                <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> {{ t('integrations.ifood.subscribed_active') }}</span>
+                <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> Ativo</span>
               {% else %}
-                <span class="badge-addon-price"><i class="bi bi-stars"></i> {{ t('integrations.ifood.addon_tag') }}</span>
+                <span class="badge rounded-pill px-2.5 py-1 small fw-bold" style="background: #fee2e2; color: #991b1b;"><i class="bi bi-stars"></i> Add-on Pro</span>
               {% endif %}
             </div>
           </div>
@@ -215,11 +215,11 @@
           {% else %}
             <div class="pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
               <div>
-                <span class="d-block fw-bold text-dark fs-5">R$ 30,00 <span class="fs-6 text-muted fw-normal">{{ t('integrations.ifood.monthly_price') }}</span></span>
-                <span class="small text-muted">{{ t('integrations.ifood.monthly_sub') }}</span>
+                <span class="d-block fw-bold text-dark fs-5">R$ 29,90 <span class="fs-6 text-muted fw-normal">/mês por loja</span></span>
+                <span class="small text-muted">Exclusivo a partir do Plano Pro</span>
               </div>
               <a href="{{ url_for('stripe_bp.checkout_addon_ifood') }}" class="btn btn-ifood">
-                <i class="bi bi-credit-card me-1"></i> {{ t('integrations.ifood.subscribe_button') }}
+                <i class="bi bi-credit-card me-1"></i> Contratar Add-on
               </a>
             </div>
           {% endif %}
@@ -233,15 +233,15 @@
         <div>
           <div class="d-flex align-items-start justify-content-between mb-3">
             <div class="d-flex align-items-center gap-3">
-              <div class="app-icon-bubble bubble-google">
-                <i class="bi bi-google"></i>
+              <div class="p-2 rounded-3 bg-white shadow-sm border" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                <img src="{{ url_for('static', filename='google-logo.svg') }}" alt="Google" style="width: 28px; height: 28px;">
               </div>
               <div>
                 <h4 class="fw-bold text-dark mb-0">{{ t('integrations.google.name') }}</h4>
                 <span class="text-muted small">{{ t('integrations.google.category') }}</span>
               </div>
             </div>
-            <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> {{ t('integrations.badge_integrated') }}</span>
+            <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> Incluso</span>
           </div>
 
           <p class="text-muted small mb-3">
@@ -283,7 +283,7 @@
                 <span class="text-muted small">{{ t('integrations.booking.category') }}</span>
               </div>
             </div>
-            <span class="badge bg-light text-secondary border"><i class="bi bi-file-earmark-spreadsheet"></i> {{ t('integrations.badge_spreadsheets') }}</span>
+            <span class="badge bg-light text-secondary border"><i class="bi bi-file-earmark-spreadsheet"></i> Planilhas</span>
           </div>
 
           <p class="text-muted small mb-3">
@@ -302,12 +302,12 @@
 
     <!-- Card 4: Mercado Livre (Analytics ML & AI Monitor) -->
     <div class="col-12 col-lg-6">
-      <div class="integration-card border-ml">
+      <div class="integration-card border-ml" style="border: 2px solid #ffe600;">
         <div>
           <div class="d-flex align-items-start justify-content-between mb-3">
             <div class="d-flex align-items-center gap-3">
-              <div class="app-icon-bubble bubble-ml">
-                <i class="bi bi-bag-check-fill"></i>
+              <div class="p-2 rounded-3 bg-white shadow-sm border" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 34px; height: 24px;">
               </div>
               <div>
                 <h4 class="fw-bold text-dark mb-0">Mercado Livre</h4>
@@ -317,28 +317,30 @@
             {% if ml_accounts %}
               <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> Conectado</span>
             {% else %}
-              <span class="badge bg-warning bg-opacity-25 text-dark fw-bold border border-warning"><i class="bi bi-stars"></i> Módulo Gratuito</span>
+              <span class="badge rounded-pill px-2.5 py-1 small fw-bold" style="background: #fff3c4; color: #854d0e;"><i class="bi bi-stars"></i> Add-on Pro</span>
             {% endif %}
           </div>
 
           <p class="text-muted small mb-3">
-            Exame de sangue do termômetro de reputação, monitoramento de riscos (Claims, Atrasos, Cancelamentos) e Dossiê IA com leitura profunda de todas as avaliações de produtos.
+            Exame de saúde da conta (0 a 100), monitoramento contínuo de riscos (Claims, Atrasos, Cancelamentos), resposta oficial para perguntas pré-venda com IA e Dossiê de avaliações de produtos.
           </p>
 
           <div class="bg-light rounded-3 p-3 mb-4 border">
-            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-check2-all text-primary me-1"></i> Recursos Inclusos:</div>
+            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-check2-all text-warning me-1"></i> Recursos Inclusos no Add-on:</div>
             <ul class="small text-muted mb-0 ps-3">
-              <li>Termômetro visual (5_green a 1_red) e Medalhas MercadoLíder (Platinum/Gold/Silver)</li>
-              <li>Dossiê IA com prós, contras e defeitos críticos apontados pelos compradores</li>
-              <li>Alertas preventivos automáticos antes de perder medalha ou cair de cor</li>
+              <li>Termômetro visual oficial e Medalhas MercadoLíder</li>
+              <li>Publicação direta de respostas com IA via OAuth</li>
+              <li>Faturamento bruto consolidado e Ticket Médio</li>
+              <li>Auditoria Executiva completa emitida em PDF</li>
             </ul>
           </div>
         </div>
 
         <div class="pt-3 border-top d-flex justify-content-between align-items-center">
-          <span class="small text-muted fw-semibold">
-            <i class="bi bi-shop me-1 text-warning"></i> {{ ml_accounts|length if ml_accounts else 0 }} Lojas Conectadas
-          </span>
+          <div>
+            <span class="d-block fw-bold text-dark fs-6">R$ 29,90 <span class="small text-muted fw-normal">/mês por loja</span></span>
+            <span class="small text-muted">Exclusivo a partir do Plano Pro</span>
+          </div>
           <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm">
             <i class="bi bi-speedometer2 me-1"></i> Acessar Painel ML
           </a>
