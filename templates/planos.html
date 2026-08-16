@@ -205,22 +205,55 @@
   .addon-promo-strip {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 24px 28px;
-    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
-    margin-top: 3rem;
+    border-radius: 20px;
+    padding: 24px 30px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04);
+    margin-top: 3.5rem;
   }
-  .addon-channel-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
+  .addon-pill-card {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+  }
+  .addon-pill-card:hover {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  }
+  .addon-pill-icon-box {
+    width: 36px;
+    height: 36px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .addon-logo-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
+  .addon-pill-name {
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: 700;
     color: #1e293b;
+    line-height: 1.2;
+  }
+  .addon-pill-price {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+  .addon-pill-price small {
+    font-weight: 400;
   }
 </style>
 {% endblock %}
@@ -393,31 +426,53 @@
 
   </div>
 
-  <!-- Add-ons Opcionais (Discreto, Elegante e Harmônico) -->
+  <!-- Add-ons Opcionais (Design Executivo e Perfeitamente Alinhado) -->
   <div class="addon-promo-strip">
-    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-      <div>
-        <div class="d-flex align-items-center gap-2 mb-1.5">
-          <span class="badge bg-warning bg-opacity-25 text-dark fw-bold px-2.5 py-1 rounded-pill small">
-            <i class="bi bi-puzzle-fill text-warning me-1"></i> Add-ons Opcionais
+    <div class="row align-items-center g-4">
+      <div class="col-12 col-lg-5">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-2.5 py-1 rounded-pill small">
+            <i class="bi bi-puzzle-fill me-1"></i> Add-ons Opcionais
           </span>
-          <span class="text-muted small">Disponíveis a partir do <strong>Plano Pro</strong></span>
+          <span class="text-muted small">Exclusivo para <strong>Plano Pro</strong> ou superior</span>
         </div>
-        <h5 class="fw-bold text-dark mb-2">Deseja conectar outros canais de venda?</h5>
-        <div class="d-flex flex-wrap align-items-center gap-2 text-muted small">
-          <span>Adicione canais extras à sua assinatura:</span>
-          <span class="addon-channel-tag">
-            <img src="{{ url_for('static', filename='mercadolivre-logo.png') }}" alt="Mercado Livre" style="width: 20px; height: 20px; object-fit: contain;"> Mercado Livre (R$ 29,90/mês)
-          </span>
-          <span>e</span>
-          <span class="addon-channel-tag">
-            <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" style="width: 18px; height: 18px; border-radius: 3px; object-fit: contain;"> iFood (R$ 29,90/mês)
-          </span>
+        <h5 class="fw-bold text-dark mb-1">Canais Extras de Venda</h5>
+        <p class="text-muted small mb-0">
+          Conecte marketplaces adicionais para responder perguntas e monitorar reputação no mesmo painel.
+        </p>
+      </div>
+
+      <div class="col-12 col-md-8 col-lg-4">
+        <div class="d-flex flex-column flex-sm-row gap-2">
+          <!-- Card Mercado Livre -->
+          <div class="addon-pill-card flex-grow-1">
+            <div class="addon-pill-icon-box">
+              <img src="{{ url_for('static', filename='mercadolivre-logo.png') }}" alt="Mercado Livre" class="addon-logo-img">
+            </div>
+            <div>
+              <div class="addon-pill-name">Mercado Livre</div>
+              <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
+            </div>
+          </div>
+
+          <!-- Card iFood -->
+          <div class="addon-pill-card flex-grow-1">
+            <div class="addon-pill-icon-box">
+              <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" class="addon-logo-img rounded-2">
+            </div>
+            <div>
+              <div class="addon-pill-name">iFood Delivery</div>
+              <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
+            </div>
+          </div>
         </div>
       </div>
-      <a href="{{ url_for('integracoes') }}" class="btn btn-outline-dark btn-sm px-4 py-2.5 fw-semibold rounded-pill text-nowrap align-self-start align-self-md-center">
-        Ver Detalhes das Integrações <i class="bi bi-arrow-right ms-1"></i>
-      </a>
+
+      <div class="col-12 col-md-4 col-lg-3 text-lg-end">
+        <a href="{{ url_for('integracoes') }}" class="btn btn-outline-dark btn-sm px-4 py-2.5 fw-semibold rounded-pill text-nowrap w-100 w-lg-auto">
+          Ver Integrações <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
     </div>
   </div>
 </div>
