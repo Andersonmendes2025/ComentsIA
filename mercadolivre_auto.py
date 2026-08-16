@@ -453,10 +453,18 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
                     "status": status
                 })
 
+            total_revenue = sum(float(o.get("total_amount", 0.0)) for o in results if o.get("status") == "paid")
+            if total_revenue == 0.0 and results:
+                total_revenue = sum(float(o.get("total_amount", 0.0)) for o in results)
+            
+            avg_ticket = (total_revenue / completed_orders) if completed_orders > 0 else 0.0
+
             return {
                 "total_orders": total_orders or len(results),
                 "completed_orders": completed_orders or total_orders,
                 "canceled_orders": canceled_orders,
+                "total_revenue": round(total_revenue, 2),
+                "avg_ticket": round(avg_ticket, 2),
                 "positive_feedback_count": pos_fb,
                 "negative_feedback_count": neg_fb,
                 "neutral_feedback_count": neu_fb,
@@ -470,12 +478,79 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
         "total_orders": 0,
         "completed_orders": 0,
         "canceled_orders": 0,
+        "total_revenue": 0.0,
+        "avg_ticket": 0.0,
         "positive_feedback_count": 0,
         "negative_feedback_count": 0,
         "neutral_feedback_count": 0,
         "delayed_shipments": 0,
         "recent_orders": []
     }
+
+
+def fetch_account_billing_summary(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Busca o resumo financeiro e faturamento oficial do Mercado Livre (Billing API):
+    1. GET /billing/integration/monthly/periods?document_type=BILL&limit=6
+    2. GET /billing/integration/periods/key/{KEY}/summary/details
+    """
+    if not access_token:
+        return {"periods": [], "charges": [], "bonuses": [], "total_charges": 0.0, "total_bonuses": 0.0}
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+
+    try:
+        url_periods = f"{ML_API_BASE}/billing/integration/monthly/periods?document_type=BILL&limit=6"
+        resp_p = requests.get(url_periods, headers=headers, timeout=12)
+        if resp_p.status_code == 200:
+            data_p = resp_p.json()
+            periods_list = data_p.get("results") or []
+            
+            charges_summary = []
+            bonuses_summary = []
+            total_charges = 0.0
+            total_bonuses = 0.0
+
+            if periods_list:
+                latest_key = periods_list[0].get("key")
+                if latest_key:
+                    url_summary = f"{ML_API_BASE}/billing/integration/periods/key/{latest_key}/summary/details"
+                    resp_s = requests.get(url_summary, headers=headers, timeout=12)
+                    if resp_s.status_code == 200:
+                        s_data = resp_s.json()
+                        bill_inc = s_data.get("bill_includes") or {}
+                        for c in bill_inc.get("charges") or []:
+                            amt = float(c.get("amount", 0.0))
+                            total_charges += amt
+                            charges_summary.append({
+                                "label": c.get("label", "Encargo"),
+                                "amount": amt,
+                                "type": c.get("type")
+                            })
+                        for b in bill_inc.get("bonuses") or []:
+                            b_amt = float(b.get("amount", 0.0))
+                            total_bonuses += b_amt
+                            bonuses_summary.append({
+                                "label": b.get("label", "Bonificação"),
+                                "amount": b_amt,
+                                "type": b.get("type")
+                            })
+
+            return {
+                "periods": periods_list[:3],
+                "charges": charges_summary[:5],
+                "bonuses": bonuses_summary[:5],
+                "total_charges": round(total_charges, 2),
+                "total_bonuses": round(total_bonuses, 2)
+            }
+    except Exception as e:
+        logger.debug(f"[MercadoLivre Billing] Consulta de faturamento falhou: {e}")
+
+    return {"periods": [], "charges": [], "bonuses": [], "total_charges": 0.0, "total_bonuses": 0.0}
 
 
 def fetch_account_store_ratings_and_items(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
@@ -1202,7 +1277,7 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar avaliações da loja: {e}")
 
-    # 4. Pedidos Reais e Feedbacks via OAuth (/orders/search)
+    # 4. Pedidos Reais, Feedbacks e Faturamento via OAuth (/orders/search e /billing)
     try:
         if token:
             orders_data = fetch_account_orders_and_metrics(account.seller_id, token)
@@ -1210,6 +1285,8 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
                 account.completed_transactions = orders_data["completed_orders"]
                 account.canceled_transactions = orders_data["canceled_orders"]
                 account.total_transactions = orders_data["total_orders"]
+                account.total_revenue = orders_data.get("total_revenue", 0.0)
+                account.avg_ticket = orders_data.get("avg_ticket", 0.0)
                 
                 total_fb = orders_data["positive_feedback_count"] + orders_data["negative_feedback_count"] + orders_data["neutral_feedback_count"]
                 if total_fb > 0:
@@ -1221,8 +1298,14 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
             claims_data = fetch_account_claims_data(account.seller_id, token)
             if claims_data["total_opened"] > 0 and account.completed_transactions > 0:
                 account.claims_rate = round(claims_data["total_opened"] / account.completed_transactions, 4)
+
+            # Resumo de Faturamento & Custos (Billing API)
+            billing_data = fetch_account_billing_summary(account.seller_id, token)
+            billing_data["total_revenue"] = account.total_revenue
+            billing_data["avg_ticket"] = account.avg_ticket
+            account.billing_summary_json = json.dumps(billing_data, ensure_ascii=False)
     except Exception as e:
-        logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais e reclamações: {e}")
+        logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais, faturamento e reclamações: {e}")
 
     # 5. Score de Saúde e Alertas
     health = account.calculate_account_health()

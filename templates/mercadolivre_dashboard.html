@@ -220,6 +220,70 @@
 
     </div>
 
+    <!-- LINHA FINANCEIRA & FATURAMENTO MERCADO LIVRE -->
+    {% set billing = current_account.get_billing_summary() %}
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="h5 fw-bold text-dark mb-1">
+            <i class="bi bi-cash-stack text-success me-1.5"></i> Faturamento & Visão Financeira
+          </h2>
+          <p class="text-muted small mb-0">Receita bruta gerada, ticket médio por venda e demonstrativo de faturamento oficial do Mercado Livre.</p>
+        </div>
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill small fw-semibold">
+          <i class="bi bi-graph-up-arrow me-1"></i> Faturamento Real
+        </span>
+      </div>
+
+      <div class="row g-3">
+        <!-- Faturamento Bruto -->
+        <div class="col-md-4">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Faturamento Estimado / Pedidos</span>
+            <div class="h3 fw-bold text-dark mb-1">
+              R$ {{ "{:,.2f}".format(current_account.total_revenue or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+            </div>
+            <span class="text-muted small">Volume financeiro de vendas processadas</span>
+          </div>
+        </div>
+
+        <!-- Ticket Médio -->
+        <div class="col-md-4">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Ticket Médio por Venda</span>
+            <div class="h3 fw-bold text-primary mb-1">
+              R$ {{ "{:,.2f}".format(current_account.avg_ticket or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+            </div>
+            <span class="text-muted small">Valor médio faturado por pedido concluído</span>
+          </div>
+        </div>
+
+        <!-- Encargos e Comissões do Período -->
+        <div class="col-md-4">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Encargos & Taxas ML</span>
+            <div class="h3 fw-bold text-secondary mb-1">
+              R$ {{ "{:,.2f}".format(billing.get('total_charges', 0.0)).replace(",", "X").replace(".", ",").replace("X", ".") }}
+            </div>
+            <span class="text-muted small">Comissões de venda, Mercado Envios e publicidade</span>
+          </div>
+        </div>
+      </div>
+
+      {% if billing.get('charges') %}
+        <div class="mt-3 pt-3 border-top">
+          <span class="small fw-bold text-dark d-block mb-2">Composição de Encargos do Último Período Faturado:</span>
+          <div class="d-flex flex-wrap gap-2">
+            {% for c in billing.get('charges') %}
+              <span class="badge bg-white text-dark border px-2.5 py-1.5 rounded-pill small">
+                {{ c.label }}: <strong class="text-danger ms-1">R$ {{ "{:,.2f}".format(c.amount).replace(",", "X").replace(".", ",").replace("X", ".") }}</strong>
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
     <!-- GRID DOS 4 PILARES DE DESEMPENHO -->
     <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
       <div class="d-flex justify-content-between align-items-center mb-3">

@@ -54,6 +54,11 @@ class MercadoLivreAccount(db.Model):
     rating_breakdown_json = db.Column(db.Text, nullable=True)         # Distribuição de estrelas (5 a 1)
     quality_scores_json = db.Column(db.Text, nullable=True)           # Notas por características da loja
 
+    # Faturamento, Receita e Ticket Médio (Billing API & Orders)
+    total_revenue = db.Column(db.Float, default=0.0)                  # Faturamento Bruto Acumulado (R$)
+    avg_ticket = db.Column(db.Float, default=0.0)                     # Ticket Médio por Venda (R$)
+    billing_summary_json = db.Column(db.Text, nullable=True)          # Resumo de faturamento, comissões e encargos
+
     # Relatório de Saúde & Desempenho (Health & Performance)
     health_score = db.Column(db.Integer, default=100)                 # Score geral 0 a 100
     ai_health_report_json = db.Column(db.Text, nullable=True)         # Parecer Estratégico com IA (GPT-4o)
@@ -155,6 +160,27 @@ class MercadoLivreAccount(db.Model):
             return json.loads(self.ai_health_report_json)
         except Exception:
             return None
+
+    def get_billing_summary(self) -> dict:
+        """Retorna o resumo estruturado de faturamento e encargos."""
+        if not self.billing_summary_json:
+            return {
+                "total_revenue": self.total_revenue or 0.0,
+                "avg_ticket": self.avg_ticket or 0.0,
+                "periods": [],
+                "charges": [],
+                "bonuses": []
+            }
+        try:
+            return json.loads(self.billing_summary_json)
+        except Exception:
+            return {
+                "total_revenue": self.total_revenue or 0.0,
+                "avg_ticket": self.avg_ticket or 0.0,
+                "periods": [],
+                "charges": [],
+                "bonuses": []
+            }
 
     def calculate_account_health(self) -> dict:
         """
