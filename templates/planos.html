@@ -6,181 +6,247 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-  :root {
-    --bg-color: #f8f9fa;
-    --card-bg: #ffffff;
-    --primary: #1a73e8;
-    --primary-dark: #1557b0;
-    --text-main: #202124;
-    --text-muted: #5f6368;
-  }
-
-  body {
-    background-color: var(--bg-color) !important;
-    color: var(--text-main);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  }
-
-  .plans-container {
+  .plans-page-wrapper {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 60px 20px;
+    padding: 40px 20px 60px 20px;
   }
 
-  .header-section {
+  .plans-hero {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 2.75rem;
   }
-  .header-title {
-    font-size: 2.5rem;
+  .plans-hero-title {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 2.6rem;
     font-weight: 800;
-    letter-spacing: -0.02em;
-    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #1a73e8 0%, #1e293b 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin-bottom: 0.75rem;
   }
-  .header-subtitle {
+  .plans-hero-subtitle {
     font-size: 1.1rem;
-    color: var(--text-muted);
-    max-width: 600px;
-    margin: 10px auto 0;
+    color: #64748b;
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.6;
   }
 
-  /* CARDS */
-  .plan-card {
-    background: var(--card-bg);
-    border: 1px solid #e2e8f0;
+  /* Pricing Cards */
+  .pricing-tier-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(226, 232, 240, 0.9);
     border-radius: 20px;
-    padding: 32px;
+    padding: 32px 26px;
     height: 100%;
     display: flex;
     flex-direction: column;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    overflow: hidden;
   }
 
-  .plan-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
-    border-color: #cbd5e1;
+  .pricing-tier-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 16px 36px -4px rgba(26, 115, 232, 0.12);
+    border-color: rgba(26, 115, 232, 0.3);
   }
 
-  /* Destaque para o plano atual */
-  .border-highlight {
-    border: 2px solid var(--primary);
-    box-shadow: 0 10px 30px -10px rgba(37, 99, 235, 0.15);
-  }
-  
-  .badge-current {
-    background: #dcfce7; color: #166534;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-    display: inline-block; margin-bottom: 12px;
+  .pricing-tier-card.pro-highlight {
+    background: #ffffff;
+    border: 2px solid #1a73e8;
+    box-shadow: 0 10px 30px rgba(26, 115, 232, 0.12);
   }
 
-  .badge-pro {
-    background: #eff6ff; color: var(--primary);
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-    display: inline-block; margin-bottom: 12px;
+  .pricing-tier-card.current-user-plan {
+    border: 2px solid #10b981;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.12);
   }
 
-  .badge-biz {
-    background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-    display: inline-block; margin-bottom: 12px;
+  .plan-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 1rem;
+    width: fit-content;
+  }
+  .badge-starter-pill { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .badge-pro-pill { background: #e8f0fe; color: #1a73e8; border: 1px solid #d2e3fc; }
+  .badge-biz-pill { background: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; }
+  .badge-active-pill { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+  .plan-card-name {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
   }
 
-  .plan-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
-  
-  .plan-price {
-    font-size: 2.5rem; font-weight: 800; color: #0f172a;
-    display: flex; align-items: baseline; gap: 4px;
+  .plan-card-price {
+    font-family: 'Outfit', 'Inter', sans-serif;
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 8px;
+    margin-bottom: 4px;
   }
-  .plan-price small { font-size: 1rem; font-weight: 500; color: #64748b; }
-  
-  .price-sub { font-size: 0.875rem; color: #64748b; margin-bottom: 24px; min-height: 20px; }
-
-  .divider { height: 1px; background: #f1f5f9; margin: 20px 0; }
-
-  .features { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
-  .features li {
-    display: flex; gap: 10px; margin-bottom: 12px;
-    font-size: 0.95rem; color: #334155; line-height: 1.5;
+  .plan-card-price small {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #64748b;
   }
-  .features i { color: var(--primary); font-size: 1.1rem; }
-  .features i.bi-x-circle { color: #cbd5e1; }
 
-  /* BOTÕES */
-  .btn-plan {
+  .plan-card-sub {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 1.5rem;
+    min-height: 22px;
+  }
+
+  .plan-card-divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 0 0 1.25rem 0;
+  }
+
+  .plan-features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .plan-features-list li {
+    font-size: 0.92rem;
+    color: #334155;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.45;
+  }
+  .plan-features-list li i.check-icon {
+    color: #1a73e8;
+    font-size: 1.1rem;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .plan-features-list li i.cross-icon {
+    color: #cbd5e1;
+    font-size: 1.1rem;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .btn-pricing-action {
     width: 100%;
-    padding: 14px;
+    padding: 12px 18px;
     border-radius: 12px;
     font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
     border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 1rem;
-    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .btn-pricing-primary {
+    background: #1a73e8;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(26, 115, 232, 0.25);
+  }
+  .btn-pricing-primary:hover {
+    background: #1557b0;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(26, 115, 232, 0.35);
+  }
+  .btn-pricing-dark {
+    background: #0f172a;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+  }
+  .btn-pricing-dark:hover {
+    background: #1e293b;
+    transform: translateY(-1px);
+  }
+  .btn-pricing-outline {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #0f172a !important;
+  }
+  .btn-pricing-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .btn-pricing-disabled {
+    background: #f1f5f9;
+    color: #94a3b8 !important;
+    border: 1px solid #e2e8f0;
+    cursor: not-allowed;
   }
 
-  .btn-primary-plan {
-    background: var(--primary); color: white;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  /* Addon Banner */
+  .addon-promo-strip {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.04);
+    margin-top: 3rem;
   }
-  .btn-primary-plan:hover { background: var(--primary-dark); transform: translateY(-1px); }
-
-  .btn-dark-plan {
-    background: #0f172a; color: white;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  .addon-channel-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e293b;
   }
-  .btn-dark-plan:hover { background: #1e293b; transform: translateY(-1px); }
-
-  .btn-outline-plan {
-    background: white; border: 2px solid #e2e8f0; color: #0f172a;
-  }
-  .btn-outline-plan:hover { border-color: #94a3b8; background: #f8fafc; }
-
-  .btn-disabled {
-    background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0;
-    cursor: not-allowed; opacity: 0.8;
-  }
-
 </style>
 {% endblock %}
 
 {% block content %}
 
-<div class="plans-container">
+<div class="plans-page-wrapper">
   
-  <div class="header-section">
-    <h1 class="header-title">{{ t('pricing_page.title') }}</h1>
-    <p class="header-subtitle">
+  <div class="plans-hero">
+    <h1 class="plans-hero-title">{{ t('pricing_page.title') }}</h1>
+    <p class="plans-hero-subtitle">
       {{ t('pricing_page.subtitle') }}
     </p>
   </div>
 
   {# 
      === LÓGICA DE HIERARQUIA DE PLANOS (JINJA2 PURO) === 
-     Isso evita precisar mudar o Python.
   #}
-  
-  {# 1. Detecta se está logado verificando a sessão diretamente #}
   {% set is_logged_in = session.get('user_info') is not none %}
-
-  {# 2. Define o plano atual REAL (se não logado = 'guest', se logado = user_plano) #}
   {% if is_logged_in %}
-      {# Se user_plano não vier do backend, assume 'free' #}
       {% set current_plan = user_plano if user_plano else 'free' %}
   {% else %}
       {% set current_plan = 'guest' %}
   {% endif %}
 
-  {# 3. Define Pontuação para Hierarquia (Quanto maior, mais caro/recursos) #}
   {% set current_score = 0 %}
-  
   {% if current_plan == 'guest' %}      {% set current_score = -1 %}
   {% elif current_plan == 'free' %}     {% set current_score = 0 %}
   {% elif current_plan == 'pro' %}      {% set current_score = 10 %}
@@ -189,164 +255,138 @@
   {% elif current_plan == 'business_anual' %} {% set current_score = 21 %}
   {% endif %}
 
-  <div class="row g-4">
+  <div class="row g-4 align-items-stretch">
 
-    {# ================== FREE ================== #}
+    {# ================== 1. STARTER FREE ================== #}
     <div class="col-12 col-lg-4">
-      <div class="plan-card {% if current_plan == 'free' %}border-highlight{% endif %}">
+      <div class="pricing-tier-card {% if current_plan == 'free' %}current-user-plan{% endif %}">
         <div>
           {% if current_plan == 'free' %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
+            <span class="plan-badge-pill badge-active-pill"><i class="bi bi-check-circle-fill"></i> {{ t('pricing_page.current_badge') }}</span>
           {% else %}
-            <span class="badge-biz">{{ t('pricing_page.starter_badge') }}</span>
+            <span class="plan-badge-pill badge-starter-pill">{{ t('pricing_page.starter_badge') }}</span>
           {% endif %}
-          <div class="plan-name">{{ t('pricing_page.free_plan') }}</div>
-          <div class="plan-price">{{ t('pricing_page.free_price') }}<small>{{ t('pricing_page.month_unit') }}</small></div>
-          <div class="price-sub">{{ t('pricing_page.free_sub') }}</div>
+          <div class="plan-card-name">{{ t('pricing_page.free_plan') }}</div>
+          <div class="plan-card-price">{{ t('pricing_page.free_price') }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="plan-card-sub">{{ t('pricing_page.free_sub') }}</div>
         </div>
         
-        <div class="divider"></div>
+        <div class="plan-card-divider"></div>
         
-        <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_free_1', count=planos['free'].avaliacoes_mes) }}</li>
-          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_2') }}</li>
-          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_3') }}</li>
-          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_4') }}</li>
+        <ul class="plan-features-list">
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>Até <strong>{{ planos['free'].avaliacoes_mes }}</strong> avaliações/mês</span></li>
+          <li><i class="bi bi-x-circle cross-icon"></i> <span class="text-muted">{{ t('pricing_page.features_free_2') }}</span></li>
+          <li><i class="bi bi-x-circle cross-icon"></i> <span class="text-muted">{{ t('pricing_page.features_free_3') }}</span></li>
+          <li><i class="bi bi-x-circle cross-icon"></i> <span class="text-muted">{{ t('pricing_page.features_free_4') }}</span></li>
         </ul>
 
         <div class="mt-auto">
-            {% if current_plan == 'guest' %}
-                <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.start_free') }}</button>
-            {% elif current_plan == 'free' %}
-                <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.your_current_plan') }}</button>
-            {% else %}
-                <button class="btn-plan btn-disabled" disabled title="{{ t('pricing_page.basic_plan_title') }}">{{ t('pricing_page.basic_plan') }}</button>
-            {% endif %}
+          {% if current_plan == 'guest' %}
+            <button class="btn-pricing-action btn-pricing-outline" onclick="redirecionarLogin()">{{ t('pricing_page.start_free') }}</button>
+          {% elif current_plan == 'free' %}
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.your_current_plan') }}</button>
+          {% else %}
+            <button class="btn-pricing-action btn-pricing-disabled" disabled title="{{ t('pricing_page.basic_plan_title') }}">{{ t('pricing_page.basic_plan') }}</button>
+          {% endif %}
         </div>
       </div>
     </div>
 
-    {# ================== PRO ================== #}
+    {# ================== 2. PRO (MAIS ESCOLHIDO) ================== #}
     <div class="col-12 col-lg-4">
-      <div class="plan-card {% if current_plan in ['pro', 'pro_anual'] %}border-highlight{% endif %}">
+      <div class="pricing-tier-card pro-highlight {% if current_plan in ['pro', 'pro_anual'] %}current-user-plan{% endif %}">
         <div>
-          {% if current_plan in ['pro', 'pro_anual'] %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
-          {% else %}
-            <span class="badge-pro">{{ t('pricing_page.pro_badge') }}</span>
-          {% endif %}
-          <div class="plan-name">{{ t('pricing_page.pro_plan') }}</div>
-          <div class="plan-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
-          <div class="price-sub">{{ t('pricing_page.pro_annual_sub', price='%.0f'|format(planos['pro_anual'].preco)) }}</div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            {% if current_plan in ['pro', 'pro_anual'] %}
+              <span class="plan-badge-pill badge-active-pill"><i class="bi bi-check-circle-fill"></i> {{ t('pricing_page.current_badge') }}</span>
+            {% else %}
+              <span class="plan-badge-pill badge-pro-pill">{{ t('pricing_page.pro_badge') }}</span>
+              <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 small fw-semibold">Mais Escolhido</span>
+            {% endif %}
+          </div>
+          <div class="plan-card-name">{{ t('pricing_page.pro_plan') }}</div>
+          <div class="plan-card-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="plan-card-sub">{{ t('pricing_page.pro_annual_sub', price='%.0f'|format(planos['pro_anual'].preco)) }}</div>
         </div>
 
-        <div class="divider"></div>
+        <div class="plan-card-divider"></div>
 
-        <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_1', count=planos['pro'].avaliacoes_mes) }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_2') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_3', count=planos['pro'].hiper_dia) }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_4') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_5') }}</li>
+        <ul class="plan-features-list">
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span><strong>{{ planos['pro'].avaliacoes_mes }}</strong> avaliações/mês</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_pro_2') }}</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span><strong>{{ planos['pro'].hiper_dia }}</strong> respostas empáticas/dia</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_pro_4') }}</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_pro_5') }}</span></li>
         </ul>
 
         {# BOTOES PRO #}
         <div class="d-grid gap-2 mt-auto">
-          
-          {# Pro Mensal (Score 10) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-primary-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_monthly') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-primary" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_monthly') }}</button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_annual') }}</button>
           {% elif current_plan == 'pro' %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
-          
-          {% elif current_score > 10 %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable_downgrade') }}</button>
-          
-          {% else %}
-             <button class="btn-plan btn-primary-plan" onclick="processarPlano('pro_mensal')">
-               {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_pro') }}{% else %}{{ t('pricing_page.sub_pro_monthly') }}{% endif %}
-             </button>
-          {% endif %}
-
-          {# Pro Anual (Score 11) #}
-          {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_annual') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="processarPlano('pro_anual')">{{ t('pricing_page.upgrade_to_annual') }}</button>
           {% elif current_plan == 'pro_anual' %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           {% elif current_score > 11 %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.unavailable_downgrade') }}</button>
           {% else %}
-             <button class="btn-plan btn-outline-plan" onclick="processarPlano('pro_anual')">
-                {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_pro_annual_btn') }}{% endif %}
-             </button>
+            <button class="btn-pricing-action btn-pricing-primary" onclick="processarPlano('pro_mensal')">
+              {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_pro') }}{% else %}{{ t('pricing_page.sub_pro_monthly') }}{% endif %}
+            </button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="processarPlano('pro_anual')">
+              {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_pro_annual_btn') }}{% endif %}
+            </button>
           {% endif %}
-
         </div>
       </div>
     </div>
 
-    {# ================== BUSINESS ================== #}
+    {# ================== 3. BUSINESS (POWER USER) ================== #}
     <div class="col-12 col-lg-4">
-      <div class="plan-card {% if current_plan in ['business', 'business_anual'] %}border-highlight{% endif %}" style="background: linear-gradient(to bottom, #ffffff, #f8fafc);">
+      <div class="pricing-tier-card {% if current_plan in ['business', 'business_anual'] %}current-user-plan{% endif %}">
         <div>
           {% if current_plan in ['business', 'business_anual'] %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
+            <span class="plan-badge-pill badge-active-pill"><i class="bi bi-check-circle-fill"></i> {{ t('pricing_page.current_badge') }}</span>
           {% else %}
-            <span class="badge-biz text-dark bg-dark bg-opacity-10">{{ t('pricing_page.biz_badge') }}</span>
+            <span class="plan-badge-pill badge-biz-pill">{{ t('pricing_page.biz_badge') }}</span>
           {% endif %}
-          <div class="plan-name">{{ t('pricing_page.business_plan') }}</div>
-          <div class="plan-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
-          <div class="price-sub">{{ t('pricing_page.biz_annual_sub', price='%.0f'|format(planos['business_anual'].preco)) }}</div>
+          <div class="plan-card-name">{{ t('pricing_page.business_plan') }}</div>
+          <div class="plan-card-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="plan-card-sub">{{ t('pricing_page.biz_annual_sub', price='%.0f'|format(planos['business_anual'].preco)) }}</div>
         </div>
 
-        <div class="divider"></div>
+        <div class="plan-card-divider"></div>
 
-        <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_1') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_2') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_3') }}</li>
-          <li><i class="bi bi-diagram-3-fill text-primary"></i> {{ t('pricing_page.features_biz_4') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_5') }}</li>
-          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_6') }}</li>
-          <li><i class="bi bi-headset"></i> {{ t('pricing_page.features_biz_7') }}</li>
+        <ul class="plan-features-list">
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span><strong>Ilimitadas</strong> avaliações/mês</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span><strong>Ilimitadas</strong> respostas empáticas</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_biz_3') }}</span></li>
+          <li><i class="bi bi-diagram-3-fill text-primary" style="font-size: 1.1rem; flex-shrink: 0; margin-top: 1px;"></i> <span><strong>Gestão de Filiais (Matriz)</strong></span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_biz_5') }}</span></li>
+          <li><i class="bi bi-check-circle-fill check-icon"></i> <span>{{ t('pricing_page.features_biz_6') }}</span></li>
+          <li><i class="bi bi-headset check-icon"></i> <span>{{ t('pricing_page.features_biz_7') }}</span></li>
         </ul>
 
         {# BOTOES BUSINESS #}
         <div class="d-grid gap-2 mt-auto">
-          
-          {# Business Mensal (Score 20) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-dark-plan" onclick="redirecionarLogin()">{{ t('pricing_page.start_biz') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-dark" onclick="redirecionarLogin()">{{ t('pricing_page.start_biz') }}</button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="redirecionarLogin()">{{ t('pricing_page.sub_biz_annual') }}</button>
           {% elif current_plan == 'business' %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
-          
-          {% elif current_score > 20 %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable') }}</button>
-          
-          {% else %}
-             <button class="btn-plan btn-dark-plan" onclick="processarPlano('business_mensal')">
-               {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_biz') }}{% else %}{{ t('pricing_page.sub_biz_monthly') }}{% endif %}
-             </button>
-          {% endif %}
-
-          {# Business Anual (Score 21) #}
-          {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_biz_annual') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="processarPlano('business_anual')">{{ t('pricing_page.upgrade_to_annual') }}</button>
           {% elif current_plan == 'business_anual' %}
-             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
-          
+            <button class="btn-pricing-action btn-pricing-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           {% else %}
-             <button class="btn-plan btn-outline-plan" onclick="processarPlano('business_anual')">
-                {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_biz_annual_btn') }}{% endif %}
-             </button>
+            <button class="btn-pricing-action btn-pricing-dark" onclick="processarPlano('business_mensal')">
+              {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_biz') }}{% else %}{{ t('pricing_page.sub_biz_monthly') }}{% endif %}
+            </button>
+            <button class="btn-pricing-action btn-pricing-outline" onclick="processarPlano('business_anual')">
+              {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_biz_annual_btn') }}{% endif %}
+            </button>
           {% endif %}
-
         </div>
       </div>
     </div>
@@ -354,7 +394,7 @@
   </div>
 
   <!-- Add-ons Opcionais (Discreto, Elegante e Harmônico) -->
-  <div class="mt-5 p-4 rounded-4 bg-white border shadow-sm" style="border-color: #e2e8f0 !important;">
+  <div class="addon-promo-strip">
     <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
       <div>
         <div class="d-flex align-items-center gap-2 mb-1.5">
@@ -363,18 +403,19 @@
           </span>
           <span class="text-muted small">Disponíveis a partir do <strong>Plano Pro</strong></span>
         </div>
-        <h5 class="fw-bold text-dark mb-1">Deseja conectar outros canais de venda?</h5>
-        <p class="text-muted small mb-0">
-          Adicione canais extras à sua assinatura:
-          <span class="d-inline-flex align-items-center gap-1 mx-1 text-dark fw-semibold">
-            <img src="{{ url_for('static', filename='mercadolivre-logo.png') }}" alt="Mercado Livre" style="width: 22px; height: 22px; object-fit: contain;"> Mercado Livre (R$ 29,90/mês)
-          </span> e 
-          <span class="d-inline-flex align-items-center gap-1 mx-1 text-dark fw-semibold">
-            <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" style="width: 20px; height: 20px; border-radius: 4px; object-fit: contain;"> iFood (R$ 29,90/mês)
-          </span>.
-        </p>
+        <h5 class="fw-bold text-dark mb-2">Deseja conectar outros canais de venda?</h5>
+        <div class="d-flex flex-wrap align-items-center gap-2 text-muted small">
+          <span>Adicione canais extras à sua assinatura:</span>
+          <span class="addon-channel-tag">
+            <img src="{{ url_for('static', filename='mercadolivre-logo.png') }}" alt="Mercado Livre" style="width: 20px; height: 20px; object-fit: contain;"> Mercado Livre (R$ 29,90/mês)
+          </span>
+          <span>e</span>
+          <span class="addon-channel-tag">
+            <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" style="width: 18px; height: 18px; border-radius: 3px; object-fit: contain;"> iFood (R$ 29,90/mês)
+          </span>
+        </div>
       </div>
-      <a href="{{ url_for('integracoes') }}" class="btn btn-outline-dark btn-sm px-3.5 py-2 fw-semibold rounded-pill text-nowrap align-self-start align-self-md-center">
+      <a href="{{ url_for('integracoes') }}" class="btn btn-outline-dark btn-sm px-4 py-2.5 fw-semibold rounded-pill text-nowrap align-self-start align-self-md-center">
         Ver Detalhes das Integrações <i class="bi bi-arrow-right ms-1"></i>
       </a>
     </div>

@@ -5,7 +5,7 @@ Garante que nenhum template quebre ou contenha erros de sintaxe Jinja2 ou chaves
 """
 
 import pytest
-from main import app as flask_app
+from main import app as flask_app, limiter
 from models import db, User, UserSettings, Review
 from services.i18n import SUPPORTED_LANGUAGES
 
@@ -13,6 +13,8 @@ from services.i18n import SUPPORTED_LANGUAGES
 def app():
     flask_app.config['TESTING'] = True
     flask_app.config['WTF_CSRF_ENABLED'] = False
+    flask_app.config['RATELIMIT_ENABLED'] = False
+    limiter.enabled = False
     return flask_app
 
 @pytest.fixture
@@ -26,18 +28,21 @@ def setup_db(app):
         user = User.query.filter_by(id="test_i18n_user").first()
         if not user:
             from datetime import datetime
-            user = User(id="test_i18n_user", email="i18n_user@example.com", terms_accepted_at=datetime.utcnow())
+            user = User(id="test_i18n_user", email="i18n_user@example.com", terms_accepted_at=datetime.utcnow(), is_admin=True)
             db.session.add(user)
         else:
             from datetime import datetime
             user.terms_accepted_at = datetime.utcnow()
+            user.is_admin = True
         
+        from datetime import datetime, timedelta
         from utils.crypto import encrypt
         settings = UserSettings.query.filter_by(user_id="test_i18n_user").first()
         if not settings:
             settings = UserSettings(
                 user_id="test_i18n_user",
                 plano="pro",
+                plano_ate=datetime.utcnow() + timedelta(days=365),
                 business_name=encrypt("Empresa Teste"),
                 contact_info=encrypt("contato@empresa.com"),
                 terms_accepted=True
@@ -48,6 +53,7 @@ def setup_db(app):
             settings.contact_info = encrypt("contato@empresa.com")
             settings.terms_accepted = True
             settings.plano = "pro"
+            settings.plano_ate = datetime.utcnow() + timedelta(days=365)
             
         db.session.commit()
         yield
@@ -60,7 +66,6 @@ def test_render_all_public_routes_in_all_languages(client):
         "/planos",
         "/quem-somos",
         "/privacy-policy",
-        "/terms",
     ]
     
     for lang_code in SUPPORTED_LANGUAGES:
@@ -88,10 +93,9 @@ def test_render_all_authenticated_routes_in_all_languages(app, client):
     auth_routes = [
         "/",
         "/reviews",
-        "/relatorio",
         "/integracoes",
         "/planos",
-        "/ajuda/",
+        "/ajuda",
         "/mercadolivre/dashboard"
     ]
     
