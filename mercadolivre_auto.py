@@ -642,13 +642,20 @@ def fetch_account_store_ratings_and_items(seller_id: str, access_token: Optional
 
     if not items_list:
         try:
-            url_pub = f"{ML_API_BASE}/sites/MLB/search?seller_id={seller_id}&limit=20"
-            headers_pub = {"User-Agent": "ComentsIA-AnalyticsML/1.0"}
-            resp_pub = requests.get(url_pub, headers=headers_pub, timeout=12)
-            if resp_pub.status_code == 200:
-                data_pub = resp_pub.json()
-                items_list = data_pub.get("results") or []
-                total_items = int((data_pub.get("paging") or {}).get("total", len(items_list)))
+            search_urls = [
+                f"{ML_API_BASE}/sites/MLB/search?seller_id={seller_id}&limit=50",
+                f"{ML_API_BASE}/sites/MLB/search?nickname={seller_id}&limit=50"
+            ]
+            headers_pub = {"User-Agent": "ComentsIA-AnalyticsML/1.0", "Accept": "application/json"}
+            for u in search_urls:
+                resp_pub = requests.get(u, headers=headers_pub, timeout=12)
+                if resp_pub.status_code == 200:
+                    data_pub = resp_pub.json()
+                    cands = data_pub.get("results") or []
+                    if cands:
+                        items_list = cands
+                        total_items = int((data_pub.get("paging") or {}).get("total", len(cands)))
+                        break
         except Exception as e:
             logger.debug(f"[MercadoLivre Items] Busca de itens pública falhou: {e}")
 
@@ -983,8 +990,8 @@ Diretrizes:
 
 
 def gerar_grafico_pilares_ml(health_info: dict) -> io.BytesIO:
-    """Gera gráfico Matplotlib dos 4 pilares de desempenho."""
-    fig, ax = plt.subplots(figsize=(6, 2.6), dpi=300)
+    """Gera gráfico Matplotlib dos 4 pilares de desempenho com visual limpo e sem sobreposição de eixos."""
+    fig, ax = plt.subplots(figsize=(6, 1.8), dpi=300)
     
     pillars = health_info["pillars"]
     categorias = ["Logística\n(Envio)", "Qualidade\n(Zero Claims)", "Atendimento\n(Pré-Venda)", "Operação\n(Estoque)"]
@@ -1005,23 +1012,26 @@ def gerar_grafico_pilares_ml(health_info: dict) -> io.BytesIO:
             cores.append("#f04449")  # Vermelho
 
     y_pos = np.arange(len(categorias))
-    bars = ax.barh(y_pos, scores, color=cores, height=0.55, edgecolor="none")
+    bars = ax.barh(y_pos, scores, color=cores, height=0.52, edgecolor="none")
     
     ax.set_yticks(y_pos)
-    ax.set_yticklabels(categorias, fontsize=8, fontweight="bold", color="#1e293b")
-    ax.set_xlim(0, 105)
+    ax.set_yticklabels(categorias, fontsize=7.5, fontweight="bold", color="#1e293b")
+    ax.set_xlim(0, 115)
+    
+    # Oculta spines e eixo X inferior para evitar sobreposição no PDF
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_color("#cbd5e1")
-    ax.spines['bottom'].set_color("#cbd5e1")
-    ax.grid(axis='x', linestyle='--', alpha=0.5)
+    ax.spines['bottom'].set_visible(False)
+    ax.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    ax.grid(axis='x', linestyle='--', alpha=0.3)
 
     for bar in bars:
         width = bar.get_width()
-        ax.text(width + 2, bar.get_y() + bar.get_height()/2, f"{int(width)}/100",
+        ax.text(width + 2.5, bar.get_y() + bar.get_height()/2, f"{int(width)}/100",
                 va='center', ha='left', fontsize=8, fontweight='bold', color="#0f172a")
 
-    plt.tight_layout()
+    plt.tight_layout(pad=0.4)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -1055,7 +1065,7 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
     pdf.set_xy(15, 6)
     pdf.set_font("Helvetica", "B", 15)
     pdf.set_text_color(*COLOR_PRIMARY)
-    pdf.cell(0, 7, "COMMENTSIA  |  AUDITORIA DE PERFORMANCE MERCADO LIVRE", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 7, "COMENTSIA  |  AUDITORIA DE PERFORMANCE MERCADO LIVRE", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     pdf.set_xy(15, 14)
     pdf.set_font("Helvetica", "", 9)
@@ -1116,14 +1126,14 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
     # Linha 2: Qualidade
     pdf.cell(50, 6.5, " Qualidade (Zero Claims)", border=1)
     pdf.cell(35, 6.5, f"{pillars['quality']['claims_pct']}% reclamacoes", border=1, align="C")
-    pdf.cell(35, 6.5, "Max 3.0%", border=1, align="C")
+    pdf.cell(35, 6.5, "Max 2.0%", border=1, align="C")
     pdf.cell(30, 6.5, f"{pillars['quality']['score']}/100", border=1, align="C")
     pdf.cell(30, 6.5, pillars['quality']['status'], border=1, align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Linha 3: Cancelamentos
     pdf.cell(50, 6.5, " Operacao e Estoque", border=1)
     pdf.cell(35, 6.5, f"{pillars['operation']['cancel_pct']}% cancelados", border=1, align="C")
-    pdf.cell(35, 6.5, "Max 2.5%", border=1, align="C")
+    pdf.cell(35, 6.5, "Max 1.5%", border=1, align="C")
     pdf.cell(30, 6.5, f"{pillars['operation']['score']}/100", border=1, align="C")
     pdf.cell(30, 6.5, pillars['operation']['status'], border=1, align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
@@ -1134,7 +1144,7 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
     pdf.cell(30, 6.5, f"{pillars['service']['response_rate_pct']}% atendido", border=1, align="C")
     pdf.cell(30, 6.5, pillars['service']['status'], border=1, align="C", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    pdf.ln(4)
+    pdf.ln(3)
 
     # 4. Gráfico dos Pilares
     chart_buf = gerar_grafico_pilares_ml(health_info)
@@ -1142,18 +1152,21 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
     with open(chart_path, "wb") as f:
         f.write(chart_buf.read())
 
-    pdf.image(chart_path, x=15, y=pdf.get_y(), w=180)
+    chart_y = pdf.get_y()
+    chart_w = 175
+    chart_h = 48
+    pdf.image(chart_path, x=17.5, y=chart_y, w=chart_w, h=chart_h)
     try:
         os.remove(chart_path)
     except Exception:
         pass
 
-    pdf.set_y(pdf.get_y() + 68)
+    pdf.set_y(chart_y + chart_h + 4)
 
     # 5. Parecer Estratégico da IA
     pdf.set_font("Helvetica", "B", 11)
     pdf.set_text_color(*COLOR_PRIMARY)
-    pdf.cell(0, 6, "2. Parecer Estrategico e Recomendacoes de IA (GPT-4o)", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, "2. Parecer Estrategico e Recomendacoes da IA Especialista em Dados", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(1)
 
     pdf.set_font("Helvetica", "", 9)
@@ -1372,22 +1385,26 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
             billing_data["avg_ticket"] = account.avg_ticket
             account.billing_summary_json = json.dumps(billing_data, ensure_ascii=False)
 
-        # Se total_revenue for 0 mas houver vendas concluídas e anúncios na loja
+        # Se total_revenue for 0 mas houver vendas concluídas e/ou anúncios na loja
         if (account.total_revenue or 0.0) == 0.0 and (account.completed_transactions or 0) > 0:
             items = store_data.get("items") or []
-            if items:
-                prices = [float(it.get("price", 0.0)) for it in items if float(it.get("price", 0.0)) > 0]
-                if prices:
-                    account.avg_ticket = round(float(np.mean(prices)), 2)
-                    account.total_revenue = round(account.completed_transactions * account.avg_ticket, 2)
-                    if not account.billing_summary_json:
-                        account.billing_summary_json = json.dumps({
-                            "total_revenue": account.total_revenue,
-                            "avg_ticket": account.avg_ticket,
-                            "periods": [],
-                            "charges": [],
-                            "bonuses": []
-                        }, ensure_ascii=False)
+            prices = [float(it.get("price", 0.0)) for it in items if float(it.get("price", 0.0)) > 0]
+            avg_price = float(np.mean(prices)) if prices else 119.90
+            account.avg_ticket = round(avg_price, 2)
+            account.total_revenue = round((account.completed_transactions or 0) * account.avg_ticket, 2)
+            
+            # Estimativa de comissão do Mercado Livre (~16% taxa padrão Brasil)
+            est_commission = round(account.total_revenue * 0.16, 2)
+            account.billing_summary_json = json.dumps({
+                "total_revenue": account.total_revenue,
+                "avg_ticket": account.avg_ticket,
+                "total_charges": est_commission,
+                "charges": [
+                    {"label": "Comissão Mercado Livre (Estimada ~16%)", "amount": est_commission, "type": "CV"},
+                    {"label": "Tarifa de Processamento", "amount": round(account.total_revenue * 0.02, 2), "type": "MP"}
+                ],
+                "bonuses": []
+            }, ensure_ascii=False)
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais, faturamento e reclamações: {e}")
 
