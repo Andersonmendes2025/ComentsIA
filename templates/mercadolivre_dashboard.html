@@ -433,29 +433,31 @@
                 </thead>
                 <tbody>
                   {% for q in recent_q %}
-                    <tr>
+                    <tr id="pergunta-row-{{ q.id }}">
                       <td class="text-muted text-nowrap" style="font-size: 0.78rem;">
                         {{ q.date_created[:16].replace('T', ' ') if q.date_created else 'Recente' }}
                       </td>
                       <td>
                         <div class="fw-semibold text-dark">{{ q.text }}</div>
-                        {% if q.status == 'ANSWERED' and q.answer_text %}
-                          <div class="text-muted small mt-1 ps-2 border-start border-2 border-success">
-                            <i class="bi bi-arrow-return-right text-success me-1"></i> {{ q.answer_text }}
-                          </div>
-                        {% endif %}
+                        <div id="pergunta-answer-{{ q.id }}" class="text-muted small mt-1 ps-2 border-start border-2 border-success {% if q.status != 'ANSWERED' or not q.answer_text %}d-none{% endif %}">
+                          <i class="bi bi-arrow-return-right text-success me-1"></i> <span class="answer-content">{{ q.answer_text or '' }}</span>
+                        </div>
                       </td>
                       <td>
-                        {% if q.status == 'UNANSWERED' %}
-                          <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-0.5">Pendente</span>
-                        {% else %}
-                          <span class="badge bg-success-subtle text-success rounded-pill px-2 py-0.5">Respondida</span>
-                        {% endif %}
+                        <span id="pergunta-badge-{{ q.id }}" class="badge {% if q.status == 'UNANSWERED' %}bg-danger-subtle text-danger{% else %}bg-success-subtle text-success{% endif %} rounded-pill px-2 py-0.5">
+                          {{ 'Pendente' if q.status == 'UNANSWERED' else 'Respondida' }}
+                        </span>
                       </td>
                       <td class="text-end">
-                        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-2.5 py-1" onclick="abrirModalRespostaIA('{{ q.text|replace("'", "\\'") }}', '{{ q.item_id }}')">
-                          <i class="bi bi-stars me-1"></i> Sugerir com IA
-                        </button>
+                        {% if q.status == 'UNANSWERED' %}
+                          <button type="button" id="pergunta-btn-{{ q.id }}" class="btn btn-sm btn-primary fw-semibold rounded-pill px-3 py-1 shadow-sm" onclick="abrirModalRespostaIA('{{ q.id }}', '{{ q.text|replace("'", "\\'") }}', '{{ q.item_id }}', 'UNANSWERED')">
+                            <i class="bi bi-reply-fill me-1"></i> Responder com IA
+                          </button>
+                        {% else %}
+                          <button type="button" id="pergunta-btn-{{ q.id }}" class="btn btn-sm btn-light border text-muted fw-semibold rounded-pill px-2.5 py-1" onclick="abrirModalRespostaIA('{{ q.id }}', '{{ q.text|replace("'", "\\'") }}', '{{ q.item_id }}', 'ANSWERED', '{{ (q.answer_text or '')|replace("'", "\\'") }}')">
+                            <i class="bi bi-eye me-1"></i> Ver Resposta
+                          </button>
+                        {% endif %}
                       </td>
                     </tr>
                   {% endfor %}
@@ -685,64 +687,128 @@
   </div>
 </div>
 
-<!-- MODAL: SUGESTÃO DE RESPOSTA IA PARA PRÉ-VENDA -->
+<!-- MODAL: RESPONDER / SUGESTÃO DE RESPOSTA IA PARA PRÉ-VENDA -->
 <div class="modal fade" id="respostaIaModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow-lg rounded-4">
       <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold text-dark">
-          <i class="bi bi-stars text-primary me-1.5"></i> Sugestão de Resposta com IA
-        </h5>
+        <div>
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="bi bi-stars text-primary me-1.5"></i> Responder Pergunta com Inteligência Artificial
+          </h5>
+          <span class="text-muted small">Publique a resposta diretamente no anúncio do Mercado Livre.</span>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body pt-3">
-        <div class="p-3 rounded-3 bg-light mb-3">
-          <span class="text-muted small fw-bold d-block mb-1">Dúvida do Comprador:</span>
-          <strong id="modalPerguntaTexto" class="text-dark d-block"></strong>
+        
+        <!-- Detalhes da Pergunta -->
+        <div class="p-3 rounded-4 bg-light border mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small fw-bold text-uppercase" style="font-size: 0.72rem;">Pergunta do Comprador:</span>
+            <span id="modalQuestionStatusBadge" class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1 small">Pendente</span>
+          </div>
+          <p id="modalPerguntaTexto" class="fw-semibold text-dark mb-1 fs-6"></p>
+          <div class="d-flex align-items-center gap-2 text-muted small" style="font-size: 0.75rem;">
+            <span>Item ID: <strong id="modalItemIdText">-</strong></span>
+            <span>•</span>
+            <span>Pergunta ID: <strong id="modalQuestionIdText">-</strong></span>
+          </div>
         </div>
 
+        <!-- Alerta de Status/Erro -->
+        <div id="modalAlertBox" class="alert d-none rounded-3 small py-2 px-3 mb-3"></div>
+
+        <!-- Área de Edição da Resposta -->
         <div class="mb-3">
-          <label class="form-label small fw-bold text-dark">Resposta Gerada para Copiar:</label>
+          <div class="d-flex justify-content-between align-items-center mb-1.5">
+            <label class="form-label small fw-bold text-dark mb-0">Sua Resposta Oficial:</label>
+            <div class="d-flex gap-1">
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5" style="font-size: 0.72rem;" onclick="gerarNovamenteRespostaIA('profissional')">
+                💼 Profissional
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5" style="font-size: 0.72rem;" onclick="gerarNovamenteRespostaIA('amigavel')">
+                😊 Amigável
+              </button>
+              <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5" style="font-size: 0.72rem;" onclick="gerarNovamenteRespostaIA('direto')">
+                ⚡ Direto
+              </button>
+            </div>
+          </div>
+          
           <div class="position-relative">
-            <textarea id="modalRespostaGerada" class="form-control rounded-3 py-2.5" rows="4"></textarea>
-            <div id="modalLoading" class="position-absolute top-50 start-50 translate-middle d-none text-center bg-white p-3 rounded-3 shadow-sm border">
+            <textarea id="modalRespostaGerada" class="form-control rounded-3 py-2.5" rows="4" placeholder="Escreva ou edite a resposta para o comprador..."></textarea>
+            <div id="modalLoading" class="position-absolute top-50 start-50 translate-middle d-none text-center bg-white p-3 rounded-3 shadow border">
               <div class="spinner-border spinner-border-sm text-primary me-1" role="status"></div>
               <span class="small fw-semibold text-muted">Gerando resposta com IA...</span>
             </div>
           </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
-          <button type="button" class="btn btn-light border btn-sm fw-semibold" onclick="gerarNovamenteRespostaIA()">
-            <i class="bi bi-arrow-repeat me-1"></i> Gerar Outra Versão
+        <!-- Rodapé com Ações -->
+        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+          <button type="button" id="btnGerarNovamente" class="btn btn-light border btn-sm fw-semibold rounded-pill px-3 py-1.5" onclick="gerarNovamenteRespostaIA()">
+            <i class="bi bi-arrow-repeat me-1"></i> Gerar Outra Sugestão
           </button>
-          <button type="button" class="btn btn-primary fw-bold px-3 py-2 rounded-3 shadow-sm" onclick="copiarRespostaIA()">
-            <i class="bi bi-clipboard-check me-1"></i> Copiar Resposta
-          </button>
+          
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 py-1.5" onclick="copiarRespostaIA()">
+              <i class="bi bi-clipboard me-1"></i> Copiar
+            </button>
+            <button type="button" id="btnPostarMercadoLivre" class="btn btn-primary fw-bold rounded-pill px-4 py-1.5 shadow-sm" onclick="enviarRespostaAoMercadoLivre()">
+              <i class="bi bi-send-fill me-1"></i> Postar no Mercado Livre
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   </div>
 </div>
 
 <script>
+let currentModalQuestionId = '';
 let currentModalPergunta = '';
 let currentModalItemId = '';
+let currentModalStatus = '';
+const currentAccountId = '{{ current_account.id if current_account else "" }}';
 
-function abrirModalRespostaIA(pergunta, itemId) {
+function abrirModalRespostaIA(questionId, pergunta, itemId, status, existingAnswer = '') {
+  currentModalQuestionId = questionId;
   currentModalPergunta = pergunta;
   currentModalItemId = itemId;
-  document.getElementById('modalPerguntaTexto').innerText = pergunta;
-  document.getElementById('modalRespostaGerada').value = '';
-  
-  const modalEl = document.getElementById('respostaIaModal');
-  const modal = new bootstrap.Modal(modalEl);
-  modal.show();
+  currentModalStatus = status;
 
-  gerarNovamenteRespostaIA();
+  document.getElementById('modalPerguntaTexto').innerText = pergunta;
+  document.getElementById('modalQuestionIdText').innerText = questionId || '-';
+  document.getElementById('modalItemIdText').innerText = itemId || '-';
+  
+  const statusBadge = document.getElementById('modalQuestionStatusBadge');
+  const postBtn = document.getElementById('btnPostarMercadoLivre');
+  const alertBox = document.getElementById('modalAlertBox');
+  alertBox.classList.add('d-none');
+
+  if (status === 'ANSWERED') {
+    statusBadge.className = 'badge bg-success-subtle text-success rounded-pill px-2.5 py-1 small';
+    statusBadge.innerText = 'Respondida';
+    document.getElementById('modalRespostaGerada').value = existingAnswer || '';
+    postBtn.classList.add('d-none');
+  } else {
+    statusBadge.className = 'badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1 small';
+    statusBadge.innerText = 'Pendente';
+    document.getElementById('modalRespostaGerada').value = '';
+    postBtn.classList.remove('d-none');
+    postBtn.disabled = false;
+    postBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Postar no Mercado Livre';
+    gerarNovamenteRespostaIA();
+  }
+
+  const modalEl = document.getElementById('respostaIaModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
 }
 
-function gerarNovamenteRespostaIA() {
+function gerarNovamenteRespostaIA(estilo = 'profissional') {
   const loading = document.getElementById('modalLoading');
   const textarea = document.getElementById('modalRespostaGerada');
   loading.classList.remove('d-none');
@@ -754,7 +820,11 @@ function gerarNovamenteRespostaIA() {
       'Content-Type': 'application/json',
       'X-CSRFToken': csrfToken
     },
-    body: JSON.stringify({ pergunta: currentModalPergunta, item_titulo: currentModalItemId })
+    body: JSON.stringify({ 
+      pergunta: currentModalPergunta, 
+      item_titulo: currentModalItemId,
+      estilo: estilo
+    })
   })
   .then(res => res.json())
   .then(data => {
@@ -775,7 +845,90 @@ function copiarRespostaIA() {
   const textarea = document.getElementById('modalRespostaGerada');
   textarea.select();
   navigator.clipboard.writeText(textarea.value);
-  alert('Resposta copiada para a área de transferência! Cole diretamente no Mercado Livre.');
+  
+  const alertBox = document.getElementById('modalAlertBox');
+  alertBox.className = 'alert alert-info rounded-3 small py-2 px-3 mb-3';
+  alertBox.innerHTML = '<i class="bi bi-clipboard-check me-1"></i> Resposta copiada para a área de transferência!';
+  alertBox.classList.remove('d-none');
+}
+
+function enviarRespostaAoMercadoLivre() {
+  const textarea = document.getElementById('modalRespostaGerada');
+  const respostaTexto = textarea.value.trim();
+  const alertBox = document.getElementById('modalAlertBox');
+  const postBtn = document.getElementById('btnPostarMercadoLivre');
+
+  if (!respostaTexto) {
+    alertBox.className = 'alert alert-warning rounded-3 small py-2 px-3 mb-3';
+    alertBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Por favor, escreva ou gere uma resposta antes de postar.';
+    alertBox.classList.remove('d-none');
+    return;
+  }
+
+  postBtn.disabled = true;
+  postBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Publicando no Mercado Livre...';
+  alertBox.classList.add('d-none');
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+  fetch('{{ url_for("mercadolivre.responder_pergunta_ajax") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({
+      account_id: currentAccountId,
+      question_id: currentModalQuestionId,
+      resposta: respostaTexto
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alertBox.className = 'alert alert-success rounded-3 small py-2 px-3 mb-3';
+      alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${data.message}`;
+      alertBox.classList.remove('d-none');
+
+      const rowBadge = document.getElementById(`pergunta-badge-${currentModalQuestionId}`);
+      if (rowBadge) {
+        rowBadge.className = 'badge bg-success-subtle text-success rounded-pill px-2 py-0.5';
+        rowBadge.innerText = 'Respondida';
+      }
+
+      const rowAnswer = document.getElementById(`pergunta-answer-${currentModalQuestionId}`);
+      if (rowAnswer) {
+        rowAnswer.querySelector('.answer-content').innerText = respostaTexto;
+        rowAnswer.classList.remove('d-none');
+      }
+
+      const rowBtn = document.getElementById(`pergunta-btn-${currentModalQuestionId}`);
+      if (rowBtn) {
+        rowBtn.className = 'btn btn-sm btn-light border text-muted fw-semibold rounded-pill px-2.5 py-1';
+        rowBtn.innerHTML = '<i class="bi bi-eye me-1"></i> Ver Resposta';
+        rowBtn.setAttribute('onclick', `abrirModalRespostaIA('${currentModalQuestionId}', '${currentModalPergunta.replace(/'/g, "\\'")}', '${currentModalItemId}', 'ANSWERED', '${respostaTexto.replace(/'/g, "\\'")}')`);
+      }
+
+      postBtn.classList.add('d-none');
+      setTimeout(() => {
+        const modalEl = document.getElementById('respostaIaModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }, 1500);
+    } else {
+      postBtn.disabled = false;
+      postBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Tentar Novamente';
+      alertBox.className = 'alert alert-danger rounded-3 small py-2 px-3 mb-3';
+      alertBox.innerHTML = `<i class="bi bi-x-octagon-fill me-1"></i> ${data.error || 'Erro ao publicar resposta no Mercado Livre.'}`;
+      alertBox.classList.remove('d-none');
+    }
+  })
+  .catch(err => {
+    postBtn.disabled = false;
+    postBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i> Tentar Novamente';
+    alertBox.className = 'alert alert-danger rounded-3 small py-2 px-3 mb-3';
+    alertBox.innerHTML = `<i class="bi bi-x-octagon-fill me-1"></i> Erro de comunicação: ${err.message}`;
+    alertBox.classList.remove('d-none');
+  });
 }
 </script>
 

@@ -361,6 +361,45 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
     }
 
 
+def post_answer_to_mercadolivre(question_id: Union[str, int], text: str, access_token: str) -> Dict[str, Any]:
+    """
+    Publica a resposta para uma pergunta oficial no Mercado Livre via API:
+    POST https://api.mercadolibre.com/answers
+    Payload: { "question_id": 123456789, "text": "..." }
+    """
+    if not access_token:
+        return {"success": False, "error": "Token de autenticação não disponível."}
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+    payload = {
+        "question_id": int(question_id),
+        "text": text.strip()
+    }
+
+    try:
+        url = f"{ML_API_BASE}/answers"
+        resp = requests.post(url, json=payload, headers=headers, timeout=15)
+        if resp.status_code in [200, 201]:
+            return {"success": True, "data": resp.json()}
+        else:
+            err_data = {}
+            try:
+                err_data = resp.json()
+            except Exception:
+                pass
+            err_msg = err_data.get("message") or err_data.get("error") or f"Erro HTTP {resp.status_code}"
+            logger.warning(f"[MercadoLivre Answers] Falha ao postar resposta (HTTP {resp.status_code}): {resp.text}")
+            return {"success": False, "error": err_msg, "status_code": resp.status_code}
+    except Exception as e:
+        logger.error(f"[MercadoLivre Answers] Erro de conexão ao postar resposta: {e}")
+        return {"success": False, "error": f"Erro de conexão com o Mercado Livre: {str(e)}"}
+
+
 def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
     """
     Busca pedidos reais, status de vendas e feedbacks de compradores via /orders/search.
@@ -385,10 +424,24 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
     }
 
     try:
-        url = f"{ML_API_BASE}/orders/search?seller={seller_id}&sort=date_desc&limit=50"
-        resp = requests.get(url, headers=headers, timeout=12)
-        if resp.status_code == 200:
-            data = resp.json()
+        urls_to_try = [
+            f"{ML_API_BASE}/orders/search?seller={seller_id}&sort=date_desc&limit=50",
+            f"{ML_API_BASE}/orders/search?seller=me&sort=date_desc&limit=50"
+        ]
+        
+        data = None
+        for u in urls_to_try:
+            try:
+                resp = requests.get(u, headers=headers, timeout=12)
+                if resp.status_code == 200:
+                    cand = resp.json()
+                    if cand.get("results") or (cand.get("paging") or {}).get("total", 0) > 0:
+                        data = cand
+                        break
+            except Exception:
+                continue
+
+        if data:
             total_orders = int((data.get("paging") or {}).get("total", 0))
             results = data.get("results") or []
 
@@ -614,8 +667,8 @@ def fetch_account_store_ratings_and_items(seller_id: str, access_token: Optional
         sold_qty = int(item.get("sold_quantity", 0))
         total_sold_quantity += sold_qty
 
-        # Busca reviews do item
-        rev_data = fetch_item_reviews_data(item_id)
+        # Busca reviews do item com token se disponível
+        rev_data = fetch_item_reviews_data(item_id, access_token)
         rating_avg = float(rev_data.get("rating_average", 0.0))
         item_rev_count = int((rev_data.get("paging") or {}).get("total", len(rev_data.get("reviews", []))))
 
@@ -649,16 +702,18 @@ def fetch_account_store_ratings_and_items(seller_id: str, access_token: Optional
     }
 
 
-def fetch_item_reviews_data(item_id: str) -> Dict[str, Any]:
+def fetch_item_reviews_data(item_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
     """Busca avaliações públicas dos compradores para um produto."""
     url = f"{ML_API_BASE}/reviews/item/{item_id}?limit=50"
-    headers = {"User-Agent": "ComentsIA-AnalyticsML/1.0"}
+    headers = {"User-Agent": "ComentsIA-AnalyticsML/1.0", "Accept": "application/json"}
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
     try:
         resp = requests.get(url, headers=headers, timeout=12)
         if resp.status_code == 200:
             return resp.json()
     except Exception as e:
-        logger.error(f"[MercadoLivre] Erro ao buscar avaliações do item {item_id}: {e}")
+        logger.debug(f"[MercadoLivre] Erro ao buscar avaliações do item {item_id}: {e}")
     return {"reviews": [], "rating_average": 0.0, "paging": {"total": 0}, "rating_levels": {}}
 
 
@@ -1294,10 +1349,11 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     try:
         if token:
             orders_data = fetch_account_orders_and_metrics(account.seller_id, token)
-            if orders_data["completed_orders"] > 0:
-                account.completed_transactions = orders_data["completed_orders"]
-                account.canceled_transactions = orders_data["canceled_orders"]
-                account.total_transactions = orders_data["total_orders"]
+            if orders_data["completed_orders"] > 0 or orders_data["total_revenue"] > 0:
+                if orders_data["completed_orders"] > 0:
+                    account.completed_transactions = orders_data["completed_orders"]
+                    account.canceled_transactions = orders_data["canceled_orders"]
+                    account.total_transactions = orders_data["total_orders"]
                 account.total_revenue = orders_data.get("total_revenue", 0.0)
                 account.avg_ticket = orders_data.get("avg_ticket", 0.0)
                 
@@ -1315,6 +1371,23 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
             billing_data["total_revenue"] = account.total_revenue
             billing_data["avg_ticket"] = account.avg_ticket
             account.billing_summary_json = json.dumps(billing_data, ensure_ascii=False)
+
+        # Se total_revenue for 0 mas houver vendas concluídas e anúncios na loja
+        if (account.total_revenue or 0.0) == 0.0 and (account.completed_transactions or 0) > 0:
+            items = store_data.get("items") or []
+            if items:
+                prices = [float(it.get("price", 0.0)) for it in items if float(it.get("price", 0.0)) > 0]
+                if prices:
+                    account.avg_ticket = round(float(np.mean(prices)), 2)
+                    account.total_revenue = round(account.completed_transactions * account.avg_ticket, 2)
+                    if not account.billing_summary_json:
+                        account.billing_summary_json = json.dumps({
+                            "total_revenue": account.total_revenue,
+                            "avg_ticket": account.avg_ticket,
+                            "periods": [],
+                            "charges": [],
+                            "bonuses": []
+                        }, ensure_ascii=False)
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais, faturamento e reclamações: {e}")
 
@@ -1554,6 +1627,76 @@ def sugerir_resposta_ajax():
     except Exception as e:
         logger.error(f"[MercadoLivre AI] Erro ao sugerir resposta: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@mercadolivre_bp.route("/pergunta/responder", methods=["POST"])
+def responder_pergunta_ajax():
+    """Publica a resposta para a pergunta oficial no Mercado Livre."""
+    user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Não autenticado"}), 401
+
+    data = request.get_json() or request.form
+    account_id = data.get("account_id")
+    question_id = data.get("question_id")
+    resposta_texto = (data.get("resposta") or "").strip()
+
+    if not question_id or not resposta_texto:
+        return jsonify({"success": False, "error": "ID da pergunta e texto da resposta são obrigatórios."}), 400
+
+    account = MercadoLivreAccount.query.filter_by(id=account_id, user_id=str(user_id)).first()
+    if not account:
+        return jsonify({"success": False, "error": "Conta do Mercado Livre não encontrada."}), 404
+
+    if not account.access_token:
+        return jsonify({
+            "success": False, 
+            "error": "Esta conta foi conectada em modo público (apenas leitura). Para postar respostas diretamente pelo aplicativo, conecte com o login oficial (OAuth) do Mercado Livre."
+        }), 403
+
+    token = None
+    try:
+        if account.token_expires_at and account.token_expires_at <= default_brt_now() + timedelta(minutes=10):
+            token = refresh_ml_token(account)
+        if not token:
+            token = crypto_decrypt(account.access_token)
+    except Exception as e:
+        logger.error(f"[MercadoLivre Answers] Erro ao recuperar token: {e}")
+        return jsonify({"success": False, "error": "Falha de autenticação ao descriptografar token."}), 500
+
+    result = post_answer_to_mercadolivre(question_id, resposta_texto, token)
+
+    if not result.get("success") and result.get("status_code") == 401:
+        token = refresh_ml_token(account)
+        if token:
+            result = post_answer_to_mercadolivre(question_id, resposta_texto, token)
+
+    if result.get("success"):
+        try:
+            recent_q = account.get_recent_questions()
+            for q in recent_q:
+                if str(q.get("id")) == str(question_id):
+                    q["status"] = "ANSWERED"
+                    q["answer_text"] = resposta_texto
+                    break
+            account.recent_questions_json = json.dumps(recent_q, ensure_ascii=False)
+            if account.unanswered_questions and account.unanswered_questions > 0:
+                account.unanswered_questions -= 1
+            db.session.commit()
+        except Exception as e:
+            logger.warning(f"[MercadoLivre Answers] Falha ao atualizar cache local da pergunta: {e}")
+
+        return jsonify({
+            "success": True, 
+            "message": "Resposta publicada com sucesso no Mercado Livre!",
+            "question_id": question_id,
+            "answer_text": resposta_texto
+        })
+    else:
+        return jsonify({
+            "success": False, 
+            "error": result.get("error", "Não foi possível publicar a resposta no Mercado Livre.")
+        }), 400
 
 
 @mercadolivre_bp.route("/desconectar/<int:account_id>", methods=["POST"])

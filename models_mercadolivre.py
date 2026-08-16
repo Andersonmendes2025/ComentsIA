@@ -145,12 +145,30 @@ class MercadoLivreAccount(db.Model):
 
     def get_rating_breakdown(self) -> dict:
         """Retorna a distribuição global de estrelas da conta."""
-        if not self.rating_breakdown_json:
-            return {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
-        try:
-            return json.loads(self.rating_breakdown_json)
-        except Exception:
-            return {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
+        if self.rating_breakdown_json:
+            try:
+                bd = json.loads(self.rating_breakdown_json)
+                if any(int(v) > 0 for v in bd.values()):
+                    return bd
+            except Exception:
+                pass
+
+        # Se não houver breakdown individual por item, projeta com base nas transações reais
+        total = self.total_store_reviews or self.completed_transactions or 0
+        if total > 0:
+            pos = int(total * (self.positive_rating_pct or 1.0))
+            neu = int(total * (self.neutral_rating_pct or 0.0))
+            neg = int(total * (self.negative_rating_pct or 0.0))
+            star5 = int(pos * 0.85)
+            star4 = max(0, pos - star5)
+            return {
+                "5": star5,
+                "4": star4,
+                "3": neu,
+                "2": int(neg * 0.3),
+                "1": max(0, neg - int(neg * 0.3))
+            }
+        return {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
 
     def get_ai_health_report(self) -> dict | None:
         """Retorna o relatório de saúde por IA em dicionário."""
@@ -287,54 +305,14 @@ class MercadoLivreAccount(db.Model):
         else:
             health_badge = {"label": "Crítica / Risco", "cor": "danger", "icon": "bi-x-octagon"}
 
-        return {
-            "overall_score": overall_health,
-            "badge": health_badge,
-            "reputation": reputation,
-            "pillars": {
-                "logistics": {
-                    "score": logistics_score,
-                    "on_time_pct": round(on_time_pct, 1),
-                    "delay_pct": delay_pct,
-                    "ceiling_pct": 15.0,
-                    "risk": reputation["delay_risk"],
-                    "status": "No Prazo" if delay_pct < 10.0 else ("Atenção" if delay_pct < 13.5 else "Crítico")
-                },
-                "quality": {
-                    "score": quality_score,
-                    "claims_pct": claims_pct,
-                    "ceiling_pct": 3.0,
-                    "risk": reputation["claims_risk"],
-                    "status": "Excelente" if claims_pct < 2.0 else ("Atenção" if claims_pct < 2.8 else "Crítico")
-                },
-                "service": {
-                    "score": service_score,
-                    "avg_time_min": round(self.avg_response_time_minutes or 0.0, 1),
-                    "avg_response_minutes": round(self.avg_response_time_minutes or 0.0, 1),
-                    "response_rate_pct": round(resp_rate_pct, 1),
-                    "unanswered_count": self.unanswered_questions or 0,
-                    "unanswered": self.unanswered_questions or 0,
-                    "total_count": self.total_questions or 0,
-                    "status": "Rápido" if (self.avg_response_time_minutes or 0) <= 20 else "Lento"
-                },
-                "operation": {
-                    "score": operation_score,
-                    "cancel_pct": cancel_pct,
-                    "ceiling_pct": 2.5,
-                    "risk": reputation["cancel_risk"],
-                    "status": "Excelente" if cancel_pct < 1.5 else ("Atenção" if cancel_pct < 2.0 else "Crítico")
-                }
-            },
-            "store_ratings": {
-                "average": round(self.store_rating_average or 0.0, 1),
-                "rating_average": round(self.store_rating_average or 0.0, 1),
-                "total_reviews": self.total_store_reviews or 0,
-                "breakdown": self.get_rating_breakdown(),
-                "positive_pct": round((self.positive_rating_pct or 1.0) * 100, 1),
-                "neutral_pct": round((self.neutral_rating_pct or 0.0) * 100, 1),
-                "negative_pct": round((self.negative_rating_pct or 0.0) * 100, 1)
-            }
-        }
+        # Nota média geral e total de avaliações da loja
+        calc_avg_rating = self.store_rating_average or 0.0
+        if calc_avg_rating == 0.0 and (self.completed_transactions or 0) > 0:
+            calc_avg_rating = round((self.positive_rating_pct or 1.0) * 5.0 + (self.neutral_rating_pct or 0.0) * 3.0 + (self.negative_rating_pct or 0.0) * 1.0, 1)
+
+        calc_total_revs = self.total_store_reviews or 0
+        if calc_total_revs == 0 and (self.completed_transactions or 0) > 0:
+            calc_total_revs = self.completed_transactions
 
         return {
             "overall_score": overall_health,
@@ -352,29 +330,32 @@ class MercadoLivreAccount(db.Model):
                 "quality": {
                     "score": quality_score,
                     "claims_pct": claims_pct,
-                    "ceiling_pct": 3.0,
+                    "ceiling_pct": 2.0,
                     "risk": reputation["claims_risk"],
                     "status": "Excelente" if claims_pct < 2.0 else ("Atenção" if claims_pct < 2.8 else "Crítico")
+                },
+                "service": {
+                    "score": service_score,
+                    "avg_time_min": round(self.avg_response_time_minutes or 0.0, 1),
+                    "avg_response_minutes": round(self.avg_response_time_minutes or 0.0, 1),
+                    "response_rate_pct": round(resp_rate_pct, 1),
+                    "unanswered_count": self.unanswered_questions or 0,
+                    "unanswered": self.unanswered_questions or 0,
+                    "total_count": self.total_questions or 0,
+                    "status": "Rápido" if (self.avg_response_time_minutes or 0) <= 20 else "Lento"
                 },
                 "operation": {
                     "score": operation_score,
                     "cancel_pct": cancel_pct,
-                    "ceiling_pct": 2.5,
+                    "ceiling_pct": 1.5,
                     "risk": reputation["cancel_risk"],
-                    "status": "Seguro" if cancel_pct < 1.5 else ("Atenção" if cancel_pct < 2.0 else "Crítico")
-                },
-                "service": {
-                    "score": service_score,
-                    "avg_response_minutes": round(resp_time, 0),
-                    "response_rate_pct": round(resp_rate_pct, 1),
-                    "unanswered": self.unanswered_questions or 0,
-                    "total_questions": self.total_questions or 0,
-                    "status": "Rápido" if resp_time <= 30 else ("Médio" if resp_time <= 120 else "Lento")
+                    "status": "Excelente" if cancel_pct < 1.5 else ("Atenção" if cancel_pct < 2.0 else "Crítico")
                 }
             },
             "store_ratings": {
-                "rating_average": round(self.store_rating_average or 0.0, 1),
-                "total_reviews": self.total_store_reviews or 0,
+                "average": round(calc_avg_rating, 1),
+                "rating_average": round(calc_avg_rating, 1),
+                "total_reviews": calc_total_revs,
                 "breakdown": self.get_rating_breakdown(),
                 "positive_pct": round((self.positive_rating_pct or 1.0) * 100, 1),
                 "neutral_pct": round((self.neutral_rating_pct or 0.0) * 100, 1),
