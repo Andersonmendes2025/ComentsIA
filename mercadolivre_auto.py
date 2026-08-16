@@ -426,7 +426,9 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
     try:
         urls_to_try = [
             f"{ML_API_BASE}/orders/search?seller={seller_id}&sort=date_desc&limit=50",
-            f"{ML_API_BASE}/orders/search?seller=me&sort=date_desc&limit=50"
+            f"{ML_API_BASE}/orders/search?seller=me&sort=date_desc&limit=50",
+            f"{ML_API_BASE}/orders/search?seller={seller_id}&order.status=paid&limit=50",
+            f"{ML_API_BASE}/orders/search/recent?seller={seller_id}&limit=50"
         ]
         
         data = None
@@ -506,15 +508,17 @@ def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str]
                     "status": status
                 })
 
-            total_revenue = sum(float(o.get("total_amount", 0.0)) for o in results if o.get("status") == "paid")
-            if total_revenue == 0.0 and results:
-                total_revenue = sum(float(o.get("total_amount", 0.0)) for o in results)
+            order_amounts = [float(o.get("total_amount", 0.0)) for o in results if float(o.get("total_amount", 0.0)) > 0]
+            avg_ticket = float(np.mean(order_amounts)) if order_amounts else 0.0
             
-            avg_ticket = (total_revenue / completed_orders) if completed_orders > 0 else 0.0
+            if completed_orders > len(order_amounts) and avg_ticket > 0:
+                total_revenue = completed_orders * avg_ticket
+            else:
+                total_revenue = sum(order_amounts)
 
             return {
                 "total_orders": total_orders or len(results),
-                "completed_orders": completed_orders or total_orders,
+                "completed_orders": completed_orders or total_orders or len(results),
                 "canceled_orders": canceled_orders,
                 "total_revenue": round(total_revenue, 2),
                 "avg_ticket": round(avg_ticket, 2),
@@ -1261,19 +1265,26 @@ def refresh_ml_token(account: MercadoLivreAccount) -> Optional[str]:
         return None
 
 
-def sync_all_account_data(account: MercadoLivreAccount) -> None:
-    """Executa sincronização completa dos dados e histórico da conta do Mercado Livre."""
-    token = None
+def get_fresh_ml_token(account: MercadoLivreAccount) -> Optional[str]:
+    """
+    Sempre renova e retorna o token de acesso oficial mais recente.
+    Executa refresh preventivo com refresh_token a cada sincronização/operação.
+    """
+    if account.refresh_token:
+        new_token = refresh_ml_token(account)
+        if new_token:
+            return new_token
     if account.access_token:
         try:
-            # Auto-refresh se o token estiver a menos de 30 min de expirar
-            if account.token_expires_at and account.token_expires_at <= default_brt_now() + timedelta(minutes=30):
-                token = refresh_ml_token(account)
-            
-            if not token:
-                token = crypto_decrypt(account.access_token)
+            return crypto_decrypt(account.access_token)
         except Exception:
-            token = None
+            return None
+    return None
+
+
+def sync_all_account_data(account: MercadoLivreAccount) -> None:
+    """Executa sincronização completa dos dados e histórico da conta do Mercado Livre com refresh contínuo."""
+    token = get_fresh_ml_token(account)
 
     # 1. Reputação & Histórico
     try:
@@ -1524,47 +1535,10 @@ def dashboard():
     )
 
 
-@mercadolivre_bp.route("/conectar_publico", methods=["POST"])
+@mercadolivre_bp.route("/conectar_publico", methods=["GET", "POST"])
 def conectar_publico():
-    """Conecta uma conta do Mercado Livre instantaneamente via ID, Apelido ou Link MLB."""
-    user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
-    if not user_id:
-        return jsonify({"success": False, "error": "Usuário não autenticado"}), 401
-
-    identifier = request.form.get("identifier", "").strip()
-    if not identifier:
-        flash("Informe o ID do vendedor, apelido ou link de um produto no Mercado Livre.", "danger")
-        return redirect(url_for("mercadolivre.dashboard"))
-
-    try:
-        data = resolve_seller_from_input(identifier)
-        seller_id = str(data.get("id"))
-        nickname = data.get("nickname") or f"Vendedor_{seller_id}"
-        permalink = data.get("permalink") or f"https://www.mercadolivre.com.br/perfil/{nickname}"
-        site_id = data.get("site_id", "MLB")
-
-        account = MercadoLivreAccount.query.filter_by(user_id=str(user_id), seller_id=seller_id).first()
-        if not account:
-            account = MercadoLivreAccount(
-                user_id=str(user_id),
-                seller_id=seller_id,
-                nickname=nickname,
-                permalink=permalink,
-                site_id=site_id
-            )
-            db.session.add(account)
-            db.session.commit()
-
-        # Executa sincronização completa (Reputação, Perguntas e Avaliações)
-        sync_all_account_data(account)
-
-        flash(f"Conta '{nickname}' conectada e sincronizada com sucesso!", "success")
-        return redirect(url_for("mercadolivre.dashboard", account_id=account.id))
-
-    except Exception as e:
-        logger.error(f"[MercadoLivre] Erro ao conectar conta pública: {e}", exc_info=True)
-        flash(f"Erro ao conectar conta: {str(e)}", "danger")
-        return redirect(url_for("mercadolivre.dashboard"))
+    """Redireciona diretamente para o fluxo oficial OAuth 2.0."""
+    return redirect(url_for("mercadolivre.conectar_oauth"))
 
 
 @mercadolivre_bp.route("/sincronizar/<int:account_id>", methods=["POST"])
