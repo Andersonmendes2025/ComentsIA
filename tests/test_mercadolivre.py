@@ -179,9 +179,12 @@ def test_account_questions_and_response_time():
 def test_ai_health_report_and_answer_suggestion(app):
     """Testa geração do Parecer Estratégico por IA e sugestão de resposta para pré-venda."""
     with app.app_context():
+        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
+        db.session.commit()
+
         account = MercadoLivreAccount(
             user_id="test_ml_user",
-            seller_id="999888777",
+            seller_id="ai_rep_111",
             nickname="LOJA_TESTE_ML",
             level_id="5_green",
             power_seller_status="gold",
@@ -210,9 +213,12 @@ def test_ai_health_report_and_answer_suggestion(app):
 def test_gerar_pdf_relatorio_mercadolivre(app):
     """Testa a emissão do Relatório Executivo da Conta em PDF."""
     with app.app_context():
+        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
+        db.session.commit()
+
         account = MercadoLivreAccount(
             user_id="test_ml_user",
-            seller_id="999888777",
+            seller_id="pdf_rep_222",
             nickname="LOJA_OFICIAL_CALCADOS",
             level_id="5_green",
             power_seller_status="gold",
@@ -241,7 +247,7 @@ def test_conectar_oauth_and_dashboard_flow(app, client):
         sess["user_info"] = {"id": "test_ml_user", "email": "ml_user@example.com"}
 
     # 1. Rota de conexão pública redireciona para OAuth
-    res_pub = client.post("/mercadolivre/conectar_publico", data={"identifier": "123456789"}, follow_redirects=False)
+    res_pub = client.post("/mercadolivre/conectar_publico", data={"identifier": "oauth_rep_333"}, follow_redirects=False)
     assert res_pub.status_code == 302
     assert "/mercadolivre/conectar" in res_pub.location
 
@@ -252,9 +258,12 @@ def test_conectar_oauth_and_dashboard_flow(app, client):
 
     # 3. Conta conectada carrega perfeitamente no Dashboard
     with app.app_context():
+        MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
+        db.session.commit()
+
         account = MercadoLivreAccount(
             user_id="test_ml_user",
-            seller_id="123456789",
+            seller_id="oauth_rep_333",
             nickname="LOJA_OFICIAL_CALCADOS",
             permalink="https://www.mercadolivre.com.br/perfil/LOJA_OFICIAL_CALCADOS",
             level_id="5_green",
@@ -266,8 +275,9 @@ def test_conectar_oauth_and_dashboard_flow(app, client):
         )
         db.session.add(account)
         db.session.commit()
+        acc_id = account.id
 
-    res_dash = client.get(f"/mercadolivre/dashboard?account_id={account.id}")
+    res_dash = client.get(f"/mercadolivre/dashboard?account_id={acc_id}")
     assert res_dash.status_code == 200
     html = res_dash.data.decode("utf-8")
     assert "LOJA_OFICIAL_CALCADOS" in html
