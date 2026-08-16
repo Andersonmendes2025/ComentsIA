@@ -43,6 +43,7 @@
 
       {% if current_account %}
         <form method="POST" action="{{ url_for('mercadolivre.sincronizar_conta', account_id=current_account.id) }}" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-light border fw-semibold shadow-sm px-3 py-2 rounded-3" title="Atualizar dados da conta">
             <i class="bi bi-arrow-repeat text-primary me-1"></i> Sincronizar
           </button>
@@ -526,6 +527,7 @@
         <div class="text-center py-4">
           <p class="text-muted mb-3">Nenhum parecer estratégico gerado ainda para esta loja.</p>
           <form method="POST" action="{{ url_for('mercadolivre.gerar_parecer_ia', account_id=current_account.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm">
               <i class="bi bi-stars me-1"></i> Gerar Parecer com GPT-4o Agora
             </button>
@@ -538,6 +540,7 @@
     <div class="d-flex justify-content-between align-items-center pt-3 border-top text-muted small">
       <span>Última sincronização: {{ current_account.last_sync_at.strftime('%d/%m/%Y às %H:%M') if current_account.last_sync_at else 'Recente' }}</span>
       <form method="POST" action="{{ url_for('mercadolivre.desconectar_conta', account_id=current_account.id) }}" onsubmit="return confirm('Tem certeza que deseja desconectar a conta {{ current_account.nickname }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-link text-danger text-decoration-none p-0 small">
           <i class="bi bi-trash3 me-1"></i> Desconectar Loja
         </button>
@@ -564,6 +567,7 @@
         </p>
         
         <form method="POST" action="{{ url_for('mercadolivre.conectar_publico') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label small fw-bold text-dark">ID da Conta ou Nickname da Loja</label>
             <input type="text" name="identifier" class="form-control rounded-3 py-2.5" placeholder="Ex: 123456789 ou MINHA_LOJA_OFICIAL" required>
@@ -646,9 +650,13 @@ function gerarNovamenteRespostaIA() {
   const textarea = document.getElementById('modalRespostaGerada');
   loading.classList.remove('d-none');
   
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
   fetch('{{ url_for("mercadolivre.sugerir_resposta_ajax") }}', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
     body: JSON.stringify({ pergunta: currentModalPergunta, item_titulo: currentModalItemId })
   })
   .then(res => res.json())

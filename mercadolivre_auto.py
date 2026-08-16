@@ -103,13 +103,15 @@ def extract_item_id(input_str: str) -> Optional[str]:
     return None
 
 
-def fetch_seller_reputation_data(seller_id: str) -> Dict[str, Any]:
+def fetch_seller_reputation_data(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
     """
-    Busca os dados públicos completos de reputação do vendedor no Mercado Livre.
+    Busca os dados completos de reputação e histórico do vendedor no Mercado Livre.
     GET https://api.mercadolibre.com/users/{seller_id}
     """
     url = f"{ML_API_BASE}/users/{seller_id}"
     headers = {"User-Agent": "ComentsIA-AnalyticsML/1.0"}
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
     
     try:
         resp = requests.get(url, headers=headers, timeout=12)
@@ -326,6 +328,8 @@ def fetch_account_store_ratings_and_items(seller_id: str) -> Dict[str, Any]:
                     "total_reviews": item_rev_count
                 })
 
+            total_sold_quantity = sum(int(item.get("sold_quantity", 0)) for item in results)
+
             store_avg = float(np.mean(ratings_list)) if ratings_list else 4.8
             if sum(breakdown.values()) == 0 and total_reviews > 0:
                 # Distribuição proporcional estimada se o item não detalhar níveis
@@ -339,6 +343,7 @@ def fetch_account_store_ratings_and_items(seller_id: str) -> Dict[str, Any]:
 
             return {
                 "total_active_items": total_items,
+                "total_sold_quantity": total_sold_quantity,
                 "store_rating_average": round(store_avg, 2),
                 "total_store_reviews": total_reviews,
                 "rating_breakdown": breakdown,
@@ -733,9 +738,16 @@ def gerar_pdf_relatorio_mercadolivre(account: MercadoLivreAccount, output: Any =
 
 
 def sync_all_account_data(account: MercadoLivreAccount) -> None:
-    """Executa sincronização completa dos dados da conta do Mercado Livre."""
-    # 1. Reputação
-    data = fetch_seller_reputation_data(account.seller_id)
+    """Executa sincronização completa dos dados e histórico da conta do Mercado Livre."""
+    token = None
+    if account.access_token:
+        try:
+            token = crypto_decrypt(account.access_token)
+        except Exception:
+            token = None
+
+    # 1. Reputação & Histórico
+    data = fetch_seller_reputation_data(account.seller_id, token)
     rep = data.get("seller_reputation") or {}
     account.level_id = rep.get("level_id", account.level_id)
     account.power_seller_status = rep.get("power_seller_status", account.power_seller_status)
@@ -745,10 +757,20 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     account.delayed_rate = float((metrics.get("delayed_handling_time") or {}).get("rate", 0.0))
     account.cancellations_rate = float((metrics.get("cancellations") or {}).get("rate", 0.0))
 
-    transactions = rep.get("transactions") or {}
-    account.completed_transactions = int(transactions.get("completed", 0))
-    account.canceled_transactions = int(transactions.get("canceled", 0))
-    account.total_transactions = int(transactions.get("total", account.completed_transactions + account.canceled_transactions))
+    transactions = rep.get("transactions") or data.get("transactions") or {}
+    metrics_sales = ((metrics.get("sales") or {}).get("completed")) or 0
+    tx_completed = transactions.get("completed")
+
+    completed_val = 0
+    if tx_completed is not None and int(tx_completed) > 0:
+        completed_val = int(tx_completed)
+    elif metrics_sales:
+        completed_val = int(metrics_sales)
+    elif transactions.get("total"):
+        completed_val = int(transactions.get("total"))
+
+    canceled_val = int(transactions.get("canceled") or ((metrics.get("cancellations") or {}).get("value")) or 0)
+    total_val = int(transactions.get("total") or (completed_val + canceled_val))
 
     ratings = transactions.get("ratings") or {}
     account.positive_rating_pct = float(ratings.get("positive", 1.0))
@@ -757,13 +779,6 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     account.raw_reputation_json = json.dumps(data)
 
     # 2. Perguntas
-    token = None
-    if account.access_token:
-        try:
-            token = crypto_decrypt(account.access_token)
-        except Exception:
-            token = None
-
     q_data = fetch_account_questions(account.seller_id, token)
     account.total_questions = q_data["total_questions"]
     account.unanswered_questions = q_data["unanswered_questions"]
@@ -771,12 +786,21 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     account.questions_response_rate = q_data["questions_response_rate"]
     account.recent_questions_json = json.dumps(q_data["recent_questions"], ensure_ascii=False)
 
-    # 3. Avaliações agregadas da loja
+    # 3. Avaliações agregadas da loja e contagem de itens
     store_data = fetch_account_store_ratings_and_items(account.seller_id)
     account.total_active_items = store_data["total_active_items"]
     account.store_rating_average = store_data["store_rating_average"]
     account.total_store_reviews = store_data["total_store_reviews"]
     account.rating_breakdown_json = json.dumps(store_data["rating_breakdown"])
+
+    # Se completed ainda for 0, usa a soma de itens vendidos acumulados nos anúncios da loja
+    if completed_val == 0 and store_data.get("total_sold_quantity", 0) > 0:
+        completed_val = store_data["total_sold_quantity"]
+        total_val = max(total_val, completed_val + canceled_val)
+
+    account.completed_transactions = completed_val
+    account.canceled_transactions = canceled_val
+    account.total_transactions = total_val
 
     # 4. Score de Saúde e Alertas
     health = account.calculate_account_health()
