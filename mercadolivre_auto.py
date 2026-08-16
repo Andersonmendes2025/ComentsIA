@@ -81,11 +81,9 @@ def seguro_latin1(texto: str) -> str:
 
 def get_ml_credentials() -> Tuple[str, str, str]:
     """Retorna client_id, client_secret e redirect_uri do Mercado Livre."""
-    client_id = os.getenv("MERCADOLIVRE_APP_ID", "").strip()
-    client_secret = os.getenv("MERCADOLIVRE_SECRET_KEY", "").strip()
-    redirect_uri = os.getenv("MERCADOLIVRE_REDIRECT_URI", "").strip()
-    
-    # Se não configurado explicitamente, monta com base no domínio
+    client_id = (os.getenv("MERCADOLIVRE_APP_ID") or "207166258593201").strip()
+    client_secret = (os.getenv("MERCADOLIVRE_SECRET_KEY") or "sqjXsL1A45T3yiZKmPpM3HifbrVNdSEs").strip()
+    redirect_uri = (os.getenv("MERCADOLIVRE_REDIRECT_URI") or "https://comentsia.com.br/mercadolivre/callback").strip()
     if not redirect_uri:
         domain = os.getenv("DOMAIN_URL", "https://comentsia.com.br").rstrip("/")
         redirect_uri = f"{domain}/mercadolivre/callback"
@@ -1107,8 +1105,14 @@ def callback_oauth():
     if code_verifier:
         payload["code_verifier"] = code_verifier
 
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+
     try:
-        resp = requests.post(ML_TOKEN_URL, data=payload, timeout=15)
+        resp = requests.post(ML_TOKEN_URL, data=payload, headers=headers, timeout=15)
         if resp.status_code != 200:
             logger.error(f"[MercadoLivre OAuth] Falha na troca do token: {resp.text}")
             flash(f"Falha ao autenticar com o Mercado Livre: {resp.text}", "danger")
