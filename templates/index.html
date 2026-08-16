@@ -300,58 +300,59 @@
 {% block content %}
 <div class="container py-2">
 
-  {% if not logged_in %}
   <!-- =======================================================
        SEÇÃO NÃO LOGADO (LANDING PAGE FUTURISTA GOOGLE CLEAN)
        ======================================================= -->
 
   <!-- Hero Section -->
   <section class="text-center pt-4 pb-5">
-    <div class="live-pill">
+    <div class="live-pill mb-3">
       <span class="pulsing-dot"></span>
-      <span>Inteligência Artificial Integrada ao Google Meu Negócio</span>
+      <span>Inteligência Artificial de Alta Conversão para o Google Meu Negócio</span>
     </div>
 
-    <h1 class="hero-gradient-title">
-      Eleve a reputação da sua empresa com respostas automáticas e inteligentes
+    <h1 class="hero-gradient-title mb-3">
+      Transforme avaliações do Google em mais clientes e vendas no piloto automático
     </h1>
 
-    <p class="hero-subtext">
-      Monitore, interprete e responda todas as avaliações no <strong>Google Meu Negócio</strong> em tempo real com o tom ideal da sua marca e relatórios completos.
+    <p class="hero-subtext mb-4" style="max-width: 780px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+      Monitore, interprete e responda <strong>100% dos seus feedbacks no Google</strong> em segundos com inteligência artificial humanizada. Proteja a nota da sua empresa, converta turistas em múltiplos idiomas e suba para as <strong>primeiras posições do Google Maps</strong>.
     </p>
 
     <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
-      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-4 shadow">
-        <i class="bi bi-google me-2"></i> Conectar com o Google
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-4 py-3 shadow d-inline-flex align-items-center gap-2 rounded-pill fw-semibold">
+        <i class="bi bi-google fs-5"></i> Conectar com o Google Grátis
       </a>
-      <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4">
-        Conhecer os Planos
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4 py-3 rounded-pill fw-semibold">
+        Ver Planos & Recursos
       </a>
     </div>
 
-    <div class="d-flex justify-content-center align-items-center gap-4 text-muted small flex-wrap mt-3">
-      <span><i class="bi bi-shield-check text-success me-1"></i> 100% Conforme LGPD</span>
-      <span><i class="bi bi-check2-circle text-primary me-1"></i> Sem instalação complexa</span>
-      <span><i class="bi bi-star-fill text-warning me-1"></i> Suporte a Multiunidades</span>
+    <div class="d-flex justify-content-center align-items-center gap-4 text-muted small flex-wrap mt-2">
+      <span><i class="bi bi-shield-check text-success me-1"></i> 100% Conforme LGPD e APIs Oficiais</span>
+      <span><i class="bi bi-lightning-charge-fill text-warning me-1"></i> Respostas em menos de 10 segundos</span>
+      <span><i class="bi bi-shop text-primary me-1"></i> Ideal para Lojas, Clínicas e Redes</span>
     </div>
   </section>
 
-  <!-- Grid de Recursos (Futuristic Glass Cards) -->
+  <!-- Grid de Recursos de Alto Impacto (4 Pilares) -->
   <section class="mb-5">
     <div class="text-center mb-4">
-      <h3 class="fw-bold text-dark">Tudo o que você precisa para gerenciar sua presença online</h3>
-      <p class="text-muted">Projetado com velocidade, tecnologia de ponta e foco total em conversão.</p>
+      <h3 class="fw-bold text-dark">Por que as melhores marcas usam o ComentsIA?</h3>
+      <p class="text-muted" style="max-width: 620px; margin: 0 auto;">
+        Tecnologia desenhada para aumentar seu ranqueamento local e fidelizar clientes sem sobrecarregar sua equipe.
+      </p>
     </div>
 
     <div class="row g-4">
       <div class="col-12 col-md-6 col-lg-3">
         <div class="glass-card-futuristic feature-item-card blue">
           <div class="feature-icon-bubble bubble-blue">
-            <i class="bi bi-robot"></i>
+            <i class="bi bi-graph-up-arrow"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">IA com Voz de Marca</h5>
+          <h5 class="fw-bold text-dark mb-2">Topo do Google Maps</h5>
           <p class="text-muted small mb-0">
-            Respostas contextuais, educadas e empáticas que protegem sua autoridade e encantam o cliente.
+            O algoritmo do Google prioriza empresas ativas que respondem todos os feedbacks, gerando até <strong>+144% de visibilidade orgânica</strong>.
           </p>
         </div>
       </div>
@@ -359,11 +360,11 @@
       <div class="col-12 col-md-6 col-lg-3">
         <div class="glass-card-futuristic feature-item-card green">
           <div class="feature-icon-bubble bubble-green">
-            <i class="bi bi-arrow-repeat"></i>
+            <i class="bi bi-shield-heart"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Sincronização 48h</h5>
+          <h5 class="fw-bold text-dark mb-2">Tom Humanizado & Anti-Crise</h5>
           <p class="text-muted small mb-0">
-            Coleta contínua de novas avaliações direto da API oficial do Google sem você precisar conferir manualmente.
+            5 estilos corporativos com empatia psicológica. Trata avaliações negativas com elegância e reverte clientes insatisfeitos em defensores.
           </p>
         </div>
       </div>
@@ -371,11 +372,11 @@
       <div class="col-12 col-md-6 col-lg-3">
         <div class="glass-card-futuristic feature-item-card yellow">
           <div class="feature-icon-bubble bubble-yellow">
-            <i class="bi bi-shop"></i>
+            <i class="bi bi-translate"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Gestão de Filiais</h5>
+          <h5 class="fw-bold text-dark mb-2">Multilíngue Automático</h5>
           <p class="text-muted small mb-0">
-            Painel Matriz com visão consolidada e individual de todas as suas lojas, franquias e filiais.
+            Atenda clientes e turistas internacionais sem esforço: a IA detecta o idioma nativo (EN, ES, FR, DE, IT) e responde com fluência impecável.
           </p>
         </div>
       </div>
@@ -383,11 +384,58 @@
       <div class="col-12 col-md-6 col-lg-3">
         <div class="glass-card-futuristic feature-item-card cyan">
           <div class="feature-icon-bubble bubble-cyan">
-            <i class="bi bi-file-earmark-pdf"></i>
+            <i class="bi bi-buildings"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Relatórios em PDF</h5>
+          <h5 class="fw-bold text-dark mb-2">Matriz & Multi-Filiais</h5>
           <p class="text-muted small mb-0">
-            Diagnósticos executivos com gráficos de sentimentos, notas por período e destaques de atendimento.
+            Gerencie 1, 10 ou centenas de unidades no mesmo painel com relatórios executivos em PDF com 100% de exatidão matemática para diretoria.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Como Funciona em 3 Passos -->
+  <section class="mb-5 py-4 px-3 rounded-4 bg-white border shadow-sm">
+    <div class="text-center mb-4">
+      <span class="badge bg-primary bg-opacity-10 text-primary fw-bold px-3 py-1.5 rounded-pill mb-2">Simplicidade & Velocidade</span>
+      <h3 class="fw-bold text-dark">Como funciona na prática?</h3>
+      <p class="text-muted small">Ativação instantânea em menos de 2 minutos, sem necessidade de treinamento.</p>
+    </div>
+
+    <div class="row g-4 text-center">
+      <div class="col-12 col-md-4">
+        <div class="p-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary fw-bold fs-4 mb-3" style="width: 54px; height: 54px;">
+            1
+          </div>
+          <h5 class="fw-bold text-dark mb-2">Conecte sua Conta</h5>
+          <p class="text-muted small mb-0">
+            Faça login seguro com sua conta do Google Meu Negócio em apenas um clique oficial.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="p-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-10 text-success fw-bold fs-4 mb-3" style="width: 54px; height: 54px;">
+            2
+          </div>
+          <h5 class="fw-bold text-dark mb-2">A IA Assume o Monitoramento</h5>
+          <p class="text-muted small mb-0">
+            A plataforma sincroniza as avaliações e sugere respostas assertivas calibradas com o tom da sua marca.
+          </p>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <div class="p-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10 text-warning fw-bold fs-4 mb-3" style="width: 54px; height: 54px;">
+            3
+          </div>
+          <h5 class="fw-bold text-dark mb-2">Mais Vendas & Reputação</h5>
+          <p class="text-muted small mb-0">
+            Sua nota média sobe, sua empresa ganha relevância máxima no Maps e novos clientes fecham com você.
           </p>
         </div>
       </div>
@@ -438,8 +486,8 @@
           <div class="fs-2 fw-bold text-dark my-2">R$ 0<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>20 avaliações/mês</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Dashboard de métricas</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Personalização de tom</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Dashboard de métricas Google</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Personalização de tom de voz</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Começar Grátis</a>
         </div>
@@ -447,7 +495,7 @@
 
       <div class="col-12 col-md-4">
         <div class="pricing-mini-card highlight">
-          <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-1 bg-primary text-white shadow">Recomendado</span>
+          <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-1 bg-primary text-white shadow">Mais Escolhido</span>
           <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 align-self-start mb-2">Profissional</span>
           <h4 class="fw-bold text-dark mb-1">Pro</h4>
           <div class="fs-2 fw-bold text-dark my-2">R$ 49,99<small class="fs-6 text-muted">/mês</small></div>
@@ -455,7 +503,7 @@
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas com IA Ilimitadas</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Automação Google Meu Negócio</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Contexto e Branding avançados</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas hiper empáticas</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas empáticas & Anti-Crise</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-primary w-100">Assinar Plano Pro</a>
         </div>
@@ -467,9 +515,9 @@
           <h4 class="fw-bold text-dark mb-1">Business</h4>
           <div class="fs-2 fw-bold text-dark my-2">R$ 79,99<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes (Matriz)</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Relatórios Executivos em PDF</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Sincronização prioritária</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Sincronização prioritária 48h</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Suporte VIP dedicado</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Assinar Business</a>
@@ -487,10 +535,10 @@
       </div>
 
       <p class="text-secondary fs-6 leading-relaxed mb-3">
-        A <strong>ComentsIA</strong> é a solução definitiva em inteligência de reputação digital. Criada para ajudar empresas a interpretar feedbacks e responder com velocidade, empatia e assertividade no <strong>Google Meu Negócio</strong>.
+        A <strong>ComentsIA</strong> é a plataforma definitiva em inteligência de reputação e automação de atendimento digital. Criada para empoderar empresas a responderem cada cliente com velocidade, empatia e assertividade estratégica no <strong>Google Meu Negócio</strong>.
       </p>
       <p class="text-secondary fs-6 leading-relaxed mb-4">
-        Hoje, mais de 90% dos consumidores leem avaliações antes de visitar ou comprar de um negócio. Empresas que respondem com regularidade geram maior autoridade no algoritmo de busca local e convertem muito mais clientes.
+        Mais de 90% das decisões de compra no comércio local começam com uma busca no Google Maps. Marcas que respondem ativamente transmitem autoridade, reduzem a perda de clientes e multiplicam suas taxas de conversão de novos visitantes.
       </p>
 
       <div class="row g-3">
@@ -503,19 +551,19 @@
         <div class="col-md-6">
           <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
-            <div><strong>IA Especializada em Atendimento:</strong> Modelos ajustados para responder no português do Brasil com respeito à voz da sua marca.</div>
+            <div><strong>IA Especializada em Conversão:</strong> Respostas contextualizadas que respeitam o vocabulário e o tom da sua marca.</div>
           </div>
         </div>
         <div class="col-md-6">
           <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
-            <div><strong>Diagnóstico e Relatórios:</strong> Identifique reclamações recorrentes, elogie colaboradores e exporte relatórios em PDF.</div>
+            <div><strong>Diagnóstico & Relatórios PDF:</strong> Identifique padrões de elogios e pontos de melhoria com parecer estratégico de IA.</div>
           </div>
         </div>
         <div class="col-md-6">
           <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
-            <div><strong>Segurança e LGPD:</strong> Autenticação direta pelo Google com criptografia de ponta a ponta e respeito à privacidade.</div>
+            <div><strong>Segurança & LGPD:</strong> Integração direta pelas APIs oficiais do Google com criptografia de ponta a ponta.</div>
           </div>
         </div>
       </div>

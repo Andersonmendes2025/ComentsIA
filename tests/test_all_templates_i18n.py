@@ -25,13 +25,29 @@ def setup_db(app):
         db.session.rollback()
         user = User.query.filter_by(id="test_i18n_user").first()
         if not user:
-            user = User(id="test_i18n_user", email="i18n_user@example.com")
+            from datetime import datetime
+            user = User(id="test_i18n_user", email="i18n_user@example.com", terms_accepted_at=datetime.utcnow())
             db.session.add(user)
+        else:
+            from datetime import datetime
+            user.terms_accepted_at = datetime.utcnow()
         
+        from utils.crypto import encrypt
         settings = UserSettings.query.filter_by(user_id="test_i18n_user").first()
         if not settings:
-            settings = UserSettings(user_id="test_i18n_user", plano="pro")
+            settings = UserSettings(
+                user_id="test_i18n_user",
+                plano="pro",
+                business_name=encrypt("Empresa Teste"),
+                contact_info=encrypt("contato@empresa.com"),
+                terms_accepted=True
+            )
             db.session.add(settings)
+        else:
+            settings.business_name = encrypt("Empresa Teste")
+            settings.contact_info = encrypt("contato@empresa.com")
+            settings.terms_accepted = True
+            settings.plano = "pro"
             
         db.session.commit()
         yield
@@ -59,6 +75,9 @@ def test_render_all_authenticated_routes_in_all_languages(app, client):
     """Testa todas as páginas logadas em pt_BR, pt_PT, en, es."""
     with client.session_transaction() as sess:
         sess["user_id"] = "test_i18n_user"
+        sess["_user_id"] = "test_i18n_user"
+        sess["credentials"] = {"token": "mock_token"}
+        sess["terms_accepted"] = True
         sess["user_info"] = {
             "id": "test_i18n_user",
             "email": "i18n_user@example.com",
