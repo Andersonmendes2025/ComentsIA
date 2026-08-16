@@ -56,6 +56,9 @@ def ml_setup(app):
             "total_store_reviews INTEGER DEFAULT 0",
             "rating_breakdown_json TEXT",
             "quality_scores_json TEXT",
+            "total_revenue FLOAT DEFAULT 0.0",
+            "avg_ticket FLOAT DEFAULT 0.0",
+            "billing_summary_json TEXT",
             "health_score INTEGER DEFAULT 100",
             "ai_health_report_json TEXT",
             "ai_report_generated_at TIMESTAMP WITH TIME ZONE"

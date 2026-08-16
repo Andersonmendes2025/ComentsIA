@@ -310,8 +310,10 @@ class MercadoLivreAccount(db.Model):
                 "service": {
                     "score": service_score,
                     "avg_time_min": round(self.avg_response_time_minutes or 0.0, 1),
+                    "avg_response_minutes": round(self.avg_response_time_minutes or 0.0, 1),
                     "response_rate_pct": round(resp_rate_pct, 1),
                     "unanswered_count": self.unanswered_questions or 0,
+                    "unanswered": self.unanswered_questions or 0,
                     "total_count": self.total_questions or 0,
                     "status": "Rápido" if (self.avg_response_time_minutes or 0) <= 20 else "Lento"
                 },
@@ -324,10 +326,13 @@ class MercadoLivreAccount(db.Model):
                 }
             },
             "store_ratings": {
-                "average": self.store_rating_average or 0.0,
+                "average": round(self.store_rating_average or 0.0, 1),
+                "rating_average": round(self.store_rating_average or 0.0, 1),
                 "total_reviews": self.total_store_reviews or 0,
                 "breakdown": self.get_rating_breakdown(),
-                "positive_pct": round((self.positive_rating_pct or 1.0) * 100, 1)
+                "positive_pct": round((self.positive_rating_pct or 1.0) * 100, 1),
+                "neutral_pct": round((self.neutral_rating_pct or 0.0) * 100, 1),
+                "negative_pct": round((self.negative_rating_pct or 0.0) * 100, 1)
             }
         }
 

@@ -1220,9 +1220,22 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
         account.power_seller_status = rep.get("power_seller_status")
 
         metrics = rep.get("metrics") or {}
-        account.claims_rate = float((metrics.get("claims") or {}).get("rate", 0.0))
-        account.delayed_rate = float((metrics.get("delayed_handling_time") or {}).get("rate", 0.0))
-        account.cancellations_rate = float((metrics.get("cancellations") or {}).get("rate", 0.0))
+        
+        def parse_ml_rate(metric_dict):
+            if not metric_dict:
+                return 0.0
+            r = metric_dict.get("rate")
+            if r is None:
+                r = metric_dict.get("value", 0.0)
+            try:
+                val = float(r)
+                return val if val <= 1.0 else (val / 100.0)
+            except Exception:
+                return 0.0
+
+        account.claims_rate = parse_ml_rate(metrics.get("claims"))
+        account.delayed_rate = parse_ml_rate(metrics.get("delayed_handling_time"))
+        account.cancellations_rate = parse_ml_rate(metrics.get("cancellations"))
 
         transactions = rep.get("transactions") or data.get("transactions") or {}
         metrics_sales = ((metrics.get("sales") or {}).get("completed")) or 0
@@ -1294,10 +1307,8 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
                     account.negative_rating_pct = round(orders_data["negative_feedback_count"] / total_fb, 3)
                     account.neutral_rating_pct = round(orders_data["neutral_feedback_count"] / total_fb, 3)
 
-            # Reclamações ativas em tempo real
+            # Reclamações ativas em tempo real (apenas para auditoria de chamados abertos)
             claims_data = fetch_account_claims_data(account.seller_id, token)
-            if claims_data["total_opened"] > 0 and account.completed_transactions > 0:
-                account.claims_rate = round(claims_data["total_opened"] / account.completed_transactions, 4)
 
             # Resumo de Faturamento & Custos (Billing API)
             billing_data = fetch_account_billing_summary(account.seller_id, token)
