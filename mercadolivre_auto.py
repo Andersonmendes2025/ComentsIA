@@ -984,37 +984,39 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     # 1. Reputação & Histórico
     try:
         data = fetch_seller_reputation_data(account.seller_id, token)
+        if data.get("nickname") and not account.nickname.startswith("Conta_"):
+            account.nickname = data["nickname"]
+        if data.get("permalink"):
+            account.permalink = data["permalink"]
+
         rep = data.get("seller_reputation") or {}
-        account.level_id = rep.get("level_id", account.level_id)
-        account.power_seller_status = rep.get("power_seller_status", account.power_seller_status)
+        account.level_id = rep.get("level_id")
+        account.power_seller_status = rep.get("power_seller_status")
 
         metrics = rep.get("metrics") or {}
-        account.claims_rate = float((metrics.get("claims") or {}).get("rate", account.claims_rate or 0.0))
-        account.delayed_rate = float((metrics.get("delayed_handling_time") or {}).get("rate", account.delayed_rate or 0.0))
-        account.cancellations_rate = float((metrics.get("cancellations") or {}).get("rate", account.cancellations_rate or 0.0))
+        account.claims_rate = float((metrics.get("claims") or {}).get("rate", 0.0))
+        account.delayed_rate = float((metrics.get("delayed_handling_time") or {}).get("rate", 0.0))
+        account.cancellations_rate = float((metrics.get("cancellations") or {}).get("rate", 0.0))
 
         transactions = rep.get("transactions") or data.get("transactions") or {}
         metrics_sales = ((metrics.get("sales") or {}).get("completed")) or 0
         tx_completed = transactions.get("completed")
 
-        completed_val = account.completed_transactions or 0
-        if tx_completed is not None and int(tx_completed) > 0:
+        completed_val = 0
+        if tx_completed is not None:
             completed_val = int(tx_completed)
         elif metrics_sales:
             completed_val = int(metrics_sales)
         elif transactions.get("total"):
             completed_val = int(transactions.get("total"))
 
-        canceled_val = int(transactions.get("canceled") or ((metrics.get("cancellations") or {}).get("value")) or (account.canceled_transactions or 0))
+        canceled_val = int(transactions.get("canceled") or ((metrics.get("cancellations") or {}).get("value")) or 0)
         total_val = int(transactions.get("total") or (completed_val + canceled_val))
 
         ratings = transactions.get("ratings") or {}
-        if ratings.get("positive") is not None:
-            account.positive_rating_pct = float(ratings.get("positive", 1.0))
-        if ratings.get("negative") is not None:
-            account.negative_rating_pct = float(ratings.get("negative", 0.0))
-        if ratings.get("neutral") is not None:
-            account.neutral_rating_pct = float(ratings.get("neutral", 0.0))
+        account.positive_rating_pct = float(ratings.get("positive", 1.0))
+        account.negative_rating_pct = float(ratings.get("negative", 0.0))
+        account.neutral_rating_pct = float(ratings.get("neutral", 0.0))
 
         account.completed_transactions = completed_val
         account.canceled_transactions = canceled_val
@@ -1412,15 +1414,40 @@ def callback_oauth():
         expires_in = token_data.get("expires_in", 21600)
         seller_id = str(token_data.get("user_id"))
 
+        nickname = f"Vendedor_{seller_id}"
+        permalink = f"https://www.mercadolivre.com.br/perfil/{nickname}"
+        site_id = "MLB"
+
+        headers_me = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            "User-Agent": "ComentsIA/1.0"
+        }
+        try:
+            resp_me = requests.get(f"{ML_API_BASE}/users/me", headers=headers_me, timeout=10)
+            if resp_me.status_code == 200:
+                me_data = resp_me.json()
+                nickname = me_data.get("nickname") or nickname
+                permalink = me_data.get("permalink") or permalink
+                site_id = me_data.get("site_id") or site_id
+        except Exception as e:
+            logger.debug(f"[MercadoLivre OAuth] /users/me falhou: {e}")
+
         account = MercadoLivreAccount.query.filter_by(user_id=str(user_id), seller_id=seller_id).first()
         if not account:
             account = MercadoLivreAccount(
                 user_id=str(user_id),
                 seller_id=seller_id,
-                nickname=f"Vendedor_{seller_id}"
+                nickname=nickname,
+                permalink=permalink,
+                site_id=site_id
             )
             db.session.add(account)
             db.session.commit()
+        else:
+            account.nickname = nickname
+            account.permalink = permalink
+            account.site_id = site_id
 
         if access_token:
             account.access_token = crypto_encrypt(access_token)
