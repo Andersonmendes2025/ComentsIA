@@ -88,7 +88,7 @@ def test_render_all_authenticated_routes_in_all_languages(app, client):
     auth_routes = [
         "/",
         "/reviews",
-        "/dashboard",
+        "/relatorio",
         "/integracoes",
         "/planos",
         "/ajuda/",
