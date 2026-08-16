@@ -234,49 +234,41 @@ def test_gerar_pdf_relatorio_mercadolivre(app):
         assert pdf_bytes.startswith(b"%PDF")
 
 
-def test_conectar_publico_and_dashboard_flow(app, client):
-    """Testa fluxo de conexão pública de conta e carregamento do Dashboard."""
-    mock_seller_response = {
-        "id": 123456789,
-        "nickname": "LOJA_OFICIAL_CALCADOS",
-        "site_id": "MLB",
-        "permalink": "https://www.mercadolivre.com.br/perfil/LOJA_OFICIAL_CALCADOS",
-        "seller_reputation": {
-            "level_id": "5_green",
-            "power_seller_status": "gold",
-            "metrics": {
-                "claims": {"rate": 0.015},
-                "delayed_handling_time": {"rate": 0.08},
-                "cancellations": {"rate": 0.005}
-            },
-            "transactions": {
-                "completed": 4500,
-                "canceled": 50,
-                "total": 4550,
-                "ratings": {"positive": 0.98, "negative": 0.01, "neutral": 0.01}
-            }
-        }
-    }
+def test_conectar_oauth_and_dashboard_flow(app, client):
+    """Testa fluxo de conexão via OAuth oficial e carregamento do Dashboard."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = "test_ml_user"
+        sess["user_info"] = {"id": "test_ml_user", "email": "ml_user@example.com"}
 
-    with patch("mercadolivre_auto.requests.get") as mock_get:
-        mock_res = MagicMock()
-        mock_res.status_code = 200
-        mock_res.json.return_value = dict(mock_seller_response)
-        mock_get.return_value = mock_res
+    # 1. Rota de conexão pública redireciona para OAuth
+    res_pub = client.post("/mercadolivre/conectar_publico", data={"identifier": "123456789"}, follow_redirects=False)
+    assert res_pub.status_code == 302
+    assert "/mercadolivre/conectar" in res_pub.location
 
-        with client.session_transaction() as sess:
-            sess["user_id"] = "test_ml_user"
-            sess["user_info"] = {"id": "test_ml_user", "email": "ml_user@example.com"}
+    # 2. Rota de OAuth oficial inicia o fluxo redirecionando para o Mercado Livre
+    res_oauth = client.get("/mercadolivre/conectar", follow_redirects=False)
+    assert res_oauth.status_code == 302
+    assert "auth.mercadolivre.com.br/authorization" in res_oauth.location
 
-        res_post = client.post("/mercadolivre/conectar_publico", data={"identifier": "123456789"}, follow_redirects=True)
-        assert res_post.status_code == 200
-        html = res_post.data.decode("utf-8")
-        assert "LOJA_OFICIAL_CALCADOS" in html
-        assert "Saúde & Performance da Loja" in html or "Saúde" in html
+    # 3. Conta conectada carrega perfeitamente no Dashboard
+    with app.app_context():
+        account = MercadoLivreAccount(
+            user_id="test_ml_user",
+            seller_id="123456789",
+            nickname="LOJA_OFICIAL_CALCADOS",
+            permalink="https://www.mercadolivre.com.br/perfil/LOJA_OFICIAL_CALCADOS",
+            level_id="5_green",
+            power_seller_status="gold",
+            claims_rate=0.015,
+            delayed_rate=0.08,
+            cancellations_rate=0.005,
+            health_score=92
+        )
+        db.session.add(account)
+        db.session.commit()
 
-        with app.app_context():
-            acc = MercadoLivreAccount.query.filter_by(user_id="test_ml_user", seller_id="123456789").first()
-            assert acc is not None
-            assert acc.level_id == "5_green"
-            assert acc.power_seller_status == "gold"
-            assert acc.health_score > 0
+    res_dash = client.get(f"/mercadolivre/dashboard?account_id={account.id}")
+    assert res_dash.status_code == 200
+    html = res_dash.data.decode("utf-8")
+    assert "LOJA_OFICIAL_CALCADOS" in html
+    assert "Saúde & Performance da Loja" in html or "Saúde" in html
