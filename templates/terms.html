@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Termos e Condições de Uso | ComentsIA{% endblock %}
+{% block title %}{{ t('terms.title') }} | ComentsIA{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -98,77 +98,75 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container py-3">
     <div class="legal-doc-card">
-        <h1 class="legal-doc-title">Termos e Condições de Uso</h1>
-        <div class="legal-doc-date">Última atualização: 18 de Julho de 2025 &bull; Versão 2.4</div>
+        <h1 class="legal-doc-title">{{ t('terms.title') }}</h1>
+        <div class="legal-doc-date">{{ t('terms.last_updated') }}</div>
         
-        <div class="legal-section-title">1. Aceitação dos Termos</div>
+        <div class="legal-section-title">{{ t('terms.section1_title') }}</div>
         <p>
-            Ao criar uma conta, acessar ou utilizar o ComentsIA, você expressamente concorda com estes Termos e Condições, a Política de Privacidade, as Diretrizes do Google e demais normas aplicáveis, conforme previsto na legislação brasileira, incluindo a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018) e o Marco Civil da Internet (Lei nº 12.965/2014).<br>
-            Caso não concorde com algum termo aqui disposto, <span class="item-bold">não utilize os serviços da plataforma.</span>
+            {{ t('terms.section1_p1') }}<br>
+            <span class="item-bold">{{ t('terms.section1_p2') }}</span>
         </p>
 
-        <div class="legal-section-title">2. Descrição do Serviço</div>
+        <div class="legal-section-title">{{ t('terms.section2_title') }}</div>
         <p>
-            O ComentsIA é uma plataforma online que utiliza inteligência artificial avançada para auxiliar empresas a gerenciar, analisar e responder avaliações do Google Meu Negócio, fornecendo relatórios executivos, diagnósticos de sentimento e sugestões personalizadas de resposta baseadas em dados coletados via integração autorizada com as APIs oficiais do Google.<br>
-            O serviço está disponível exclusivamente para usuários que aceitarem integralmente estes termos e fornecerem as informações obrigatórias de cadastro.
+            {{ t('terms.section2_p1') }}<br>
+            {{ t('terms.section2_p2') }}
         </p>
 
-        <div class="legal-section-title">3. Obrigações e Responsabilidades do Usuário</div>
+        <div class="legal-section-title">{{ t('terms.section3_title') }}</div>
         <ul>
-            <li><span class="item-bold">Veracidade das Informações:</span> O usuário compromete-se a fornecer informações verídicas, completas e atualizadas em seu cadastro.</li>
-            <li><span class="item-bold">Consentimento de Dados:</span> O usuário autoriza o ComentsIA a coletar, armazenar e processar dados de avaliações recebidas em suas contas Google autorizadas.</li>
-            <li><span class="item-bold">Uso Adequado:</span> É proibido utilizar a plataforma para fins ilícitos, fraudulentos, ofensivos ou que violem direitos de terceiros, normas legais, ou as Diretrizes do Google para conteúdo gerado por IA (<a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">Google Content Policy</a>).</li>
-            <li><span class="item-bold">Confidencialidade:</span> O usuário é responsável por manter a confidencialidade das credenciais de acesso à sua conta.</li>
+            <li><span class="item-bold">{{ t('terms.section3_item1_label') }}</span> {{ t('terms.section3_item1_desc') }}</li>
+            <li><span class="item-bold">{{ t('terms.section3_item2_label') }}</span> {{ t('terms.section3_item2_desc') }}</li>
+            <li><span class="item-bold">{{ t('terms.section3_item3_label') }}</span> {{ t('terms.section3_item3_desc') }} (<a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">Google Content Policy</a>).</li>
+            <li><span class="item-bold">{{ t('terms.section3_item4_label') }}</span> {{ t('terms.section3_item4_desc') }}</li>
         </ul>
 
-        <div class="legal-section-title">4. Tratamento de Dados e Privacidade (LGPD)</div>
+        <div class="legal-section-title">{{ t('terms.section4_title') }}</div>
         <p>
-            O ComentsIA adota todas as medidas técnicas e administrativas para proteger os dados pessoais dos usuários, em conformidade com a <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">Lei Geral de Proteção de Dados Pessoais - LGPD</a>.<br>
-            Os dados coletados são utilizados exclusivamente para oferecer e aprimorar os serviços, sendo compartilhados apenas mediante consentimento expresso ou por determinação legal.<br>
-            O tratamento de dados é fundamentado no consentimento do usuário e na necessidade de execução do serviço contratado (LGPD Art. 7º, I e V). O usuário pode solicitar, a qualquer tempo, acesso, correção, portabilidade ou exclusão dos seus dados pessoais.
+            {{ t('terms.section4_p1') }}<br>
+            {{ t('terms.section4_p2') }}
         </p>
 
-        <div class="legal-section-title">5. Uso das APIs do Google e Diretrizes</div>
+        <div class="legal-section-title">{{ t('terms.section5_title') }}</div>
         <p>
-            O ComentsIA realiza integrações apenas com contas autorizadas pelo próprio usuário, em total conformidade com as <a href="https://developers.google.com/terms" target="_blank">Diretrizes de Dados do Google</a> e políticas de privacidade das APIs Google.<br>
-            O ComentsIA <b>não realiza coleta ou uso indevido de informações sensíveis, privadas ou de terceiros sem autorização expressa.</b>
+            {{ t('terms.section5_p1') }}<br>
+            <b>{{ t('terms.section5_p2') }}</b>
         </p>
 
-        <div class="legal-section-title">6. Direitos Autorais e Propriedade Intelectual</div>
+        <div class="legal-section-title">{{ t('terms.section6_title') }}</div>
         <p>
-            Todos os conteúdos, relatórios, algoritmos, códigos, layouts e marcas do ComentsIA pertencem à plataforma e são protegidos pelas leis de propriedade intelectual.<br>
-            O usuário <b>não está autorizado</b> a reproduzir, copiar, distribuir, modificar, vender ou criar obras derivadas dos conteúdos e funcionalidades sem autorização prévia e expressa.
+            {{ t('terms.section6_p1') }}<br>
+            {{ t('terms.section6_p2') }}
         </p>
 
-        <div class="legal-section-title">7. Limitação de Responsabilidade</div>
+        <div class="legal-section-title">{{ t('terms.section7_title') }}</div>
         <p>
-            O ComentsIA emprega os melhores esforços técnicos para garantir alta disponibilidade, mas se exime de responsabilidades por danos decorrentes de instabilidades externas ou indisponibilidade pontual das APIs do Google.<br>
-            O usuário reconhece que respostas e análises geradas por IA são sugestões automáticas personalizadas, cabendo ao usuário a supervisão e decisão final sobre o envio e publicação.
+            {{ t('terms.section7_p1') }}<br>
+            {{ t('terms.section7_p2') }}
         </p>
 
-        <div class="legal-section-title">8. Modificações dos Termos</div>
+        <div class="legal-section-title">{{ t('terms.section8_title') }}</div>
         <p>
-            O ComentsIA pode alterar estes Termos e Condições a qualquer momento, mediante aviso prévio por e-mail, notificação na plataforma ou atualização neste endereço.<br>
-            O uso continuado dos serviços após alterações implica aceitação das novas condições.
+            {{ t('terms.section8_p1') }}
         </p>
 
-        <div class="legal-section-title">9. Legislação e Foro</div>
+        <div class="legal-section-title">{{ t('terms.section9_title') }}</div>
         <p>
-            Estes Termos são regidos pelas leis brasileiras, em especial pela <a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD</a> e pelo <a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet</a>. Em caso de litígio, fica eleito o foro da comarca de domicílio do usuário.
+            {{ t('terms.section9_p1') }}
         </p>
 
         <div class="links-uteis-box">
-            <h6><i class="bi bi-bookmark-check-fill me-2"></i>Referências Oficiais e Links Úteis</h6>
+            <h6><i class="bi bi-bookmark-check-fill me-2"></i>{{ t('terms.links_title') }}</h6>
             <ul class="mb-2">
-                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">LGPD - Lei Geral de Proteção de Dados Pessoais</a></li>
-                <li><a href="https://policies.google.com/" target="_blank">Política de Privacidade e Termos de Serviço do Google</a></li>
-                <li><a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">Diretrizes de Conteúdo do Google Meu Negócio</a></li>
-                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">Marco Civil da Internet (Lei nº 12.965/2014)</a></li>
+                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm" target="_blank">{{ t('terms.link_lgpd') }}</a></li>
+                <li><a href="https://policies.google.com/" target="_blank">{{ t('terms.link_google_privacy') }}</a></li>
+                <li><a href="https://support.google.com/contributionpolicy/answer/7400114?hl=pt-BR" target="_blank">{{ t('terms.link_google_content') }}</a></li>
+                <li><a href="https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm" target="_blank">{{ t('terms.link_marco_civil') }}</a></li>
             </ul>
             <div class="small text-muted mt-2">
-                Ao utilizar a plataforma ComentsIA, você declara ter lido, compreendido e concordado com estes Termos e Condições de Uso.
+                {{ t('terms.disclaimer') }}
             </div>
         </div>
     </div>

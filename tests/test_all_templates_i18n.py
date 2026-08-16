@@ -66,6 +66,7 @@ def test_render_all_public_routes_in_all_languages(client):
         "/planos",
         "/quem-somos",
         "/privacy-policy",
+        "/terms",
     ]
     
     for lang_code in SUPPORTED_LANGUAGES:
