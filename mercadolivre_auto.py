@@ -587,6 +587,124 @@ def fetch_item_reviews_data(item_id: str) -> Dict[str, Any]:
     return {"reviews": [], "rating_average": 0.0, "paging": {"total": 0}, "rating_levels": {}}
 
 
+def fetch_item_purchase_experience(item_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Busca a Experiência de Compra (Purchase Experience / Reputação por Item) oficial:
+    GET /reputation/items/{item_id}/purchase_experience/integrators?locale=pt_BR
+    """
+    if not access_token:
+        return {}
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+    try:
+        url = f"{ML_API_BASE}/reputation/items/{item_id}/purchase_experience/integrators?locale=pt_BR"
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            return resp.json()
+        elif resp.status_code == 302:
+            loc = resp.headers.get("Location")
+            if loc:
+                resp_up = requests.get(loc, headers=headers, timeout=10)
+                if resp_up.status_code == 200:
+                    return resp_up.json()
+    except Exception as e:
+        logger.debug(f"[MercadoLivre Experience] Falha ao buscar experiência do item {item_id}: {e}")
+    return {}
+
+
+def fetch_account_claims_data(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Busca as Reclamações Abertas (Claims) oficiais do vendedor via Post-Purchase v1:
+    GET /post-purchase/v1/claims/search?players.user_id={seller_id}&players.role=respondent&status=opened&limit=30
+    """
+    if not access_token:
+        return {"total_opened": 0, "affecting_reputation_count": 0, "claims": []}
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+    try:
+        url = f"{ML_API_BASE}/post-purchase/v1/claims/search?players.user_id={seller_id}&players.role=respondent&status=opened&limit=30"
+        resp = requests.get(url, headers=headers, timeout=12)
+        if resp.status_code == 200:
+            data = resp.json()
+            claims_list = data.get("data") or []
+            total_opened = int((data.get("paging") or {}).get("total", len(claims_list)))
+            
+            affecting_count = 0
+            parsed_claims = []
+            
+            for c in claims_list[:10]:
+                claim_id = c.get("id")
+                resource_id = c.get("resource_id")
+                stage = c.get("stage")
+                type_ = c.get("type")
+                reason_id = c.get("reason_id")
+                date_created = c.get("date_created")
+                
+                affects_rep = False
+                try:
+                    resp_aff = requests.get(f"{ML_API_BASE}/post-purchase/v1/claims/{claim_id}/affects-reputation", headers=headers, timeout=8)
+                    if resp_aff.status_code == 200:
+                        aff_data = resp_aff.json()
+                        if aff_data.get("affects_reputation") == "affected":
+                            affects_rep = True
+                            affecting_count += 1
+                except Exception:
+                    pass
+
+                parsed_claims.append({
+                    "id": claim_id,
+                    "order_id": resource_id,
+                    "stage": stage,
+                    "type": type_,
+                    "reason_id": reason_id,
+                    "affects_reputation": affects_rep,
+                    "date_created": date_created
+                })
+
+            return {
+                "total_opened": total_opened,
+                "affecting_reputation_count": affecting_count,
+                "claims": parsed_claims
+            }
+    except Exception as e:
+        logger.debug(f"[MercadoLivre Claims] Erro ao buscar reclamações: {e}")
+
+    return {"total_opened": 0, "affecting_reputation_count": 0, "claims": []}
+
+
+def fetch_account_visits_data(seller_id: str, access_token: Optional[str] = None) -> int:
+    """
+    Busca o total de visitas na conta do vendedor nos últimos 30 dias:
+    GET /users/{seller_id}/items_visits?date_from=...&date_to=...
+    """
+    if not access_token:
+        return 0
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+    try:
+        now = default_brt_now()
+        date_to = now.strftime("%Y-%m-%d")
+        date_from = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        url = f"{ML_API_BASE}/users/{seller_id}/items_visits?date_from={date_from}T00:00:00Z&date_to={date_to}T00:00:00Z"
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            return int(resp.json().get("total_visits", 0))
+    except Exception as e:
+        logger.debug(f"[MercadoLivre Visits] Erro ao buscar visitas: {e}")
+    return 0
+
+
 def generate_account_health_ai_report(account: MercadoLivreAccount) -> Dict[str, Any]:
     """
     Gera o Parecer Estratégico de Saúde da Conta por IA (GPT-4o / Gemini).
@@ -1098,8 +1216,13 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
                     account.positive_rating_pct = round(orders_data["positive_feedback_count"] / total_fb, 3)
                     account.negative_rating_pct = round(orders_data["negative_feedback_count"] / total_fb, 3)
                     account.neutral_rating_pct = round(orders_data["neutral_feedback_count"] / total_fb, 3)
+
+            # Reclamações ativas em tempo real
+            claims_data = fetch_account_claims_data(account.seller_id, token)
+            if claims_data["total_opened"] > 0 and account.completed_transactions > 0:
+                account.claims_rate = round(claims_data["total_opened"] / account.completed_transactions, 4)
     except Exception as e:
-        logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais: {e}")
+        logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais e reclamações: {e}")
 
     # 5. Score de Saúde e Alertas
     health = account.calculate_account_health()
