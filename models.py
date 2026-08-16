@@ -78,6 +78,14 @@ class Review(db.Model):
         nullable=True
     )
 
+    # FK para IFoodMerchant (iFood)
+    ifood_merchant_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ifood_merchants.id"),
+        index=True,
+        nullable=True
+    )
+
     @property
     def clean_text(self):
         from services.ai_service import limpar_texto_review
@@ -87,6 +95,43 @@ class Review(db.Model):
     def parsed_text(self):
         from services.ai_service import parse_review_text
         return parse_review_text(self.text)
+
+
+class IFoodMerchant(db.Model):
+    __tablename__ = "ifood_merchants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id"), index=True, nullable=False)
+
+    # Dados do iFood
+    merchant_id = db.Column(db.String(255), nullable=False, index=True) # UUID da loja
+    name = db.Column(db.String(255), nullable=True)                      # Nome da loja
+    corporate_name = db.Column(db.String(255), nullable=True)            # Razão social
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(50), nullable=True)
+    
+    # Tokens OAuth criptografados
+    access_token = db.Column(db.Text, nullable=True)
+    refresh_token = db.Column(db.Text, nullable=True)
+    token_expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Configurações de Resposta e Automação
+    is_active = db.Column(db.Boolean, default=True)
+    auto_reply_enabled = db.Column(db.Boolean, default=True)
+    tone = db.Column(db.String(32), default="amigavel")
+    idioma_resposta = db.Column(db.String(50), default="Português (Brasil)")
+    default_greeting = db.Column(db.String(255), default="Olá")
+    default_closing = db.Column(db.String(255), default="Equipe")
+    contexto_personalizado = db.Column(db.Text, nullable=True)
+    delay_minutes = db.Column(db.Integer, default=5)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=default_brt_now)
+    last_sync_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "merchant_id", name="uq_user_ifood_merchant"),
+    )
+    reviews = relationship("Review", backref="ifood_merchant", lazy="dynamic")
 
 
 class HistoricalSyncPrice(db.Model):
@@ -123,8 +168,13 @@ class UserSettings(db.Model):
     is_parent = db.Column(db.Boolean, default=False)
     parent_user_id = db.Column(db.String(150), nullable=True)
     
-    # 👇 NOVA COLUNA ADICIONADA AQUI 👇
+    # Idioma de resposta da IA
     idioma_resposta = db.Column(db.String(50), default="Português (Brasil)")
+
+    # Add-on iFood (R$ 30,00/mês)
+    has_addon_ifood = db.Column(db.Boolean, default=False)
+    addon_ifood_subscription_id = db.Column(db.String(255), nullable=True)
+    addon_ifood_until = db.Column(db.DateTime, nullable=True)
 
     # Tour de onboarding — marca True após o usuário concluir ou pular o tour
     onboarding_done = db.Column(db.Boolean, default=False)

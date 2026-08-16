@@ -8,43 +8,42 @@
     <div class="card-body">
       <h5 class="card-title mb-1">
         <i class="bi bi-info-circle text-primary me-2"></i>
-        Como ativar a automação na sua ficha do Google
+        {{ t('google_auto.how_to_activate_title') }}
       </h5>
       <p class="text-muted" style="max-width: 620px;">
-        Para que a ComentsIA consiga sincronizar e responder automaticamente suas avaliações,
-        você precisa mover sua ficha para um <strong>grupo de locais</strong> no Google Business.
+        {{ t('google_auto.how_to_activate_desc') }}
       </p>
 
       <button class="btn btn-outline-primary w-100 d-flex align-items-center justify-content-center gap-2"
               data-bs-toggle="collapse" 
               data-bs-target="#tutorialGBP"
               aria-expanded="false">
-        <i class="bi bi-chevron-down"></i> Mostrar passo a passo
+        <i class="bi bi-chevron-down"></i> {{ t('google_auto.show_step_by_step') }}
       </button>
 
       <div id="tutorialGBP" class="collapse mt-3">
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">1️⃣ Abra o gerenciador oficial do Google Business</h6>
-          <p class="text-muted">Acesse o painel de locais do Google pelo link abaixo:</p>
+          <h6 class="fw-bold mb-2">{{ t('google_auto.step1_title') }}</h6>
+          <p class="text-muted">{{ t('google_auto.step1_desc') }}</p>
           <a href="https://business.google.com/locations" target="_blank" class="btn btn-sm btn-primary">
-            Abrir painel do Google &nbsp; <i class="bi bi-box-arrow-up-right"></i>
+            {{ t('google_auto.step1_btn') }} &nbsp; <i class="bi bi-box-arrow-up-right"></i>
           </a>
           <p class="mt-2 text-muted small">
-            ⚠️ Certifique-se de estar logado com o <strong>mesmo Gmail que criou sua conta na ComentsIA</strong>.
+            {{ t('google_auto.step1_warn') }}
           </p>
           <img src="{{ url_for('static', filename='step1.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">2️⃣ Clique em <strong>Criar Grupo</strong> na parte superior</h6>
+          <h6 class="fw-bold mb-2">{{ t('google_auto.step2_title') }}</h6>
           <img src="{{ url_for('static', filename='step2.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
         <div class="tutorial-step mb-4">
-          <h6 class="fw-bold mb-2">3️⃣ Mova sua ficha para o grupo criado</h6>
+          <h6 class="fw-bold mb-2">{{ t('google_auto.step3_title') }}</h6>
           <img src="{{ url_for('static', filename='step3.png') }}" class="img-fluid rounded shadow-sm mt-3">
         </div>
         <div class="alert alert-success mt-3">
           <i class="bi bi-check-circle-fill me-1"></i>
-          Pronto! Sua ficha está conectada corretamente.
+          {{ t('google_auto.step_done') }}
         </div>
       </div>
     </div>
@@ -58,10 +57,10 @@
         <div class="mb-3">
           <h5 class="card-title mb-1">
             <i class="bi bi-geo-alt-fill text-primary me-2"></i>
-            Ficha Google ativa
+            {{ t('google_auto.active_location_title') }}
           </h5>
           <p class="text-muted small mb-0">
-            Esta é a ficha atualmente monitorada e automatizada pela ComentsIA.
+            {{ t('google_auto.active_location_desc') }}
           </p>
         </div>
 
@@ -74,7 +73,7 @@
               <div>
                 <h6 class="fw-bold text-dark mb-0">{{ ficha_ativa.location_name }}</h6>
                 <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.75rem;">
-                  <i class="bi bi-check-circle-fill me-1"></i> Monitoramento Ativo
+                  <i class="bi bi-check-circle-fill me-1"></i> {{ t('google_auto.monitoring_active') }}
                 </span>
                 <small class="text-muted ms-2 d-none d-sm-inline">ID: {{ ficha_ativa.location_id }}</small>
               </div>
@@ -82,7 +81,7 @@
 
             <div class="mt-3 mt-sm-0">
               <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-sm btn-outline-secondary bg-light border-0 text-dark fw-semibold">
-                <i class="bi bi-arrow-repeat me-1"></i> Trocar ficha
+                <i class="bi bi-arrow-repeat me-1"></i> {{ t('google_auto.change_location_btn') }}
               </a>
             </div>
           </div>
@@ -90,8 +89,8 @@
           <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-0" role="alert">
             <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
             <div>
-              <strong>Nenhuma ficha ativa.</strong><br>
-              <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="alert-link">Clique aqui para selecionar uma ficha</a>.
+              <strong>{{ t('google_auto.no_active_location') }}</strong><br>
+              <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="alert-link">{{ t('google_auto.click_to_select') }}</a>.
             </div>
           </div>
         {% endif %}
@@ -103,16 +102,16 @@
       <div>
         <h2 class="mb-1">
           <i class="bi bi-magic me-2 text-primary"></i>
-          Central de Automação
+          {{ t('google_auto.center_title') }}
         </h2>
         <p class="text-muted mb-0" style="max-width: 640px;">
-          Configure a inteligência da ComentsIA para monitorar e responder automaticamente às suas avaliações.
+          {{ t('google_auto.center_desc') }}
         </p>
       </div>
       <div class="d-none d-md-block">
         <div class="badge bg-primary-subtle text-primary fw-semibold px-3 py-2 rounded-pill">
           <i class="bi bi-lightning-charge-fill me-1"></i>
-          Automação avançada
+          {{ t('google_auto.advanced_badge') }}
         </div>
       </div>
     </div>
@@ -128,10 +127,10 @@
           <div>
             <h5 class="card-title mb-1">
               <i class="bi bi-sliders me-2 text-primary"></i>
-              Status da Automação
+              {{ t('google_auto.status_title') }}
             </h5>
             <p class="text-muted mb-0" style="max-width: 520px;">
-              Ao ativar, a ComentsIA responderá automaticamente todas as novas avaliações seguindo suas configurações.
+              {{ t('google_auto.status_desc') }}
             </p>
           </div>
         </div>
@@ -148,15 +147,15 @@
             
             <div class="ms-3">
               <label class="form-check-label fw-bold text-dark mb-0" for="ativar" style="font-size: 1.05rem;">
-                Ativar Respostas Automáticas
+                {{ t('google_auto.enable_replies') }}
               </label>
               {% if not ficha_ativa %}
                 <small class="text-danger d-block mt-1">
-                  <i class="bi bi-lock-fill me-1"></i> Selecione uma ficha Google ativa acima para habilitar.
+                  <i class="bi bi-lock-fill me-1"></i> {{ t('google_auto.select_active_warn') }}
                 </small>
               {% else %}
                 <small class="text-muted d-block">
-                  O sistema verificará novas avaliações a cada 24h.
+                  {{ t('google_auto.interval_note') }}
                 </small>
               {% endif %}
             </div>
@@ -168,7 +167,7 @@
     <div class="text-end">
       <button type="submit" class="btn btn-primary px-4 py-2 fw-bold shadow-sm" id="saveConfigBtn">
         <i class="bi bi-save me-1"></i>
-        Salvar Configurações
+        {{ t('google_auto.save_config_btn') }}
       </button>
     </div>
   </form>
@@ -179,17 +178,17 @@
         <div>
           <h5 class="card-title mb-1">
             <i class="bi bi-arrow-counterclockwise me-2 text-primary"></i>
-            Sincronização Histórica de Avaliações
+            {{ t('google_auto.historical_title') }}
           </h5>
           <p class="text-muted mb-0" style="max-width: 560px;">
-            Reimporte avaliações antigas do Google Business com todo o cuidado, permitindo que a ComentsIA responda e organize seu histórico.
+            {{ t('google_auto.historical_desc') }}
           </p>
         </div>
 
         {% if settings.plano == "free" %}
         <div class="mt-3 mt-md-0">
           <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 rounded-pill">
-            <i class="bi bi-lock-fill me-1"></i> Exclusivo Premium
+            <i class="bi bi-lock-fill me-1"></i> {{ t('google_auto.premium_exclusive') }}
           </span>
         </div>
         {% endif %}
@@ -198,7 +197,7 @@
       {% if ficha_ativa %}
         <div class="alert alert-light border border-info-subtle text-info-emphasis small mb-4 d-flex align-items-center">
           <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-          <div>A sincronização será aplicada à ficha: <strong>{{ ficha_ativa.location_name }}</strong></div>
+          <div>{{ t('google_auto.applied_to') }} <strong>{{ ficha_ativa.location_name }}</strong></div>
         </div>
       {% endif %}
 
@@ -206,7 +205,7 @@
               class="btn btn-outline-primary w-100 py-2 border-dashed"
               {% if settings.plano == "free" %} disabled style="opacity:0.6; cursor:not-allowed;"{% endif %}>
         <i class="bi bi-calendar-range me-2"></i>
-        Exibir opções de sincronização histórica
+        {{ t('google_auto.show_historical_options') }}
       </button>
 
       <div id="historicOptions" class="mt-4 collapse">
@@ -218,12 +217,12 @@
             <div class="historico-card d-flex flex-column align-items-stretch border rounded-3 p-3 shadow-sm position-relative bg-white text-start">
               
               <div class="w-100 mb-2 d-flex justify-content-between align-items-center">
-                <strong class="fs-6 text-dark">{{ dias }} dias de histórico</strong>
-                <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size: 0.65rem;">Curadoria retroativa</span>
+                <strong class="fs-6 text-dark">{{ dias }} {{ t('google_auto.days_history') }}</strong>
+                <span class="badge bg-primary-subtle text-primary-emphasis" style="font-size: 0.65rem;">{{ t('google_auto.retro_curation') }}</span>
               </div>
               
               <p class="text-muted mb-3 small" style="line-height: 1.4;">
-                Importação das avaliações publicadas nos últimos {{ dias }} dias, com respostas geradas e registradas diretamente na sua conta.
+                {{ t('google_auto.import_desc', days=dias) }}
               </p>
               
               <div class="mt-auto">
@@ -236,13 +235,13 @@
                         data-period="{{ dias }}"
                         {% if settings.plano == "free" %} disabled {% endif %}>
                   <i class="bi bi-credit-card-2-front me-2"></i>
-                  Adquirir sincronização
+                  {{ t('google_auto.buy_sync') }}
                 </button>
 
                 <button class="btn btn-success w-100 sync-after-btn d-none fw-bold"
                         data-period="{{ dias }}">
                   <i class="bi bi-cloud-arrow-down-fill me-2"></i>
-                  Iniciar agora
+                  {{ t('google_auto.start_now') }}
                 </button>
               </div>
             </div>
@@ -250,7 +249,7 @@
         </div>
         
         <div class="text-muted small mt-3">
-          <i class="bi bi-info-circle me-1"></i> Após a confirmação do pagamento, a opção de sincronização será liberada automaticamente para o período correspondente.
+          <i class="bi bi-info-circle me-1"></i> {{ t('google_auto.post_payment_note') }}
         </div>
       </div>
     </div>
@@ -261,8 +260,8 @@
 <div id="save-loader-overlay" style="display:none;">
   <div id="save-loader-card" class="text-center">
     <div class="spinner-border spinner-border-sm mb-2" role="status"></div>
-    <div><strong>Guardando configurações...</strong></div>
-    <div class="small" style="opacity:.85;">Aguarde apenas um instante.</div>
+    <div><strong>{{ t('google_auto.saving_settings') }}</strong></div>
+    <div class="small" style="opacity:.85;">{{ t('google_auto.saving_wait') }}</div>
   </div>
 </div>
 
@@ -270,9 +269,9 @@
   <div id="loader-card" class="text-center">
     <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
       <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
-      <strong>Sincronizando...</strong>
+      <strong>{{ t('google_auto.syncing') }}</strong>
     </div>
-    <div class="small mb-2" style="opacity:.9">Isso pode levar alguns instantes.</div>
+    <div class="small mb-2" style="opacity:.9">{{ t('google_auto.syncing_wait') }}</div>
     <div class="progress" style="height: 5px; border-radius: 999px; background: rgba(255,255,255,0.25);">
       <div class="progress-bar bg-light" style="width: 100%; animation: loadingStripe 1.4s infinite;"></div>
     </div>

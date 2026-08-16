@@ -596,23 +596,23 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
       <div>
         <div class="d-flex align-items-center gap-2 mb-1">
-          <h2 class="fw-bold text-dark mb-0 fs-3">Gerenciador de Avaliações Google</h2>
+          <h2 class="fw-bold text-dark mb-0 fs-3">{{ t('home.logged_header_title') }}</h2>
           <span class="badge-futuristic-blue px-2.5 py-1 rounded-pill small">
-            <i class="bi bi-activity me-1"></i> Painel Ativo
+            <i class="bi bi-activity me-1"></i> {{ t('home.logged_header_active') }}
           </span>
         </div>
-        <p class="text-muted mb-0 small">Monitore, responda com inteligência artificial e acompanhe sua reputação em tempo real.</p>
+        <p class="text-muted mb-0 small">{{ t('home.logged_header_desc') }}</p>
       </div>
 
       <div class="d-flex flex-wrap gap-2">
         <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-primary shadow-sm">
-          <i class="bi bi-chat-square-text me-1"></i> Ver Avaliações
+          <i class="bi bi-chat-square-text me-1"></i> {{ t('home.view_reviews_btn') }}
         </a>
         <a href="{{ url_for('google_auto.configurar_automacao_google') }}" class="btn btn-google-tonal">
-          <i class="bi bi-gear-wide-connected me-1"></i> Automação Google
+          <i class="bi bi-gear-wide-connected me-1"></i> {{ t('home.auto_google_btn') }}
         </a>
         <a href="{{ url_for('add_review') }}" class="btn btn-outline-primary">
-          <i class="bi bi-plus-circle me-1"></i> Adicionar
+          <i class="bi bi-plus-circle me-1"></i> {{ t('home.add_btn') }}
         </a>
       </div>
     </div>
@@ -626,18 +626,18 @@
           <i class="bi bi-shop fs-5"></i>
         </div>
         <label for="filtroFichaSelect" class="fw-semibold text-dark mb-0 small text-nowrap">
-          Visualizar Filial / Unidade:
+          {{ t('home.filter_branch_label') }}
         </label>
       </div>
 
       <div class="flex-grow-1" style="max-width: 420px; min-width: 240px;">
         <select name="ficha" id="filtroFichaSelect" class="form-select form-select-sm shadow-sm" onchange="document.getElementById('filialFilterForm').submit()">
           <option value="todas" {% if filtro_ficha == 'todas' %}selected{% endif %}>
-            📍 Todas as Lojas / Filiais (Visão Consolidada)
+            {{ t('home.all_branches_option') }}
           </option>
 
           {% if fichas %}
-            <optgroup label="Fichas do Google Meu Negócio">
+            <optgroup label="Google Business">
               {% for f in fichas %}
                 <option value="{{ f.id }}" {% if filtro_ficha|string == f.id|string %}selected{% endif %}>
                   🏢 {{ f.location_name or f.business_name or ('Ficha #' ~ f.id) }}
@@ -661,11 +661,11 @@
 
     <div class="d-flex align-items-center gap-2">
       <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-sm btn-outline-primary text-nowrap" title="Configurar e sincronizar fichas do Google">
-        <i class="bi bi-sliders me-1"></i> Gerenciar Locais
+        <i class="bi bi-sliders me-1"></i> {{ t('home.manage_places_btn') }}
       </a>
       {% if filiais %}
         <a href="{{ url_for('matriz.dashboard') }}" class="btn btn-sm btn-light border text-nowrap" title="Acessar o Painel Consolidado de Matriz">
-          <i class="bi bi-diagram-3 me-1 text-primary"></i> Painel Matriz
+          <i class="bi bi-diagram-3 me-1 text-primary"></i> {{ t('navbar.matrix_panel') }}
         </a>
       {% endif %}
     </div>
@@ -677,12 +677,12 @@
     <div class="col-6 col-md-3">
       <div class="kpi-stat-card blue">
         <div class="d-flex justify-content-between align-items-start">
-          <div class="kpi-stat-label">Avaliações</div>
+          <div class="kpi-stat-label">{{ t('home.kpi_total_reviews_label') }}</div>
           <div class="kpi-icon-pill"><i class="bi bi-chat-square-text-fill"></i></div>
         </div>
         <div>
           <div class="kpi-stat-value countup" data-target="{{ total_reviews }}">{{ total_reviews }}</div>
-          <div class="kpi-stat-sub">Volume total de reviews</div>
+          <div class="kpi-stat-sub">{{ t('home.kpi_total_reviews_sub') }}</div>
         </div>
       </div>
     </div>
@@ -692,7 +692,7 @@
       <div class="kpi-stat-card green">
         <div class="d-flex justify-content-between align-items-start">
           <div>
-            <div class="kpi-stat-label">Taxa Resposta</div>
+            <div class="kpi-stat-label">{{ t('home.kpi_response_rate_label') }}</div>
             <div class="kpi-stat-value">
               <span class="countup" data-target="{{ response_rate_str }}">{{ response_rate_str }}</span>%
             </div>
@@ -709,7 +709,7 @@
             </div>
           </div>
         </div>
-        <div class="kpi-stat-sub">{{ responded_reviews }} de {{ total_reviews }} respondidas</div>
+        <div class="kpi-stat-sub">{{ responded_reviews }} de {{ total_reviews }} {{ t('home.kpi_response_rate_sub') }}</div>
       </div>
     </div>
 
@@ -717,7 +717,7 @@
     <div class="col-6 col-md-3">
       <div class="kpi-stat-card yellow">
         <div class="d-flex justify-content-between align-items-start">
-          <div class="kpi-stat-label">Nota Média</div>
+          <div class="kpi-stat-label">{{ t('home.kpi_avg_rating_label') }}</div>
           <div class="kpi-icon-pill"><i class="bi bi-star-fill"></i></div>
         </div>
         <div>
@@ -730,7 +730,7 @@
               <i class="bi bi-star-fill"></i>
               <i class="bi bi-star-half"></i>
             </span>
-            de 5,0 estrelas
+            {{ t('home.kpi_avg_rating_sub') }}
           </div>
         </div>
       </div>
@@ -740,16 +740,16 @@
     <div class="col-6 col-md-3">
       <div class="kpi-stat-card cyan">
         <div class="d-flex justify-content-between align-items-start">
-          <div class="kpi-stat-label">Pendentes</div>
+          <div class="kpi-stat-label">{{ t('home.kpi_pending_label') }}</div>
           <div class="kpi-icon-pill"><i class="bi bi-clock-history"></i></div>
         </div>
         <div>
           <div class="kpi-stat-value countup" data-target="{{ pending_reviews }}">{{ pending_reviews }}</div>
           <div class="kpi-stat-sub">
             {% if pending_reviews > 0 %}
-              <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>Aguardando resposta</span>
+              <span class="text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>{{ t('home.kpi_pending_waiting') }}</span>
             {% else %}
-              <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>Tudo em dia!</span>
+              <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>{{ t('home.kpi_pending_all_good') }}</span>
             {% endif %}
           </div>
         </div>
@@ -766,13 +766,13 @@
             <i class="bi bi-chat-left-quote-fill fs-3"></i>
           </div>
           <div>
-            <h5 class="fw-bold mb-1 text-dark">Gerenciar Avaliações</h5>
-            <p class="text-muted small mb-0">Responda seus clientes com IA, consulte histórico e filtre por estrelas.</p>
+            <h5 class="fw-bold mb-1 text-dark">{{ t('home.card_manage_reviews_title') }}</h5>
+            <p class="text-muted small mb-0">{{ t('home.card_manage_reviews_desc') }}</p>
           </div>
         </div>
         <div class="mt-2">
           <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-outline-primary w-100 fw-semibold">
-            Abrir Central de Avaliações <i class="bi bi-arrow-right ms-1"></i>
+            {{ t('home.card_manage_reviews_btn') }} <i class="bi bi-arrow-right ms-1"></i>
           </a>
         </div>
       </div>
@@ -785,13 +785,13 @@
             <i class="bi bi-file-earmark-pdf-fill fs-3"></i>
           </div>
           <div>
-            <h5 class="fw-bold mb-1 text-dark">Relatórios Executivos</h5>
-            <p class="text-muted small mb-0">Gere relatórios completos em PDF com gráficos de sentimento e notas.</p>
+            <h5 class="fw-bold mb-1 text-dark">{{ t('home.card_reports_title') }}</h5>
+            <p class="text-muted small mb-0">{{ t('home.card_reports_desc') }}</p>
           </div>
         </div>
         <div class="mt-2">
           <a href="{{ url_for('gerar_relatorio') }}" class="btn btn-outline-primary w-100 fw-semibold">
-            Gerar Relatório em PDF <i class="bi bi-arrow-right ms-1"></i>
+            {{ t('home.card_reports_btn') }} <i class="bi bi-arrow-right ms-1"></i>
           </a>
         </div>
       </div>

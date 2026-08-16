@@ -139,15 +139,13 @@
   <!-- HERO SECTION -->
   <section class="qs-hero-card">
     <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="qs-logo-img">
-    <h1 class="qs-main-title">Quem Somos</h1>
+    <h1 class="qs-main-title">{{ t('about_page.hero_title') }}</h1>
     <p class="qs-subtitle">
-      A <strong>ComentsIA</strong> é a plataforma líder em gestão e inteligência de avaliações online. 
-      Nós unimos Inteligência Artificial de última geração a fluxos de atendimento humanizados para que sua empresa 
-      fortaleça a autoridade local, encante clientes e maximize a conversão de vendas.
+      {{ t('about_page.hero_desc') }}
     </p>
     <div>
       <a href="{{ url_for('authorize') }}" class="btn btn-primary px-4 py-2 fw-semibold">
-        <i class="bi bi-google me-2"></i> Experimentar Grátis com Google
+        <i class="bi bi-google me-2"></i> {{ t('about_page.try_free_btn') }}
       </a>
     </div>
   </section>
@@ -155,8 +153,8 @@
   <!-- O QUE FAZEMOS (3 PILARES) -->
   <section class="mb-5">
     <div class="text-center mb-4">
-      <h2 class="fw-bold text-dark fs-3">Como transformamos sua reputação online</h2>
-      <p class="text-muted mb-0">Tecnologia desenvolvida para simplificar cada etapa do relacionamento pós-venda.</p>
+      <h2 class="fw-bold text-dark fs-3">{{ t('about_page.section_pillars_title') }}</h2>
+      <p class="text-muted mb-0">{{ t('about_page.section_pillars_desc') }}</p>
     </div>
 
     <div class="row g-4">
@@ -165,9 +163,9 @@
           <div class="qs-icon-box" style="background:#e8f0fe; color:#1a73e8;">
             <i class="bi bi-collection-fill"></i>
           </div>
-          <h3 class="qs-card-title">1. Coleta Centralizada</h3>
+          <h3 class="qs-card-title">{{ t('about_page.pillar_1_title') }}</h3>
           <p class="qs-card-text">
-            Sincronização oficial com as APIs do Google Meu Negócio. Todas as avaliações de todas as suas lojas e filiais unificadas em uma única fila de atendimento organizada.
+            {{ t('about_page.pillar_1_desc') }}
           </p>
         </div>
       </div>
@@ -177,9 +175,9 @@
           <div class="qs-icon-box" style="background:#e6f4ea; color:#1e8e3e;">
             <i class="bi bi-robot"></i>
           </div>
-          <h3 class="qs-card-title">2. Respostas com IA</h3>
+          <h3 class="qs-card-title">{{ t('about_page.pillar_2_title') }}</h3>
           <p class="qs-card-text">
-            IA treinada no português brasileiro para gerar respostas empáticas, educadas e alinhadas ao tom da sua marca com 1 clique. Personalize saudações, assinatura e contatos de suporte.
+            {{ t('about_page.pillar_2_desc') }}
           </p>
         </div>
       </div>
@@ -189,9 +187,9 @@
           <div class="qs-icon-box" style="background:#fef7e0; color:#e37400;">
             <i class="bi bi-graph-up-arrow"></i>
           </div>
-          <h3 class="qs-card-title">3. Diagnóstico & Métricas</h3>
+          <h3 class="qs-card-title">{{ t('about_page.pillar_3_title') }}</h3>
           <p class="qs-card-text">
-            Painéis em tempo real com nota média, taxa de respostas, análise de sentimentos e relatórios em PDF prontos para compartilhamento com gestores e equipes.
+            {{ t('about_page.pillar_3_desc') }}
           </p>
         </div>
       </div>
@@ -207,29 +205,29 @@
             <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3">
               <i class="bi bi-stars fs-4"></i>
             </div>
-            <h3 class="qs-card-title mb-0">Por que escolher a ComentsIA?</h3>
+            <h3 class="qs-card-title mb-0">{{ t('about_page.why_choose_title') }}</h3>
           </div>
           
           <ul class="qs-checklist">
             <li>
               <i class="bi bi-check2-circle"></i>
-              <div><strong>IA Humanizada:</strong> Respostas naturais e personalizadas de acordo com a nota recebida (1 a 5 estrelas).</div>
+              <div><strong>{{ t('about_page.diff_1_title') }}:</strong> {{ t('about_page.diff_1_desc') }}</div>
             </li>
             <li>
               <i class="bi bi-check2-circle"></i>
-              <div><strong>Multiunidades & Filiais:</strong> Controle individual por loja ou visão consolidada no Painel Matriz.</div>
+              <div><strong>{{ t('about_page.diff_2_title') }}:</strong> {{ t('about_page.diff_2_desc') }}</div>
             </li>
             <li>
               <i class="bi bi-check2-circle"></i>
-              <div><strong>Relatórios Executivos:</strong> Documentos em PDF elegantes para apresentação em reuniões de diretoria.</div>
+              <div><strong>{{ t('about_page.diff_3_title') }}:</strong> {{ t('about_page.diff_3_desc') }}</div>
             </li>
             <li>
               <i class="bi bi-check2-circle"></i>
-              <div><strong>Conformidade e Segurança:</strong> Respeito rigoroso às diretrizes do Google e às normas da LGPD.</div>
+              <div><strong>{{ t('about_page.diff_4_title') }}:</strong> {{ t('about_page.diff_4_desc') }}</div>
             </li>
             <li>
               <i class="bi bi-check2-circle"></i>
-              <div><strong>Agilidade Operacional:</strong> Redução de até 80% no tempo gasto pela sua equipe para manter 100% dos clientes respondidos.</div>
+              <div><strong>{{ t('about_page.diff_5_title') }}:</strong> {{ t('about_page.diff_5_desc') }}</div>
             </li>
           </ul>
         </div>
@@ -241,27 +239,27 @@
             <div class="p-2 bg-success bg-opacity-10 text-success rounded-3">
               <i class="bi bi-bullseye fs-4"></i>
             </div>
-            <h3 class="qs-card-title mb-0">Nossa Missão</h3>
+            <h3 class="qs-card-title mb-0">{{ t('about_page.mission_title') }}</h3>
           </div>
           
           <p class="qs-card-text mb-4" style="font-size: 1.02rem;">
-            Nossa missão é eliminar o trabalho repetitivo e transformar cada feedback recebido em uma oportunidade real de crescimento, retenção de clientes e aumento de receita.
+            {{ t('about_page.mission_desc') }}
           </p>
 
           <div class="p-3 bg-light rounded-3 border mb-3">
-            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock-fill text-primary me-1"></i> Compromisso com a Privacidade</h6>
-            <p class="small text-muted mb-0">Seus dados nunca são comercializados. A plataforma utiliza autenticação segura OAuth 2.0 oficial do Google e criptografia em repouso.</p>
+            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock-fill text-primary me-1"></i> {{ t('about_page.security_point_title') }}</h6>
+            <p class="small text-muted mb-0">{{ t('about_page.security_point_desc') }}</p>
           </div>
 
           <div class="d-flex flex-wrap gap-2">
             <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
-              <i class="bi bi-lightning-charge me-1"></i> Produtividade
+              <i class="bi bi-lightning-charge me-1"></i> {{ t('about_page.diff_5_title') }}
             </span>
             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
-              <i class="bi bi-star-fill me-1"></i> Reputação 5 Estrelas
+              <i class="bi bi-star-fill me-1"></i> {{ t('about_page.diff_1_title') }}
             </span>
             <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2">
-              <i class="bi bi-shield-check me-1"></i> 100% Seguro
+              <i class="bi bi-shield-check me-1"></i> {{ t('about_page.diff_4_title') }}
             </span>
           </div>
         </div>
@@ -273,8 +271,8 @@
   <section class="mb-5">
     <div class="qs-card p-4 p-md-5">
       <div class="text-center mb-4">
-        <h3 class="fw-bold text-dark">Como funciona na prática</h3>
-        <p class="text-muted mb-0">Você começa a operar em menos de 2 minutos.</p>
+        <h3 class="fw-bold text-dark">{{ t('about_page.how_it_works_title') }}</h3>
+        <p class="text-muted mb-0">{{ t('about_page.how_it_works_desc') }}</p>
       </div>
 
       <div class="row g-4 mt-1">
@@ -282,8 +280,8 @@
           <div class="d-flex align-items-start gap-3">
             <div class="step-number-badge">1</div>
             <div>
-              <h5 class="fw-bold text-dark mb-1">Conecte sua Conta</h5>
-              <p class="text-muted small mb-0">Faça login com sua conta Google e selecione as fichas que deseja monitorar.</p>
+              <h5 class="fw-bold text-dark mb-1">{{ t('about_page.step1_title') }}</h5>
+              <p class="text-muted small mb-0">{{ t('about_page.step1_desc') }}</p>
             </div>
           </div>
         </div>
@@ -292,8 +290,8 @@
           <div class="d-flex align-items-start gap-3">
             <div class="step-number-badge">2</div>
             <div>
-              <h5 class="fw-bold text-dark mb-1">Personalize a IA</h5>
-              <p class="text-muted small mb-0">Defina o tom de voz (amigável, formal, etc.), nome do gerente e canais de contato.</p>
+              <h5 class="fw-bold text-dark mb-1">{{ t('about_page.step2_title') }}</h5>
+              <p class="text-muted small mb-0">{{ t('about_page.step2_desc') }}</p>
             </div>
           </div>
         </div>
@@ -302,8 +300,8 @@
           <div class="d-flex align-items-start gap-3">
             <div class="step-number-badge">3</div>
             <div>
-              <h5 class="fw-bold text-dark mb-1">Responda & Converta</h5>
-              <p class="text-muted small mb-0">Gere respostas com 1 clique, publique diretamente e acompanhe a nota subir.</p>
+              <h5 class="fw-bold text-dark mb-1">{{ t('about_page.step3_title') }}</h5>
+              <p class="text-muted small mb-0">{{ t('about_page.step3_desc') }}</p>
             </div>
           </div>
         </div>
@@ -313,10 +311,10 @@
 
   <!-- CTA FINAL -->
   <section class="text-center py-4 mb-4">
-    <h3 class="fw-bold text-dark mb-2">Pronto para transformar sua reputação?</h3>
-    <p class="text-muted mb-4">Junte-se a empresas que já economizam tempo e aumentam sua nota no Google.</p>
+    <h3 class="fw-bold text-dark mb-2">{{ t('about_page.cta_title') }}</h3>
+    <p class="text-muted mb-4">{{ t('about_page.cta_desc') }}</p>
     <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-5 py-2 fw-semibold">
-      <i class="bi bi-google me-2"></i> Começar Gratuitamente Agora
+      <i class="bi bi-google me-2"></i> {{ t('about_page.cta_btn') }}
     </a>
   </section>
 

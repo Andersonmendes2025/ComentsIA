@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Configurações - ComentsIA{% endblock %}
+{% block title %}{{ t('settings.title') }} - ComentsIA{% endblock %}
 
 {% block extra_head %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <style>
-  /* DESIGN MODERNO E LIMPO */
   body { background-color: #f8fafc; }
   
   .settings-container {
@@ -40,7 +39,6 @@
 
   .card-body-clean { padding: 24px; }
 
-  /* Inputs Modernos */
   .form-label {
     font-weight: 600;
     color: #475569;
@@ -60,7 +58,6 @@
   }
   .form-text { font-size: 0.8rem; color: #94a3b8; margin-top: 6px; }
 
-  /* Preview Card (Sticky) */
   .preview-wrapper {
     position: sticky;
     top: 24px;
@@ -79,7 +76,6 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   }
 
-  /* Danger Zone */
   .danger-zone {
     border: 1px solid #fecaca;
     background: #fffafa;
@@ -97,7 +93,6 @@
     background: #fecaca; color: #b91c1c; transform: translateY(-1px);
   }
 
-  /* Upload Logo */
   .logo-upload-box {
     display: flex; align-items: center; gap: 16px;
     padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -108,7 +103,6 @@
     border: 1px solid #e2e8f0;
   }
 
-  /* Customização do SweetAlert para combinar com o tema */
   div:where(.swal2-container) div:where(.swal2-popup) {
     border-radius: 16px !important;
     font-family: inherit !important;
@@ -124,8 +118,8 @@
       <i class="bi bi-arrow-left fs-5"></i>
     </a>
     <div>
-      <h2 class="fw-bold mb-1 text-dark">Configurações da Conta</h2>
-      <p class="text-muted mb-0">Personalize a identidade da sua empresa e gerencie sua assinatura.</p>
+      <h2 class="fw-bold mb-1 text-dark">{{ t('settings.title') }}</h2>
+      <p class="text-muted mb-0">{{ t('settings.subtitle') }}</p>
     </div>
   </div>
 
@@ -136,58 +130,57 @@
       <form method="POST" enctype="multipart/form-data" id="settingsForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
-        <!-- CAMPO INVISÍVEL QUE ESPELHA A CAIXA DE CONTEXTO DO MODAL -->
+        <!-- Campo invisível que espelha o contexto da IA -->
         <input type="hidden" name="contexto_personalizado" id="hidden_contexto" value="{{ settings.contexto_personalizado or '' }}">
 
         <div class="card-settings">
           <div class="card-header-clean">
-            <h5><i class="bi bi-building text-primary"></i> Identidade & Personalização</h5>
+            <h5><i class="bi bi-building text-primary"></i> {{ t('settings.identity_section') }}</h5>
           </div>
           <div class="card-body-clean">
             
             <div class="row g-3 mb-4">
               <div class="col-md-6">
-                <label class="form-label">Nome da Empresa <span class="text-danger">*</span></label>
+                <label class="form-label">{{ t('settings.business_name') }} <span class="text-danger">{{ t('settings.required') }}</span></label>
                 <input type="text" class="form-control" name="company_name" id="company_name" 
-                       value="{{ settings.business_name }}" placeholder="Ex: Pizzaria Bella Napoli" required>
+                       value="{{ settings.business_name }}" placeholder="{{ t('settings.business_name_placeholder') }}" required>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Nome do Responsável <span class="text-muted fw-normal">(Opcional)</span></label>
+                <label class="form-label">{{ t('settings.manager_name') }} <span class="text-muted fw-normal">{{ t('settings.optional') }}</span></label>
                 <input type="text" class="form-control" name="manager_name" id="manager_name"
-                       value="{{ settings.manager_name or '' }}" placeholder="Ex: João Silva">
+                       value="{{ settings.manager_name or '' }}" placeholder="{{ t('settings.manager_name_placeholder') }}">
               </div>
 
-              <!-- Seletor de Tom e Idioma Global -->
               <div class="col-md-6 mt-3">
-                  <label class="form-label fw-semibold"><i class="bi bi-chat-heart me-2 text-primary"></i>Tom de Resposta Padrão</label>
+                  <label class="form-label fw-semibold"><i class="bi bi-chat-heart me-2 text-primary"></i>{{ t('settings.tone_label') }}</label>
                   <select class="form-select" name="gbp_tone">
-                      <option value="profissional" {% if settings.gbp_tone in ['profissional', 'neutro', None, ''] %}selected{% endif %}>👔 Profissional & Corporativo</option>
-                      <option value="amigavel" {% if settings.gbp_tone in ['amigavel', 'amigável', 'descontraido'] %}selected{% endif %}>😊 Amigável & Descontraído</option>
-                      <option value="empatico" {% if settings.gbp_tone in ['empatico', 'empático', 'compreensivo'] %}selected{% endif %}>💛 Empático & Humanizado</option>
-                      <option value="direto" {% if settings.gbp_tone in ['direto', 'objetivo', 'curto'] %}selected{% endif %}>⚡ Curto & Direto</option>
-                      <option value="luxo" {% if settings.gbp_tone in ['luxo', 'sofisticado', 'premium'] %}selected{% endif %}>✨ Luxo & Sofisticado</option>
+                      <option value="profissional" {% if settings.gbp_tone in ['profissional', 'neutro', None, ''] %}selected{% endif %}>{{ t('settings.tone_professional') }}</option>
+                      <option value="amigavel" {% if settings.gbp_tone in ['amigavel', 'amigável', 'descontraido'] %}selected{% endif %}>{{ t('settings.tone_friendly') }}</option>
+                      <option value="empatico" {% if settings.gbp_tone in ['empatico', 'empático', 'compreensivo'] %}selected{% endif %}>{{ t('settings.tone_empathetic') }}</option>
+                      <option value="direto" {% if settings.gbp_tone in ['direto', 'objetivo', 'curto'] %}selected{% endif %}>{{ t('settings.tone_direct') }}</option>
+                      <option value="luxo" {% if settings.gbp_tone in ['luxo', 'sofisticado', 'premium'] %}selected{% endif %}>{{ t('settings.tone_luxury') }}</option>
                   </select>
-                  <div class="form-text">Define a personalidade e o estilo de escrita da IA nas respostas.</div>
+                  <div class="form-text">{{ t('settings.tone_hint') }}</div>
               </div>
 
               <div class="col-md-6 mt-3">
-                  <label class="form-label fw-semibold"><i class="bi bi-globe me-2 text-primary"></i>Idioma Padrão das Respostas</label>
+                  <label class="form-label fw-semibold"><i class="bi bi-globe me-2 text-primary"></i>{{ t('settings.response_language') }}</label>
                   <select class="form-select" name="idioma_resposta">
-                      <option value="auto" {% if settings.idioma_resposta in ['auto', 'Detectar automaticamente (mesmo idioma do cliente)'] %}selected{% endif %}>🌐 Detectar automaticamente (mesmo do cliente)</option>
+                      <option value="auto" {% if settings.idioma_resposta in ['auto', 'Detectar automaticamente (mesmo idioma do cliente)'] %}selected{% endif %}>{{ t('settings.lang_auto') }}</option>
                       <option value="Português (Brasil)" {% if settings.idioma_resposta == 'Português (Brasil)' or not settings.idioma_resposta %}selected{% endif %}>🇧🇷 Português (Brasil)</option>
                       <option value="Português (Portugal)" {% if settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>🇵🇹 Português (Portugal)</option>
-                      <option value="Inglês (Estados Unidos)" {% if settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 Inglês (EUA / Global)</option>
-                      <option value="Espanhol" {% if settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Espanhol</option>
-                      <option value="Francês" {% if settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Francês</option>
-                      <option value="Alemão" {% if settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Alemão</option>
+                      <option value="Inglês (Estados Unidos)" {% if settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 English (USA / Global)</option>
+                      <option value="Espanhol" {% if settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Español</option>
+                      <option value="Francês" {% if settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Français</option>
+                      <option value="Alemão" {% if settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Deutsch</option>
                       <option value="Italiano" {% if settings.idioma_resposta == 'Italiano' %}selected{% endif %}>🇮🇹 Italiano</option>
                   </select>
-                  <div class="form-text">A Inteligência Artificial responderá neste idioma selecionado.</div>
+                  <div class="form-text">{{ t('settings.response_language_hint') }}</div>
               </div>
             </div>
 
             <div class="mb-4">
-              <label class="form-label">Logo da Empresa</label>
+              <label class="form-label">{{ t('settings.logo_label') }}</label>
               <div class="logo-upload-box">
                 {% if settings.logo %}
                   <img src="data:image/png;base64,{{ settings.logo|b64encode }}" class="logo-preview" id="preview-img">
@@ -198,7 +191,7 @@
                 {% endif %}
                 <div class="flex-grow-1">
                   <input type="file" class="form-control form-control-sm" id="logo" name="logo" accept="image/png, image/jpeg" onchange="previewLogo(this)">
-                  <div class="form-text">Recomendado: PNG ou JPG quadrado (500x500px).</div>
+                  <div class="form-text">{{ t('settings.logo_hint') }}</div>
                 </div>
               </div>
             </div>
@@ -207,21 +200,21 @@
 
             <div class="row g-3">
               <div class="col-md-12">
-                <label class="form-label">Saudação Inicial <span class="text-muted fw-normal">(Opcional)</span></label>
+                <label class="form-label">{{ t('settings.greeting_label') }} <span class="text-muted fw-normal">{{ t('settings.optional') }}</span></label>
                 <input type="text" class="form-control" id="default_greeting" name="default_greeting"
-                       value="{{ settings.default_greeting }}" placeholder="Ex: Olá,">
+                       value="{{ settings.default_greeting }}" placeholder="{{ t('settings.greeting_placeholder') }}">
               </div>
               
               <div class="col-md-12">
-                <label class="form-label">Despedida Padrão <span class="text-muted fw-normal">(Opcional)</span></label>
+                <label class="form-label">{{ t('settings.closing_label') }} <span class="text-muted fw-normal">{{ t('settings.optional') }}</span></label>
                 <textarea class="form-control" id="default_closing" name="default_closing" rows="2"
-                          placeholder="Ex: Agradecemos muito pelo seu feedback!">{{ settings.default_closing }}</textarea>
+                          placeholder="{{ t('settings.closing_placeholder') }}">{{ settings.default_closing }}</textarea>
               </div>
 
               <div class="col-md-12">
-                <label class="form-label">Assinatura / Contato <span class="text-muted fw-normal">(Opcional)</span></label>
+                <label class="form-label">{{ t('settings.contact_label') }} <span class="text-muted fw-normal">{{ t('settings.optional') }}</span></label>
                 <input type="text" class="form-control" id="contact_info" name="contact_info"
-                       value="{{ settings.contact_info }}" placeholder="Ex: (11) 99999-9999 | www.site.com">
+                       value="{{ settings.contact_info }}" placeholder="{{ t('settings.contact_placeholder') }}">
               </div>
             </div>
 
@@ -230,16 +223,16 @@
                     <input class="form-check-input" type="checkbox" id="terms_accepted" name="terms_accepted" value="on"
                            {% if settings.terms_accepted %}checked{% endif %} required>
                     <label class="form-check-label small text-muted" for="terms_accepted">
-                        Declaro que li e concordo integralmente com os 
-                        <a href="{{ url_for('terms') }}" target="_blank" class="text-decoration-none fw-bold text-primary">Termos de Uso</a> e a 
-                        <a href="{{ url_for('privacy_policy') }}" target="_blank" class="text-decoration-none fw-bold text-primary">Política de Privacidade</a>.
+                        {{ t('settings.terms_accept') }}
+                        <a href="{{ url_for('terms') }}" target="_blank" class="text-decoration-none fw-bold text-primary">{{ t('settings.terms_link') }}</a> {{ t('settings.terms_and') }}
+                        <a href="{{ url_for('privacy_policy') }}" target="_blank" class="text-decoration-none fw-bold text-primary">{{ t('settings.privacy_link') }}</a>.
                     </label>
                 </div>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top border-light">
                <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" id="btnSaveSettings">
-                 <i class="bi bi-check-lg me-1"></i> Salvar Alterações
+                 <i class="bi bi-check-lg me-1"></i> {{ t('settings.save_button') }}
                </button>
             </div>
 
@@ -249,35 +242,30 @@
 
       <div class="card-settings danger-zone mt-5">
         <div class="card-header-clean">
-          <h5 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Zona de Perigo</h5>
+          <h5 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> {{ t('settings.danger_zone') }}</h5>
         </div>
         <div class="card-body-clean">
           
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 pb-4 border-bottom border-danger border-opacity-10">
             <div>
-              <h6 class="fw-bold text-dark mb-1">Cancelar Assinatura Premium</h6>
-              <p class="text-muted mb-0 small">
-                Você perderá acesso aos recursos Pro/Business no fim do ciclo atual.<br>
-                Sua conta voltará para o plano Gratuito.
-              </p>
+              <h6 class="fw-bold text-dark mb-1">{{ t('settings.cancel_sub_title') }}</h6>
+              <p class="text-muted mb-0 small">{{ t('settings.cancel_sub_desc') }}</p>
             </div>
             <div class="mt-3 mt-md-0">
               <button type="button" id="btnCancelSub" class="btn btn-danger-soft px-3 py-2 rounded-3" onclick="confirmarCancelamentoAssinatura()">
-                Cancelar Assinatura
+                {{ t('settings.cancel_sub_btn') }}
               </button>
             </div>
           </div>
 
           <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
             <div>
-              <h6 class="fw-bold text-danger mb-1">Excluir Conta Permanentemente</h6>
-              <p class="text-muted mb-0 small">
-                Essa ação é irreversível. Todos os dados, histórico e configurações serão apagados.
-              </p>
+              <h6 class="fw-bold text-danger mb-1">{{ t('settings.delete_account_title') }}</h6>
+              <p class="text-muted mb-0 small">{{ t('settings.delete_account_desc') }}</p>
             </div>
             <div class="mt-3 mt-md-0">
               <button type="button" id="btnDeleteAccount" class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="confirmarExclusaoConta()">
-                Excluir Conta
+                {{ t('settings.delete_account_btn') }}
               </button>
             </div>
           </div>
@@ -292,18 +280,18 @@
         
         <div class="card-settings shadow-sm">
           <div class="card-header-clean bg-light">
-            <h6 class="text-muted text-uppercase fw-bold small mb-0 ls-1">Visualização em Tempo Real</h6>
+            <h6 class="text-muted text-uppercase fw-bold small mb-0 ls-1">{{ t('settings.preview_title') }}</h6>
           </div>
           <div class="card-body-clean bg-white">
             <div class="preview-box">
-              <p class="small text-muted mb-2 text-center">Como sua resposta aparecerá:</p>
+              <p class="small text-muted mb-2 text-center">{{ t('settings.preview_subtitle') }}</p>
               <div class="preview-bubble">
                 <p class="mb-2 fw-bold text-dark" id="preview-greeting-text">
-                  {% if settings.default_greeting %}{{ settings.default_greeting }} {% endif %}[Nome do Cliente],
+                  {% if settings.default_greeting %}{{ settings.default_greeting }} {% endif %}[{{ t('reviews.anonymous_client') }}],
                 </p>
                 <p class="text-muted fst-italic mb-3 small">
-                  "Obrigado pela sua avaliação! Ficamos muito felizes em saber que gostou da experiência..."
-                  <br>(Texto gerado pela IA)
+                  {{ t('settings.preview_ai_text') }}
+                  <br>{{ t('settings.preview_ai_hint') }}
                 </p>
                 <p class="mb-1 text-dark" id="preview-closing-text">{{ settings.default_closing }}</p>
                 <p class="mb-0 small text-secondary" id="preview-contact-text">{{ settings.contact_info }}</p>
@@ -317,14 +305,14 @@
             <div class="mb-3 text-primary">
                 <i class="bi bi-robot fs-1"></i>
             </div>
-            <h6 class="fw-bold text-dark">Cérebro da IA</h6>
-            <p class="small text-muted mb-3">Ensine a IA sobre a história, valores e o que não dizer nas respostas.</p>
+            <h6 class="fw-bold text-dark">{{ t('settings.ai_brain_title') }}</h6>
+            <p class="small text-muted mb-3">{{ t('settings.ai_brain_desc') }}</p>
             
             <button class="btn btn-outline-primary w-100 fw-semibold" data-bs-toggle="modal" data-bs-target="#modalContextoIA">
                 {% if is_free_plan %}
-                    <i class="bi bi-lock-fill me-2"></i> Desbloquear Cérebro da IA
+                    <i class="bi bi-lock-fill me-2"></i> {{ t('settings.ai_brain_unlock_btn') }}
                 {% else %}
-                    <i class="bi bi-pencil-fill me-2"></i> Editar Contexto da Empresa
+                    <i class="bi bi-pencil-fill me-2"></i> {{ t('settings.ai_brain_edit_btn') }}
                 {% endif %}
             </button>
           </div>
@@ -340,7 +328,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg rounded-4">
       <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
-        <h5 class="modal-title fw-bold text-primary">🧠 Contexto da IA</h5>
+        <h5 class="modal-title fw-bold text-primary">{{ t('settings.modal_ai_title') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
@@ -349,27 +337,26 @@
           <div class="alert alert-warning d-flex align-items-center bg-warning bg-opacity-10 border-warning border-opacity-25 text-dark" role="alert">
             <i class="bi bi-lock-fill fs-3 me-3 text-warning"></i>
             <div>
-              <strong class="d-block mb-1">Recurso Premium</strong>
-              O Cérebro da IA está disponível apenas nos planos <strong>Pro</strong> e <strong>Business</strong>.
+              <strong class="d-block mb-1">{{ t('settings.premium_feature') }}</strong>
+              {{ t('settings.premium_desc') }} <strong>Pro</strong> e <strong>Business</strong>.
             </div>
           </div>
-          <p class="text-muted small text-center mb-0">Faça o upgrade para personalizar como a IA fala sobre sua empresa.</p>
+          <p class="text-muted small text-center mb-0">{{ t('settings.upgrade_hint') }}</p>
           <div class="d-grid mt-3">
-             <a href="{{ url_for('planos') }}" class="btn btn-primary fw-bold">Ver Planos e Desbloquear</a>
+             <a href="{{ url_for('planos') }}" class="btn btn-primary fw-bold">{{ t('settings.premium_upgrade_btn') }}</a>
           </div>
         {% else %}
-          <label class="form-label text-muted small fw-bold text-uppercase">Instruções para a IA</label>
+          <label class="form-label text-muted small fw-bold text-uppercase">{{ t('settings.context_instructions_label') }}</label>
           
-          <!-- 🚀 ONINPUT ESPELHA PARA O HIDDEN E ATUALIZA O CONTADOR, MAXLENGTH BLOQUEIA EXCESSO -->
           <textarea class="form-control bg-light border-0 p-3" id="contexto_personalizado_input" rows="6" maxlength="500"
-                    placeholder="Ex: Somos uma padaria tradicional fundada em 1990. Nosso tom é acolhedor e familiar. Nunca use gírias modernas."
+                    placeholder="{{ t('settings.context_placeholder') }}"
                     oninput="
                         document.getElementById('hidden_contexto').value = this.value;
                         document.getElementById('contexto-contador').innerText = this.value.length + '/500';
                     ">{{ settings.contexto_personalizado or '' }}</textarea>
           
           <div class="d-flex justify-content-between align-items-center mt-2">
-              <div class="form-text mb-0">Isso ajuda a IA a escrever como se fosse você.</div>
+              <div class="form-text mb-0">{{ t('settings.context_hint') }}</div>
               <small class="text-muted fw-bold" id="contexto-contador">
                   {{ (settings.contexto_personalizado or '')|length }}/500
               </small>
@@ -378,9 +365,9 @@
       </div>
       
       <div class="modal-footer border-top-0 px-4 pb-4">
-        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">{{ t('settings.modal_close_btn') }}</button>
         {% if not is_free_plan %}
-          <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btnSalvarContexto">Salvar Contexto</button>
+          <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btnSalvarContexto">{{ t('settings.modal_save_btn') }}</button>
         {% endif %}
       </div>
     </div>
@@ -391,7 +378,6 @@
 
 {% block extra_scripts %}
 <script>
-// --- CONFIGURAÇÃO DOS TOASTS FLUTUANTES (SweetAlert2) ---
 const Toast = Swal.mixin({
   toast: true,
   position: 'top-end',
@@ -405,17 +391,13 @@ const Toast = Swal.mixin({
 });
 
 function showToast(message, type = 'info') {
-  Toast.fire({
-    icon: type, // 'success', 'error', 'warning', 'info'
-    title: message
-  });
+  Toast.fire({ icon: type, title: message });
 }
 
 function getCSRF() {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 }
 
-// --- FUNÇÃO AUXILIAR: GERAR CÓDIGO ALEATÓRIO ---
 function gerarCodigoAleatorio() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; 
     let result = "";
@@ -425,7 +407,6 @@ function gerarCodigoAleatorio() {
     return result;
 }
 
-// --- PREVIEW EM TEMPO REAL ---
 const fields = ['default_greeting', 'default_closing', 'contact_info'];
 fields.forEach(id => {
   const el = document.getElementById(id);
@@ -439,7 +420,7 @@ fields.forEach(id => {
       const previewEl = document.getElementById(previewId);
       if(previewEl) {
           if(id === 'default_greeting') {
-              previewEl.innerText = val ? val + '[Nome do Cliente],' : '[Nome do Cliente],';
+              previewEl.innerText = val ? val + '[{{ t("reviews.anonymous_client") }}],' : '[{{ t("reviews.anonymous_client") }}],';
           } else {
               previewEl.innerText = val;
           }
@@ -448,7 +429,6 @@ fields.forEach(id => {
   }
 });
 
-// --- PREVIEW LOGO ---
 function previewLogo(input) {
     if (input.files && input.files[0]) {
         var reader = new FileReader();
@@ -459,165 +439,124 @@ function previewLogo(input) {
     }
 }
 
-// --- SALVAR CONFIGURAÇÕES ---
 document.getElementById('settingsForm').onsubmit = async function(e) {
   e.preventDefault();
   const btn = document.getElementById('btnSaveSettings');
   const originalText = btn.innerHTML;
   
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Salvando...';
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> {{ t("common.loading") }}';
 
   try {
     const formData = new FormData(this);
     const res = await fetch(window.location.pathname, { method: 'POST', body: formData });
     
     if (res.ok) {
-        showToast('Configurações salvas com sucesso!', 'success');
+        showToast('{{ t("settings.saved_success") }}', 'success');
         if(res.redirected) window.location.href = res.url;
     } else {
-        showToast('Erro ao salvar. Verifique se aceitou os termos.', 'error');
+        showToast('{{ t("common.error") }}', 'error');
     }
   } catch(err) {
-    showToast('Erro de conexão.', 'error');
+    showToast('{{ t("common.error") }}', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = originalText;
   }
 };
 
-// --- SALVAR CONTEXTO IA NO MODAL (SALVA TUDO JUNTO) ---
 const btnCtx = document.getElementById('btnSalvarContexto');
 if(btnCtx) {
     btnCtx.addEventListener('click', () => {
-        // Apenas fecha o modal e clica no botão principal de salvar
         bootstrap.Modal.getInstance(document.getElementById('modalContextoIA')).hide();
         const formSubmitBtn = document.getElementById('btnSaveSettings');
         if(formSubmitBtn) formSubmitBtn.click();
     });
 }
 
-// --- ❌ CANCELAR ASSINATURA ---
 function confirmarCancelamentoAssinatura() {
     const codigoConfirmacao = gerarCodigoAleatorio();
 
     Swal.fire({
-      title: 'Cancelar Assinatura?',
+      title: '{{ t("settings.cancel_sub_title") }}',
       html: `
-        <p style="color:#64748b;">Você perderá acesso aos recursos Premium no próximo ciclo.</p>
+        <p style="color:#64748b;">{{ t("settings.cancel_sub_desc") }}</p>
         <div style="background:#f1f5f9; padding:10px; border-radius:8px; margin:15px 0;">
-            <p class="mb-1 small text-muted">Para confirmar, digite o código abaixo:</p>
+            <p class="mb-1 small text-muted">{{ t("common.confirm") }}:</p>
             <strong style="font-size: 1.5rem; letter-spacing: 3px; color: #ef4444;">${codigoConfirmacao}</strong>
         </div>
       `,
       input: 'text',
-      inputPlaceholder: `Digite ${codigoConfirmacao}`,
-      inputAttributes: {
-        autocapitalize: 'characters',
-        maxlength: 4
-      },
+      inputPlaceholder: codigoConfirmacao,
+      inputAttributes: { autocapitalize: 'characters', maxlength: 4 },
       showCancelButton: true,
-      confirmButtonText: 'Confirmar Cancelamento',
+      confirmButtonText: '{{ t("settings.cancel_sub_btn") }}',
       confirmButtonColor: '#ef4444',
-      cancelButtonText: 'Voltar',
+      cancelButtonText: '{{ t("common.back") }}',
       showLoaderOnConfirm: true,
       preConfirm: (digitado) => {
         if (digitado.toUpperCase() !== codigoConfirmacao) {
-          Swal.showValidationMessage(`Código incorreto. Digite <b>${codigoConfirmacao}</b>.`);
+          Swal.showValidationMessage(`{{ t("common.error") }}: <b>${codigoConfirmacao}</b>`);
           return false;
         }
         return fetch('/stripe/subscription/cancel', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRF()
-            }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() }
         })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(response.statusText)
-          }
-          return response.json()
-        })
-        .catch(error => {
-          Swal.showValidationMessage(`Erro: ${error}`)
-        })
+        .then(response => { if (!response.ok) throw new Error(response.statusText); return response.json(); })
+        .catch(error => { Swal.showValidationMessage(`{{ t("common.error") }}: ${error}`); })
       },
       allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
       if (result.isConfirmed && result.value.success) {
-        Swal.fire({
-          title: 'Cancelado!',
-          text: 'Sua assinatura foi cancelada com sucesso.',
-          icon: 'success'
-        }).then(() => {
-            window.location.reload();
-        });
+        Swal.fire({ title: '{{ t("common.success") }}!', icon: 'success' }).then(() => { window.location.reload(); });
       } else if (result.isConfirmed && !result.value.success) {
-         showToast(result.value.error || "Erro desconhecido", 'error');
+         showToast(result.value.error || '{{ t("common.error") }}', 'error');
       }
     })
 }
 
-// --- ❌ EXCLUIR CONTA ---
 function confirmarExclusaoConta() {
     const codigoConfirmacao = gerarCodigoAleatorio();
 
     Swal.fire({
-      title: 'Excluir Conta?',
+      title: '{{ t("settings.delete_account_title") }}',
       html: `
-        <p style="color:#ef4444; font-weight:bold;">Atenção: Essa ação é irreversível!</p>
-        <p class="text-muted small">Todos os seus dados serão apagados permanentemente.</p>
+        <p style="color:#ef4444; font-weight:bold;">{{ t("settings.delete_account_desc") }}</p>
         <div style="background:#fff1f2; padding:10px; border-radius:8px; margin:15px 0; border:1px dashed #ef4444;">
-            <p class="mb-1 small text-danger">Digite o código abaixo para apagar tudo:</p>
+            <p class="mb-1 small text-danger">{{ t("common.confirm") }}:</p>
             <strong style="font-size: 1.5rem; letter-spacing: 3px; color: #dc2626;">${codigoConfirmacao}</strong>
         </div>
       `,
       input: 'text',
-      inputPlaceholder: `Digite ${codigoConfirmacao}`,
-      inputAttributes: {
-        autocapitalize: 'characters',
-        maxlength: 4
-      },
+      inputPlaceholder: codigoConfirmacao,
+      inputAttributes: { autocapitalize: 'characters', maxlength: 4 },
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Sim, Excluir Tudo',
+      confirmButtonText: '{{ t("settings.delete_account_btn") }}',
       confirmButtonColor: '#dc2626',
-      cancelButtonText: 'Cancelar',
+      cancelButtonText: '{{ t("common.cancel") }}',
       showLoaderOnConfirm: true,
       preConfirm: (digitado) => {
         if (digitado.toUpperCase() !== codigoConfirmacao) {
-          Swal.showValidationMessage(`Código incorreto. Digite <b>${codigoConfirmacao}</b>.`);
+          Swal.showValidationMessage(`{{ t("common.error") }}: <b>${codigoConfirmacao}</b>`);
           return false;
         }
         return fetch('{{ url_for("delete_account") }}', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRFToken': getCSRF()
-            }
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': getCSRF() }
         })
-        .then(response => {
-          if (!response.ok) throw new Error(response.statusText)
-          return response.json()
-        })
-        .catch(error => {
-          Swal.showValidationMessage(`Erro: ${error}`)
-        })
+        .then(response => { if (!response.ok) throw new Error(response.statusText); return response.json(); })
+        .catch(error => { Swal.showValidationMessage(`{{ t("common.error") }}: ${error}`); })
       },
       allowOutsideClick: () => !Swal.isLoading()
     }).then((result) => {
       if (result.isConfirmed && result.value.success) {
-        Swal.fire(
-          'Conta Excluída!',
-          'Sentiremos sua falta. Seus dados foram apagados.',
-          'success'
-        ).then(() => {
+        Swal.fire('{{ t("settings.delete_account_title") }}', '{{ t("common.success") }}', 'success').then(() => {
             window.location.href = "{{ url_for('index') }}";
         });
       } else if (result.isConfirmed && !result.value.success) {
-         showToast(result.value.error || "Erro ao excluir conta", 'error');
+         showToast(result.value.error || '{{ t("common.error") }}', 'error');
       }
     })
 }

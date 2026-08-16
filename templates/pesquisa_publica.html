@@ -4,168 +4,620 @@
 
 {% block extra_head %}
 <style>
-  .pesquisa-container {
-    max-width: 620px;
-    margin: 2rem auto;
-  }
-  
-  .card-pesquisa {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
-    padding: 2.5rem 2rem;
+  /* 🌟 ESTÉTICA MOBILE FIRST ULTRA-MODERNA */
+  .public-survey-bg {
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, rgba(37,99,235,0.07) 0%, rgba(248,250,252,1) 75%);
   }
 
-  /* Estilização das Estrelas Dinâmicas por Pergunta */
-  .rating-wrapper-dynamic {
+  .survey-card-container {
+    max-width: 640px;
+    margin: 1.5rem auto 3rem auto;
+  }
+
+  .survey-main-card {
+    background: #ffffff;
+    border: 1px solid rgba(226,232,240,0.9);
+    border-radius: 24px;
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.03);
+    padding: 2.5rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  @media (max-width: 576px) {
+    .survey-main-card {
+      padding: 1.75rem 1.25rem;
+      border-radius: 20px;
+      margin: 0.5rem;
+    }
+  }
+
+  /* BARRA DE PROGRESSO FLUTUANTE */
+  .progress-tracker-bar {
+    height: 6px;
+    border-radius: 10px;
+    background: #e2e8f0;
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  .progress-tracker-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+    width: 0%;
+    transition: width 0.35s ease;
+  }
+
+  /* ⭐ ESTRELAS DINÂMICAS INTERATIVAS */
+  .stars-rating-box {
     display: flex;
     flex-direction: row-reverse;
-    justify-content: start;
-    gap: 8px;
-    margin: 0.5rem 0 1rem 0;
+    justify-content: center;
+    gap: 12px;
+    margin: 1rem 0;
   }
-
-  .rating-wrapper-dynamic input {
+  .stars-rating-box input {
     display: none;
   }
-
-  .rating-wrapper-dynamic label {
-    font-size: 2.2rem;
-    color: #d1d5db;
+  .stars-rating-box label {
+    font-size: 2.8rem;
+    color: #e2e8f0;
     cursor: pointer;
-    transition: color 0.15s ease-in-out;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s;
   }
-
-  .rating-wrapper-dynamic label:hover,
-  .rating-wrapper-dynamic label:hover ~ label,
-  .rating-wrapper-dynamic input:checked ~ label {
+  .stars-rating-box label:hover,
+  .stars-rating-box label:hover ~ label,
+  .stars-rating-box input:checked ~ label {
     color: #fbbf24;
+    text-shadow: 0 4px 12px rgba(251, 191, 36, 0.35);
+  }
+  .stars-rating-box label:active {
+    transform: scale(0.85);
+  }
+  .rating-caption {
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 600;
+    min-height: 24px;
+    color: #64748b;
+    transition: all 0.2s;
   }
 
-  .comentsia-badge {
-    font-size: 0.8rem;
-    color: #9ca3af;
+  /* 🔢 ESCALA NPS 0-10 */
+  .nps-container {
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);
+    gap: 4px;
+    margin: 1rem 0 0.5rem 0;
+  }
+  @media (max-width: 576px) {
+    .nps-container {
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+  }
+  .nps-item input {
+    display: none;
+  }
+  .nps-item label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .nps-item label:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+  }
+  .nps-item input:checked + label {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transform: translateY(-2px);
+  }
+
+  /* 😊 ESCALA DE EMOJIS */
+  .emoji-scale-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem 0 1rem 0;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px solid #f1f5f9;
+  }
+  .emoji-radio-item input {
+    display: none;
+  }
+  .emoji-radio-item label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 2.2rem;
+    cursor: pointer;
+    opacity: 0.45;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: grayscale(0.6);
+  }
+  .emoji-radio-item label:hover {
+    opacity: 0.85;
+    transform: scale(1.15);
+    filter: grayscale(0);
+  }
+  .emoji-radio-item input:checked + label {
+    opacity: 1;
+    transform: scale(1.3);
+    filter: grayscale(0);
+    text-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  }
+
+  /* 🔘 MÚLTIPLA ESCOLHA CHIP CARDS */
+  .option-chip-label {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0.5rem;
+  }
+  .option-chip-label:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+  .form-check-input:checked + .option-chip-label {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1d4ed8;
+    font-weight: 600;
+  }
+
+  /* 🎉 CONFETTI & MODAL CELEBRAÇÃO 5 ESTRELAS */
+  .confetti-canvas {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none;
+    z-index: 1060;
+  }
+  .google-booster-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+    border: 2px solid #10b981;
+    border-radius: 20px;
+    padding: 1.75rem;
+  }
+  .pulse-google-btn {
+    background: #1a73e8;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 12px;
+    padding: 0.9rem 1.5rem;
+    transition: all 0.25s ease;
+    box-shadow: 0 6px 20px rgba(26, 115, 232, 0.35);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+  }
+  .pulse-google-btn:hover {
+    background: #1557b0;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(26, 115, 232, 0.45);
+  }
+
+  .comentsia-footer-badge {
     text-align: center;
+    font-size: 0.78rem;
+    color: #94a3b8;
     margin-top: 1.5rem;
     display: block;
     text-decoration: none;
   }
-  .comentsia-badge strong {
+  .comentsia-footer-badge strong {
     color: #2563eb;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-3">
-  <div class="pesquisa-container">
-    
-    <div class="card-pesquisa">
-      
-      {% if request.args.get('sucesso') == 'true' %}
-        <div class="text-center py-5">
-          <div class="mb-3">
-            <i class="bi bi-check-circle-fill text-success" style="font-size: 4.5rem;"></i>
+<div class="public-survey-bg py-4">
+  <div class="container">
+    <div class="survey-card-container">
+
+      <!-- CARD PRINCIPAL DA PESQUISA -->
+      <div class="survey-main-card">
+        
+        <!-- ESTADO 1: FORMULÁRIO ATIVO -->
+        <div id="surveyActiveView">
+          
+          <!-- BARRA DE PROGRESSO -->
+          <div class="d-flex justify-content-between align-items-center mb-1.5 px-1">
+            <span class="small fw-semibold text-muted" id="progressText">Progresso: 0%</span>
+            <span class="badge bg-primary-subtle text-primary small fw-semibold">
+              <i class="bi bi-clock-history me-1"></i> Rápido e Seguro
+            </span>
           </div>
-          <h3 class="h4 fw-bold text-dark mb-2">Sua resposta foi enviada com sucesso!</h3>
-          <p class="text-muted small px-3">
-            Muito obrigado por dedicar o seu tempo para responder esta avaliação. 
-            A sua opinião é fundamental para nos ajudar a melhorar continuamente nossos serviços!
+          <div class="progress-tracker-bar">
+            <div class="progress-tracker-fill" id="progressFill"></div>
+          </div>
+
+          <!-- CABEÇALHO DA PESQUISA -->
+          <div class="text-center mb-4">
+            <div class="d-inline-flex p-2.5 bg-primary-subtle text-primary rounded-circle mb-2.5">
+              <i class="bi bi-chat-heart-fill fs-3"></i>
+            </div>
+            <h1 class="h4 fw-bold text-dark mb-1.5">{{ config.titulo }}</h1>
+            <p class="text-muted small mb-0">{{ config.subtitulo }}</p>
+          </div>
+
+          <form id="formPesquisaPublica" method="POST" action="/p/{{ config.slug }}/enviar">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="is_ajax" value="true">
+
+            <!-- IDENTIFICAÇÃO (OPCIONAL) -->
+            <div class="p-3 bg-light bg-opacity-75 rounded-4 border border-light-subtle mb-4">
+              <h2 class="h6 fw-bold text-secondary mb-2.5">
+                <i class="bi bi-person-circle text-primary me-1.5"></i> {{ t('surveys.identification') }}
+              </h2>
+              <div class="mb-2">
+                <label for="inputNome" class="form-label small fw-semibold text-dark mb-1">{{ t('surveys.your_name') }}</label>
+                <input type="text" class="form-control form-control-sm rounded-3" id="inputNome" name="nome" placeholder="{{ t('surveys.name_placeholder') }}" onchange="updateFormProgress()">
+              </div>
+              <div class="row g-2">
+                <div class="col-sm-6">
+                  <label for="inputEmail" class="form-label small fw-semibold text-muted mb-1">{{ t('surveys.optional_email') }}</label>
+                  <input type="email" class="form-control form-control-sm rounded-3" id="inputEmail" name="email" placeholder="seu@email.com" onchange="updateFormProgress()">
+                </div>
+                <div class="col-sm-6">
+                  <label for="inputWhatsapp" class="form-label small fw-semibold text-muted mb-1">{{ t('surveys.optional_whatsapp') }}</label>
+                  <input type="tel" class="form-control form-control-sm rounded-3" id="inputWhatsapp" name="whatsapp" placeholder="(11) 99999-9999" onchange="updateFormProgress()">
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4 text-muted opacity-25">
+
+            <!-- LISTA DE PERGUNTAS DINÂMICAS -->
+            {% for pergunta in config.perguntas %}
+            <div class="mb-4 question-block" data-qid="{{ pergunta.id }}">
+              <label class="form-label fw-bold text-dark mb-1.5 fs-6">
+                {{ loop.index }}. {{ pergunta.texto_pergunta }}
+                {% if pergunta.is_obrigatoria %}<span class="text-danger">*</span>{% endif %}
+              </label>
+
+              <!-- ⭐ ESTRELAS (1-5) -->
+              {% if pergunta.tipo_resposta in ['estrelas', 'stars'] %}
+                <div class="stars-rating-box">
+                  <input type="radio" id="st5_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="5" {% if pergunta.is_obrigatoria %}required{% endif %} onchange="onStarSelected({{ pergunta.id }}, 5)"/><label for="st5_{{ pergunta.id }}" class="bi bi-star-fill" title="5 estrelas"></label>
+                  <input type="radio" id="st4_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="4" onchange="onStarSelected({{ pergunta.id }}, 4)"/><label for="st4_{{ pergunta.id }}" class="bi bi-star-fill" title="4 estrelas"></label>
+                  <input type="radio" id="st3_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="3" onchange="onStarSelected({{ pergunta.id }}, 3)"/><label for="st3_{{ pergunta.id }}" class="bi bi-star-fill" title="3 estrelas"></label>
+                  <input type="radio" id="st2_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="2" onchange="onStarSelected({{ pergunta.id }}, 2)"/><label for="st2_{{ pergunta.id }}" class="bi bi-star-fill" title="2 estrelas"></label>
+                  <input type="radio" id="st1_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="1" onchange="onStarSelected({{ pergunta.id }}, 1)"/><label for="st1_{{ pergunta.id }}" class="bi bi-star-fill" title="1 estrela"></label>
+                </div>
+                <div class="rating-caption" id="caption_star_{{ pergunta.id }}">Selecione uma nota de 1 a 5 estrelas</div>
+
+              <!-- 🔢 NPS (0-10) -->
+              {% elif pergunta.tipo_resposta == 'nps' %}
+                <div class="nps-container">
+                  {% for i in range(11) %}
+                  <div class="nps-item">
+                    <input type="radio" id="nps_{{ pergunta.id }}_{{ i }}" name="pergunta_{{ pergunta.id }}" value="{{ i }}" {% if pergunta.is_obrigatoria and loop.first %}required{% endif %} onchange="updateFormProgress()">
+                    <label for="nps_{{ pergunta.id }}_{{ i }}">{{ i }}</label>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div class="d-flex justify-content-between small text-muted px-1 mt-1 font-monospace" style="font-size: 0.75rem;">
+                  <span>0 = Pouco Provável</span>
+                  <span>10 = Extremamente Provável</span>
+                </div>
+
+              <!-- 😊 EMOJIS -->
+              {% elif pergunta.tipo_resposta == 'emojis' %}
+                <div class="emoji-scale-container">
+                  <div class="emoji-radio-item">
+                    <input type="radio" id="emo_{{ pergunta.id }}_1" name="pergunta_{{ pergunta.id }}" value="1" {% if pergunta.is_obrigatoria %}required{% endif %} onchange="updateFormProgress()">
+                    <label for="emo_{{ pergunta.id }}_1" title="Péssimo">😡</label>
+                  </div>
+                  <div class="emoji-radio-item">
+                    <input type="radio" id="emo_{{ pergunta.id }}_2" name="pergunta_{{ pergunta.id }}" value="2" onchange="updateFormProgress()">
+                    <label for="emo_{{ pergunta.id }}_2" title="Ruim">🙁</label>
+                  </div>
+                  <div class="emoji-radio-item">
+                    <input type="radio" id="emo_{{ pergunta.id }}_3" name="pergunta_{{ pergunta.id }}" value="3" onchange="updateFormProgress()">
+                    <label for="emo_{{ pergunta.id }}_3" title="Regular">😐</label>
+                  </div>
+                  <div class="emoji-radio-item">
+                    <input type="radio" id="emo_{{ pergunta.id }}_4" name="pergunta_{{ pergunta.id }}" value="4" onchange="updateFormProgress()">
+                    <label for="emo_{{ pergunta.id }}_4" title="Bom">🙂</label>
+                  </div>
+                  <div class="emoji-radio-item">
+                    <input type="radio" id="emo_{{ pergunta.id }}_5" name="pergunta_{{ pergunta.id }}" value="5" onchange="updateFormProgress()">
+                    <label for="emo_{{ pergunta.id }}_5" title="Incrível">🤩</label>
+                  </div>
+                </div>
+
+              <!-- 🔘 MÚLTIPLA ESCOLHA -->
+              {% elif pergunta.tipo_resposta == 'multipla_escolha' %}
+                <div class="mt-2">
+                  {% for opcao in pergunta.opcoes %}
+                  <div class="form-check p-0">
+                    <input class="form-check-input d-none" type="radio" name="pergunta_{{ pergunta.id }}" id="opt_{{ pergunta.id }}_{{ loop.index }}" value="{{ opcao }}" {% if pergunta.is_obrigatoria and loop.first %}required{% endif %} onchange="updateFormProgress()">
+                    <label class="option-chip-label" for="opt_{{ pergunta.id }}_{{ loop.index }}">
+                      <i class="bi bi-circle me-2 text-muted"></i> {{ opcao }}
+                    </label>
+                  </div>
+                  {% endfor %}
+                </div>
+
+              <!-- 📝 TEXTO ABERTO -->
+              {% else %}
+                <textarea id="texto_elogio_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" class="form-control rounded-3 p-3" rows="3" placeholder="{{ t('surveys.type_your_answer') }}" {% if pergunta.is_obrigatoria %}required{% endif %} oninput="updateFormProgress()"></textarea>
+              {% endif %}
+            </div>
+            {% endfor %}
+
+            <button type="submit" id="btnEnviarPesquisa" class="btn btn-primary w-100 py-3 fw-bold rounded-4 shadow-sm mt-3 fs-6">
+              <i class="bi bi-send-fill me-2"></i> {{ t('surveys.submit_public_btn') }}
+            </button>
+          </form>
+
+        </div>
+
+        <!-- ESTADO 2: SUCESSO PADRÃO (FEEDBACK RETIDO 1-4 ESTRELAS) -->
+        <div id="surveySuccessView" style="display: none;" class="text-center py-4">
+          <div class="mb-3">
+            <i class="bi bi-patch-check-fill text-success" style="font-size: 4.5rem;"></i>
+          </div>
+          <h3 class="h4 fw-bold text-dark mb-2">{{ t('surveys.feedback_retained_title') }}</h3>
+          <p class="text-muted small px-3 max-width-450 mx-auto">
+            {{ t('surveys.feedback_retained_desc') }}
           </p>
         </div>
-      {% else %}
-        <div class="text-center mb-4">
-          <h2 class="h4 fw-bold text-dark mb-2">{{ config.titulo }}</h2>
-          <p class="text-muted small">{{ config.subtitulo }}</p>
-        </div>
 
-        <form id="formPesquisa" method="POST" action="/p/{{ config.slug }}/enviar">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      </div>
 
-          <div class="p-3 bg-light rounded-3 border mb-4">
-            <h3 class="h6 fw-bold text-secondary mb-3"><i class="bi bi-person-circle me-1"></i> Identificação</h3>
-            <div class="mb-2">
-              <label for="nome" class="form-label small mb-1 fw-medium text-dark">Seu Nome:</label>
-              <input type="text" class="form-control form-control-sm" id="nome" name="nome" placeholder="Ex: Anderson Mendes" required>
-            </div>
-            <div class="row g-2">
-              <div class="col-6">
-                <label for="email" class="form-label small mb-1 text-muted">E-mail (Opcional):</label>
-                <input type="email" class="form-control form-control-sm" id="email" name="email" placeholder="nome@exemplo.com">
-              </div>
-              <div class="col-6">
-                <label for="whatsapp" class="form-label small mb-1 text-muted">WhatsApp (Opcional):</label>
-                <input type="tel" class="form-control form-control-sm" id="whatsapp" name="whatsapp" placeholder="(33) 99999-0000">
-              </div>
-            </div>
-          </div>
-
-          <hr class="text-muted my-4 opacity-25">
-
-          {% for pergunta in config.perguntas %}
-          <div class="mb-4">
-            <label class="form-label fw-semibold text-dark mb-1">
-              {{ pergunta.texto_pergunta }}
-              {% if pergunta.is_obrigatoria %}<span class="text-danger">*</span>{% endif %}
-            </label>
-
-            {% if pergunta.tipo_resposta == 'texto' %}
-              <textarea name="pergunta_{{ pergunta.id }}" class="form-control form-control-sm" rows="2" placeholder="Digite sua resposta aqui..." {% if pergunta.is_obrigatoria %}required{% endif %}></textarea>
-            
-            {% elif pergunta.tipo_resposta == 'multipla_escolha' %}
-              <div class="ps-1 mt-1">
-                {% for opcao in pergunta.opcoes %}
-                <div class="form-check mb-1">
-                  <input class="form-check-input" type="radio" name="pergunta_{{ pergunta.id }}" id="opt_{{ pergunta.id }}_{{ loop.index }}" value="{{ opcao }}" {% if pergunta.is_obrigatoria and loop.first %}required{% endif %}>
-                  <label class="form-check-label small text-secondary" for="opt_{{ pergunta.id }}_{{ loop.index }}">{{ opcao }}</label>
-                </div>
-                {% endfor %}
-              </div>
-
-            {% elif pergunta.tipo_resposta == 'stars' or pergunta.tipo_resposta == 'estrelas' %}
-              <div class="rating-wrapper-dynamic">
-                <input type="radio" id="st5_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="5" {% if pergunta.is_obrigatoria %}required{% endif %}/><label for="st5_{{ pergunta.id }}" class="bi bi-star-fill"></label>
-                <input type="radio" id="st4_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="4" /><label for="st4_{{ pergunta.id }}" class="bi bi-star-fill"></label>
-                <input type="radio" id="st3_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="3" /><label for="st3_{{ pergunta.id }}" class="bi bi-star-fill"></label>
-                <input type="radio" id="st2_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="2" /><label for="st2_{{ pergunta.id }}" class="bi bi-star-fill"></label>
-                <input type="radio" id="st1_{{ pergunta.id }}" name="pergunta_{{ pergunta.id }}" value="1" /><label for="st1_{{ pergunta.id }}" class="bi bi-star-fill"></label>
-              </div>
-            {% endif %}
-          </div>
-          {% endfor %}
-
-          <button type="submit" id="btnEnviar" class="btn btn-primary w-100 py-2.5 fw-medium rounded-3 shadow-sm mt-3">
-            <i class="bi bi-send-fill me-2"></i> Concluir e Salvar Avaliação
-          </button>
-        </form>
-      {% endif %}
+      <a href="https://comentsia.com" target="_blank" class="comentsia-footer-badge">
+        {{ t('surveys.powered_by') }} <strong>ComentsIA</strong>
+      </a>
 
     </div>
-
-    <a href="https://comentsia.com" target="_blank" class="comentsia-badge">
-      Tecnologia e Satisfação garantida por <strong>ComentsIA</strong>
-    </a>
-
   </div>
 </div>
+
+<!-- 🎉 MODAL CELEBRAÇÃO 5 ESTRELAS GOOGLE BOOSTER -->
+<div class="modal fade" id="modalGoogleBooster" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+      
+      <div class="modal-body p-4 text-center">
+        <div class="d-inline-flex p-3 bg-warning-subtle text-warning rounded-circle mb-3">
+          <i class="bi bi-star-fill fs-1"></i>
+        </div>
+
+        <h3 class="h5 fw-bold text-dark mb-2">{{ t('surveys.google_booster_modal_title') }}</h3>
+        <p class="text-muted small mb-3">
+          {{ t('surveys.google_booster_modal_prompt') }}
+        </p>
+
+        <!-- CAIXA COM ELOGIO DO CLIENTE PRONTO PARA COPIAR -->
+        <div id="boxElogioPronto" class="p-3 bg-light rounded-3 border mb-3 text-start" style="display: none;">
+          <span class="small fw-bold text-secondary d-block mb-1">
+            <i class="bi bi-chat-quote-fill text-primary me-1"></i> {{ t('surveys.google_booster_copy_badge') }}
+          </span>
+          <p class="small text-dark mb-0 fst-italic" id="textoElogioCliente"></p>
+        </div>
+
+        <div class="d-grid gap-2">
+          <a href="#" id="btnAcessarGoogle" target="_blank" class="pulse-google-btn" onclick="onGoogleBoosterClicked()">
+            <i class="bi bi-google me-2 fs-5"></i>
+            <span id="btnGoogleText">{{ t('surveys.google_booster_direct_btn') }}</span>
+          </a>
+          <button type="button" class="btn btn-link text-muted btn-sm text-decoration-none" data-bs-dismiss="modal">
+            {{ t('surveys.google_booster_done_btn') }}
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CANVAS DE CONFETES -->
+<canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  document.addEventListener("DOMContentLoaded", function() {
-      const form = document.getElementById("formPesquisa");
-      const btnSubmit = document.getElementById("btnEnviar");
+const starCaptions = {
+  1: "1 ⭐ - Muito Insatisfeito",
+  2: "2 ⭐ - Insatisfeito",
+  3: "3 ⭐ - Regular",
+  4: "4 ⭐ - Satisfeito",
+  5: "5 ⭐ - Excelente! Adorei!"
+};
 
-      if (form && btnSubmit) {
-          form.addEventListener("submit", function() {
-              // Desativa o botão e muda o texto assim que ele clica a primeira vez
-              btnSubmit.disabled = true;
-              btnSubmit.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Enviando... Aguarde';
-              btnSubmit.style.opacity = "0.7";
-              btnSubmit.style.cursor = "not-allowed";
-          });
-      }
+function onStarSelected(perguntaId, nota) {
+  const capEl = document.getElementById(`caption_star_${perguntaId}`);
+  if (capEl && starCaptions[nota]) {
+    capEl.innerText = starCaptions[nota];
+    capEl.style.color = nota === 5 ? "#10b981" : (nota >= 3 ? "#3b82f6" : "#ef4444");
+  }
+  updateFormProgress();
+}
+
+function updateFormProgress() {
+  const form = document.getElementById("formPesquisaPublica");
+  if (!form) return;
+
+  const totalQuestions = form.querySelectorAll(".question-block").length;
+  if (totalQuestions === 0) return;
+
+  let answered = 0;
+  form.querySelectorAll(".question-block").forEach(block => {
+    const inputs = block.querySelectorAll("input:checked, textarea");
+    let isFilled = false;
+    inputs.forEach(inp => {
+      if (inp.type === "radio" && inp.checked) isFilled = true;
+      if (inp.tagName === "TEXTAREA" && inp.value.trim().length > 0) isFilled = true;
+    });
+    if (isFilled) answered++;
   });
+
+  const pct = Math.round((answered / totalQuestions) * 100);
+  const fill = document.getElementById("progressFill");
+  const txt = document.getElementById("progressText");
+  if (fill) fill.style.width = `${pct}%`;
+  if (txt) txt.innerText = `Progresso: ${pct}% concluído`;
+}
+
+// Submissão Inteligente via Fetch AJAX
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("formPesquisaPublica");
+  const btnSubmit = document.getElementById("btnEnviarPesquisa");
+
+  if (form) {
+    form.addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>{{ t("surveys.submitting_btn") }}';
+      btnSubmit.style.opacity = "0.75";
+
+      const formData = new FormData(form);
+
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Se for elegível para o Google Review Booster
+          if (result.elegivel_google && result.link_google) {
+            const btnGoogle = document.getElementById("btnAcessarGoogle");
+            const btnGoogleText = document.getElementById("btnGoogleText");
+            const boxElogio = document.getElementById("boxElogioPronto");
+            const txtElogio = document.getElementById("textoElogioCliente");
+
+            btnGoogle.href = result.link_google;
+
+            if (result.comentario_cliente && result.comentario_cliente.length > 3) {
+              txtElogio.innerText = `"${result.comentario_cliente}"`;
+              boxElogio.style.display = "block";
+              btnGoogleText.innerText = "{{ t('surveys.google_booster_cta_btn') }}";
+              window.textoParaCopiar = result.comentario_cliente;
+            } else {
+              boxElogio.style.display = "none";
+              btnGoogleText.innerText = "{{ t('surveys.google_booster_direct_btn') }}";
+              window.textoParaCopiar = null;
+            }
+
+            // Dispara Confetes
+            triggerConfetti();
+
+            // Abre o Modal do Google Booster
+            const modalEl = document.getElementById("modalGoogleBooster");
+            const modalObj = new bootstrap.Modal(modalEl);
+            modalObj.show();
+
+            document.getElementById("surveyActiveView").style.display = "none";
+            document.getElementById("surveySuccessView").style.display = "block";
+
+          } else {
+            // Sucesso normal (Retenção / Ouvidoria interna)
+            document.getElementById("surveyActiveView").style.display = "none";
+            document.getElementById("surveySuccessView").style.display = "block";
+          }
+
+        } else {
+          alert(result.error || "Ocorreu um erro ao enviar sua avaliação.");
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = '<i class="bi bi-send-fill me-2"></i>{{ t("surveys.submit_public_btn") }}';
+          btnSubmit.style.opacity = "1";
+        }
+      } catch (err) {
+        // Fallback para submissão direta se houver falha de rede
+        form.submit();
+      }
+    });
+  }
+});
+
+function onGoogleBoosterClicked() {
+  if (window.textoParaCopiar) {
+    navigator.clipboard.writeText(window.textoParaCopiar).then(() => {
+      const btnText = document.getElementById("btnGoogleText");
+      if (btnText) btnText.innerText = "✓ Elogio Copiado! Abrindo Google...";
+    });
+  }
+}
+
+/* 🎊 EFEITO DE CONFETES NATIVO EM CANVAS */
+function triggerConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const pieces = [];
+  const numberOfPieces = 120;
+  const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444'];
+
+  for (let i = 0; i < numberOfPieces; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      rotation: Math.random() * 360,
+      size: Math.random() * 10 + 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speed: Math.random() * 5 + 3
+    });
+  }
+
+  let animationFrame;
+  function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.y += p.speed;
+      p.rotation += 2;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+
+    if (pieces.some(p => p.y < canvas.height)) {
+      animationFrame = requestAnimationFrame(update);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      cancelAnimationFrame(animationFrame);
+    }
+  }
+  update();
+}
 </script>
 {% endblock %}

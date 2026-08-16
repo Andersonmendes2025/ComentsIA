@@ -11,6 +11,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # ⚠️ Configure aqui o ID do Preço do Slot Extra no Stripe
 STRIPE_ADDON_PRICE_ID = os.getenv("STRIPE_ADDON_PRICE_ID", "price_SEU_ID_AQUI")
+STRIPE_PRICE_ADDON_IFOOD = os.getenv("STRIPE_PRICE_ADDON_IFOOD", "price_1U4qebHdM7mYgSGKImuFU85G")
+STRIPE_PROD_ADDON_IFOOD = os.getenv("STRIPE_PROD_ADDON_IFOOD", "prod_V50fovspMA5NmF")
 
 stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
 
@@ -212,6 +214,52 @@ def cancelar_assinatura_geral():
 
 
 # -----------------------
+# 🍔 ADD-ON IFOOD (R$ 30,00/MÊS)
+# -----------------------
+
+@stripe_bp.route("/addon/ifood/checkout", methods=["POST", "GET"])
+def checkout_addon_ifood():
+    """Inicia o checkout Stripe para o Add-on de automação iFood (R$ 30,00/mês)."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    email = user_info.get("email") or "cliente@comentsia.com.br"
+
+    if not user_id:
+        flash("Faça login para assinar o Add-on do iFood.", "warning")
+        return redirect(url_for("authorize"))
+
+    settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+    if not settings:
+        settings = UserSettings(user_id=str(user_id))
+        db.session.add(settings)
+        db.session.commit()
+
+    customer_id = _get_or_create_stripe_customer(settings, email)
+    price_id = STRIPE_PRICE_ADDON_IFOOD
+    domain = _get_domain_url()
+
+    try:
+        checkout = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            customer=customer_id,
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{domain}/integracoes?status=addon_ifood_success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{domain}/integracoes?status=addon_ifood_cancel",
+            metadata={
+                "type": "addon_ifood",
+                "user_id": str(user_id)
+            },
+            client_reference_id=str(user_id)
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as e:
+        logging.exception("Erro ao criar checkout Stripe para addon iFood: %s", e)
+        flash(f"Erro ao iniciar pagamento com Stripe: {str(e)}", "danger")
+        return redirect("/integracoes")
+
+
+# -----------------------
 # CHECKOUT PADRÃO (PLANOS / RETRO)
 # -----------------------
 
@@ -306,9 +354,8 @@ def checkout_adicionar_ficha():
     
     # 🚀 CORREÇÃO AQUI: Em vez de jsonify, usamos redirect para forçar o navegador a ir pro Stripe
     return redirect(checkout.url, code=303)
-    
-    # Retorna a URL para o HTML redirecionar a tela
-    return jsonify({"success": True, "checkout_url": checkout.url})
+
+
 @stripe_bp.route("/success")
 def success():
     session_id = request.args.get("session_id")
@@ -413,12 +460,22 @@ def stripe_webhook():
                 # Isso impede erros caso o slot extra seja uma assinatura separada no Stripe
                 subs = stripe.Subscription.list(customer=customer_id, status="active")
                 addon_qty = 0
+                has_ifood = False
                 for s in subs.auto_paging_iter():
                     for item in s["items"]["data"]:
                         if item.price.id == STRIPE_ADDON_PRICE_ID:
                             addon_qty += item.quantity
+                        if item.price.id == STRIPE_PRICE_ADDON_IFOOD:
+                            has_ifood = True
+                            settings.addon_ifood_subscription_id = s.id
+                            try:
+                                settings.addon_ifood_until = datetime.utcfromtimestamp(s.current_period_end)
+                            except Exception:
+                                pass
 
                 settings.gbp_slots_extras = addon_qty
+                if has_ifood:
+                    settings.has_addon_ifood = True
                 db.session.commit()
 
     # ❌ Assinatura cancelada (Stripe encerrou mesmo, não é só cancel_at_period_end)
@@ -432,6 +489,13 @@ def stripe_webhook():
             settings.stripe_subscription_id = None
             settings.stripe_subscription_item_id = None
             settings.gbp_slots_extras = 0
+            db.session.commit()
+
+        # Checa se a assinatura cancelada foi a do iFood
+        settings_ifood = UserSettings.query.filter_by(addon_ifood_subscription_id=sub_id).first()
+        if settings_ifood:
+            settings_ifood.has_addon_ifood = False
+            settings_ifood.addon_ifood_subscription_id = None
             db.session.commit()
     # ❌ Pagamento Falhou (Dispara e-mail Imediato de falha no cartão)
     if event["type"] == "invoice.payment_failed":

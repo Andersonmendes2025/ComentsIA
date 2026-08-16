@@ -77,6 +77,11 @@
       font-size: 1.3rem;
       letter-spacing: -0.02em;
     }
+    .custom-navbar .navbar-nav,
+    .custom-navbar .nav-item {
+      list-style: none !important;
+      list-style-type: none !important;
+    }
     .custom-navbar .nav-link {
       color: #475569 !important;
       font-weight: 500;
@@ -215,22 +220,25 @@
       </button>
 
       <div class="collapse navbar-collapse" id="navbarContent">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0" style="list-style: none;">
           {% if logged_in %}
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> Avaliações</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> Adicionar</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> Relatórios</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('reviews') }}"><i class="bi bi-chat-square-text me-1"></i> {{ t('navbar.reviews') }}</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('add_review') }}"><i class="bi bi-plus-circle me-1"></i> {{ t('navbar.add_review') }}</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><i class="bi bi-graph-up me-1"></i> {{ t('navbar.dashboard') }}</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('gerar_relatorio') }}"><i class="bi bi-file-earmark-bar-graph me-1"></i> {{ t('navbar.reports') }}</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('integracoes') }}"><i class="bi bi-cpu me-1 text-danger"></i> {{ t('navbar.integrations') }}</a></li>
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('integracoes') }}"><i class="bi bi-cpu me-1 text-danger"></i> {{ t('navbar.integrations') }}</a></li>
           {% endif %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> Planos</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('ajuda.ajuda') }}"><i class="bi bi-question-circle me-1"></i> Ajuda</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> Quem Somos</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('planos') }}"><i class="bi bi-card-list me-1"></i> {{ t('navbar.pricing') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('ajuda.ajuda') }}"><i class="bi bi-question-circle me-1"></i> {{ t('navbar.help') }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('quem_somos') }}"><i class="bi bi-people me-1"></i> {{ t('navbar.about_us') }}</a></li>
 
           {# --- Menu Admin dinâmico (aparece só se houver acesso) --- #}
           {% if logged_in and has_admin %}
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle text-danger fw-bold" href="#" data-bs-toggle="dropdown">
-                <i class="bi bi-shield-lock-fill me-1"></i> Admin
+                <i class="bi bi-shield-lock-fill me-1"></i> {{ t('navbar.admin') }}
               </a>
               <ul class="dropdown-menu">
                 {% for it in admin_links %}
@@ -247,17 +255,43 @@
           {% if logged_in %}
             <li class="nav-item">
               <a class="nav-link text-primary fw-semibold" href="{{ url_for('matriz.dashboard') }}">
-                <i class="bi bi-diagram-3 me-1"></i> Painel Matriz
+                <i class="bi bi-diagram-3 me-1"></i> {{ t('navbar.matrix_panel') }}
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-semibold" href="{{ url_for('mercadolivre.dashboard') }}" style="color: #b45309;">
+                <i class="bi bi-bag-check-fill me-1 text-warning"></i> Mercado Livre
               </a>
             </li>
           {% endif %}
         </ul>
 
         <div class="d-flex align-items-center gap-2">
+          <!-- Seletor de Idioma Multilíngue (i18n) -->
+          <div class="dropdown me-1">
+            <button class="btn btn-light rounded-pill px-2 py-1 shadow-sm border d-flex align-items-center gap-1" type="button" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="{{ t('navbar.change_language') }}">
+              <span class="fs-6">{{ lang_info.flag }}</span>
+              <span class="small fw-semibold text-muted d-none d-sm-inline">{{ lang_info.code|upper }}</span>
+              <i class="bi bi-chevron-down text-muted" style="font-size: 0.7rem;"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 py-1" aria-labelledby="langDropdown" style="min-width: 170px;">
+              {% for code, info in available_languages.items() %}
+                <li>
+                  <a class="dropdown-item d-flex align-items-center justify-content-between py-2 px-3 {% if current_lang == code %}active fw-bold bg-primary bg-opacity-10 text-primary{% endif %}" href="{{ url_for('set_language', lang=code) }}">
+                    <span><span class="me-2 fs-6">{{ info.flag }}</span>{{ info.name }}</span>
+                    {% if current_lang == code %}
+                      <i class="bi bi-check2 text-primary"></i>
+                    {% endif %}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
           {% if logged_in %}
             <!-- Dropdown de Notificações In-App -->
             <div class="dropdown position-relative me-1">
-              <button class="btn btn-light rounded-circle p-2 position-relative shadow-sm" type="button" id="notifMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Central de Notificações">
+              <button class="btn btn-light rounded-circle p-2 position-relative shadow-sm" type="button" id="notifMenu" data-bs-toggle="dropdown" aria-expanded="false" title="{{ t('navbar.notifications') }}">
                 <i class="bi bi-bell-fill text-primary fs-5"></i>
                 {% if app_notificacoes_unread_count and app_notificacoes_unread_count > 0 %}
                   <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow-sm">
@@ -268,7 +302,7 @@
               
               <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0" aria-labelledby="notifMenu" style="width: 340px; max-width: 90vw; z-index: 1050;">
                 <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top-4">
-                  <span class="fw-bold text-dark small"><i class="bi bi-bell me-1 text-primary"></i> Notificações</span>
+                  <span class="fw-bold text-dark small"><i class="bi bi-bell me-1 text-primary"></i> {{ t('navbar.notifications') }}</span>
                   {% if app_notificacoes_unread_count and app_notificacoes_unread_count > 0 %}
                     <button class="btn btn-link btn-sm text-decoration-none p-0 small text-primary" onclick="marcarNotificacoesComoLidas()">Marcar como lidas</button>
                   {% endif %}
@@ -313,7 +347,7 @@
                   {% if not convites_pendentes and not app_notificacoes %}
                     <div class="text-center py-4 text-muted small">
                       <i class="bi bi-bell-slash fs-4 d-block mb-1 text-secondary opacity-50"></i>
-                      Nenhuma notificação nova no momento.
+                      {{ t('navbar.notifications_empty') }}
                     </div>
                   {% endif %}
                 </div>
@@ -329,15 +363,15 @@
                 <span class="small fw-semibold">{{ user.name if user and user.name else (user.nome if user and user.nome else (user.email if user and user.email else 'Minha Conta')) }}</span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear"></i> {{ t('navbar.settings') }}</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-danger" href="#" onclick="deleteAccount()"><i class="bi bi-trash"></i> Apagar minha conta</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> {{ t('navbar.logout') }}</a></li>
               </ul>
             </div>
           {% else %}
-            <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary">Entrar</a>
+            <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary"><i class="bi bi-google me-1"></i> {{ t('navbar.login') }}</a>
           {% endif %}
         </div>
       </div>
@@ -369,22 +403,22 @@
         <img src="{{ url_for('static', filename='logo-symbol.png') }}" alt="ComentsIA" class="footer-logo">
         <div class="footer-secure">
           <i class="bi bi-shield-check" style="color:#137333; font-size:1.1em;"></i>
-          <span>Site seguro &mdash; Conexão HTTPS criptografada</span>
+          <span>{{ t('footer.secure') }}</span>
         </div>
       </div>
       <div class="footer-links">
-        <a href="mailto:contato@comentsia.com.br" title="E-mail institucional"><i class="bi bi-envelope"></i> contato@comentsia.com.br</a>
+        <a href="mailto:contato@comentsia.com.br" title="E-mail"><i class="bi bi-envelope"></i> contato@comentsia.com.br</a>
         <a href="mailto:suporte@comentsia.com.br" title="Suporte"><i class="bi bi-life-preserver"></i> suporte@comentsia.com.br</a>
         <a href="https://instagram.com/comentsia" target="_blank" title="Instagram"><i class="bi bi-instagram"></i> @comentsia</a>
       </div>
       <div class="footer-pags">
-        <a href="{{ url_for('quem_somos') }}">Quem Somos</a>
+        <a href="{{ url_for('quem_somos') }}">{{ t('navbar.about_us') }}</a>
         <span class="footer-dot">&middot;</span>
-        <a href="{{ url_for('terms') }}">Termos de Uso</a>
+        <a href="{{ url_for('terms') }}">{{ t('footer.terms') }}</a>
         <span class="footer-dot">&middot;</span>
-        <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>
+        <a href="{{ url_for('privacy_policy') }}">{{ t('footer.privacy') }}</a>
       </div>
-      <div class="footer-copy">&copy; {{ now.year if now else 2025 }} ComentsIA. Todos os direitos reservados.</div>
+      <div class="footer-copy">&copy; {{ now.year if now else 2025 }} ComentsIA. {{ t('footer.rights') }}</div>
     </div>
   </footer>
 

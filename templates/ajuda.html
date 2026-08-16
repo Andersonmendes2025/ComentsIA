@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Central de Ajuda - ComentsIA{% endblock %}
+{% block title %}{{ t('help.title') }} - ComentsIA{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -129,11 +129,11 @@
   
   <!-- Hero Section -->
   <div class="help-hero">
-    <h1 class="fw-bold mb-3">Como podemos ajudar?</h1>
-    <p class="fs-5 text-white-50 mb-4">Busque tutoriais, resolva problemas ou fale com nossa Inteligência Artificial.</p>
+    <h1 class="fw-bold mb-3">{{ t('help.hero_title') }}</h1>
+    <p class="fs-5 text-white-50 mb-4">{{ t('help.hero_subtitle') }}</p>
     
     <div class="search-box px-3">
-      <input type="text" class="form-control" id="searchInput" placeholder="Busque por 'fichas', 'planos', 'Google'..." onkeyup="filterContent()">
+      <input type="text" class="form-control" id="searchInput" placeholder="{{ t('help.search_placeholder') }}" onkeyup="filterContent()">
       <i class="bi bi-search"></i>
     </div>
   </div>
@@ -144,8 +144,8 @@
         <div class="category-icon bg-primary bg-opacity-10 text-primary">
           <i class="bi bi-rocket-takeoff"></i>
         </div>
-        <h5 class="fw-bold">1. Primeiro Acesso</h5>
-        <p class="text-muted small mb-0">Como entrar, primeiros passos e guia rápido de navegação.</p>
+        <h5 class="fw-bold">{{ t('help.cat_1_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_1_desc') }}</p>
       </div>
     </div>
     
@@ -154,8 +154,8 @@
         <div class="category-icon bg-success bg-opacity-10 text-success">
           <i class="bi bi-google"></i>
         </div>
-        <h5 class="fw-bold">2. Google Business (Fichas)</h5>
-        <p class="text-muted small mb-0">Regra de ouro dos Grupos de Locais (Dono vs Gerente).</p>
+        <h5 class="fw-bold">{{ t('help.cat_2_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_2_desc') }}</p>
       </div>
     </div>
     
@@ -164,8 +164,8 @@
         <div class="category-icon bg-warning bg-opacity-10 text-warning">
           <i class="bi bi-robot"></i>
         </div>
-        <h5 class="fw-bold">3. Configuração da IA</h5>
-        <p class="text-muted small mb-0">Tons de voz, caixa de contexto e respostas automáticas.</p>
+        <h5 class="fw-bold">{{ t('help.cat_3_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_3_desc') }}</p>
       </div>
     </div>
     
@@ -174,8 +174,18 @@
         <div class="category-icon bg-info bg-opacity-10 text-info">
           <i class="bi bi-file-earmark-pdf"></i>
         </div>
-        <h5 class="fw-bold">4. Relatórios em PDF</h5>
-        <p class="text-muted small mb-0">Análise de sentimento, gráficos e histórico de relatórios.</p>
+        <h5 class="fw-bold">{{ t('help.cat_4_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_4_desc') }}</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card category-card p-4" onclick="showSection('ifood_integracao')">
+        <div class="category-icon bg-danger bg-opacity-10 text-danger">
+          <i class="bi bi-bag-heart-fill"></i>
+        </div>
+        <h5 class="fw-bold">{{ t('help.cat_5_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_5_desc') }}</p>
       </div>
     </div>
 
@@ -184,8 +194,8 @@
         <div class="category-icon bg-secondary bg-opacity-10 text-secondary">
           <i class="bi bi-qr-code-scan"></i>
         </div>
-        <h5 class="fw-bold">5. Pesquisas e Matriz</h5>
-        <p class="text-muted small mb-0">NPS via QR Code nas mesas e gestão de redes/filiais.</p>
+        <h5 class="fw-bold">{{ t('help.cat_6_title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('help.cat_6_desc') }}</p>
       </div>
     </div>
     
@@ -194,8 +204,8 @@
         <div class="category-icon bg-purple bg-opacity-10" style="color: #6f42c1; background-color: rgba(111, 66, 193, 0.1);">
           <i class="bi bi-credit-card"></i>
         </div>
-        <h5 class="fw-bold">6. Planos e Cobrança</h5>
-        <p class="text-muted small mb-0">Valores, upgrades, slots extras e política de cancelamento.</p>
+        <h5 class="fw-bold">{{ t('pricing_page.title') }}</h5>
+        <p class="text-muted small mb-0">{{ t('pricing_page.subtitle') }}</p>
       </div>
     </div>
   </div>
@@ -204,29 +214,32 @@
   <div class="row d-none" id="readerSection">
     <div class="col-12 mb-3">
       <button class="btn btn-light rounded-pill px-4 shadow-sm" onclick="backToCategories()">
-        <i class="bi bi-arrow-left me-2"></i> Voltar às Categorias
+        <i class="bi bi-arrow-left me-2"></i> {{ t('common.back') }}
       </button>
     </div>
     
     <div class="col-md-3">
       <div class="nav flex-column nav-pills shadow-sm p-2 bg-white rounded-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
         <button class="nav-link text-start" id="nav-primeiro_acesso" onclick="showSection('primeiro_acesso')">
-          <i class="bi bi-rocket-takeoff me-2"></i> Primeiro Acesso
+          <i class="bi bi-rocket-takeoff me-2"></i> {{ t('help.cat_1_title') }}
         </button>
         <button class="nav-link text-start" id="nav-google_business" onclick="showSection('google_business')">
-          <i class="bi bi-google me-2"></i> Google Business
+          <i class="bi bi-google me-2"></i> {{ t('help.cat_2_title') }}
         </button>
         <button class="nav-link text-start" id="nav-configuracao_ia" onclick="showSection('configuracao_ia')">
-          <i class="bi bi-robot me-2"></i> Configuração da IA
+          <i class="bi bi-robot me-2"></i> {{ t('help.cat_3_title') }}
         </button>
         <button class="nav-link text-start" id="nav-relatorios" onclick="showSection('relatorios')">
-          <i class="bi bi-file-earmark-pdf me-2"></i> Relatórios PDF
+          <i class="bi bi-file-earmark-pdf me-2"></i> {{ t('help.cat_4_title') }}
+        </button>
+        <button class="nav-link text-start" id="nav-ifood_integracao" onclick="showSection('ifood_integracao')">
+          <i class="bi bi-bag-heart-fill me-2 text-danger"></i> {{ t('help.cat_5_title') }}
         </button>
         <button class="nav-link text-start" id="nav-pesquisas_matriz" onclick="showSection('pesquisas_matriz')">
-          <i class="bi bi-qr-code-scan me-2"></i> Pesquisas e Matriz
+          <i class="bi bi-qr-code-scan me-2"></i> {{ t('help.cat_6_title') }}
         </button>
         <button class="nav-link text-start" id="nav-planos_cobranca" onclick="showSection('planos_cobranca')">
-          <i class="bi bi-credit-card me-2"></i> Planos e Cobrança
+          <i class="bi bi-credit-card me-2"></i> {{ t('pricing_page.title') }}
         </button>
       </div>
     </div>
@@ -243,10 +256,10 @@
   <!-- Empty State Search -->
   <div class="empty-state" id="searchEmptyState">
     <i class="bi bi-search"></i>
-    <h3 class="fw-bold">Nenhum resultado encontrado</h3>
-    <p class="text-muted">Não encontramos tutoriais com os termos digitados.</p>
+    <h3 class="fw-bold">{{ t('common.error') }}</h3>
+    <p class="text-muted">{{ t('help.search_placeholder') }}</p>
     <button class="btn btn-primary mt-3 rounded-pill px-4" onclick="document.getElementById('chat-float-btn').click()">
-      Perguntar à Inteligência Artificial
+      {{ t('help.chat_title') }}
     </button>
   </div>
 
@@ -260,6 +273,7 @@
     primeiro_acesso: `{{ guias.primeiro_acesso | safe | replace('`', '\\`') }}`,
     google_business: `{{ guias.google_business | safe | replace('`', '\\`') }}`,
     configuracao_ia: `{{ guias.configuracao_ia | safe | replace('`', '\\`') }}`,
+    ifood_integracao: `{{ guias.ifood_integracao | safe | replace('`', '\\`') }}`,
     relatorios: `{{ guias.relatorios | safe | replace('`', '\\`') }}`,
     pesquisas_matriz: `{{ guias.pesquisas_matriz | safe | replace('`', '\\`') }}`,
     planos_cobranca: `{{ guias.planos_cobranca | safe | replace('`', '\\`') }}`

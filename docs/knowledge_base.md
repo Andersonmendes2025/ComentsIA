@@ -400,3 +400,56 @@ Acesse **Planos** (`/planos` ou `/upgrade`) no menu.
 
 **P: O ComentsIA tem aplicativo para celular?**  
 **R:** O site do ComentsIA é 100% responsivo (otimizado para telas de celular e tablets). Você pode acessá-lo pelo navegador do seu smartphone ou clicar em "Adicionar à tela inicial" no Chrome/Safari para usá-lo como um app.
+
+---
+
+# 15. 🍔 Integração iFood & Respostas Automáticas para Restaurantes e Delivery
+
+O **ComentsIA** oferece integração oficial com o **iFood Delivery** através do modelo de aplicativo distribuído e seguro via OAuth 2.0.
+
+### 🌟 Principais Vantagens para Restaurantes:
+1. **Respostas Instantâneas para Pedidos Delivery:** A IA lê o comentário e a nota (estrelas) atribuídos ao restaurante no app do iFood.
+2. **Reconhecimento de Pratos e Itens Elogiados:** Se o cliente elogiou o sabor do hambúrguer, o ponto da pizza ou a temperatura da comida, a IA valoriza o prato e o trabalho da cozinha.
+3. **Gestão Inteligente de Reclamações de Entrega:** Caso o cliente reclame de demora ou embalagem, a IA responde com empatia profissional, acolhe o feedback sem transferir culpa para o entregador parceiro e preserva a reputação do restaurante.
+4. **Publicação Direta na API do iFood:** As respostas geradas pela IA são enviadas diretamente para a API oficial do iFood e aparecem no app do cliente.
+
+---
+
+### 💳 Como Funciona a Assinatura do Add-on iFood:
+- A integração com o iFood funciona como uma extensão (**Add-on de R$ 29,90/mês** via Stripe).
+- Usuários com Add-on ativo podem conectar e gerenciar suas lojas do iFood.
+- Para assinar, acesse o menu **"Integrações"** no topo do ComentsIA e clique em **"Assinar Add-on iFood (R$ 29,90/mês)"**.
+
+---
+
+### 🔗 Passo a Passo: Como Conectar sua Loja do iFood:
+1. Acesse o menu **"Integrações"** no ComentsIA.
+2. No card do **iFood**, clique no botão **"Conectar Loja"**.
+3. Um modal interativo abrirá com o seu **Código de Pareamento** exclusivo (ex: `HJLX-LPSQ`).
+4. Clique no link **"Abrir Portal do Parceiro iFood"** (ou acesse `https://portal.ifood.com.br/apps/code`).
+5. No Portal do iFood, cole o código e clique em **"Autorizar"**.
+6. Volte à janela do ComentsIA e clique em **"Concluir Pareamento"**.
+7. Pronto! A sua loja será detectada e adicionada automaticamente ao seu painel.
+
+---
+
+### ⚙️ Personalização de Tom de Voz para o iFood:
+Para cada loja conectada, você pode clicar no botão **"Configurar"** (ícone de engrenagem) e definir:
+- **Ativar/Desativar Respostas Automáticas:** Escolha se as novas avaliações serão respondidas no piloto automático.
+- **Tom de Voz:** *Amigável & Caloroso* (mais indicado para gastronomia), *Profissional*, *Sofisticado*, etc.
+- **Saudação e Despedida:** Personalize como seu restaurante cumprimenta e se despede dos clientes.
+- **Contexto da Cozinha / Regras Especiais:** Ex: *"Nossos pratos são artesanais", "Agradecer por pedir em nossa hamburgueria familiar"*.
+
+---
+
+### ❓ Perguntas Frequentes sobre o iFood:
+
+**P: As respostas da IA aparecem para o cliente no app do iFood?**  
+**R:** Sim! A resposta é publicada oficialmente através da API do iFood e fica visível para o cliente no histórico do pedido e na página do seu restaurante.
+
+**P: Como sincronizar avaliações pendentes do iFood?**  
+**R:** Em **Integrações**, clique no botão **"Sincronizar Avaliações"** da sua loja. O ComentsIA buscará as últimas avaliações recebidas e gerará as respostas automaticamente.
+
+**P: Posso conectar mais de uma filial ou loja do iFood?**  
+**R:** Sim! Se a sua conta no Portal do Parceiro do iFood gerencia múltiplas lojas/filiais, o ComentsIA permite conectar e configurar cada unidade individualmente.
+

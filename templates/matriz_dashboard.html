@@ -24,24 +24,24 @@
 
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-white py-3">
-      <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-speedometer2 me-2"></i>Matriz - Métricas Consolidadas</h6>
+      <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-speedometer2 me-2"></i>{{ t('matriz_page.metrics_consolidated') }}</h6>
     </div>
     <div class="card-body">
       <div class="row g-3 text-center">
         <div class="col-md-3">
-          <div class="text-muted small text-uppercase fw-bold">Total de Avaliações</div>
+          <div class="text-muted small text-uppercase fw-bold">{{ t('matriz_page.total_reviews') }}</div>
           <div class="h3 fw-bold text-dark mt-2">{{ matriz_metrics.total_reviews }}</div>
         </div>
         <div class="col-md-3 border-start">
-          <div class="text-muted small text-uppercase fw-bold">Nota Média</div>
+          <div class="text-muted small text-uppercase fw-bold">{{ t('matriz_page.avg_rating') }}</div>
           <div class="h3 fw-bold text-dark mt-2">{{ matriz_metrics.avg_rating }}</div>
         </div>
         <div class="col-md-3 border-start">
-          <div class="text-muted small text-uppercase fw-bold">Taxa de Resposta</div>
+          <div class="text-muted small text-uppercase fw-bold">{{ t('matriz_page.response_rate') }}</div>
           <div class="h3 fw-bold text-success mt-2">{{ matriz_metrics.response_rate }}%</div>
         </div>
         <div class="col-md-3 border-start">
-          <div class="text-muted small text-uppercase fw-bold">Última Atividade</div>
+          <div class="text-muted small text-uppercase fw-bold">{{ t('matriz_page.last_activity') }}</div>
           <div class="h5 mt-3 text-secondary">
             {% if matriz_metrics.last_review_at %}
               {{ matriz_metrics.last_review_at|formatar_data_brt }}
@@ -55,15 +55,15 @@
   </div>
 
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h3 class="mb-0 fw-bold text-dark">Dashboard da Rede</h3>
+    <h3 class="mb-0 fw-bold text-dark">{{ t('matriz_page.title') }}</h3>
     
     {% if is_business_plan(user_plano) %}
     <button class="btn btn-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#modalVincular">
-      <i class="bi bi-link-45deg me-1"></i> Vincular nova filial
+      <i class="bi bi-link-45deg me-1"></i> {{ t('matriz_page.link_new_branch') }}
     </button>
     {% else %}
     <button class="btn btn-secondary btn-sm shadow-sm" disabled title="Disponível exclusivamente no plano BUSINESS">
-      <i class="bi bi-lock-fill me-1"></i> Vincular nova filial
+      <i class="bi bi-lock-fill me-1"></i> {{ t('matriz_page.link_new_branch') }}
     </button>
     {% endif %}
   </div>
@@ -75,7 +75,7 @@
         <div class="col-md-3">
           <div class="card stat-card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
             <div class="card-body">
-              <div class="text-white-50 small text-uppercase fw-bold">Avaliações (Filiais)</div>
+              <div class="text-white-50 small text-uppercase fw-bold">{{ t('matriz_page.branch_reviews') }}</div>
               <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.total_reviews if aggregate else 0 }}</div>
             </div>
           </div>
@@ -89,7 +89,7 @@
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
-                  <div class="small text-uppercase fw-bold opacity-75">Média Global</div>
+                  <div class="small text-uppercase fw-bold opacity-75">{{ t('matriz_page.global_avg') }}</div>
                   <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.avg_rating if aggregate else 0.0 }}</div>
                 </div>
                 <i class="bi bi-star-fill fs-3 opacity-50"></i>
@@ -101,7 +101,7 @@
         <div class="col-md-3">
           <div class="card stat-card border-0 shadow-sm bg-info text-white">
             <div class="card-body">
-              <div class="small text-uppercase fw-bold opacity-75">Taxa de Resposta</div>
+              <div class="small text-uppercase fw-bold opacity-75">{{ t('matriz_page.response_rate') }}</div>
               <div class="h2 fw-bold mb-0 mt-2">{{ aggregate.response_rate if aggregate else 0.0 }}%</div>
             </div>
           </div>
@@ -110,7 +110,7 @@
         <div class="col-md-3">
           <div class="card stat-card border-0 shadow-sm bg-dark text-white">
             <div class="card-body">
-              <div class="small text-uppercase fw-bold opacity-75">Última Interação</div>
+              <div class="small text-uppercase fw-bold opacity-75">{{ t('matriz_page.last_interaction') }}</div>
               <div class="h5 fw-bold mb-0 mt-3">
                 {% if aggregate and aggregate.last_review_at %}
                   {{ aggregate.last_review_at|formatar_data_brt }}
@@ -125,7 +125,7 @@
 
       <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3 border-bottom">
-          <h6 class="mb-0 fw-bold"><i class="bi bi-shop me-2"></i>Filiais Vinculadas</h6>
+          <h6 class="mb-0 fw-bold"><i class="bi bi-shop me-2"></i>{{ t('matriz_page.linked_branches') }}</h6>
         </div>
         <div class="card-body p-0">
           {% if filiais and filiais|length > 0 %}
@@ -133,12 +133,12 @@
             <table class="table table-hover mb-0 align-middle">
               <thead class="table-light text-muted small text-uppercase">
                 <tr>
-                  <th class="ps-4" style="width: 35%;">Filial</th>
-                  <th class="text-center">Avaliações</th>
-                  <th class="text-center">Média</th>
-                  <th class="text-center">Respondidas</th>
-                  <th class="text-center">Taxa Resp.</th>
-                  <th class="text-end pe-4" style="width: 200px;">Ações</th>
+                  <th class="ps-4" style="width: 35%;">{{ t('matriz_page.branch_col') }}</th>
+                  <th class="text-center">{{ t('matriz_page.reviews_col') }}</th>
+                  <th class="text-center">{{ t('matriz_page.avg_col') }}</th>
+                  <th class="text-center">{{ t('matriz_page.replied_col') }}</th>
+                  <th class="text-center">{{ t('matriz_page.rate_col') }}</th>
+                  <th class="text-end pe-4" style="width: 200px;">{{ t('matriz_page.actions_col') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,15 +178,15 @@
                   <div class="p-4">
                     <div class="card border-0 shadow-sm">
                       <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-stars me-2"></i>Análise Inteligente da Filial</span>
+                        <span><i class="bi bi-stars me-2"></i>{{ t('matriz_page.ai_branch_title') }}</span>
                         <button class="btn btn-sm btn-link text-white text-decoration-none" onclick="document.getElementById('analise-{{ f.user_id }}').style.display='none'">
-                          <i class="bi bi-x-lg"></i> Fechar
+                          <i class="bi bi-x-lg"></i> {{ t('matriz_page.close') }}
                         </button>
                       </div>
                       <div class="card-body" id="analise-conteudo-{{ f.user_id }}">
                         <div class="text-center py-4 text-muted">
                           <div class="spinner-border text-primary mb-2" role="status"></div>
-                          <p class="mb-0">A IA está processando os dados desta filial...</p>
+                          <p class="mb-0">{{ t('matriz_page.ai_processing') }}</p>
                         </div>
                       </div>
                     </div>
@@ -200,8 +200,8 @@
           {% else %}
             <div class="text-center py-5 text-muted">
               <i class="bi bi-shop display-4 mb-3 d-block text-secondary opacity-50"></i>
-              <h5>Nenhuma filial vinculada</h5>
-              <p class="mb-0">Aguardando a adição da primeira filial.</p>
+              <h5>{{ t('matriz_page.no_branches') }}</h5>
+              <p class="mb-0">{{ t('matriz_page.waiting_first') }}</p>
             </div>
           {% endif %}
         </div>
@@ -212,11 +212,11 @@
     {% if not is_business_plan(user_plano) %}
     <div class="lock-overlay">
       <i class="bi bi-diagram-3-fill fs-1 mb-3 text-primary"></i>
-      <h5 class="mb-2 fw-bold text-dark">Recurso Exclusivo Business</h5>
+      <h5 class="mb-2 fw-bold text-dark">{{ t('matriz_page.exclusive_biz') }}</h5>
       <div class="text-muted mb-4 px-4 text-center" style="max-width: 500px;">
-        O gerenciamento de múltiplas filiais e o acompanhamento centralizado da reputação de toda a rede (Modo Matriz) estão disponíveis apenas no plano <b>BUSINESS</b>.
+        {{ t('matriz_page.exclusive_biz_desc') }}
       </div>
-      <a href="{{ url_for('planos') }}" class="btn btn-primary px-4 py-2 fw-medium shadow-sm"><i class="bi bi-gem me-2"></i>Fazer Upgrade Agora</a>
+      <a href="{{ url_for('planos') }}" class="btn btn-primary px-4 py-2 fw-medium shadow-sm"><i class="bi bi-gem me-2"></i>{{ t('matriz_page.upgrade_now') }}</a>
     </div>
     {% endif %}
   </div>

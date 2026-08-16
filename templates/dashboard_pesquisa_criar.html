@@ -1,216 +1,540 @@
 {% extends "base.html" %}
-{% block title %}Criar Formulário - ComentsIA{% endblock %}
+{% block title %}{{ t('surveys.builder_title') }} - ComentsIA{% endblock %}
 
 {% block extra_head %}
 <style>
-/* 🚀 EFEITO DE BLOQUEIO PREMIUM */
-.premium-locked { 
+  /* 🚀 ESTÉTICA GOOGLE EXECUTIVE / GLASSMORPHISM */
+  .builder-header {
+    background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(248,250,252,0.9) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(226,232,240,0.8);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .question-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(15,23,42,0.03);
+    transition: all 0.25s ease-in-out;
+  }
+  .question-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 20px rgba(15,23,42,0.06);
+  }
+  .question-card.active-trigger {
+    border-color: #10b981;
+    background: #f0fdf4;
+  }
+
+  .type-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+  }
+
+  /* 📱 SIMULADOR MOBILE AO VIVO */
+  .mobile-simulator-wrapper {
+    position: sticky;
+    top: 90px;
+  }
+  .mobile-phone-frame {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+    background: #0f172a;
+    border-radius: 40px;
+    padding: 12px;
+    box-shadow: 0 25px 50px -12px rgba(15,23,42,0.25), 0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .mobile-screen {
+    background: #f8fafc;
+    border-radius: 30px;
+    overflow-y: auto;
+    max-height: 600px;
+    min-height: 520px;
+    padding: 1.25rem 1rem;
+  }
+  .mobile-screen::-webkit-scrollbar {
+    width: 4px;
+  }
+  .mobile-screen::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .star-preview {
+    color: #fbbf24;
+    font-size: 1.3rem;
+  }
+
+  .nps-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    margin: 1px;
+    color: #334155;
+  }
+
+  .emoji-preview-item {
+    font-size: 1.4rem;
+    transition: transform 0.2s;
+  }
+  .emoji-preview-item:hover {
+    transform: scale(1.2);
+  }
+
+  /* 🔒 BLOQUEIO PLANO FREE */
+  .premium-locked { 
     opacity: 0.45; 
     pointer-events: none; 
     filter: grayscale(1); 
     background: #f8f9fa !important; 
-}
-.lock-overlay {
-    position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 10;
+  }
+  .lock-overlay {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 20;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 1.1rem; color: #495057; background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(4px);
-    border-radius: 12px; text-align: center;
-}
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(6px);
+    border-radius: 16px; text-align: center;
+    padding: 2rem;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <div class="row justify-content-center">
-    <div class="col-lg-9">
+<div class="container-fluid px-lg-5 py-4">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="text-decoration-none small text-muted fw-semibold">
+      <i class="bi bi-arrow-left me-1"></i> {{ t('surveys.back_to_list') }}
+    </a>
+  </div>
+
+  <div class="builder-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+    <div>
+      <span class="badge bg-primary-subtle text-primary border border-primary border-opacity-25 px-2.5 py-1 mb-2 fw-semibold">
+        <i class="bi bi-magic me-1"></i> Google Forms + Review Booster
+      </span>
+      <h1 class="h3 fw-bold text-dark mb-1">{{ t('surveys.builder_title') }}</h1>
+      <p class="text-muted small mb-0">{{ t('surveys.builder_desc') }}</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-outline-secondary btn-sm px-3 fw-medium">
+        {{ t('surveys.close_btn') }}
+      </a>
+      <button type="button" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm" onclick="document.getElementById('formsBuilder').submit()">
+        <i class="bi bi-cloud-arrow-up-fill me-1"></i> {{ t('surveys.publish_btn') }}
+      </button>
+    </div>
+  </div>
+
+  <div class="position-relative">
+    
+    <div class="row g-4 {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %}">
       
-      <div class="mb-3">
-        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="text-decoration-none small text-muted fw-medium">
-          <i class="bi bi-arrow-left me-1"></i> Voltar para lista de pesquisas
+      <!-- 📝 COLUNA ESQUERDA: EDITOR DO FORMULÁRIO -->
+      <div class="col-lg-7">
+        
+        <form method="POST" id="formsBuilder" action="{{ url_for('pesquisa.criar_pesquisa') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <!-- DADOS GERAIS -->
+          <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <h2 class="h6 fw-bold text-dark mb-3"><i class="bi bi-sliders text-primary me-2"></i>Informações Principais</h2>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold text-dark small">{{ t('surveys.slug_label') }} <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted small fw-medium">comentsia.com/p/</span>
+                <input type="text" class="form-control" id="inputSlug" name="slug" placeholder="{{ t('surveys.slug_placeholder') }}" required oninput="updateLivePreview()">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold text-dark small">{{ t('surveys.form_title_label') }} <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="inputTitulo" name="titulo" value="{{ t('surveys.form_title_default') }}" required oninput="updateLivePreview()">
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label fw-bold text-dark small">{{ t('surveys.form_subtitle_label') }}</label>
+              <input type="text" class="form-control" id="inputSubtitulo" name="subtitulo" value="{{ t('surveys.form_subtitle_default') }}" oninput="updateLivePreview()">
+            </div>
+          </div>
+
+          <!-- ⚡ BOOSTER GOOGLE 5 ESTRELAS -->
+          <div class="card border border-success border-opacity-50 shadow-sm rounded-4 p-4 bg-success-subtle mb-4">
+            <div class="d-flex align-items-center mb-2">
+              <i class="bi bi-google text-success fs-4 me-2"></i>
+              <h3 class="h6 fw-bold text-success mb-0">Booster de Avaliações Google 5 Estrelas</h3>
+            </div>
+            <p class="text-secondary small mb-3">
+              {{ t('surveys.google_trigger_desc') }}
+            </p>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold small text-dark">{{ t('surveys.google_link_label') }}</label>
+              <div class="input-group">
+                <span class="input-group-text bg-white"><i class="bi bi-link-45deg text-success"></i></span>
+                <input type="url" class="form-control" id="inputGoogleLink" name="link_google_feedback" placeholder="https://g.page/r/.../review" oninput="updateLivePreview()">
+              </div>
+              <small class="text-muted">Dica: Cole o link curto da sua ficha do Google para abrir a janela de 5 estrelas direto.</small>
+            </div>
+
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="redirecionar_positivo_auto" name="redirecionar_positivo_auto" checked>
+              <label class="form-check-label small fw-bold text-dark" for="redirecionar_positivo_auto">
+                {{ t('surveys.auto_redirect_label') }}
+              </label>
+            </div>
+          </div>
+
+          <!-- 📋 ESTRUTURA DE PERGUNTAS -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="h6 fw-bold text-secondary text-uppercase tracking-wider mb-0">
+              <i class="bi bi-list-stars me-1 text-primary"></i> {{ t('surveys.questions_structure') }}
+            </h3>
+            <div class="dropdown">
+              <button class="btn btn-primary btn-sm dropdown-toggle fw-semibold rounded-3 shadow-sm" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-plus-circle-fill me-1"></i> {{ t('surveys.add_question') }}
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                <li><a class="dropdown-item small py-2" href="javascript:void(0)" onclick="addQuestion('estrelas')"><i class="bi bi-star-fill text-warning me-2"></i> {{ t('surveys.type_stars') }}</a></li>
+                <li><a class="dropdown-item small py-2" href="javascript:void(0)" onclick="addQuestion('nps')"><i class="bi bi-123 text-primary me-2"></i> {{ t('surveys.type_nps') }}</a></li>
+                <li><a class="dropdown-item small py-2" href="javascript:void(0)" onclick="addQuestion('emojis')"><i class="bi bi-emoji-smile-fill text-success me-2"></i> {{ t('surveys.type_emojis') }}</a></li>
+                <li><a class="dropdown-item small py-2" href="javascript:void(0)" onclick="addQuestion('texto')"><i class="bi bi-card-text text-secondary me-2"></i> {{ t('surveys.type_text') }}</a></li>
+                <li><a class="dropdown-item small py-2" href="javascript:void(0)" onclick="addQuestion('multipla_escolha')"><i class="bi bi-ui-radios text-info me-2"></i> {{ t('surveys.type_multiple_choice') }}</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="questionsContainer"></div>
+
+          <div class="mt-4 mb-5">
+            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-4 shadow-sm fs-6">
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i> {{ t('surveys.publish_btn') }}
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+
+      <!-- 📱 COLUNA DIREITA: LIVE MOBILE PREVIEW -->
+      <div class="col-lg-5">
+        <div class="mobile-simulator-wrapper">
+          <div class="d-flex justify-content-between align-items-center mb-2 px-2">
+            <span class="small fw-bold text-muted"><i class="bi bi-phone me-1"></i> {{ t('surveys.live_preview') }}</span>
+            <span class="badge bg-success-subtle text-success small fw-medium"><i class="bi bi-check-circle-fill me-1"></i> Atualização em Tempo Real</span>
+          </div>
+
+          <div class="mobile-phone-frame">
+            <div class="mobile-screen">
+              
+              <!-- TOPO SIMULADO -->
+              <div class="text-center pb-3 border-bottom border-light mb-3">
+                <div class="d-inline-flex p-2 bg-primary-subtle text-primary rounded-circle mb-2">
+                  <i class="bi bi-stars fs-4"></i>
+                </div>
+                <h4 class="fw-bold text-dark mb-1 fs-6" id="previewTitle">{{ t('surveys.form_title_default') }}</h4>
+                <p class="text-muted small mb-0" id="previewSubtitle">{{ t('surveys.form_subtitle_default') }}</p>
+              </div>
+
+              <!-- IDENTIFICAÇÃO SIMULADA -->
+              <div class="p-2.5 bg-white rounded-3 border border-light-subtle shadow-sm mb-3">
+                <span class="small fw-bold text-secondary d-block mb-1.5"><i class="bi bi-person-badge me-1"></i> Seus Dados</span>
+                <input type="text" class="form-control form-control-sm mb-1 bg-light border-0" placeholder="Seu Nome" disabled>
+                <div class="row g-1">
+                  <div class="col-6"><input type="text" class="form-control form-control-sm bg-light border-0" placeholder="E-mail" disabled></div>
+                  <div class="col-6"><input type="text" class="form-control form-control-sm bg-light border-0" placeholder="WhatsApp" disabled></div>
+                </div>
+              </div>
+
+              <!-- PERGUNTAS SIMULADAS -->
+              <div id="previewQuestionsContainer"></div>
+
+              <!-- BOTÃO ENVIAR SIMULADO -->
+              <button class="btn btn-primary btn-sm w-100 py-2 fw-bold rounded-3 mt-3 opacity-75" disabled>
+                {{ t('surveys.submit_public_btn') }}
+              </button>
+
+              <div class="text-center mt-3">
+                <span class="text-muted" style="font-size: 0.68rem;">Tecnologia <strong>ComentsIA</strong></span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 🔒 OVERLAY BLOQUEIO PRO -->
+    {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
+    <div class="lock-overlay">
+      <div class="p-4 bg-white rounded-4 shadow-lg border text-center" style="max-width: 480px;">
+        <i class="bi bi-gem fs-1 text-primary mb-3 d-block"></i>
+        <h3 class="h4 fw-bold text-dark mb-2">{{ t('surveys.locked_title') }}</h3>
+        <p class="text-muted small mb-4">
+          {{ t('surveys.locked_desc') }}
+        </p>
+        <a href="{{ url_for('planos') }}" class="btn btn-primary px-4 py-2.5 fw-bold rounded-3 shadow">
+          <i class="bi bi-stars me-2"></i>{{ t('surveys.upgrade_now') }}
         </a>
       </div>
-
-      <div class="card border-0 shadow-sm rounded-3 p-4 bg-white position-relative">
-        
-        <div class="{% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}premium-locked{% endif %} h-100">
-            <h2 class="h4 fw-bold mb-4 text-dark"><i class="bi bi-file-earmark-plus text-primary me-2"></i>Novo Construtor de Pesquisas</h2>
-            
-            <form method="POST" id="formsBuilder" action="{{ url_for('pesquisa.criar_pesquisa') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="mb-3">
-                <label class="form-label fw-bold">Endereço da Pesquisa (Slug)</label>
-                <div class="input-group">
-                <span class="input-group-text bg-light small">comentsia.com/p/</span>
-                <input type="text" class="form-control" name="slug" placeholder="ex: cafe-frontcomfort" required>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-bold">Título do Formulário</label>
-                <input type="text" class="form-control" name="titulo" value="Sua opinião é muito importante para nós!" required>
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label fw-bold">Subtítulo</label>
-                <input type="text" class="form-control" name="subtitulo" value="Leve menos de 1 minuto para responder.">
-            </div>
-
-            <hr class="my-4 text-muted">
-            <h4 class="h6 fw-bold mb-3 text-secondary"><i class="bi bi-list-task me-2"></i>Estrutura de Perguntas</h4>
-            
-            <div id="questionsContainer"></div>
-
-            <button type="button" class="btn btn-outline-primary btn-sm mb-4" onclick="addQuestionField()">
-                <i class="bi bi-plus-circle-fill me-1"></i> Adicionar Pergunta
-            </button>
-
-            <div class="p-3 mb-4 rounded-3 border bg-light">
-                <label class="form-label fw-bold small text-dark">Link de Avaliação do Google (Opcional)</label>
-                <input type="url" class="form-control mb-2" name="link_google_feedback" placeholder="https://search.google.com/...">
-                <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="redirecionar_positivo_auto" name="redirecionar_positivo_auto">
-                <label class="form-check-input-label small text-muted fw-bold" for="redirecionar_positivo_auto">
-                    Redirecionar automaticamente avaliações de estrelas positivas (Nota 5) para o Google
-                </label>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-bold rounded-3">
-                <i class="bi bi-cloud-arrow-up-fill me-2"></i> Publicar Pesquisa
-            </button>
-            </form>
-        </div>
-
-        {% if not (is_pro_plan(user_plano) or is_business_plan(user_plano)) %}
-        <div class="lock-overlay">
-          <i class="bi bi-ui-checks fs-1 mb-3 text-primary"></i>
-          <h5 class="mb-2 fw-bold text-dark">Formulários Customizados</h5>
-          <div class="text-muted mb-4 px-4 text-center small" style="max-width: 400px;">
-            A criação de pesquisas exclusivas com redirecionamento de clientes nota 5 para o Google está disponível apenas nos planos <b>PRO</b> e <b>BUSINESS</b>.
-          </div>
-          <a href="{{ url_for('planos') }}" class="btn btn-primary px-4 py-2 fw-medium shadow-sm"><i class="bi bi-gem me-2"></i>Fazer Upgrade Agora</a>
-        </div>
-        {% endif %}
-
-      </div>
     </div>
+    {% endif %}
+
   </div>
 </div>
 
 <script>
-let questionIdx = 0;
+let questionCounter = 0;
 
-function addQuestionField() {
-    const container = document.getElementById("questionsContainer");
+function addQuestion(tipoDefault = 'estrelas', textoDefault = '', opcoesDefault = '', obrigatoria = true, isTrigger = false) {
+  const container = document.getElementById("questionsContainer");
+  const idx = questionCounter++;
+
+  if (!textoDefault) {
+    if (tipoDefault === 'estrelas') textoDefault = 'Como você avalia nosso atendimento e serviço?';
+    else if (tipoDefault === 'nps') textoDefault = 'Em uma escala de 0 a 10, qual a chance de você nos recomendar?';
+    else if (tipoDefault === 'emojis') textoDefault = 'Como você se sentiu com a experiência de hoje?';
+    else if (tipoDefault === 'texto') textoDefault = 'Deixe seu comentário, elogio ou sugestão de melhoria:';
+    else if (tipoDefault === 'multipla_escolha') {
+      textoDefault = 'O que mais chamou sua atenção?';
+      opcoesDefault = 'Atendimento, Agilidade, Qualidade do Produto, Preço Justo';
+    }
+  }
+
+  const card = document.createElement("div");
+  card.className = `card question-card p-3.5 mb-3.5 ${isTrigger ? 'active-trigger' : ''}`;
+  card.id = `q_card_${idx}`;
+  
+  card.innerHTML = `
+    <div class="d-flex justify-content-between align-items-center mb-2.5 pb-2 border-bottom border-light">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 small fw-bold">#<span class="q-num">1</span></span>
+        <span class="badge bg-light text-secondary border small fw-semibold" id="q_badge_type_${idx}">${getTypeName(tipoDefault)}</span>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary border-0 p-1" title="{{ t('surveys.move_up') }}" onclick="moveQuestion(${idx}, -1)">
+          <i class="bi bi-chevron-up"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary border-0 p-1" title="{{ t('surveys.move_down') }}" onclick="moveQuestion(${idx}, 1)">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger border-0 p-1 ms-1" title="{{ t('surveys.delete_question') }}" onclick="removeQuestion(${idx})">
+          <i class="bi bi-trash-fill"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-2.5 mb-2">
+      <div class="col-md-7">
+        <label class="form-label small fw-bold text-dark mb-1">{{ t('surveys.question_title') }} <span class="text-danger">*</span></label>
+        <input type="text" name="pergunta_texto[]" class="form-control form-control-sm rounded-3" value="${textoDefault}" required oninput="updateLivePreview()">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small fw-bold text-dark mb-1">{{ t('surveys.response_type') }}</label>
+        <select name="pergunta_tipo[]" class="form-select form-select-sm rounded-3 fw-medium" onchange="onTypeChanged(${idx}, this.value)">
+          <option value="estrelas" ${tipoDefault === 'estrelas' ? 'selected' : ''}>{{ t('surveys.type_stars') }}</option>
+          <option value="nps" ${tipoDefault === 'nps' ? 'selected' : ''}>{{ t('surveys.type_nps') }}</option>
+          <option value="emojis" ${tipoDefault === 'emojis' ? 'selected' : ''}>{{ t('surveys.type_emojis') }}</option>
+          <option value="texto" ${tipoDefault === 'texto' ? 'selected' : ''}>{{ t('surveys.type_text') }}</option>
+          <option value="multipla_escolha" ${tipoDefault === 'multipla_escolha' ? 'selected' : ''}>{{ t('surveys.type_multiple_choice') }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- OPÇÕES MULTIPLA ESCOLHA -->
+    <div class="mb-2.5" id="options_wrapper_${idx}" style="${tipoDefault === 'multipla_escolha' ? 'display:block;' : 'display:none;'}">
+      <label class="form-label small fw-bold text-primary mb-1">{{ t('surveys.options_label') }}</label>
+      <input type="text" name="pergunta_opcoes[]" class="form-control form-control-sm rounded-3" value="${opcoesDefault}" placeholder="{{ t('surveys.options_placeholder') }}" oninput="updateLivePreview()">
+    </div>
+    <input type="hidden" name="pergunta_opcoes_empty[]" id="hidden_opcoes_${idx}" value="">
+
+    <!-- CONTROLES ADICIONAIS -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between pt-2 border-top border-light gap-2">
+      <div class="form-check form-switch mb-0">
+        <input type="hidden" name="pergunta_obrigatoria_raw[]" id="hidden_ob_${idx}" value="${obrigatoria ? 'true' : 'false'}">
+        <input class="form-check-input" type="checkbox" id="ob_${idx}" ${obrigatoria ? 'checked' : ''} onchange="document.getElementById('hidden_ob_${idx}').value = this.checked ? 'true' : 'false'; updateLivePreview();">
+        <label class="form-check-label small text-muted fw-semibold" for="ob_${idx}">{{ t('surveys.required') }}</label>
+      </div>
+
+      <div class="form-check d-flex align-items-center mb-0" id="gatilho_wrapper_${idx}" style="${['estrelas','nps','emojis'].includes(tipoDefault) ? 'display:flex;' : 'display:none;'}">
+        <input class="form-check-input me-1.5" type="radio" name="pergunta_gatilho_idx" value="${idx}" id="gatilho_${idx}" ${isTrigger ? 'checked' : ''} onchange="onTriggerChanged()">
+        <label class="form-check-label text-success fw-bold small cursor-pointer" for="gatilho_${idx}">
+          <i class="bi bi-google me-1"></i> Gatilho 5⭐ Google
+        </label>
+      </div>
+    </div>
+  `;
+
+  container.appendChild(card);
+  renumberQuestions();
+  updateLivePreview();
+}
+
+function getTypeName(tipo) {
+  switch (tipo) {
+    case 'estrelas': return '1 a 5 Estrelas ⭐';
+    case 'nps': return 'NPS (0-10) 🔢';
+    case 'emojis': return 'Sentimento 😊';
+    case 'multipla_escolha': return 'Múltipla Escolha 🔘';
+    default: return 'Texto Aberto 📝';
+  }
+}
+
+function onTypeChanged(idx, tipo) {
+  const optWrapper = document.getElementById(`options_wrapper_${idx}`);
+  const triggerWrapper = document.getElementById(`gatilho_wrapper_${idx}`);
+  const badge = document.getElementById(`q_badge_type_${idx}`);
+
+  if (badge) badge.innerText = getTypeName(tipo);
+
+  if (optWrapper) {
+    optWrapper.style.display = tipo === 'multipla_escolha' ? 'block' : 'none';
+  }
+
+  if (triggerWrapper) {
+    triggerWrapper.style.display = ['estrelas', 'nps', 'emojis'].includes(tipo) ? 'flex' : 'none';
+  }
+
+  updateLivePreview();
+}
+
+function onTriggerChanged() {
+  document.querySelectorAll('.question-card').forEach(card => card.classList.remove('active-trigger'));
+  const checked = document.querySelector('input[name="pergunta_gatilho_idx"]:checked');
+  if (checked) {
+    const card = document.getElementById(`q_card_${checked.value}`);
+    if (card) card.classList.add('active-trigger');
+  }
+}
+
+function removeQuestion(idx) {
+  const card = document.getElementById(`q_card_${idx}`);
+  if (card) {
+    card.remove();
+    renumberQuestions();
+    updateLivePreview();
+  }
+}
+
+function moveQuestion(idx, direction) {
+  const card = document.getElementById(`q_card_${idx}`);
+  if (!card) return;
+  if (direction === -1 && card.previousElementSibling) {
+    card.parentNode.insertBefore(card, card.previousElementSibling);
+  } else if (direction === 1 && card.nextElementSibling) {
+    card.parentNode.insertBefore(card.nextElementSibling, card);
+  }
+  renumberQuestions();
+  updateLivePreview();
+}
+
+function renumberQuestions() {
+  const cards = document.querySelectorAll("#questionsContainer .question-card");
+  cards.forEach((card, index) => {
+    const numEl = card.querySelector(".q-num");
+    if (numEl) numEl.innerText = index + 1;
+  });
+}
+
+function updateLivePreview() {
+  const title = document.getElementById("inputTitulo").value || 'Título da Pesquisa';
+  const subtitle = document.getElementById("inputSubtitulo").value || '';
+  
+  document.getElementById("previewTitle").innerText = title;
+  document.getElementById("previewSubtitle").innerText = subtitle;
+
+  const container = document.getElementById("previewQuestionsContainer");
+  container.innerHTML = "";
+
+  const cards = document.querySelectorAll("#questionsContainer .question-card");
+  cards.forEach((card, index) => {
+    const textInput = card.querySelector('input[name="pergunta_texto[]"]');
+    const typeSelect = card.querySelector('select[name="pergunta_tipo[]"]');
+    const optionsInput = card.querySelector('input[name="pergunta_opcoes[]"]');
+    const obInput = card.querySelector('input[type="checkbox"][id^="ob_"]');
+
+    const qText = textInput ? textInput.value : `Pergunta ${index + 1}`;
+    const qType = typeSelect ? typeSelect.value : 'estrelas';
+    const qOptions = optionsInput ? optionsInput.value : '';
+    const isOb = obInput ? obInput.checked : false;
+
     const div = document.createElement("div");
-    div.className = "card p-3 mb-3 border bg-white rounded-3 shadow-sm position-relative";
-    div.id = `q_block_${questionIdx}`;
+    div.className = "p-2.5 bg-white rounded-3 border border-light-subtle shadow-sm mb-2.5";
     
-    div.innerHTML = `
-        <div class="row g-2">
-            <div class="col-md-6">
-                <label class="form-label small fw-bold text-muted">Título da Pergunta</label>
-                <input type="text" name="pergunta_texto[]" class="form-control form-control-sm" placeholder="Ex: Como avalia o nosso café da manhã?" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold text-muted">Tipo de Resposta</label>
-                <select name="pergunta_tipo[]" class="form-select form-select-sm" onchange="toggleOpcoes(this, ${questionIdx})">
-                    <option value="texto">Texto Aberto</option>
-                    <option value="multipla_escolha">Múltipla Escolha</option>
-                    <option value="estrelas">Avaliação por Estrelas (1-5)</option>
-                </select>
-            </div>
-            <div class="col-md-3 d-flex align-items-end justify-content-between pb-1">
-                <div class="form-check form-switch">
-                    <input type="hidden" name="pergunta_obrigatoria_raw[]" id="hidden_ob_${questionIdx}" value="false">
-                    <input class="form-check-input" type="checkbox" id="ob_${questionIdx}" onchange="document.getElementById('hidden_ob_${questionIdx}').value = this.checked ? 'true' : 'false'">
-                    <label class="form-check-label small" for="ob_${questionIdx}">Obrigatória</label>
-                </div>
-                <button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="document.getElementById('q_block_${questionIdx}').remove()">
-                    <i class="bi bi-trash-fill"></i>
-                </button>
-            </div>
-        </div>
-        
-        <div class="mt-2" id="options_wrapper_${questionIdx}" style="display:none;">
-            <label class="form-label small text-primary fw-medium mb-1">Opções da Múltipla Escolha (Separadas por vírgula)</label>
-            <input type="text" name="pergunta_opcoes[]" class="form-control form-control-sm" placeholder="Ex: Excelente, Regular, Ruim" disabled>
-        </div>
-        <input type="hidden" class="opcoes-hidden" name="pergunta_opcoes[]" value="" id="hidden_opcoes_${questionIdx}">
-
-        <div class="mt-3 bg-success-subtle p-3 rounded border border-success border-opacity-50" id="gatilho_wrapper_${questionIdx}" style="display:none;">
-            <div class="form-check d-flex align-items-center">
-                <input class="form-check-input ms-0 me-2" type="radio" name="pergunta_gatilho_idx" value="${questionIdx}" id="gatilho_${questionIdx}">
-                <label class="form-check-label text-success fw-bold small" for="gatilho_${questionIdx}">
-                    <i class="bi bi-google me-1"></i> Usar esta pergunta como parâmetro para o Google
-                </label>
-            </div>
-            <p class="mb-0 ms-4 text-success small mt-1 opacity-75">Se ativado, apenas a nota 5 ⭐ nesta pergunta vai liberar o link do Google.</p>
-        </div>
+    let htmlInner = `
+      <span class="small fw-bold text-dark d-block mb-1.5" style="font-size: 0.82rem;">
+        ${index + 1}. ${qText} ${isOb ? '<span class="text-danger">*</span>' : ''}
+      </span>
     `;
+
+    if (qType === 'estrelas') {
+      htmlInner += `
+        <div class="star-preview d-flex gap-1 mb-1">
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+          <i class="bi bi-star-fill"></i>
+        </div>
+      `;
+    } else if (qType === 'nps') {
+      htmlInner += `<div class="d-flex flex-wrap gap-1 mb-1">`;
+      for (let i = 0; i <= 10; i++) {
+        htmlInner += `<span class="nps-preview-btn">${i}</span>`;
+      }
+      htmlInner += `</div>`;
+    } else if (qType === 'emojis') {
+      htmlInner += `
+        <div class="d-flex justify-content-around py-1 mb-1">
+          <span class="emoji-preview-item">😡</span>
+          <span class="emoji-preview-item">🙁</span>
+          <span class="emoji-preview-item">😐</span>
+          <span class="emoji-preview-item">🙂</span>
+          <span class="emoji-preview-item">🤩</span>
+        </div>
+      `;
+    } else if (qType === 'multipla_escolha') {
+      const opts = qOptions ? qOptions.split(',').map(s => s.trim()).filter(Boolean) : ['Opção 1', 'Opção 2'];
+      htmlInner += `<div class="mt-1">`;
+      opts.forEach((opt, optIdx) => {
+        htmlInner += `
+          <div class="form-check form-check-inline mb-1">
+            <input class="form-check-input" type="radio" disabled>
+            <label class="form-check-label text-muted" style="font-size: 0.75rem;">${opt}</label>
+          </div>
+        `;
+      });
+      htmlInner += `</div>`;
+    } else {
+      htmlInner += `
+        <textarea class="form-control form-control-sm bg-light border-0" rows="2" placeholder="Escreva seu comentário..." disabled style="font-size: 0.75rem;"></textarea>
+      `;
+    }
+
+    div.innerHTML = htmlInner;
     container.appendChild(div);
-    
-    // Configura o estado inicial da pergunta recém criada
-    const novoSelect = div.querySelector('select');
-    toggleOpcoes(novoSelect, questionIdx);
-    
-    questionIdx++;
+  });
 }
 
-function toggleOpcoes(selectEl, idx) {
-    const wrapperMultipla = document.getElementById(`options_wrapper_${idx}`);
-    const inputMultipla = wrapperMultipla.querySelector('input');
-    const inputHidden = document.getElementById(`hidden_opcoes_${idx}`);
-    
-    const wrapperGatilho = document.getElementById(`gatilho_wrapper_${idx}`);
-    const inputGatilho = document.getElementById(`gatilho_${idx}`);
-
-    // Controle Múltipla Escolha
-    if (selectEl.value === "multipla_escolha") {
-        wrapperMultipla.style.display = "block";
-        inputMultipla.disabled = false;
-        inputMultipla.required = true;
-        inputHidden.disabled = true;
-    } else {
-        wrapperMultipla.style.display = "none";
-        inputMultipla.disabled = true;
-        inputMultipla.required = false;
-        inputHidden.disabled = false;
-    }
-
-    // Controle Estrelas (Gatilho)
-    if (selectEl.value === "estrelas" || selectEl.value === "stars") {
-        wrapperGatilho.style.display = "block";
-    } else {
-        wrapperGatilho.style.display = "none";
-        inputGatilho.checked = false; // Limpa a seleção se o usuário mudar de ideia
-    }
-}
-
-document.getElementById('formsBuilder').addEventListener('submit', function(e) {
-    const redirecionar = document.getElementById('redirecionar_positivo_auto').checked;
-    
-    if (redirecionar) {
-        const radioGatilhos = document.querySelectorAll('input[name="pergunta_gatilho_idx"]:checked');
-        if (radioGatilhos.length === 0) {
-            e.preventDefault(); // Impede a página de recarregar/enviar
-            
-            if (typeof showToast === "function") {
-                showToast("Atenção: Selecione qual pergunta de estrelas será o gatilho para o Google (Opção Verde).", "warning");
-            } else {
-                alert("Atenção: Selecione a pergunta gatilho do Google (Opção Verde) para ativar o redirecionamento.");
-            }
-        }
-    }
-});
-
-document.addEventListener("DOMContentLoaded", () => { 
-    // Só cria a primeira pergunta se a tela não estiver bloqueada
-    {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
-    addQuestionField(); 
-    {% endif %}
+// Inicializa com 3 perguntas clássicas equilibradas
+document.addEventListener("DOMContentLoaded", () => {
+  addQuestion('estrelas', 'Como você avalia o nosso atendimento hoje?', '', true, true);
+  addQuestion('nps', 'Em uma escala de 0 a 10, você recomendaria nossa empresa para amigos e familiares?', '', false, false);
+  addQuestion('texto', 'Deixe um comentário, elogio ou sugestão de melhoria:', '', false, false);
 });
 </script>
 {% endblock %}

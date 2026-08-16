@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Meus Locais Google{% endblock %}
+{% block title %}{{ t('locations.title') }} - ComentsIA{% endblock %}
 
 {% block content %}
 <div class="container mt-4 mb-5" style="min-height: 60vh;">
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h2 class="mb-1"><i class="bi bi-shop text-primary me-2"></i>Gerenciar Locais</h2>
+      <h2 class="mb-1"><i class="bi bi-shop text-primary me-2"></i>{{ t('locations.title') }}</h2>
       <p class="text-muted mb-1">
         {% if total_slots is defined %}
-          Você está utilizando <strong>{{ ativas_count }}</strong> de <strong>{{ total_slots }}</strong> slots disponíveis.
+          {{ t('locations.using_slots') }} <strong>{{ ativas_count }}</strong> {{ t('locations.of_slots') }} <strong>{{ total_slots }}</strong> {{ t('locations.available_slots') }}
         {% else %}
-          Selecione qual ficha do Google Business você deseja gerenciar.
+          {{ t('locations.select_location') }}
         {% endif %}
       </p>
       <p class="text-muted small mb-0">
-        Cada slot permite deixar uma ficha ativa para monitorar e responder com a ComentsIA.
-        Slots extras são cobrados mensalmente junto com a sua assinatura e podem ser cancelados a qualquer momento.
+        {{ t('locations.slots_info') }}
+        {{ t('locations.slots_billing') }}
       </p>
     </div>
     <button id="btnSync" class="btn btn-outline-primary">
-      <i class="bi bi-cloud-download me-2"></i> Sincronizar
+      <i class="bi bi-cloud-download me-2"></i> {{ t('locations.sync_btn') }}
     </button>
   </div>
 
@@ -39,9 +39,9 @@
                   <i class="bi bi-geo-alt-fill fs-5 p-2"></i>
                 </div>
                 {% if ficha.is_active %}
-                  <span class="badge bg-success">Monitorando</span>
+                  <span class="badge bg-success">{{ t('locations.monitoring_badge') }}</span>
                 {% else %}
-                  <span class="badge bg-secondary">Inativa</span>
+                  <span class="badge bg-secondary">{{ t('locations.inactive_badge') }}</span>
                 {% endif %}
               </div>
 
@@ -49,7 +49,7 @@
                       class="btn btn-sm btn-outline-danger border-0 rounded-circle btn-excluir-ficha p-2" 
                       data-id="{{ ficha.location_id }}" 
                       data-name="{{ ficha.location_name }}"
-                      title="Excluir esta ficha do aplicativo">
+                      title="{{ t('locations.delete_tooltip') }}">
                 <i class="bi bi-trash fs-6"></i>
               </button>
             </div>
@@ -62,8 +62,8 @@
             <div class="mb-3">
                 <a href="{{ url_for('google_auto.configurar_ficha_especifica', location_id=ficha.location_id) }}" 
                    class="btn btn-sm btn-light w-100 border text-muted d-flex align-items-center justify-content-center gap-2"
-                   title="Configurar nome, gerente e contexto desta unidade">
-                   <i class="bi bi-gear-fill"></i> Personalizar IA desta Loja
+                   title="{{ t('locations.customize_ai_btn') }}">
+                   <i class="bi bi-gear-fill"></i> {{ t('locations.customize_ai_btn') }}
                 </a>
             </div>
 
@@ -74,27 +74,27 @@
                         data-id="{{ ficha.location_id }}"
                         data-name="{{ ficha.location_name }}"
                         data-action="desativar">
-                  <i class="bi bi-power me-1"></i> Desativar Ficha
+                  <i class="bi bi-power me-1"></i> {{ t('locations.deactivate_btn') }}
                 </button>
                 <small class="text-muted d-block mt-1 text-center">
-                  Ao desativar, este local deixa de usar um slot.
+                  {{ t('locations.deactivate_hint') }}
                 </small>
               {% else %}
                 {% if user_plano == 'free' %}
-                  <button type="button" class="btn btn-outline-secondary w-100" disabled title="Plano gratuito não permite automação.">
-                    <i class="bi bi-lock-fill me-1"></i> Apenas Pro/Business
+                  <button type="button" class="btn btn-outline-secondary w-100" disabled title="{{ t('locations.locked_pro_btn') }}">
+                    <i class="bi bi-lock-fill me-1"></i> {{ t('locations.locked_pro_btn') }}
                   </button>
-                  <small class="text-muted d-block mt-1 text-center">Faça o upgrade para ativar.</small>
+                  <small class="text-muted d-block mt-1 text-center">{{ t('locations.upgrade_hint') }}</small>
                 {% else %}
                   <button type="button" 
                           class="btn btn-outline-dark w-100 btn-toggle-ficha" 
                           data-id="{{ ficha.location_id }}"
                           data-name="{{ ficha.location_name }}"
                           data-action="ativar">
-                    <i class="bi bi-power me-1"></i> Ativar Ficha
+                    <i class="bi bi-power me-1"></i> {{ t('locations.activate_btn') }}
                   </button>
                   <small class="text-muted d-block mt-1 text-center" style="font-size: 0.75rem;">
-                    <i class="bi bi-info-circle me-1"></i> A ativação pode gerar cobrança de slot extra.
+                    <i class="bi bi-info-circle me-1"></i> {{ t('locations.activate_hint') }}
                   </small>
                 {% endif %}
               {% endif %}
@@ -109,8 +109,8 @@
       <div class="mb-3">
         <i class="bi bi-shop-window text-muted" style="font-size: 3rem;"></i>
       </div>
-      <h4>Nenhum local encontrado</h4>
-      <p class="text-muted">Clique no botão "Sincronizar" acima para buscar suas fichas do Google.</p>
+      <h4>{{ t('locations.no_locations') }}</h4>
+      <p class="text-muted">{{ t('locations.no_locations_desc') }}</p>
     </div>
   {% endif %}
 
@@ -121,43 +121,37 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header border-0">
-        <h5 class="modal-title fw-bold text-primary">Ativar Novo Local</h5>
+        <h5 class="modal-title fw-bold text-primary">{{ t('locations.modal_activate_title') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body text-center py-4">
         <div class="mb-3 text-warning">
           <i class="bi bi-star-fill" style="font-size: 3rem;"></i>
         </div>
-        <h4 class="fw-bold">Limite de Slots Atingido</h4>
-        <p class="text-muted mb-3">
-          Você já atingiu o limite de locais ativos do seu plano. 
-        </p>
+        <h4 class="fw-bold">{{ t('locations.slot_limit_title') }}</h4>
+        <p class="text-muted mb-3">{{ t('locations.slot_limit_desc') }}</p>
         <p class="text-muted mb-4">
-          Para ativar <strong><span id="addonLocName"></span></strong> como novo local monitorado,
-          será adicionado um <strong>slot extra recorrente</strong> à sua assinatura.
+          {{ t('locations.slot_confirm_desc') }} <strong><span id="addonLocName"></span></strong>
+          {{ t('locations.slot_confirm_desc2') }} <strong>{{ t('locations.slot_extra_label') }}</strong>
+          {{ t('locations.slot_confirm_desc3') }}
         </p>
         
         <div class="card bg-light border-0 p-3 mb-4">
           <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-semibold">Slot Adicional (Mensal)</span>
+            <span class="fw-semibold">{{ t('locations.slot_addon_label') }}</span>
             <span class="fs-5 fw-bold text-success">R$ <span id="addonPrice"></span></span>
           </div>
-          <small class="text-muted mt-2 d-block">
-            Cobrado junto com sua fatura atual. Você pode remover esse slot extra a qualquer momento.
-          </small>
+          <small class="text-muted mt-2 d-block">{{ t('locations.slot_billing_hint') }}</small>
         </div>
 
-        <!-- 🚀 FORMULÁRIO OFICIAL PARA O CHECKOUT DO STRIPE -->
         <form action="{{ url_for('stripe_bp.checkout_adicionar_ficha') }}" method="POST" id="formBuyAddon">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" id="btnBuyAddon" class="btn btn-success w-100 py-2 fs-6 fw-bold">
-              <i class="bi bi-credit-card-2-front me-2"></i> Contratar Slot Extra
+              <i class="bi bi-credit-card-2-front me-2"></i> {{ t('locations.slot_buy_btn') }}
             </button>
         </form>
 
-        <p class="text-muted small mt-3 mb-0">
-          Você será redirecionado para a página segura de pagamento do Stripe.
-        </p>
+        <p class="text-muted small mt-3 mb-0">{{ t('locations.slot_redirect_hint') }}</p>
       </div>
     </div>
   </div>
@@ -166,7 +160,7 @@
 <!-- LOADER GERAL -->
 <div id="general-loader" style="display:none; position:fixed; inset:0; background:rgba(255,255,255,0.8); z-index:9999; align-items:center; justify-content:center; flex-direction:column;">
   <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
-  <h5 id="loader-text">Processando...</h5>
+  <h5 id="loader-text">{{ t('common.processing') }}</h5>
 </div>
 
 <script>
@@ -184,11 +178,10 @@ document.addEventListener('DOMContentLoaded', function() {
         modalAddon = new bootstrap.Modal(modalEl);
     }
 
-    // 1. Função de Sincronizar
     const btnSync = document.getElementById('btnSync');
     if (btnSync) {
         btnSync.addEventListener('click', async function() {
-            loaderText.innerText = "Sincronizando locais...";
+            loaderText.innerText = "{{ t('locations.syncing') }}";
             loader.style.display = 'flex';
             try {
                 const response = await fetch("{{ url_for('google_auto.sync_google_locations') }}", {
@@ -197,12 +190,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 const data = await response.json();
                 if (data.success) { window.location.reload(); }
-                else { alert('Erro: ' + (data.error || 'Falha na sincronização')); loader.style.display = 'none'; }
-            } catch (error) { console.error(error); alert('Erro de conexão.'); loader.style.display = 'none'; }
+                else { alert('{{ t("common.error") }}: ' + (data.error || '{{ t("common.error") }}')); loader.style.display = 'none'; }
+            } catch (error) { console.error(error); alert('{{ t("common.error") }}'); loader.style.display = 'none'; }
         });
     }
 
-    // 2. Ativar / Desativar Ficha
     document.querySelectorAll('.btn-toggle-ficha').forEach(btn => {
         btn.addEventListener('click', async function() {
             const locId = this.getAttribute('data-id');
@@ -210,11 +202,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const action = this.getAttribute('data-action');
 
             if (action === 'desativar') {
-                const ok = confirm(`Deseja realmente desativar a ficha "${locName}"?`);
+                const ok = confirm(`{{ t('locations.deactivate_btn') }}: "${locName}"?`);
                 if (!ok) return;
             }
 
-            loaderText.innerText = (action === 'desativar') ? "Desativando ficha..." : "Verificando slot...";
+            loaderText.innerText = (action === 'desativar') ? "{{ t('common.processing') }}..." : "{{ t('locations.activate_hint') }}";
             loader.style.display = 'flex';
 
             const formData = new FormData();
@@ -232,45 +224,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (data.success) { window.location.reload(); } 
                 else if (data.payment_required) {
-                    // Limite estourado: Mostra modal para contratar slot extra
                     selectedLocId = locId;
                     selectedLocName = locName;
                     if (modalAddon) {
-                        document.getElementById('addonLocName').innerText = locName || "este local";
+                        document.getElementById('addonLocName').innerText = locName || "{{ t('locations.activate_btn') }}";
                         document.getElementById('addonPrice').innerText = data.price_fmt || "29,90";
                         modalAddon.show();
                     }
                 } else if (data.upgrade_required) {
                     window.location.href = data.upgrade_url || "{{ url_for('planos') }}";
                 } else {
-                    alert(data.error || 'Erro ao processar ficha');
+                    alert(data.error || '{{ t("common.error") }}');
                 }
-            } catch (error) { console.error(error); alert('Erro de conexão.'); loader.style.display = 'none'; }
+            } catch (error) { console.error(error); alert('{{ t("common.error") }}'); loader.style.display = 'none'; }
         });
     });
 
-    // 3. Botão "Contratar Slot Extra" (Form Submission)
     const formBuyAddon = document.getElementById('formBuyAddon');
     const btnBuyAddon = document.getElementById('btnBuyAddon');
     if (formBuyAddon && btnBuyAddon) {
         formBuyAddon.addEventListener('submit', function() {
             btnBuyAddon.disabled = true;
-            btnBuyAddon.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Redirecionando...';
+            btnBuyAddon.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> {{ t("common.loading") }}';
         });
     }
 
-    // 4. Exclusão de Ficha
     document.querySelectorAll('.btn-excluir-ficha').forEach(btn => {
         btn.addEventListener('click', async function(e) {
             e.stopPropagation();
             const locId = this.getAttribute('data-id');
             const locName = this.getAttribute('data-name');
             
-            if (!confirm(`Deseja realmente remover a ficha "${locName}" do seu aplicativo?\n\nEla será excluída da lista da ComentsIA.`)) {
+            if (!confirm(`{{ t('locations.delete_tooltip') }}: "${locName}"?`)) {
                 return;
             }
 
-            loaderText.innerText = "Removendo ficha...";
+            loaderText.innerText = "{{ t('common.processing') }}...";
             loader.style.display = 'flex';
 
             try {
@@ -285,14 +274,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 loader.style.display = 'none';
 
                 if (data.success) {
-                    alert(data.message || 'Ficha excluída com sucesso!');
+                    alert(data.message || '{{ t("common.success") }}!');
                     window.location.reload();
                 } else {
-                    alert(data.error || 'Erro ao excluir ficha.');
+                    alert(data.error || '{{ t("common.error") }}');
                 }
             } catch (err) {
                 console.error(err);
-                alert('Erro de conexão ao excluir.');
+                alert('{{ t("common.error") }}');
                 loader.style.display = 'none';
             }
         });

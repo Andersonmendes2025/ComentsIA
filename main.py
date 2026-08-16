@@ -269,6 +269,18 @@ app.register_blueprint(pesquisa_bp)
 from routes_ajuda import ajuda_bp
 app.register_blueprint(ajuda_bp)
 
+from ifood_auto import ifood_bp, usuario_tem_addon_ifood
+app.register_blueprint(ifood_bp)
+
+from mercadolivre_auto import mercadolivre_bp
+app.register_blueprint(mercadolivre_bp)
+
+# -------------------------------------------------------------------
+# Inicialização do Motor de Internacionalização (i18n)
+# -------------------------------------------------------------------
+from services.i18n import init_app_i18n, t, _, get_current_locale, SUPPORTED_LANGUAGES
+init_app_i18n(app)
+
 # -------------------------------------------------------------------
 # Injeção Global de Notificações In-App (Context Processor)
 # -------------------------------------------------------------------
@@ -764,7 +776,7 @@ def planos():
     user_info = session.get("user_info")
     
     # Se NÃO estiver logado → visitante → user_id = None
-    user_id = user_info["id"] if user_info else None
+    user_id = user_info.get("id") if user_info else None
 
     # Se usuário existe, pega settings
     settings = None
@@ -1228,6 +1240,66 @@ def privacy_policy():
 @app.route("/quem-somos")
 def quem_somos():
     return render_template("quem-somos.html")
+
+
+@app.route("/set-lang/<lang>")
+def set_language(lang):
+    """Permite ao usuário trocar de idioma manualmente e salva em cookie/sessão."""
+    from services.i18n import SUPPORTED_LANGUAGES, _normalize_lang_code
+    normalized = _normalize_lang_code(lang)
+    referrer = request.referrer or url_for("index")
+
+    response = redirect(referrer)
+    if normalized and normalized in SUPPORTED_LANGUAGES:
+        session["lang"] = normalized
+        # Cookie duradouro por 1 ano
+        response.set_cookie("coments_lang", normalized, max_age=365 * 24 * 60 * 60, samesite="Lax")
+    return response
+
+
+@app.route("/integracoes")
+def integracoes():
+    user_info = flask.session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    if not user_id and current_user and getattr(current_user, "is_authenticated", False):
+        user_id = getattr(current_user, "id", None) or getattr(current_user, "email", None)
+
+    if not user_id:
+        flash("Faça login para acessar as integrações.", "info")
+        return redirect(url_for("authorize"))
+
+    settings = get_user_settings(user_id)
+    has_ifood_addon = usuario_tem_addon_ifood(user_id)
+
+    # Busca lojas iFood, Google e Mercado Livre do usuário
+    from models import IFoodMerchant, GoogleLocation
+    from models_mercadolivre import MercadoLivreAccount
+    ifood_merchants = IFoodMerchant.query.filter_by(user_id=str(user_id)).all()
+    google_locations = GoogleLocation.query.filter_by(user_id=str(user_id)).all()
+    ml_accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id)).all()
+
+    status_param = request.args.get("status")
+    if status_param == "addon_ifood_success":
+        # Ativa o add-on caso tenha vindo do checkout com sucesso
+        settings_db = UserSettings.query.filter_by(user_id=str(user_id)).first()
+        if settings_db:
+            settings_db.has_addon_ifood = True
+            db.session.commit()
+            has_ifood_addon = True
+        flash("🎉 Parabéns! O Add-on do iFood foi ativado com sucesso em sua conta!", "success")
+    elif status_param == "addon_ifood_cancel":
+        flash("O checkout do Add-on iFood foi cancelado.", "info")
+
+    return render_template(
+        "integracoes.html",
+        user=user_info,
+        settings=settings,
+        has_ifood_addon=has_ifood_addon,
+        ifood_merchants=ifood_merchants,
+        google_locations=google_locations,
+        ml_accounts=ml_accounts,
+        now=datetime.now()
+    )
 
 
 from math import isnan
@@ -3245,16 +3317,40 @@ def aplicar_migracoes():
             try:
                 # Tenta para PostgreSQL
                 db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS has_addon_ifood BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_ifood_subscription_id VARCHAR(255)"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_ifood_until TIMESTAMP WITH TIME ZONE"))
                 db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS tone VARCHAR(32)"))
                 db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS idioma_resposta VARCHAR(50)"))
+                db.session.execute(text("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS ifood_merchant_id INTEGER"))
+                
+                # Colunas do Mercado Livre
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS total_questions INTEGER DEFAULT 0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS unanswered_questions INTEGER DEFAULT 0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS avg_response_time_minutes FLOAT DEFAULT 0.0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS questions_response_rate FLOAT DEFAULT 1.0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS recent_questions_json TEXT"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS total_active_items INTEGER DEFAULT 0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS store_rating_average FLOAT DEFAULT 0.0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS total_store_reviews INTEGER DEFAULT 0"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS rating_breakdown_json TEXT"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS quality_scores_json TEXT"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS health_score INTEGER DEFAULT 100"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS ai_health_report_json TEXT"))
+                db.session.execute(text("ALTER TABLE mercadolivre_accounts ADD COLUMN IF NOT EXISTS ai_report_generated_at TIMESTAMP WITH TIME ZONE"))
+
                 db.session.commit()
                 logging.info("✅ Colunas verificadas/adicionadas no PostgreSQL.")
             except Exception as ex_pg:
                 db.session.rollback()
                 for col_sql in [
                     "ALTER TABLE user_settings ADD COLUMN onboarding_done BOOLEAN DEFAULT 0",
+                    "ALTER TABLE user_settings ADD COLUMN has_addon_ifood BOOLEAN DEFAULT 0",
+                    "ALTER TABLE user_settings ADD COLUMN addon_ifood_subscription_id VARCHAR(255)",
+                    "ALTER TABLE user_settings ADD COLUMN addon_ifood_until DATETIME",
                     "ALTER TABLE google_locations ADD COLUMN tone VARCHAR(32)",
                     "ALTER TABLE google_locations ADD COLUMN idioma_resposta VARCHAR(50)",
+                    "ALTER TABLE reviews ADD COLUMN ifood_merchant_id INTEGER",
                 ]:
                     try:
                         db.session.execute(text(col_sql))

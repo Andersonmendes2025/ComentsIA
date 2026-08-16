@@ -156,10 +156,9 @@
 <div class="plans-container">
   
   <div class="header-section">
-    <h1 class="header-title">Planos que crescem com você</h1>
+    <h1 class="header-title">{{ t('pricing_page.title') }}</h1>
     <p class="header-subtitle">
-      Escolha a tecnologia ideal para automatizar sua reputação. 
-      Upgrade simples, pagamento proporcional e cancelamento a qualquer momento.
+      {{ t('pricing_page.subtitle') }}
     </p>
   </div>
 
@@ -197,31 +196,31 @@
       <div class="plan-card {% if current_plan == 'free' %}border-highlight{% endif %}">
         <div>
           {% if current_plan == 'free' %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
           {% else %}
-            <span class="badge-biz">Inicial</span>
+            <span class="badge-biz">{{ t('pricing_page.starter_badge') }}</span>
           {% endif %}
-          <div class="plan-name">Starter Free</div>
-          <div class="plan-price">R$ 0<small>/mês</small></div>
-          <div class="price-sub">Para conhecer a plataforma.</div>
+          <div class="plan-name">{{ t('pricing_page.free_plan') }}</div>
+          <div class="plan-price">{{ t('pricing_page.free_price') }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="price-sub">{{ t('pricing_page.free_sub') }}</div>
         </div>
         
         <div class="divider"></div>
         
         <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> Até {{ planos['free'].avaliacoes_mes }} avaliações/mês</li>
-          <li><i class="bi bi-x-circle"></i> Sem resposta hiper empática</li>
-          <li><i class="bi bi-x-circle"></i> Sem contexto personalizado</li>
-          <li><i class="bi bi-x-circle"></i> Sem automação Google</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_free_1', count=planos['free'].avaliacoes_mes) }}</li>
+          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_2') }}</li>
+          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_3') }}</li>
+          <li><i class="bi bi-x-circle"></i> {{ t('pricing_page.features_free_4') }}</li>
         </ul>
 
         <div class="mt-auto">
             {% if current_plan == 'guest' %}
-                <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Começar Grátis</button>
+                <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.start_free') }}</button>
             {% elif current_plan == 'free' %}
-                <button class="btn-plan btn-disabled" disabled>Seu plano atual</button>
+                <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.your_current_plan') }}</button>
             {% else %}
-                <button class="btn-plan btn-disabled" disabled title="Cancele sua assinatura para voltar ao Free">Plano Básico</button>
+                <button class="btn-plan btn-disabled" disabled title="{{ t('pricing_page.basic_plan_title') }}">{{ t('pricing_page.basic_plan') }}</button>
             {% endif %}
         </div>
       </div>
@@ -232,23 +231,23 @@
       <div class="plan-card {% if current_plan in ['pro', 'pro_anual'] %}border-highlight{% endif %}">
         <div>
           {% if current_plan in ['pro', 'pro_anual'] %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
           {% else %}
-            <span class="badge-pro">Profissional</span>
+            <span class="badge-pro">{{ t('pricing_page.pro_badge') }}</span>
           {% endif %}
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>/mês</small></div>
-          <div class="price-sub">ou R$ {{ '%.0f'|format(planos['pro_anual'].preco) }} /ano</div>
+          <div class="plan-name">{{ t('pricing_page.pro_plan') }}</div>
+          <div class="plan-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="price-sub">{{ t('pricing_page.pro_annual_sub', price='%.0f'|format(planos['pro_anual'].preco)) }}</div>
         </div>
 
         <div class="divider"></div>
 
         <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> <strong>{{ planos['pro'].avaliacoes_mes }}</strong> avaliações/mês</li>
-          <li><i class="bi bi-check2-circle"></i> Contexto da IA Personalizado</li>
-          <li><i class="bi bi-check2-circle"></i> <strong>{{ planos['pro'].hiper_dia }}</strong> respostas Hiper/dia</li>
-          <li><i class="bi bi-check2-circle"></i> Automação Google Conectada</li>
-          <li><i class="bi bi-check2-circle"></i> Multi Filiais (Add-on)</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_1', count=planos['pro'].avaliacoes_mes) }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_2') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_3', count=planos['pro'].hiper_dia) }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_4') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_pro_5') }}</li>
         </ul>
 
         {# BOTOES PRO #}
@@ -256,33 +255,33 @@
           
           {# Pro Mensal (Score 10) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-primary-plan" onclick="redirecionarLogin()">Assinar Pro Mensal</button>
+             <button class="btn-plan btn-primary-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_monthly') }}</button>
           
           {% elif current_plan == 'pro' %}
-             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           
           {% elif current_score > 10 %}
-             <button class="btn-plan btn-disabled" disabled>Indisponível (Downgrade)</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable_downgrade') }}</button>
           
           {% else %}
              <button class="btn-plan btn-primary-plan" onclick="processarPlano('pro_mensal')">
-               {% if current_score > 0 %}Fazer Upgrade{% else %}Assinar Pro Mensal{% endif %}
+               {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_pro') }}{% else %}{{ t('pricing_page.sub_pro_monthly') }}{% endif %}
              </button>
           {% endif %}
 
           {# Pro Anual (Score 11) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Assinar Anual</button>
+             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_pro_annual') }}</button>
           
           {% elif current_plan == 'pro_anual' %}
-             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           
           {% elif current_score > 11 %}
-             <button class="btn-plan btn-disabled" disabled>Indisponível</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable') }}</button>
           
           {% else %}
              <button class="btn-plan btn-outline-plan" onclick="processarPlano('pro_anual')">
-                {% if current_score > 0 %}Upgrade para Anual{% else %}Assinar Pro Anual{% endif %}
+                {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_pro_annual_btn') }}{% endif %}
              </button>
           {% endif %}
 
@@ -295,25 +294,25 @@
       <div class="plan-card {% if current_plan in ['business', 'business_anual'] %}border-highlight{% endif %}" style="background: linear-gradient(to bottom, #ffffff, #f8fafc);">
         <div>
           {% if current_plan in ['business', 'business_anual'] %}
-            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>Plano Atual</span>
+            <span class="badge-current"><i class="bi bi-check-lg me-1"></i>{{ t('pricing_page.current_badge') }}</span>
           {% else %}
-            <span class="badge-biz text-dark bg-dark bg-opacity-10">Power User</span>
+            <span class="badge-biz text-dark bg-dark bg-opacity-10">{{ t('pricing_page.biz_badge') }}</span>
           {% endif %}
-          <div class="plan-name">Business</div>
-          <div class="plan-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>/mês</small></div>
-          <div class="price-sub">ou R$ {{ '%.0f'|format(planos['business_anual'].preco) }} /ano</div>
+          <div class="plan-name">{{ t('pricing_page.business_plan') }}</div>
+          <div class="plan-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="price-sub">{{ t('pricing_page.biz_annual_sub', price='%.0f'|format(planos['business_anual'].preco)) }}</div>
         </div>
 
         <div class="divider"></div>
 
         <ul class="features">
-          <li><i class="bi bi-check2-circle"></i> <strong>Ilimitadas</strong> avaliações</li>
-          <li><i class="bi bi-check2-circle"></i> <strong>Ilimitadas</strong> respostas Hiper</li>
-          <li><i class="bi bi-check2-circle"></i> Múltiplos Contextos</li>
-          <li><i class="bi bi-diagram-3-fill text-primary"></i> <strong>Gestão de Filiais</strong></li>
-          <li><i class="bi bi-check2-circle"></i> Multi Filiais (Add-on)</li>
-          <li><i class="bi bi-check2-circle"></i> Sincronização Prioritária</li>
-          <li><i class="bi bi-headset"></i> Suporte VIP</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_1') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_2') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_3') }}</li>
+          <li><i class="bi bi-diagram-3-fill text-primary"></i> {{ t('pricing_page.features_biz_4') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_5') }}</li>
+          <li><i class="bi bi-check2-circle"></i> {{ t('pricing_page.features_biz_6') }}</li>
+          <li><i class="bi bi-headset"></i> {{ t('pricing_page.features_biz_7') }}</li>
         </ul>
 
         {# BOTOES BUSINESS #}
@@ -321,30 +320,30 @@
           
           {# Business Mensal (Score 20) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-dark-plan" onclick="redirecionarLogin()">Começar Business</button>
+             <button class="btn-plan btn-dark-plan" onclick="redirecionarLogin()">{{ t('pricing_page.start_biz') }}</button>
           
           {% elif current_plan == 'business' %}
-             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           
           {% elif current_score > 20 %}
-             <button class="btn-plan btn-disabled" disabled>Indisponível</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.unavailable') }}</button>
           
           {% else %}
              <button class="btn-plan btn-dark-plan" onclick="processarPlano('business_mensal')">
-               {% if current_score > 0 %}Fazer Upgrade{% else %}Assinar Business{% endif %}
+               {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_biz') }}{% else %}{{ t('pricing_page.sub_biz_monthly') }}{% endif %}
              </button>
           {% endif %}
 
           {# Business Anual (Score 21) #}
           {% if current_plan == 'guest' %}
-             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">Business Anual</button>
+             <button class="btn-plan btn-outline-plan" onclick="redirecionarLogin()">{{ t('pricing_page.sub_biz_annual') }}</button>
           
           {% elif current_plan == 'business_anual' %}
-             <button class="btn-plan btn-disabled" disabled>Plano Atual</button>
+             <button class="btn-plan btn-disabled" disabled>{{ t('pricing_page.current_badge') }}</button>
           
           {% else %}
              <button class="btn-plan btn-outline-plan" onclick="processarPlano('business_anual')">
-                {% if current_score > 0 %}Upgrade para Anual{% else %}Assinar Business Anual{% endif %}
+                {% if current_score > 0 %}{{ t('pricing_page.upgrade_to_annual') }}{% else %}{{ t('pricing_page.sub_biz_annual_btn') }}{% endif %}
              </button>
           {% endif %}
 

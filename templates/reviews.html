@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Gerenciar Avaliações - ComentsIA{% endblock %}
+{% block title %}{{ t('reviews.title') }} - ComentsIA{% endblock %}
 
 {% block extra_head %}
 <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -99,7 +99,6 @@
   .modal-body { padding: 24px; }
   .modal-footer { border-top: 1px solid #f1f5f9; padding: 16px 24px; }
 
-  /* Extras para o limitador na modal */
   .badge-limite { margin-left: 6px; font-size: 0.7rem; border-radius: 6px; padding: 4px 6px; }
   .premium-locked-btn { opacity: 0.6; cursor: not-allowed !important; }
 </style>
@@ -109,11 +108,10 @@
 <div class="container py-4">
 
   <form action="{{ url_for('reviews') }}" method="GET" id="filtersForm">
-
     <div class="hero-reviews d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4">
       <div style="position: relative; z-index: 2;">
-        <h1 class="fw-bold mb-2 fs-3"><i class="bi bi-star-half me-2"></i>Gerenciar Avaliações</h1>
-        <p class="mb-0 opacity-90">Acompanhe, responda e analise o feedback dos seus clientes em tempo real.</p>
+        <h1 class="fw-bold mb-2 fs-3"><i class="bi bi-star-half me-2"></i>{{ t('reviews.title') }}</h1>
+        <p class="mb-0 opacity-90">{{ t('reviews.subtitle') }}</p>
       </div>
 
       <div class="d-flex flex-column flex-md-row align-items-md-center gap-2" style="position: relative; z-index: 2;">
@@ -123,16 +121,16 @@
             <i class="bi bi-shop fs-5"></i>
           </div>
           <div class="flex-grow-1">
-            <label class="d-block small text-muted fw-bold" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: -2px;">Visualizando</label>
+            <label class="d-block small text-muted fw-bold" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: -2px;">{{ t('reviews.filter_store') }}</label>
 
             <select id="fichaSelect" name="ficha"
                     class="form-select border-0 p-0 shadow-none bg-transparent fw-semibold text-dark"
                     style="cursor: pointer; min-width: 220px;"
                     onchange="document.getElementById('filtersForm').submit()">
-              <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>Todas as Lojas</option>
+              <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>{{ t('reviews.all_stores') }}</option>
               {% for f in fichas %}
                 <option value="{{ f.id }}" {% if ficha_selecionada|int == f.id %}selected{% endif %}>
-                  {{ f.location_name or f.business_name or 'Loja sem nome' }}
+                  {{ f.location_name or f.business_name or t('common.inactive') }}
                 </option>
               {% endfor %}
             </select>
@@ -141,49 +139,41 @@
         </div>
 
         {% if is_pro_plan(user_plano) or is_business_plan(user_plano) %}
-        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" title="Gerenciar Pesquisas Internas">
-          <i class="bi bi-qr-code-scan text-primary me-1"></i> Criar Pesquisa
+        <a href="{{ url_for('pesquisa.listar_pesquisas') }}" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" title="{{ t('reviews.create_survey') }}">
+          <i class="bi bi-qr-code-scan text-primary me-1"></i> {{ t('reviews.create_survey') }}
         </a>
         {% else %}
-        <button type="button" class="btn btn-light fw-semibold border premium-locked-btn" style="border-radius: 14px;" title="Disponível nos planos PRO e BUSINESS" disabled>
-          <i class="bi bi-lock-fill text-muted me-1"></i> Criar Pesquisa
+        <button type="button" class="btn btn-light fw-semibold border premium-locked-btn" style="border-radius: 14px;" title="{{ t('common.pending') }}" disabled>
+          <i class="bi bi-lock-fill text-muted me-1"></i> {{ t('reviews.create_survey') }}
         </button>
         {% endif %}
 
         <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
           <i class="bi bi-arrow-repeat me-1"></i>
-          <span id="reconcileText">Sincronizar Google</span>
-          <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Buscando...</span>
+          <span id="reconcileText">{{ t('reviews.sync_google') }}</span>
+          <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>{{ t('reviews.syncing') }}</span>
         </button>
 
       </div>
     </div>
 
-    <div class="filters-card">
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-lg-4">
-          <label class="form-label small text-muted fw-bold mb-1">Nome/palavra</label>
-          <input type="text" name="q" class="form-control" placeholder="Ex: atendimento, João, demora..." value="{{ request.args.get('q','') }}">
+    <!-- Barra de Filtros Complementares -->
+    <div class="card card-custom p-3 mb-4 shadow-sm border-0">
+      <div class="row g-3 align-items-center">
+
+        <div class="col-12 col-md-6 col-lg-6">
+          <label class="form-label small text-muted fw-bold mb-1">{{ t('reviews.search_label') }}</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" name="busca" class="form-control border-start-0" placeholder="{{ t('reviews.search_placeholder') }}" value="{{ request.args.get('busca','') }}">
+          </div>
         </div>
 
         <div class="col-12 col-md-6 col-lg-2">
-          <label class="form-label small text-muted fw-bold mb-1">Período</label>
-          {% set p = request.args.get('periodo','') %}
-          <select name="periodo" class="form-select">
-            <option value="" {% if p=='' %}selected{% endif %}>Todos</option>
-            <option value="7" {% if p=='7' %}selected{% endif %}>Últimos 7 dias</option>
-            <option value="30" {% if p=='30' %}selected{% endif %}>Últimos 30 dias</option>
-            <option value="90" {% if p=='90' %}selected{% endif %}>Últimos 90 dias</option>
-            <option value="180" {% if p=='180' %}selected{% endif %}>Últimos 180 dias</option>
-            <option value="365" {% if p=='365' %}selected{% endif %}>Último ano</option>
-          </select>
-        </div>
-
-        <div class="col-12 col-md-6 col-lg-2">
-          <label class="form-label small text-muted fw-bold mb-1">Estrelas</label>
+          <label class="form-label small text-muted fw-bold mb-1">{{ t('reviews.stars_label') }}</label>
           {% set e = request.args.get('estrelas','') %}
           <select name="estrelas" class="form-select">
-            <option value="" {% if e=='' %}selected{% endif %}>Todas</option>
+            <option value="" {% if e=='' %}selected{% endif %}>{{ t('reviews.all_origins') }}</option>
             <option value="5" {% if e=='5' %}selected{% endif %}>5 ⭐</option>
             <option value="4" {% if e=='4' %}selected{% endif %}>4 ⭐</option>
             <option value="3" {% if e=='3' %}selected{% endif %}>3 ⭐</option>
@@ -193,31 +183,32 @@
         </div>
 
         <div class="col-12 col-md-6 col-lg-2">
-          <label class="form-label small text-muted fw-bold mb-1">Origem</label>
+          <label class="form-label small text-muted fw-bold mb-1">{{ t('reviews.filter_origin') }}</label>
           {% set o = request.args.get('origem','') %}
           <select name="origem" class="form-select">
-            <option value="" {% if o=='' %}selected{% endif %}>Todas</option>
+            <option value="" {% if o=='' %}selected{% endif %}>{{ t('reviews.all_origins') }}</option>
             <option value="google" {% if o=='google' %}selected{% endif %}>Google</option>
+            <option value="ifood" {% if o=='ifood' %}selected{% endif %}>iFood 🍔</option>
             <option value="booking" {% if o=='booking' %}selected{% endif %}>Booking</option>
           </select>
         </div>
 
         <div class="col-12 col-md-6 col-lg-2">
-          <label class="form-label small text-muted fw-bold mb-1">Status</label>
+          <label class="form-label small text-muted fw-bold mb-1">{{ t('reviews.filter_status') }}</label>
           {% set s = request.args.get('status','') %}
           <select name="status" class="form-select">
-            <option value="" {% if s=='' %}selected{% endif %}>Todos</option>
-            <option value="pendente" {% if s=='pendente' %}selected{% endif %}>Pendente</option>
-            <option value="respondida" {% if s=='respondida' %}selected{% endif %}>Respondida</option>
+            <option value="" {% if s=='' %}selected{% endif %}>{{ t('reviews.all_statuses') }}</option>
+            <option value="pendente" {% if s=='pendente' %}selected{% endif %}>{{ t('reviews.status_pending') }}</option>
+            <option value="respondida" {% if s=='respondida' %}selected{% endif %}>{{ t('reviews.status_replied') }}</option>
           </select>
         </div>
 
         <div class="col-12 d-flex gap-2 justify-content-end pt-2">
           <a class="btn btn-outline-secondary" href="{{ url_for('reviews', ficha=ficha_selecionada or 'todas') }}" style="border-radius: 14px;">
-            <i class="bi bi-x-circle me-1"></i>Limpar
+            <i class="bi bi-x-circle me-1"></i>{{ t('reviews.filter_clear') }}
           </a>
           <button class="btn btn-primary fw-semibold" type="submit" style="border-radius: 14px;">
-            <i class="bi bi-funnel me-1"></i>Aplicar filtros
+            <i class="bi bi-funnel me-1"></i>{{ t('reviews.filter_apply') }}
           </button>
         </div>
 
@@ -237,13 +228,15 @@
             <div class="d-flex align-items-center gap-3">
               <div class="avatar-circle">{{ (review.reviewer_name or 'C')[0] | upper }}</div>
               <div>
-                <h6 class="fw-bold mb-1 text-dark">{{ review.reviewer_name or 'Cliente Anônimo' }}</h6>
+                <h6 class="fw-bold mb-1 text-dark">{{ review.reviewer_name or t('reviews.anonymous_client') }}</h6>
                 <div class="small text-muted">{{ review.date | formatar_data_brt }}</div>
               </div>
             </div>
 
             <div class="d-flex flex-column align-items-end gap-2">
-              {% if review.source == 'google' or review.auto_origin == 'gbp' or review.google_location_id or (review.external_id and not review.upload_log_id) %}
+              {% if review.source == 'ifood' or review.ifood_merchant_id %}
+                <span class="source-badge" style="background: #fde8e9; color: #ea1d2c;"><i class="bi bi-bag-heart-fill"></i> iFood</span>
+              {% elif review.source == 'google' or review.auto_origin == 'gbp' or review.google_location_id or (review.external_id and not review.upload_log_id) %}
                 <span class="source-badge source-google"><i class="bi bi-google"></i> Google</span>
               {% elif review.source == 'booking' or review.upload_log_id %}
                 <span class="source-badge source-booking">Booking.com</span>
@@ -253,11 +246,11 @@
 
               {% if review.replied %}
                 <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20 rounded-pill px-2">
-                  <i class="bi bi-check2-circle me-1"></i>Respondida
+                  <i class="bi bi-check2-circle me-1"></i>{{ t('reviews.status_replied') }}
                 </span>
               {% else %}
                 <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-20 rounded-pill px-2">
-                  <i class="bi bi-hourglass-split me-1"></i>Pendente
+                  <i class="bi bi-hourglass-split me-1"></i>{{ t('reviews.status_pending') }}
                 </span>
               {% endif %}
             </div>
@@ -280,13 +273,13 @@
               {% if p.original %}
                 "{{ p.original }}"
               {% else %}
-                <span class="text-muted fst-italic">Sem comentário escrito.</span>
+                <span class="text-muted fst-italic">{{ t('reviews.no_comment') }}</span>
               {% endif %}
             </div>
             {% if p.translated %}
               <div class="translation-meta mt-1" id="trans-meta-{{ review.id }}" style="display: none;">
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" style="font-size: 0.78rem;" onclick="toggleReviewLanguage({{ review.id }})">
-                  <i class="bi bi-translate me-1 text-primary"></i><span id="trans-btn-label-{{ review.id }}">Ver tradução</span>
+                  <i class="bi bi-translate me-1 text-primary"></i><span id="trans-btn-label-{{ review.id }}">{{ t('reviews.view_translation') }}</span>
                 </button>
               </div>
             {% endif %}
@@ -305,7 +298,7 @@
             {% if review.replied %}
               <div class="bg-light p-3 rounded-3 border border-light">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <small class="fw-bold text-primary"><i class="bi bi-arrow-return-right me-1"></i>Sua Resposta:</small>
+                  <small class="fw-bold text-primary"><i class="bi bi-arrow-return-right me-1"></i>{{ t('reviews.your_reply') }}</small>
 
                   <div class="dropdown">
                     <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
@@ -314,13 +307,13 @@
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                       <li>
                         <button class="dropdown-item small" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', `{{ review.reply|e }}`, true, '{{ review.google_location.tone if review.google_location and review.google_location.tone else '' }}', '{{ review.google_location.idioma_resposta if review.google_location and review.google_location.idioma_resposta else '' }}')">
-                          <i class="bi bi-pencil me-2"></i>Editar
+                          <i class="bi bi-pencil me-2"></i>{{ t('reviews.edit_reply') }}
                         </button>
                       </li>
                       <li><hr class="dropdown-divider"></li>
                       <li>
                         <button class="dropdown-item small text-danger" onclick="deleteReply('{{ review.external_id }}')">
-                          <i class="bi bi-trash me-2"></i>Excluir
+                          <i class="bi bi-trash me-2"></i>{{ t('reviews.delete_reply') }}
                         </button>
                       </li>
                     </ul>
@@ -331,7 +324,7 @@
             {% else %}
               <div class="d-grid">
                 <button class="btn btn-outline-primary fw-semibold" onclick="openReplyModal('{{ review.id }}', '{{ review.external_id }}', '', false, '{{ review.google_location.tone if review.google_location and review.google_location.tone else '' }}', '{{ review.google_location.idioma_resposta if review.google_location and review.google_location.idioma_resposta else '' }}')">
-                  <i class="bi bi-stars me-1"></i> Gerar Resposta com IA
+                  <i class="bi bi-stars me-1"></i> {{ t('reviews.reply_button') }}
                 </button>
               </div>
             {% endif %}
@@ -346,13 +339,13 @@
         <div class="bg-light rounded-circle d-inline-flex p-4 mb-3">
           <i class="bi bi-inbox fs-1 text-muted opacity-50"></i>
         </div>
-        <h4 class="fw-bold text-dark">Nenhuma avaliação encontrada</h4>
-        <p class="text-muted">Tente mudar o filtro de loja ou aguarde novas sincronizações.</p>
+        <h4 class="fw-bold text-dark">{{ t('reviews.no_reviews') }}</h4>
+        <p class="text-muted">{{ t('reviews.no_reviews_sub') }}</p>
       </div>
     {% endif %}
     
     {% if pagination and pagination.pages > 1 %}
-    <nav aria-label="Paginação de avaliações" class="mt-4">
+    <nav aria-label="{{ t('reviews.title') }}" class="mt-4">
       <ul class="pagination justify-content-center">
 
         <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
@@ -367,7 +360,7 @@
                 origem=request.args.get('origem',''),
                 status=request.args.get('status','')
             ) }}{% else %}#{% endif %}">
-            « Anterior
+            {{ t('reviews.pagination_prev') }}
           </a>
         </li>
 
@@ -402,7 +395,7 @@
                 origem=request.args.get('origem',''),
                 status=request.args.get('status','')
             ) }}{% else %}#{% endif %}">
-            Próxima »
+            {{ t('reviews.pagination_next') }}
           </a>
         </li>
 
@@ -418,38 +411,38 @@
 
       <div class="modal-header">
         <h5 class="modal-title fw-bold text-primary">
-          <i class="bi bi-robot me-2"></i>Assistente de Resposta
+          <i class="bi bi-robot me-2"></i>{{ t('reviews.modal_title') }}
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('common.close') }}"></button>
       </div>
 
       <div class="modal-body">
         
         <div id="ai-options" class="mb-4 p-3 bg-light rounded-3 border">
-            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders me-1"></i> Configurar a Inteligência Artificial</h6>
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-sliders me-1"></i> {{ t('reviews.configure_ai') }}</h6>
             
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label for="tone" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-chat-heart me-1 text-primary"></i>Tom da resposta</label>
+                    <label for="tone" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-chat-heart me-1 text-primary"></i>{{ t('reviews.tone_label') }}</label>
                     <select class="form-select form-select-sm shadow-none border-secondary-subtle fw-medium" id="tone">
-                        <option value="profissional">👔 Profissional & Corporativo</option>
-                        <option value="amigavel">😊 Amigável & Descontraído</option>
-                        <option value="empatico">💛 Empático & Humanizado</option>
-                        <option value="direto">⚡ Curto & Direto</option>
-                        <option value="luxo">✨ Luxo & Sofisticado</option>
+                        <option value="profissional">{{ t('reviews.tone_professional') }}</option>
+                        <option value="amigavel">{{ t('reviews.tone_friendly') }}</option>
+                        <option value="empatico">{{ t('reviews.tone_empathetic') }}</option>
+                        <option value="direto">{{ t('reviews.tone_direct') }}</option>
+                        <option value="luxo">{{ t('reviews.tone_luxury') }}</option>
                     </select>
                 </div>
 
                 <div class="col-md-6">
-                    <label for="reply_lang" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-globe me-1 text-primary"></i>Idioma da resposta</label>
+                    <label for="reply_lang" class="form-label small text-muted mb-1 fw-bold"><i class="bi bi-globe me-1 text-primary"></i>{{ t('reviews.language_label') }}</label>
                     <select class="form-select form-select-sm shadow-none border-secondary-subtle fw-medium" id="reply_lang">
-                        <option value="auto">🌐 Detectar automaticamente (mesmo do cliente)</option>
+                        <option value="auto">{{ t('reviews.lang_auto') }}</option>
                         <option value="Português (Brasil)" {% if user_settings and user_settings.idioma_resposta == 'Português (Brasil)' %}selected{% endif %}>🇧🇷 Português (Brasil)</option>
                         <option value="Português (Portugal)" {% if user_settings and user_settings.idioma_resposta == 'Português (Portugal)' %}selected{% endif %}>🇵🇹 Português (Portugal)</option>
-                        <option value="Inglês (Estados Unidos)" {% if user_settings and user_settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 Inglês (EUA / Global)</option>
-                        <option value="Espanhol" {% if user_settings and user_settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Espanhol</option>
-                        <option value="Francês" {% if user_settings and user_settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Francês</option>
-                        <option value="Alemão" {% if user_settings and user_settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Alemão</option>
+                        <option value="Inglês (Estados Unidos)" {% if user_settings and user_settings.idioma_resposta == 'Inglês (Estados Unidos)' %}selected{% endif %}>🇺🇸 English (USA / Global)</option>
+                        <option value="Espanhol" {% if user_settings and user_settings.idioma_resposta == 'Espanhol' %}selected{% endif %}>🇪🇸 Español</option>
+                        <option value="Francês" {% if user_settings and user_settings.idioma_resposta == 'Francês' %}selected{% endif %}>🇫🇷 Français</option>
+                        <option value="Alemão" {% if user_settings and user_settings.idioma_resposta == 'Alemão' %}selected{% endif %}>🇩🇪 Deutsch</option>
                         <option value="Italiano" {% if user_settings and user_settings.idioma_resposta == 'Italiano' %}selected{% endif %}>🇮🇹 Italiano</option>
                     </select>
                 </div>
@@ -459,7 +452,7 @@
                         <div class="form-check form-switch mb-0">
                             <input class="form-check-input" type="checkbox" id="hiper_compreensiva" {% if user_plano == 'free' %}disabled{% endif %}>
                             <label class="form-check-label small fw-medium text-dark" for="hiper_compreensiva">
-                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Modo Hiper Compreensivo (resposta detalhada e longa)
+                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>{{ t('reviews.hiper_mode') }}
                             </label>
                         </div>
                         <span class="badge bg-secondary badge-limite" id="limite-hiper"><span id="hiper-restante">...</span></span>
@@ -470,27 +463,27 @@
             <div class="mt-3">
                 <div class="d-flex align-items-center">
                     <button type="button" class="btn btn-outline-info btn-sm rounded-pill" id="toggleConsideracoes" {% if user_plano == 'free' %}disabled{% endif %} style="font-size: 0.8rem;">
-                        <i class="bi bi-info-circle-fill me-1"></i>Adicionar contexto para a IA
+                        <i class="bi bi-info-circle-fill me-1"></i>{{ t('reviews.add_context_btn') }}
                     </button>
                     <span class="badge bg-secondary badge-limite" id="limite-consideracoes"><span id="consideracoes-restante">...</span></span>
                 </div>
 
                 <div id="bloco-consideracoes" class="mt-2" style="display:none;">
-                    <textarea class="form-control form-control-sm border-info-subtle" id="consideracoes" rows="2" placeholder="Ex: Avise ao cliente que o problema no ar condicionado já foi resolvido..." {% if user_plano == 'free' %}disabled{% endif %}></textarea>
-                    <div class="form-text text-muted" style="font-size: 0.7rem;">Essa informação guiará a IA para escrever a resposta, mas não será enviada ao cliente de forma bruta.</div>
+                    <textarea class="form-control form-control-sm border-info-subtle" id="consideracoes" rows="2" placeholder="{{ t('reviews.context_placeholder') }}" {% if user_plano == 'free' %}disabled{% endif %}></textarea>
+                    <div class="form-text text-muted" style="font-size: 0.7rem;">{{ t('reviews.context_hint') }}</div>
                 </div>
             </div>
         </div>
 
         <div id="loading-ai" class="text-center py-4" style="display:none;">
           <div class="spinner-border text-primary mb-3" role="status"></div>
-          <p class="text-muted mb-0 fw-medium">A IA está escrevendo uma resposta personalizada...</p>
+          <p class="text-muted mb-0 fw-medium">{{ t('reviews.ai_writing') }}</p>
         </div>
 
         <div id="reply-area">
-          <label class="form-label fw-bold text-dark">Texto Final</label>
-          <textarea id="reply-text" class="form-control form-control-lg bg-white border border-primary-subtle shadow-sm" rows="6" placeholder="A resposta gerada aparecerá aqui..."></textarea>
-          <div class="form-text mt-2"><i class="bi bi-pencil-square me-1"></i> Você pode editar o texto livremente antes de publicar.</div>
+          <label class="form-label fw-bold text-dark">{{ t('reviews.final_text_label') }}</label>
+          <textarea id="reply-text" class="form-control form-control-lg bg-white border border-primary-subtle shadow-sm" rows="6" placeholder="{{ t('reviews.reply_placeholder') }}"></textarea>
+          <div class="form-text mt-2"><i class="bi bi-pencil-square me-1"></i> {{ t('reviews.edit_hint') }}</div>
         </div>
 
       </div>
@@ -501,15 +494,15 @@
 
         <div class="me-auto">
           <button type="button" id="btnNewSuggestion" class="btn btn-outline-primary fw-semibold" style="border-radius: 14px;" onclick="generateNewSuggestion()">
-            <i class="bi bi-magic me-1"></i> Reescrever com IA
+            <i class="bi bi-magic me-1"></i> {{ t('reviews.rewrite_btn') }}
           </button>
         </div>
 
-        <button type="button" class="btn btn-light border fw-medium" data-bs-dismiss="modal" style="border-radius: 14px;">Cancelar</button>
+        <button type="button" class="btn btn-light border fw-medium" data-bs-dismiss="modal" style="border-radius: 14px;">{{ t('reviews.cancel_btn') }}</button>
 
         <button type="button" class="btn btn-primary px-4 fw-bold" style="border-radius: 14px;" onclick="sendReply()">
-          <span id="btn-send-text">Publicar Resposta</span>
-          <span id="btn-send-loading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Enviando...</span>
+          <span id="btn-send-text">{{ t('reviews.publish_btn') }}</span>
+          <span id="btn-send-loading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>{{ t('reviews.sending') }}</span>
         </button>
       </div>
 
@@ -569,7 +562,7 @@
           const aviso = document.createElement('span');
           aviso.id = avisoId;
           aviso.className = 'text-danger fst-italic small ms-1';
-          aviso.innerText = '(limite diário)';
+          aviso.innerText = '{{ t("reviews.daily_limit") }}';
           badgeEl.insertAdjacentElement('afterend', aviso);
           if (idNumero.includes('hiper')) aplicarLimite('hiper');
           if (idNumero.includes('consideracoes')) aplicarLimite('consideracoes');
@@ -593,13 +586,12 @@
 
   document.addEventListener('DOMContentLoaded', carregarContadores);
 
-  // 🚀 RESTO DAS FUNÇÕES DO MODAL
   async function reconcileSelectedLocation() {
     const sel = document.getElementById('fichaSelect');
     const val = (sel?.value || 'todas').toString();
 
     if (!val || val === 'todas') {
-      toast("⚠️ Para sincronizar o Google, escolha uma loja específica na caixa acima.", "warning");
+      toast("⚠️ {{ t('reviews.filter_store') }}: {{ t('reviews.all_stores') }}", "warning");
       return;
     }
 
@@ -623,13 +615,13 @@
 
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
-        toast(`✅ Sincronizado! Google: ${data.google_count} | Inseridos: ${data.inserted} | Removidos: ${data.deleted}`, "success");
+        toast(`✅ Google: ${data.google_count} | Inseridos: ${data.inserted} | Removidos: ${data.deleted}`, "success");
         setTimeout(() => window.location.reload(), 900);
       } else {
-        toast(data.error || "Erro ao sincronizar a ficha.", "danger");
+        toast(data.error || "{{ t('common.error') }}", "danger");
       }
     } catch (e) {
-      toast("Erro de conexão.", "danger");
+      toast("{{ t('common.error') }}", "danger");
     } finally {
       btn.disabled = false;
       t.classList.remove('d-none');
@@ -641,7 +633,6 @@
     document.getElementById('current-external-id').value = externalId;
     document.getElementById('current-internal-id').value = internalId;
 
-    // Configura tom e idioma (Prioridade: Ficha da Avaliação > Padrão Global da Conta)
     const defaultGlobalTone = {{ (user_settings.gbp_tone or 'profissional')|tojson }};
     const defaultGlobalLang = {{ (user_settings.idioma_resposta or 'Português (Brasil)')|tojson }};
 
@@ -657,229 +648,166 @@
       document.getElementById('reply_lang').value = defaultGlobalLang;
     }
 
-    const textArea = document.getElementById('reply-text');
-    currentIsEdit = !!isEdit;
+    currentIsEdit = isEdit;
+    const replyArea = document.getElementById('reply-area');
+    const loadingAI = document.getElementById('loading-ai');
+    const replyText = document.getElementById('reply-text');
+    const btnNew = document.getElementById('btnNewSuggestion');
 
-    document.getElementById('loading-ai').style.display = 'none';
-    document.getElementById('reply-area').style.display = 'block';
-    
-    // Reseta o textarea de considerações ao abrir
-    if(document.getElementById('consideracoes')) document.getElementById('consideracoes').value = '';
-
-    if (currentIsEdit) {
-      textArea.value = currentReply || "";
-      document.getElementById('btn-send-text').innerText = "Atualizar Resposta";
-      replyModal.show();
+    if (isEdit && currentReply) {
+      replyText.value = currentReply;
+      replyArea.style.display = 'block';
+      loadingAI.style.display = 'none';
+      btnNew.style.display = 'inline-block';
     } else {
-      textArea.value = "";
-      document.getElementById('btn-send-text').innerText = "Publicar Resposta";
-      replyModal.show();
-      // Gera a sugestão com as opções pré-selecionadas da ficha/global:
-      generateAISuggestion(internalId);
+      replyText.value = '';
+      replyArea.style.display = 'none';
+      loadingAI.style.display = 'none';
+      btnNew.style.display = 'none';
+      generateReply(internalId);
+    }
+
+    replyModal.show();
+  }
+
+  async function generateReply(internalId) {
+    const loadingAI = document.getElementById('loading-ai');
+    const replyArea = document.getElementById('reply-area');
+    const btnNew = document.getElementById('btnNewSuggestion');
+
+    loadingAI.style.display = 'block';
+    replyArea.style.display = 'none';
+
+    const tone = document.getElementById('tone').value;
+    const lang = document.getElementById('reply_lang').value;
+    const hiper = document.getElementById('hiper_compreensiva').checked;
+    const consideracoes = document.getElementById('consideracoes').value;
+
+    try {
+      const res = await fetch('/generate_reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ review_id: internalId, tone: tone, lang: lang, hiper: hiper, consideracoes: consideracoes })
+      });
+
+      const data = await res.json();
+      document.getElementById('reply-text').value = data.reply || '';
+
+      loadingAI.style.display = 'none';
+      replyArea.style.display = 'block';
+      btnNew.style.display = 'inline-block';
+
+      if (data.hiper_restante !== undefined) {
+        const total = {{ PLANOS[user_plano]['hiper_dia']|tojson if user_plano in PLANOS else 0 }};
+        setBadge('hiper-restante', total - data.hiper_restante, total);
+      }
+      if (data.consideracoes_restante !== undefined) {
+        const total2 = {{ PLANOS[user_plano]['consideracoes_dia']|tojson if user_plano in PLANOS else 0 }};
+        setBadge('consideracoes-restante', total2 - data.consideracoes_restante, total2);
+      }
+
+    } catch (e) {
+      loadingAI.style.display = 'none';
+      replyArea.style.display = 'block';
+      toast("{{ t('common.error') }}", "danger");
     }
   }
 
   async function generateNewSuggestion() {
     const internalId = document.getElementById('current-internal-id').value;
-    if (!internalId) return toast("Não achei o ID interno da avaliação.", "danger");
-    await generateAISuggestion(internalId);
-  }
-
-  async function generateAISuggestion(reviewId) {
-    document.getElementById('loading-ai').style.display = 'block';
-    document.getElementById('reply-area').style.display = 'none';
-    document.getElementById('btnNewSuggestion').disabled = true;
-
-    // Pega as opções do modal!
-    const tone = document.getElementById('tone').value;
-    const idioma = document.getElementById('reply_lang').value;
-    const hiper = document.getElementById('hiper_compreensiva').checked;
-    const consideracoes = document.getElementById('consideracoes').value;
-
-    try {
-      const res = await fetch('/suggest_reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ 
-            review_id: reviewId,
-            tone: tone,
-            idioma: idioma,
-            hiper_compreensiva: hiper,
-            consideracoes: consideracoes
-        })
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (data.success) {
-        document.getElementById('reply-text').value = data.suggested_reply || "";
-        toast("✨ Sugestão gerada! Edite se quiser e clique em Publicar.", "success");
-        carregarContadores(); // Atualiza os badges de limite!
-      } else {
-        toast("Erro da IA: " + (data.error || "desconhecido"), "danger");
-        // Desmarca os botões caso tenha dado erro de limite
-        if (data.error.includes("limite")) carregarContadores();
-      }
-    } catch (e) {
-      toast("Erro de conexão com a IA.", "danger");
-    } finally {
-      document.getElementById('loading-ai').style.display = 'none';
-      document.getElementById('reply-area').style.display = 'block';
-      document.getElementById('btnNewSuggestion').disabled = false;
-    }
+    await generateReply(internalId);
   }
 
   async function sendReply() {
-    const extId = document.getElementById('current-external-id').value;
-    const text = document.getElementById('reply-text').value;
+    const externalId = document.getElementById('current-external-id').value;
+    const internalId = document.getElementById('current-internal-id').value;
+    const replyText = document.getElementById('reply-text').value;
     const btnText = document.getElementById('btn-send-text');
-    const btnLoad = document.getElementById('btn-send-loading');
+    const btnLoading = document.getElementById('btn-send-loading');
 
-    if(!text.trim()) { toast("A resposta não pode estar vazia.", "warning"); return; }
+    if (!replyText.trim()) {
+      toast("{{ t('reviews.reply_placeholder') }}", "warning");
+      return;
+    }
 
     btnText.classList.add('d-none');
-    btnLoad.classList.remove('d-none');
+    btnLoading.classList.remove('d-none');
 
     try {
-      const res = await fetch(`/auto/editar_reply/${extId}`, {
+      const res = await fetch('/send_reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ reply_text: text })
+        body: JSON.stringify({ external_id: externalId, internal_id: internalId, reply: replyText, is_edit: currentIsEdit })
       });
 
-      const data = await res.json().catch(() => ({}));
-
-      if (data.success) {
+      const data = await res.json();
+      if (data.ok) {
+        toast("✅ " + (data.message || "{{ t('common.success') }}"), "success");
         replyModal.hide();
-        toast("Resposta publicada no Google!", "success");
-        setTimeout(() => window.location.reload(), 900);
+        setTimeout(() => window.location.reload(), 800);
       } else {
-        toast("Erro ao publicar: " + (data.message || data.error || "desconhecido"), "danger");
+        toast(data.error || "{{ t('common.error') }}", "danger");
       }
     } catch (e) {
-      toast("Erro de conexão ao publicar.", "danger");
+      toast("{{ t('common.error') }}", "danger");
     } finally {
       btnText.classList.remove('d-none');
-      btnLoad.classList.add('d-none');
+      btnLoading.classList.add('d-none');
     }
   }
 
-  async function deleteReply(extId) {
-    if(!confirm("Tem certeza que deseja excluir esta resposta do Google?")) return;
-
+  async function deleteReply(externalId) {
+    if (!confirm("{{ t('common.confirm') }}?")) return;
     try {
-      const res = await fetch(`/auto/excluir_reply/${extId}`, {
-        method: 'DELETE',
-        headers: { 'X-CSRFToken': csrfToken }
+      const res = await fetch('/delete_reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ external_id: externalId })
       });
-
-      const data = await res.json().catch(() => ({}));
-      if (data.success) {
-        toast("Resposta excluída.", "success");
-        setTimeout(() => window.location.reload(), 900);
+      const data = await res.json();
+      if (data.ok) {
+        toast("✅ " + (data.message || "{{ t('common.success') }}"), "success");
+        setTimeout(() => window.location.reload(), 800);
       } else {
-        toast("Erro ao excluir: " + (data.message || data.error || "desconhecido"), "danger");
+        toast(data.error || "{{ t('common.error') }}", "danger");
       }
     } catch (e) {
-      toast("Erro de conexão.", "danger");
+      toast("{{ t('common.error') }}", "danger");
     }
-  }
-
-  // 🌐 Detecção e adaptação inteligente do idioma do navegador
-  function setupMultilingualReviews() {
-    const rawNavLang = (navigator.language || navigator.userLanguage || 'pt').toLowerCase();
-    const userLang = rawNavLang.split('-')[0]; // 'pt', 'en', 'es', etc.
-
-    const langNames = {
-      'pt': 'Português',
-      'en': 'Inglês',
-      'es': 'Espanhol',
-      'fr': 'Francês',
-      'de': 'Alemão',
-      'it': 'Italiano'
-    };
-
-    document.querySelectorAll('.review-text-container').forEach(container => {
-      const reviewId = container.dataset.reviewId;
-      const original = container.dataset.original;
-      const origLang = (container.dataset.origLang || 'pt').toLowerCase();
-      const translated = container.dataset.translated;
-      const transLang = (container.dataset.transLang || '').toLowerCase();
-      
-      const textElem = document.getElementById(`review-text-${reviewId}`);
-      const metaElem = document.getElementById(`trans-meta-${reviewId}`);
-      const btnLabel = document.getElementById(`trans-btn-label-${reviewId}`);
-      if (!textElem) return;
-
-      if (!original) return;
-
-      // CASO 1: O idioma original da avaliação É o mesmo do navegador do usuário
-      if (origLang === userLang || (!translated && origLang.startsWith(userLang))) {
-        textElem.innerText = `"${original}"`;
-        textElem.dataset.currentShowing = 'original';
-        if (metaElem) metaElem.style.display = 'none'; // Esconde botão pois já está na língua nativa
-        return;
-      }
-
-      // CASO 2: A avaliação está em OUTRO idioma e temos tradução disponível
-      if (translated) {
-        // Mostra a tradução com opção de alternar para o texto original
-        textElem.innerText = `"${translated}"`;
-        textElem.dataset.currentShowing = 'translated';
-        if (metaElem && btnLabel) {
-          metaElem.style.display = 'block';
-          const origName = langNames[origLang] || origLang.toUpperCase();
-          btnLabel.innerText = `🌐 Traduzido automaticamente · Ver original (${origName})`;
-        }
-      } else {
-        // Avaliação em outro idioma sem tradução embutida
-        textElem.innerText = `"${original}"`;
-        textElem.dataset.currentShowing = 'original';
-        if (metaElem && btnLabel) {
-          metaElem.style.display = 'block';
-          const origName = langNames[origLang] || origLang.toUpperCase();
-          btnLabel.innerText = `🌐 Idioma original: ${origName}`;
-        }
-      }
-    });
   }
 
   function toggleReviewLanguage(reviewId) {
-    const container = document.querySelector(`.review-text-container[data-review-id="${reviewId}"]`);
+    const container = document.querySelector(`[data-review-id="${reviewId}"]`);
     if (!container) return;
-    
-    const original = container.dataset.original;
-    const origLang = (container.dataset.origLang || 'pt').toLowerCase();
-    const translated = container.dataset.translated;
-    const textElem = document.getElementById(`review-text-${reviewId}`);
+    const textEl = document.getElementById(`review-text-${reviewId}`);
     const btnLabel = document.getElementById(`trans-btn-label-${reviewId}`);
-    
-    if (!textElem || !translated) return;
+    const original = container.dataset.original;
+    const translated = container.dataset.translated;
+    const isShowingOriginal = textEl.dataset.mode !== 'translated';
 
-    const langNames = {
-      'pt': 'Português',
-      'en': 'Inglês',
-      'es': 'Espanhol',
-      'fr': 'Francês',
-      'de': 'Alemão',
-      'it': 'Italiano'
-    };
-    const origName = langNames[origLang] || origLang.toUpperCase();
-
-    if (textElem.dataset.currentShowing === 'translated') {
-      textElem.innerText = `"${original}"`;
-      textElem.dataset.currentShowing = 'original';
-      if (btnLabel) btnLabel.innerText = `🌐 Ver tradução`;
+    if (isShowingOriginal && translated) {
+      textEl.innerHTML = `"${translated}"`;
+      textEl.dataset.mode = 'translated';
+      btnLabel.textContent = '{{ t("reviews.view_original") }}';
     } else {
-      textElem.innerText = `"${translated}"`;
-      textElem.dataset.currentShowing = 'translated';
-      if (btnLabel) btnLabel.innerText = `🌐 Traduzido automaticamente · Ver original (${origName})`;
+      textEl.innerHTML = original ? `"${original}"` : `<span class="text-muted fst-italic">{{ t("reviews.no_comment") }}</span>`;
+      textEl.dataset.mode = 'original';
+      btnLabel.textContent = '{{ t("reviews.view_translation") }}';
     }
   }
 
-  // Executa na inicialização
-  document.addEventListener('DOMContentLoaded', () => {
-    setupMultilingualReviews();
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-review-id]').forEach(container => {
+      const reviewId = container.dataset.reviewId;
+      const translated = container.dataset.translated;
+      const origLang = container.dataset.origLang;
+      const transLang = container.dataset.transLang;
+
+      if (translated && origLang && transLang && origLang !== transLang) {
+        const metaEl = document.getElementById(`trans-meta-${reviewId}`);
+        if (metaEl) metaEl.style.display = 'block';
+      }
+    });
   });
 </script>
 {% endblock %}

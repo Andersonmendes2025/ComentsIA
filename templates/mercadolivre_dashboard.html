@@ -1,0 +1,677 @@
+{% extends "base.html" %}
+
+{% block title %}Mercado Livre - Saúde da Conta & Analytics | ComentsIA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-lg-5" style="max-width: 1440px;">
+
+  <!-- TOP HEADER & STORE SELECTOR -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge px-3 py-1.5 rounded-pill fw-bold" style="background-color: #fff159; color: #2d3277; font-size: 0.85rem;">
+          <i class="bi bi-shop me-1"></i> Mercado Livre Store Hub
+        </span>
+        {% if current_account %}
+          <span class="badge bg-light text-secondary border px-2.5 py-1 rounded-pill small">
+            ID: {{ current_account.seller_id }}
+          </span>
+        {% endif %}
+      </div>
+      <h1 class="h3 fw-bold text-dark mb-0">Saúde & Performance da Loja</h1>
+      <p class="text-muted small mb-0">Diagnóstico executivo da conta, pré-venda, logística, índice de reclamações e parecer por IA.</p>
+    </div>
+
+    <!-- SELETOR DE CONTA E AÇÕES -->
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      {% if accounts and accounts|length > 1 %}
+        <div class="dropdown">
+          <button class="btn btn-white border shadow-sm dropdown-toggle fw-semibold text-dark px-3 py-2 rounded-3" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-building me-1.5 text-warning"></i> {{ current_account.nickname if current_account else 'Selecione uma Loja' }}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 p-2">
+            {% for acc in accounts %}
+              <li>
+                <a class="dropdown-item py-2 fw-medium {% if current_account and current_account.id == acc.id %}active{% endif %}" href="{{ url_for('mercadolivre.dashboard', account_id=acc.id) }}">
+                  <i class="bi bi-shop me-2"></i> {{ acc.nickname }}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if current_account %}
+        <form method="POST" action="{{ url_for('mercadolivre.sincronizar_conta', account_id=current_account.id) }}" class="d-inline">
+          <button type="submit" class="btn btn-light border fw-semibold shadow-sm px-3 py-2 rounded-3" title="Atualizar dados da conta">
+            <i class="bi bi-arrow-repeat text-primary me-1"></i> Sincronizar
+          </button>
+        </form>
+
+        <a href="{{ url_for('mercadolivre.baixar_relatorio_pdf', account_id=current_account.id) }}" class="btn btn-outline-dark fw-semibold shadow-sm px-3 py-2 rounded-3" target="_blank">
+          <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i> Emitir PDF
+        </a>
+      {% endif %}
+
+      <button type="button" class="btn btn-warning fw-bold text-dark shadow-sm px-3 py-2 rounded-3" data-bs-toggle="modal" data-bs-target="#conectarModal">
+        <i class="bi bi-plus-lg me-1"></i> Conectar Loja
+      </button>
+    </div>
+  </div>
+
+  {% if not current_account %}
+    <!-- EMPTY STATE -->
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4 bg-white">
+      <div class="py-5" style="max-width: 600px; margin: 0 auto;">
+        <div class="d-inline-flex p-4 rounded-circle mb-3 shadow-sm" style="background-color: #fff9db;">
+          <i class="bi bi-shop text-warning" style="font-size: 3rem;"></i>
+        </div>
+        <h2 class="h4 fw-bold text-dark mb-2">Conecte sua Conta do Mercado Livre</h2>
+        <p class="text-muted mb-4">
+          Acompanhe o Score de Saúde da sua conta, monitore o termômetro em tempo real, gerencie o tempo de resposta das perguntas pré-venda e receba pareceres estratégicos com IA para blindar suas vendas.
+        </p>
+        <button type="button" class="btn btn-warning btn-lg fw-bold text-dark px-4 py-2.5 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#conectarModal">
+          <i class="bi bi-lightning-charge-fill me-1"></i> Conectar Minha Loja Agora
+        </button>
+      </div>
+    </div>
+  {% else %}
+
+    <!-- ALERTAS PREVENTIVOS DA IA -->
+    {% if alerts %}
+      <div class="mb-4">
+        {% for alert in alerts %}
+          <div class="alert alert-{{ alert.nivel }} border-0 shadow-sm rounded-3 p-3 mb-2 d-flex align-items-start gap-3">
+            <div class="mt-0.5">
+              {% if alert.nivel == 'danger' %}
+                <i class="bi bi-exclamation-octagon-fill fs-5 text-danger"></i>
+              {% elif alert.nivel == 'warning' %}
+                <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+              {% else %}
+                <i class="bi bi-info-circle-fill fs-5 text-info"></i>
+              {% endif %}
+            </div>
+            <div class="flex-grow-1">
+              <strong class="d-block text-dark">{{ alert.titulo }}</strong>
+              <span class="small text-muted">{{ alert.mensagem }}</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- TOP ROW: SCORE DE SAÚDE + TERMÔMETRO VISUAL + MEDALHA -->
+    <div class="row g-3 mb-4">
+      
+      <!-- SCORE GERAL DE SAÚDE DA CONTA -->
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small fw-bold text-uppercase">Score de Saúde da Conta</span>
+            <span class="badge bg-{{ health_info.badge.cor }}-subtle text-{{ health_info.badge.cor }} border border-{{ health_info.badge.cor }}-subtle px-2.5 py-1 rounded-pill fw-semibold small">
+              <i class="bi {{ health_info.badge.icon }} me-1"></i> {{ health_info.badge.label }}
+            </span>
+          </div>
+          <div class="d-flex align-items-baseline gap-2 mb-2">
+            <span class="display-4 fw-bold text-dark">{{ health_info.overall_score }}</span>
+            <span class="text-muted fw-bold fs-5">/ 100</span>
+          </div>
+          <div class="progress rounded-pill mb-3" style="height: 10px; background-color: #f1f5f9;">
+            <div class="progress-bar bg-{{ health_info.badge.cor }}" style="width: {{ health_info.overall_score }}%;"></div>
+          </div>
+          <p class="text-muted small mb-0">
+            Índice consolidado de confiabilidade operacional, pontualidade de despacho e zero reclamações.
+          </p>
+        </div>
+      </div>
+
+      <!-- TERMÔMETRO VISUAL OFICIAL DO MERCADO LIVRE -->
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Termômetro da Reputação</span>
+            <span class="badge bg-light text-dark border px-2.5 py-1 rounded-pill small fw-semibold">
+              Nível: {{ health_info.reputation.level.status }}
+            </span>
+          </div>
+          
+          <h4 class="fw-bold mb-3" style="color: {{ health_info.reputation.level.cor }};">
+            {{ health_info.reputation.level.nome }}
+          </h4>
+
+          <!-- Barra de 5 segmentos do termômetro -->
+          <div class="d-flex gap-1.5 mb-3">
+            <!-- 1_red -->
+            <div class="flex-fill rounded-pill py-1.5 text-center transition-all"
+                 style="background-color: {% if current_account.level_id == '1_red' %}#f04449{% else %}#fee2e2{% endif %}; height: 12px;"
+                 title="Vermelho (Crítico)"></div>
+            <!-- 2_orange -->
+            <div class="flex-fill rounded-pill py-1.5 text-center transition-all"
+                 style="background-color: {% if current_account.level_id == '2_orange' %}#ff7733{% else %}#ffedd5{% endif %}; height: 12px;"
+                 title="Laranja (Risco)"></div>
+            <!-- 3_yellow -->
+            <div class="flex-fill rounded-pill py-1.5 text-center transition-all"
+                 style="background-color: {% if current_account.level_id == '3_yellow' %}#ffb700{% else %}#fef9c3{% endif %}; height: 12px;"
+                 title="Amarelo (Atenção)"></div>
+            <!-- 4_light_green -->
+            <div class="flex-fill rounded-pill py-1.5 text-center transition-all"
+                 style="background-color: {% if current_account.level_id == '4_light_green' %}#39b54a{% else %}#dcfce7{% endif %}; height: 12px;"
+                 title="Verde Claro (Bom)"></div>
+            <!-- 5_green -->
+            <div class="flex-fill rounded-pill py-1.5 text-center transition-all"
+                 style="background-color: {% if current_account.level_id == '5_green' or not current_account.level_id %}#00a650{% else %}#bbf7d0{% endif %}; height: 12px;"
+                 title="Verde Escuro (Líder)"></div>
+          </div>
+
+          <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+            <span>Vermelho</span>
+            <span>Amarelo</span>
+            <span class="fw-bold text-success">Verde Líder</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEDALHA MERCADOLÍDER & VENDAS -->
+      <div class="col-lg-4 col-md-12">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small fw-bold text-uppercase">Medalha & Transações</span>
+            {% if health_info.reputation.medal %}
+              <span class="badge px-3 py-1 rounded-pill fw-bold text-white shadow-sm" style="background-color: {{ health_info.reputation.medal.cor }};">
+                <i class="bi {{ health_info.reputation.medal.icon }} me-1"></i> {{ health_info.reputation.medal.badge }}
+              </span>
+            {% else %}
+              <span class="badge bg-light text-muted border px-2 py-1 rounded-pill small">Sem Medalha</span>
+            {% endif %}
+          </div>
+
+          <div class="d-flex align-items-center gap-3 my-auto py-2">
+            <div class="p-3 rounded-circle" style="background-color: #f8fafc;">
+              <i class="bi bi-bag-check-fill fs-2 text-primary"></i>
+            </div>
+            <div>
+              <div class="h3 fw-bold text-dark mb-0">{{ "{:,}".format(current_account.completed_transactions or 0).replace(",", ".") }}</div>
+              <span class="text-muted small">Vendas concluídas com sucesso</span>
+            </div>
+          </div>
+
+          <div class="border-top pt-2 mt-2 d-flex justify-content-between text-muted small">
+            <span>Satisfação positiva: <strong class="text-success">{{ health_info.store_ratings.positive_pct }}%</strong></span>
+            <span>Total: {{ "{:,}".format(current_account.total_transactions or 0).replace(",", ".") }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GRID DOS 4 PILARES DE DESEMPENHO -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="h5 fw-bold text-dark mb-1">Pilares de Qualidade & Margens Operacionais</h2>
+          <p class="text-muted small mb-0">Monitore as métricas críticas que determinam a cor da reputação no Mercado Livre.</p>
+        </div>
+        <span class="badge bg-light text-secondary border px-3 py-1.5 rounded-pill small fw-medium">
+          4 Pilares Auditados
+        </span>
+      </div>
+
+      <div class="row g-3">
+        
+        <!-- PILAR 1: LOGÍSTICA & ENVIO -->
+        <div class="col-lg-3 col-sm-6">
+          <div class="p-3 rounded-4 border bg-light h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark small"><i class="bi bi-truck text-primary me-1"></i> Logística & Envio</span>
+              <span class="badge bg-{{ health_info.pillars.logistics.risk }}-subtle text-{{ health_info.pillars.logistics.risk }} rounded-pill small">
+                {{ health_info.pillars.logistics.status }}
+              </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="h4 fw-bold text-dark mb-0">{{ health_info.pillars.logistics.delay_pct }}%</span>
+              <span class="text-muted small">de atraso</span>
+            </div>
+            <div class="progress rounded-pill mb-2" style="height: 6px;">
+              <div class="progress-bar bg-{{ health_info.pillars.logistics.risk }}" style="width: {{ (health_info.pillars.logistics.delay_pct / 15.0) * 100 }}%;"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted" style="font-size: 0.72rem;">
+              <span>Pontualidade: <strong>{{ health_info.pillars.logistics.on_time_pct }}%</strong></span>
+              <span>Teto: <strong>15.0%</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PILAR 2: QUALIDADE / CLAIMS -->
+        <div class="col-lg-3 col-sm-6">
+          <div class="p-3 rounded-4 border bg-light h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark small"><i class="bi bi-shield-check text-success me-1"></i> Reclamações (Claims)</span>
+              <span class="badge bg-{{ health_info.pillars.quality.risk }}-subtle text-{{ health_info.pillars.quality.risk }} rounded-pill small">
+                {{ health_info.pillars.quality.status }}
+              </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="h4 fw-bold text-dark mb-0">{{ health_info.pillars.quality.claims_pct }}%</span>
+              <span class="text-muted small">com reclamação</span>
+            </div>
+            <div class="progress rounded-pill mb-2" style="height: 6px;">
+              <div class="progress-bar bg-{{ health_info.pillars.quality.risk }}" style="width: {{ (health_info.pillars.quality.claims_pct / 3.0) * 100 }}%;"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted" style="font-size: 0.72rem;">
+              <span>Conformidade: <strong>{{ (100.0 - health_info.pillars.quality.claims_pct)|round(1) }}%</strong></span>
+              <span>Teto Máx: <strong class="text-danger">3.0%</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PILAR 3: ATENDIMENTO PRÉ-VENDA -->
+        <div class="col-lg-3 col-sm-6">
+          <div class="p-3 rounded-4 border bg-light h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark small"><i class="bi bi-chat-dots-fill text-info me-1"></i> Atendimento Pré-Venda</span>
+              <span class="badge bg-info-subtle text-info rounded-pill small">
+                {{ health_info.pillars.service.status }}
+              </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="h4 fw-bold text-dark mb-0">{{ health_info.pillars.service.avg_response_minutes }}</span>
+              <span class="text-muted small">minutos médios</span>
+            </div>
+            <div class="progress rounded-pill mb-2" style="height: 6px;">
+              <div class="progress-bar bg-info" style="width: {{ [100, health_info.pillars.service.score]|min }}%;"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted" style="font-size: 0.72rem;">
+              <span>Taxa Resposta: <strong>{{ health_info.pillars.service.response_rate_pct }}%</strong></span>
+              <span>Meta: <strong>&lt; 30 min</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PILAR 4: CANCELAMENTOS -->
+        <div class="col-lg-3 col-sm-6">
+          <div class="p-3 rounded-4 border bg-light h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-bold text-dark small"><i class="bi bi-x-circle text-danger me-1"></i> Cancelamentos Loja</span>
+              <span class="badge bg-{{ health_info.pillars.operation.risk }}-subtle text-{{ health_info.pillars.operation.risk }} rounded-pill small">
+                {{ health_info.pillars.operation.status }}
+              </span>
+            </div>
+            <div class="d-flex align-items-baseline gap-1 mb-1">
+              <span class="h4 fw-bold text-dark mb-0">{{ health_info.pillars.operation.cancel_pct }}%</span>
+              <span class="text-muted small">cancelados</span>
+            </div>
+            <div class="progress rounded-pill mb-2" style="height: 6px;">
+              <div class="progress-bar bg-{{ health_info.pillars.operation.risk }}" style="width: {{ (health_info.pillars.operation.cancel_pct / 2.5) * 100 }}%;"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted" style="font-size: 0.72rem;">
+              <span>Disponibilidade: <strong>{{ (100.0 - health_info.pillars.operation.cancel_pct)|round(1) }}%</strong></span>
+              <span>Teto Máx: <strong class="text-danger">2.5%</strong></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MIDDLE ROW: CENTRAL DE PERGUNTAS PRÉ-VENDA + AVALIAÇÕES GLOBAIS -->
+    <div class="row g-3 mb-4">
+      
+      <!-- CENTRAL DE PERGUNTAS PRÉ-VENDA -->
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-1">
+                <i class="bi bi-question-circle text-warning me-1.5"></i> Central de Perguntas Pré-Venda
+              </h2>
+              <p class="text-muted small mb-0">Dúvidas recentes dos compradores e gerador de respostas vendedoras com IA.</p>
+            </div>
+            <span class="badge bg-warning-subtle text-dark border px-2.5 py-1 rounded-pill small fw-bold">
+              {{ current_account.unanswered_questions or 0 }} Pendentes
+            </span>
+          </div>
+
+          {% if recent_questions %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr class="text-uppercase small text-muted" style="font-size: 0.75rem;">
+                    <th>Pergunta</th>
+                    <th>Status</th>
+                    <th class="text-end">Ação com IA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for q in recent_questions %}
+                    <tr>
+                      <td style="max-width: 320px;">
+                        <span class="d-block fw-semibold text-dark text-truncate" title="{{ q.text }}">{{ q.text }}</span>
+                        {% if q.answer_text %}
+                          <span class="d-block text-muted small text-truncate mt-0.5" style="font-size: 0.75rem;" title="{{ q.answer_text }}">
+                            <i class="bi bi-reply-fill text-success me-1"></i> {{ q.answer_text }}
+                          </span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if q.status == 'UNANSWERED' %}
+                          <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">Sem Resposta</span>
+                        {% else %}
+                          <span class="badge bg-success-subtle text-success px-2 py-1 rounded-pill small">Respondida</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        <button type="button" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-2.5 py-1" onclick="abrirModalRespostaIA('{{ q.text|replace("'", "\\'") }}', '{{ q.item_id }}')">
+                          <i class="bi bi-stars me-1"></i> Sugerir com IA
+                        </button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="bi bi-chat-square-text fs-1 d-block mb-2 text-secondary opacity-50"></i>
+              Nenhuma pergunta recente registrada nesta loja.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- AVALIAÇÕES GLOBAIS DA CONTA E PRODUTOS -->
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold text-dark mb-0">
+              <i class="bi bi-star-fill text-warning me-1.5"></i> Avaliações da Loja
+            </h2>
+            <span class="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">
+              {{ current_account.total_store_reviews or 0 }} Avaliações
+            </span>
+          </div>
+
+          <!-- NOTA MÉDIA GERAL -->
+          <div class="d-flex align-items-center gap-3 p-3 rounded-4 bg-light mb-3">
+            <div class="display-5 fw-bold text-dark">{{ health_info.store_ratings.rating_average or '4.8' }}</div>
+            <div>
+              <div class="text-warning mb-1">
+                <i class="bi bi-star-fill"></i>
+                <i class="bi bi-star-fill"></i>
+                <i class="bi bi-star-fill"></i>
+                <i class="bi bi-star-fill"></i>
+                <i class="bi bi-star-half"></i>
+              </div>
+              <span class="text-muted small">Média geral dos anúncios da conta</span>
+            </div>
+          </div>
+
+          <!-- DISTRIBUIÇÃO DE ESTRELAS -->
+          <div class="space-y-2 mb-3">
+            {% set bd = health_info.store_ratings.breakdown %}
+            {% set total_r = health_info.store_ratings.total_reviews or 1 %}
+            
+            {% for star in ['5', '4', '3', '2', '1'] %}
+              {% set count = bd[star]|default(0) %}
+              {% set pct = (count / total_r) * 100 %}
+              <div class="d-flex align-items-center gap-2 mb-1.5" style="font-size: 0.82rem;">
+                <span class="fw-semibold text-muted" style="width: 25px;">{{ star }}★</span>
+                <div class="progress flex-grow-1 rounded-pill" style="height: 6px;">
+                  <div class="progress-bar bg-warning" style="width: {{ pct }}%;"></div>
+                </div>
+                <span class="text-muted small" style="width: 40px; text-align: right;">{{ count }}</span>
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- SATISFAÇÃO COMPRADORES -->
+          <div class="border-top pt-3 d-flex justify-content-around text-center">
+            <div>
+              <span class="d-block h6 fw-bold text-success mb-0">{{ health_info.store_ratings.positive_pct }}%</span>
+              <span class="text-muted" style="font-size: 0.72rem;">Positivas</span>
+            </div>
+            <div class="border-start"></div>
+            <div>
+              <span class="d-block h6 fw-bold text-warning mb-0">{{ health_info.store_ratings.neutral_pct }}%</span>
+              <span class="text-muted" style="font-size: 0.72rem;">Neutras</span>
+            </div>
+            <div class="border-start"></div>
+            <div>
+              <span class="d-block h6 fw-bold text-danger mb-0">{{ health_info.store_ratings.negative_pct }}%</span>
+              <span class="text-muted" style="font-size: 0.72rem;">Negativas</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PARECER ESTRATÉGICO DA IA (GPT-4O) -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2">
+          <div class="p-2 rounded-3 text-white" style="background: linear-gradient(135deg, #2563eb, #7c3aed);">
+            <i class="bi bi-robot fs-5"></i>
+          </div>
+          <div>
+            <h2 class="h5 fw-bold text-dark mb-0">Parecer Estratégico & Recomendações de IA</h2>
+            <span class="text-muted small">Auditoria executiva de blindagem e aceleração de reputação com GPT-4o.</span>
+          </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('mercadolivre.gerar_parecer_ia', account_id=current_account.id) }}">
+          <button type="submit" class="btn btn-outline-primary btn-sm fw-semibold rounded-pill px-3 py-1.5">
+            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar Parecer IA
+          </button>
+        </form>
+      </div>
+
+      {% if ai_report %}
+        <div class="p-3.5 rounded-4 bg-light mb-3">
+          <p class="text-dark mb-0" style="line-height: 1.6;">
+            {{ ai_report.diagnostico_geral }}
+          </p>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <!-- PONTOS FORTES -->
+          <div class="col-md-6">
+            <div class="p-3 rounded-4 border bg-white h-100">
+              <span class="fw-bold text-success d-block mb-2">
+                <i class="bi bi-check-circle-fill me-1"></i> Pontos Fortes Comprovados
+              </span>
+              <ul class="list-unstyled mb-0 small text-muted space-y-1.5">
+                {% for ponto in ai_report.pontos_fortes %}
+                  <li class="d-flex align-items-start gap-1.5">
+                    <i class="bi bi-dot fs-5 text-success"></i>
+                    <span>{{ ponto }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+
+          <!-- RISCOS DE REPUTAÇÃO -->
+          <div class="col-md-6">
+            <div class="p-3 rounded-4 border bg-white h-100">
+              <span class="fw-bold text-danger d-block mb-2">
+                <i class="bi bi-exclamation-octagon-fill me-1"></i> Riscos e Ameaças ao Termômetro
+              </span>
+              <ul class="list-unstyled mb-0 small text-muted space-y-1.5">
+                {% for risco in ai_report.riscos_reputacao %}
+                  <li class="d-flex align-items-start gap-1.5">
+                    <i class="bi bi-dot fs-5 text-danger"></i>
+                    <span>{{ risco }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLANO DE AÇÃO PRIORITÁRIO -->
+        <div class="p-3.5 rounded-4 border" style="background-color: #f8fafc;">
+          <strong class="d-block text-dark mb-2">
+            <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Plano de Ação Prioritário para a Loja:
+          </strong>
+          <div class="space-y-2">
+            {% for acao in ai_report.plano_de_acao_prioritario %}
+              <div class="p-2.5 rounded-3 bg-white border small text-dark">
+                {{ acao }}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="text-center py-4">
+          <p class="text-muted mb-3">Nenhum parecer estratégico gerado ainda para esta loja.</p>
+          <form method="POST" action="{{ url_for('mercadolivre.gerar_parecer_ia', account_id=current_account.id) }}">
+            <button type="submit" class="btn btn-primary fw-bold px-4 py-2 rounded-pill shadow-sm">
+              <i class="bi bi-stars me-1"></i> Gerar Parecer com GPT-4o Agora
+            </button>
+          </form>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- RODAPÉ DA CONTA / DESCONEXÃO -->
+    <div class="d-flex justify-content-between align-items-center pt-3 border-top text-muted small">
+      <span>Última sincronização: {{ current_account.last_sync_at.strftime('%d/%m/%Y às %H:%M') if current_account.last_sync_at else 'Recente' }}</span>
+      <form method="POST" action="{{ url_for('mercadolivre.desconectar_conta', account_id=current_account.id) }}" onsubmit="return confirm('Tem certeza que deseja desconectar a conta {{ current_account.nickname }}?')">
+        <button type="submit" class="btn btn-link text-danger text-decoration-none p-0 small">
+          <i class="bi bi-trash3 me-1"></i> Desconectar Loja
+        </button>
+      </form>
+    </div>
+
+  {% endif %}
+
+</div>
+
+<!-- MODAL: CONECTAR CONTA PÚBLICA -->
+<div class="modal fade" id="conectarModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark">
+          <i class="bi bi-shop text-warning me-1.5"></i> Conectar Loja do Mercado Livre
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <p class="text-muted small mb-4">
+          Insira o <strong>ID do Vendedor</strong>, o <strong>Apelido (Nickname)</strong> ou o link de qualquer <strong>anúncio (MLB)</strong> da sua loja no Mercado Livre.
+        </p>
+        
+        <form method="POST" action="{{ url_for('mercadolivre.conectar_publico') }}">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Identificador da Loja</label>
+            <input type="text" name="identifier" class="form-control rounded-3 py-2.5" placeholder="Ex: 123456789 ou MINHA_LOJA ou https://produto..." required>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-warning fw-bold text-dark py-2.5 rounded-3 shadow-sm">
+              <i class="bi bi-check2-circle me-1"></i> Conectar e Sincronizar
+            </button>
+            {% if oauth_available %}
+              <a href="{{ url_for('mercadolivre.conectar_oauth') }}" class="btn btn-outline-primary py-2 rounded-3 fw-semibold">
+                <i class="bi bi-shield-lock me-1"></i> Conectar com Login Oficial (OAuth)
+              </a>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SUGESTÃO DE RESPOSTA IA PARA PRÉ-VENDA -->
+<div class="modal fade" id="respostaIaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark">
+          <i class="bi bi-stars text-primary me-1.5"></i> Sugestão de Resposta com IA
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <div class="p-3 rounded-3 bg-light mb-3">
+          <span class="text-muted small fw-bold d-block mb-1">Dúvida do Comprador:</span>
+          <strong id="modalPerguntaTexto" class="text-dark d-block"></strong>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-dark">Resposta Gerada para Copiar:</label>
+          <div class="position-relative">
+            <textarea id="modalRespostaGerada" class="form-control rounded-3 py-2.5" rows="4"></textarea>
+            <div id="modalLoading" class="position-absolute top-50 start-50 translate-middle d-none text-center bg-white p-3 rounded-3 shadow-sm border">
+              <div class="spinner-border spinner-border-sm text-primary me-1" role="status"></div>
+              <span class="small fw-semibold text-muted">Gerando resposta com IA...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center">
+          <button type="button" class="btn btn-light border btn-sm fw-semibold" onclick="gerarNovamenteRespostaIA()">
+            <i class="bi bi-arrow-repeat me-1"></i> Gerar Outra Versão
+          </button>
+          <button type="button" class="btn btn-primary fw-bold px-3 py-2 rounded-3 shadow-sm" onclick="copiarRespostaIA()">
+            <i class="bi bi-clipboard-check me-1"></i> Copiar Resposta
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentModalPergunta = '';
+let currentModalItemId = '';
+
+function abrirModalRespostaIA(pergunta, itemId) {
+  currentModalPergunta = pergunta;
+  currentModalItemId = itemId;
+  document.getElementById('modalPerguntaTexto').innerText = pergunta;
+  document.getElementById('modalRespostaGerada').value = '';
+  
+  const modalEl = document.getElementById('respostaIaModal');
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+
+  gerarNovamenteRespostaIA();
+}
+
+function gerarNovamenteRespostaIA() {
+  const loading = document.getElementById('modalLoading');
+  const textarea = document.getElementById('modalRespostaGerada');
+  loading.classList.remove('d-none');
+  
+  fetch('{{ url_for("mercadolivre.sugerir_resposta_ajax") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pergunta: currentModalPergunta, item_titulo: currentModalItemId })
+  })
+  .then(res => res.json())
+  .then(data => {
+    loading.classList.add('d-none');
+    if (data.success) {
+      textarea.value = data.resposta;
+    } else {
+      textarea.value = 'Olá! Agradecemos o contato. Temos o produto disponível para envio imediato com nota fiscal e garantia. Aguardamos sua compra!';
+    }
+  })
+  .catch(err => {
+    loading.classList.add('d-none');
+    textarea.value = 'Olá! Tudo bem? Sim, temos a pronta entrega com garantia e nota fiscal. Ficamos à total disposição!';
+  });
+}
+
+function copiarRespostaIA() {
+  const textarea = document.getElementById('modalRespostaGerada');
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value);
+  alert('Resposta copiada para a área de transferência! Cole diretamente no Mercado Livre.');
+}
+</script>
+
+{% endblock %}

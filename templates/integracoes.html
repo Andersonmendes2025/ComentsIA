@@ -1,0 +1,700 @@
+{% extends "base.html" %}
+
+{% block title %}Integrações & Apps Parceiros - ComentsIA{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --ifood-red: #ea1d2c;
+    --ifood-red-hover: #c41320;
+    --ifood-red-surface: #fde8e9;
+    --google-blue: #1a73e8;
+  }
+
+  .hero-integracoes {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 36px 32px;
+    box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.25);
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-integracoes::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 85% 20%, rgba(234, 29, 44, 0.2) 0%, transparent 40%),
+                      radial-gradient(circle at 15% 80%, rgba(26, 115, 232, 0.15) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  .integration-card {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 26px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .integration-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.1);
+  }
+  .integration-card.border-ifood {
+    border-top: 4px solid var(--ifood-red);
+  }
+  .integration-card.border-google {
+    border-top: 4px solid var(--google-blue);
+  }
+  .integration-card.border-booking {
+    border-top: 4px solid #003580;
+  }
+  .integration-card.border-ml {
+    border-top: 4px solid #ffe600;
+  }
+
+  .app-icon-bubble {
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  .bubble-ifood {
+    background: linear-gradient(135deg, #ea1d2c 0%, #b8101e 100%);
+    color: white;
+  }
+  .bubble-google {
+    background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+    color: white;
+  }
+  .bubble-booking {
+    background: linear-gradient(135deg, #003580 0%, #00224f 100%);
+    color: white;
+  }
+  .bubble-ml {
+    background: linear-gradient(135deg, #ffe600 0%, #ffd000 100%);
+    color: #2d3277;
+  }
+
+  .badge-addon-price {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .badge-addon-active {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #ceead6;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .btn-ifood {
+    background: var(--ifood-red);
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    transition: all 0.2s ease;
+  }
+  .btn-ifood:hover {
+    background: var(--ifood-red-hover);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(234, 29, 44, 0.3);
+  }
+
+  .merchant-item-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+  }
+  .merchant-item-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-2">
+
+  <!-- Hero Header -->
+  <div class="hero-integracoes shadow-sm">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 bg-white bg-opacity-10 rounded-pill text-white small fw-semibold mb-2">
+          <i class="bi bi-cpu-fill text-warning"></i> {{ t('integrations.title') }}
+        </div>
+        <h1 class="h2 fw-bold text-white mb-2">{{ t('integrations.title') }}</h1>
+        <p class="text-white-50 mb-0" style="max-width: 680px;">
+          {{ t('integrations.subtitle') }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid de Canais e Apps -->
+  <div class="row g-4 mb-5">
+
+    <!-- Card 1: iFood -->
+    <div class="col-12 col-lg-6">
+      <div class="integration-card border-ifood">
+        <div>
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="app-icon-bubble bubble-ifood">
+                <i class="bi bi-bag-heart-fill"></i>
+              </div>
+              <div>
+                <h4 class="fw-bold text-dark mb-0">{{ t('integrations.ifood.name') }}</h4>
+                <span class="text-muted small">{{ t('integrations.ifood.category') }}</span>
+              </div>
+            </div>
+            <div>
+              {% if has_ifood_addon %}
+                <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> {{ t('integrations.ifood.subscribed_active') }}</span>
+              {% else %}
+                <span class="badge-addon-price"><i class="bi bi-stars"></i> {{ t('integrations.ifood.addon_tag') }}</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <p class="text-muted small mb-3">
+            {{ t('integrations.ifood.description') }}
+          </p>
+
+          <div class="bg-light rounded-3 p-3 mb-4 border">
+            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-check2-all text-danger me-1"></i> {{ t('integrations.included_features') }}</div>
+            <ul class="small text-muted mb-0 ps-3">
+              <li>{{ t('integrations.ifood.feature_1') }}</li>
+              <li>{{ t('integrations.ifood.feature_2') }}</li>
+              <li>{{ t('integrations.ifood.feature_3') }}</li>
+              <li>{{ t('integrations.ifood.feature_4') }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div>
+          {% if has_ifood_addon %}
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center pt-3 border-top">
+              <span class="small text-muted fw-semibold">
+                <i class="bi bi-shop me-1 text-danger"></i> {{ ifood_merchants|length }} {{ t('integrations.ifood.stores_connected') }}
+              </span>
+              <button class="btn btn-ifood btn-sm" onclick="abrirModalConectarIfood()">
+                <i class="bi bi-plus-circle me-1"></i> {{ t('integrations.ifood.add_store_btn') }}
+              </button>
+            </div>
+          {% else %}
+            <div class="pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div>
+                <span class="d-block fw-bold text-dark fs-5">R$ 30,00 <span class="fs-6 text-muted fw-normal">{{ t('integrations.ifood.monthly_price') }}</span></span>
+                <span class="small text-muted">{{ t('integrations.ifood.monthly_sub') }}</span>
+              </div>
+              <a href="{{ url_for('stripe_bp.checkout_addon_ifood') }}" class="btn btn-ifood">
+                <i class="bi bi-credit-card me-1"></i> {{ t('integrations.ifood.subscribe_button') }}
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Google Meu Negócio -->
+    <div class="col-12 col-lg-6">
+      <div class="integration-card border-google">
+        <div>
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="app-icon-bubble bubble-google">
+                <i class="bi bi-google"></i>
+              </div>
+              <div>
+                <h4 class="fw-bold text-dark mb-0">{{ t('integrations.google.name') }}</h4>
+                <span class="text-muted small">{{ t('integrations.google.category') }}</span>
+              </div>
+            </div>
+            <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> {{ t('integrations.badge_integrated') }}</span>
+          </div>
+
+          <p class="text-muted small mb-3">
+            {{ t('integrations.google.description') }}
+          </p>
+
+          <div class="bg-light rounded-3 p-3 mb-4 border">
+            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-check2-all text-primary me-1"></i> {{ t('integrations.included_features') }}</div>
+            <ul class="small text-muted mb-0 ps-3">
+              <li>{{ t('integrations.google.feature_1') }}</li>
+              <li>{{ t('integrations.google.feature_2') }}</li>
+              <li>{{ t('integrations.google.feature_3') }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+          <span class="small text-muted fw-semibold">
+            <i class="bi bi-geo-alt me-1 text-primary"></i> {{ google_locations|length }} {{ t('integrations.google.locations_connected') }}
+          </span>
+          <a href="{{ url_for('google_auto.escolher_ficha_google') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-gear me-1"></i> {{ t('integrations.google.manage_button') }}
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Booking.com -->
+    <div class="col-12 col-lg-6">
+      <div class="integration-card border-booking">
+        <div>
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="app-icon-bubble bubble-booking">
+                <i class="bi bi-building"></i>
+              </div>
+              <div>
+                <h4 class="fw-bold text-dark mb-0">{{ t('integrations.booking.name') }}</h4>
+                <span class="text-muted small">{{ t('integrations.booking.category') }}</span>
+              </div>
+            </div>
+            <span class="badge bg-light text-secondary border"><i class="bi bi-file-earmark-spreadsheet"></i> {{ t('integrations.badge_spreadsheets') }}</span>
+          </div>
+
+          <p class="text-muted small mb-3">
+            {{ t('integrations.booking.description') }}
+          </p>
+        </div>
+
+        <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+          <span class="small text-muted">{{ t('integrations.booking.import_via') }}</span>
+          <a href="/booking/upload" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-cloud-upload me-1"></i> {{ t('integrations.booking.import_button') }}
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Mercado Livre (Analytics ML & AI Monitor) -->
+    <div class="col-12 col-lg-6">
+      <div class="integration-card border-ml">
+        <div>
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+              <div class="app-icon-bubble bubble-ml">
+                <i class="bi bi-bag-check-fill"></i>
+              </div>
+              <div>
+                <h4 class="fw-bold text-dark mb-0">Mercado Livre</h4>
+                <span class="text-muted small">Analytics ML & Monitor IA de Reputação</span>
+              </div>
+            </div>
+            {% if ml_accounts %}
+              <span class="badge-addon-active"><i class="bi bi-check-circle-fill"></i> Conectado</span>
+            {% else %}
+              <span class="badge bg-warning bg-opacity-25 text-dark fw-bold border border-warning"><i class="bi bi-stars"></i> Módulo Gratuito</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted small mb-3">
+            Exame de sangue do termômetro de reputação, monitoramento de riscos (Claims, Atrasos, Cancelamentos) e Dossiê IA com leitura profunda de todas as avaliações de produtos.
+          </p>
+
+          <div class="bg-light rounded-3 p-3 mb-4 border">
+            <div class="small fw-semibold text-dark mb-2"><i class="bi bi-check2-all text-primary me-1"></i> Recursos Inclusos:</div>
+            <ul class="small text-muted mb-0 ps-3">
+              <li>Termômetro visual (5_green a 1_red) e Medalhas MercadoLíder (Platinum/Gold/Silver)</li>
+              <li>Dossiê IA com prós, contras e defeitos críticos apontados pelos compradores</li>
+              <li>Alertas preventivos automáticos antes de perder medalha ou cair de cor</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+          <span class="small text-muted fw-semibold">
+            <i class="bi bi-shop me-1 text-warning"></i> {{ ml_accounts|length if ml_accounts else 0 }} Lojas Conectadas
+          </span>
+          <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm">
+            <i class="bi bi-speedometer2 me-1"></i> Acessar Painel ML
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Seção de Lojas iFood Conectadas (Se houver) -->
+  {% if has_ifood_addon and ifood_merchants %}
+  <div class="card border-0 shadow-sm rounded-4 p-4 mb-5 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div>
+        <h4 class="fw-bold text-dark mb-1"><i class="bi bi-shop text-danger me-2"></i>{{ t('integrations.connected_stores_title') }}</h4>
+        <p class="text-muted small mb-0">{{ t('integrations.connected_stores_desc') }}</p>
+      </div>
+      <button class="btn btn-ifood btn-sm" onclick="abrirModalConectarIfood()">
+        <i class="bi bi-plus-circle me-1"></i> {{ t('integrations.ifood.add_store_btn2') }}
+      </button>
+    </div>
+
+    <div class="row g-3">
+      {% for m in ifood_merchants %}
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="merchant-item-card">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-bold text-dark mb-0">{{ m.name or 'Loja iFood' }}</h6>
+              <span class="text-muted" style="font-size: 0.75rem;">ID: {{ m.merchant_id[:12] }}...</span>
+            </div>
+            <span class="badge {{ 'bg-success' if m.auto_reply_enabled else 'bg-secondary' }} rounded-pill" style="font-size: 0.75rem;">
+              {{ t('integrations.ai_active_badge') if m.auto_reply_enabled else t('integrations.ai_paused_badge') }}
+            </span>
+          </div>
+
+          <div class="small text-muted mb-3">
+            <div><i class="bi bi-chat-heart text-danger me-1"></i> {{ t('integrations.ai_tone_label') }} <strong>{{ m.tone|capitalize }}</strong></div>
+            <div><i class="bi bi-clock-history text-secondary me-1"></i> {{ t('integrations.synced_label') }} {{ m.last_sync_at.strftime('%d/%m %H:%M') if m.last_sync_at else t('integrations.sync_pending') }}</div>
+          </div>
+
+          <div class="d-flex gap-2 border-top pt-2">
+            <button class="btn btn-light btn-sm flex-grow-1 text-primary fw-semibold" onclick="abrirModalConfigurarIfood('{{ m.id }}', '{{ m.name|escape }}', '{{ m.tone }}', '{{ m.auto_reply_enabled }}', '{{ m.default_greeting|escape }}', '{{ m.default_closing|escape }}', '{{ m.contexto_personalizado|escape }}')">
+              <i class="bi bi-sliders me-1"></i> {{ t('integrations.configure_btn') }}
+            </button>
+            <button class="btn btn-light btn-sm text-success" title="Sincronizar avaliações agora" onclick="sincronizarLojaIfood('{{ m.id }}')">
+              <i class="bi bi-arrow-repeat"></i>
+            </button>
+            <button class="btn btn-light btn-sm text-danger" title="Desconectar loja" onclick="desconectarLojaIfood('{{ m.id }}', '{{ m.name|escape }}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Modal: Conectar Loja iFood (OAuth 2.0 Distribuído) -->
+<div class="modal fade" id="modalConectarIfood" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 shadow-lg border-0">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+          <span class="p-2 bg-danger bg-opacity-10 text-danger rounded-3"><i class="bi bi-bag-heart-fill"></i></span>
+          {{ t('integrations.modal_connect_title') }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('common.close') }}"></button>
+      </div>
+
+      <div class="modal-body py-4">
+        <!-- Passo 1: Gerando código -->
+        <div id="ifoodPasso1">
+          <p class="text-muted small mb-4">
+            {{ t('integrations.modal_connect_step1') }}
+          </p>
+
+          <div class="text-center py-3">
+            <button class="btn btn-ifood btn-lg px-4" id="btnGerarCodigoIfood" onclick="gerarCodigoConexaoIfood()">
+              <i class="bi bi-key-fill me-2"></i> {{ t('integrations.modal_generate_code_btn') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Passo 2: Código gerado e link de autorização -->
+        <div id="ifoodPasso2" style="display: none;">
+          <div class="alert alert-danger bg-danger bg-opacity-10 border-0 rounded-4 text-center p-3 mb-3">
+            <span class="small text-muted d-block mb-1">{{ t('integrations.modal_pairing_code_label') }}</span>
+            <div class="fs-2 fw-bold text-danger letter-spacing-2" id="displayUserCode">----</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step1_instruction') }}</label>
+            <a href="#" target="_blank" id="btnAbrirPortalIfood" class="btn btn-outline-danger w-100 py-2 fw-semibold">
+              <i class="bi bi-box-arrow-up-right me-1"></i> {{ t('integrations.modal_open_portal_btn') }}
+            </a>
+          </div>
+
+          <div class="mb-4">
+            <label for="inputAuthCode" class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step2_instruction') }}</label>
+            <input type="text" class="form-control form-control-lg rounded-3" id="inputAuthCode" placeholder="{{ t('integrations.modal_auth_placeholder') }}">
+            <span class="text-muted" style="font-size: 0.75rem;">{{ t('integrations.modal_auth_hint') }}</span>
+          </div>
+
+          <button class="btn btn-ifood w-100 py-2 fw-bold" id="btnConfirmarAuthIfood" onclick="confirmarConexaoIfood()">
+            <i class="bi bi-check2-circle me-1"></i> {{ t('integrations.modal_confirm_btn') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Configurações da Loja iFood -->
+<div class="modal fade" id="modalConfigurarIfood" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 shadow-lg border-0">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+          <i class="bi bi-sliders text-danger"></i>
+          {{ t('integrations.modal_configure_title') }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('common.close') }}"></button>
+      </div>
+
+      <div class="modal-body py-3">
+        <input type="hidden" id="cfgMerchantId">
+
+        <div class="form-check form-switch mb-3 p-3 bg-light rounded-3 border">
+          <input class="form-check-input ms-0 me-2" type="checkbox" role="switch" id="cfgAutoReply" style="cursor: pointer;">
+          <label class="form-check-label fw-bold text-dark" for="cfgAutoReply">
+            Ativar Respostas Automáticas com IA
+          </label>
+          <div class="text-muted" style="font-size: 0.8rem;">A IA responderá novas avaliações do iFood automaticamente.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Tom de Voz da IA:</label>
+          <select class="form-select rounded-3" id="cfgTone">
+            <option value="amigavel">Amigável e Acolhedor (Recomendado para Restaurantes)</option>
+            <option value="profissional">Profissional e Formal</option>
+            <option value="empatico">Empático e Humanizado</option>
+            <option value="direto">Curto e Objetivo</option>
+            <option value="luxo">Sofisticado / Alta Gastronomia</option>
+          </select>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Saudação:</label>
+            <input type="text" class="form-control rounded-3" id="cfgGreeting" placeholder="Olá">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Despedida / Assinatura:</label>
+            <input type="text" class="form-control rounded-3" id="cfgClosing" placeholder="Equipe">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Contexto e Instruções Especiais da Cozinha/Loja:</label>
+          <textarea class="form-control rounded-3" id="cfgContexto" rows="3" placeholder="Ex: Somos especialistas em hambúrguer artesanal no fogo. Se o cliente reclamar de atraso, reforce que preparamos na hora..."></textarea>
+          <div class="text-muted" style="font-size: 0.75rem;">Essas instruções guiarão o GPT-4o na geração das respostas desta loja.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-ifood rounded-pill px-4" onclick="salvarConfiguracaoIfood()">Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let modalConectarInstance = null;
+  let modalConfigurarInstance = null;
+
+  function abrirModalConectarIfood() {
+    document.getElementById('ifoodPasso1').style.display = 'block';
+    document.getElementById('ifoodPasso2').style.display = 'none';
+    const el = document.getElementById('modalConectarIfood');
+    modalConectarInstance = new bootstrap.Modal(el);
+    modalConectarInstance.show();
+  }
+
+  function gerarCodigoConexaoIfood() {
+    const btn = document.getElementById('btnGerarCodigoIfood');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Gerando código no iFood...';
+
+    fetch('/ifood/conectar', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF()
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-key-fill me-2"></i> Gerar Código de Pareamento';
+
+      if (data.success) {
+        document.getElementById('displayUserCode').innerText = data.userCode;
+        const portalUrl = data.verificationUrlComplete || `https://portal.ifood.com.br/apps/code?c=${data.userCode}`;
+        document.getElementById('btnAbrirPortalIfood').href = portalUrl;
+
+        document.getElementById('ifoodPasso1').style.display = 'none';
+        document.getElementById('ifoodPasso2').style.display = 'block';
+      } else {
+        if (data.error === 'addon_required') {
+          showToast(data.message || 'Assine o Add-on do iFood para conectar.', 'warning');
+        } else {
+          showToast('Erro ao gerar código: ' + (data.error || 'Tente novamente.'), 'danger');
+        }
+      }
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-key-fill me-2"></i> Gerar Código de Pareamento';
+      showToast('Erro de conexão ao servidor.', 'danger');
+    });
+  }
+
+  function confirmarConexaoIfood() {
+    const code = document.getElementById('inputAuthCode').value.trim();
+    if (!code) {
+      showToast('Por favor, informe o código de autorização do iFood.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('btnConfirmarAuthIfood');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Validando com iFood...';
+
+    fetch('/ifood/confirmar-codigo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF()
+      },
+      body: JSON.stringify({ authorizationCode: code })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Concluir Conexão';
+
+      if (data.success) {
+        showToast('Loja iFood conectada com sucesso!', 'success');
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        showToast('Erro ao conectar: ' + (data.error || 'Código inválido.'), 'danger');
+      }
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Concluir Conexão';
+      showToast('Erro de comunicação com o servidor.', 'danger');
+    });
+  }
+
+  function abrirModalConfigurarIfood(id, name, tone, autoReply, greeting, closing, contexto) {
+    document.getElementById('cfgMerchantId').value = id;
+    document.getElementById('cfgTone').value = tone || 'amigavel';
+    document.getElementById('cfgAutoReply').checked = (autoReply === 'True' || autoReply === true);
+    document.getElementById('cfgGreeting').value = (greeting && greeting !== 'None') ? greeting : 'Olá';
+    document.getElementById('cfgClosing').value = (closing && closing !== 'None') ? closing : 'Equipe';
+    document.getElementById('cfgContexto').value = (contexto && contexto !== 'None') ? contexto : '';
+
+    const el = document.getElementById('modalConfigurarIfood');
+    modalConfigurarInstance = new bootstrap.Modal(el);
+    modalConfigurarInstance.show();
+  }
+
+  function salvarConfiguracaoIfood() {
+    const id = document.getElementById('cfgMerchantId').value;
+    const payload = {
+      auto_reply_enabled: document.getElementById('cfgAutoReply').checked,
+      tone: document.getElementById('cfgTone').value,
+      default_greeting: document.getElementById('cfgGreeting').value,
+      default_closing: document.getElementById('cfgClosing').value,
+      contexto_personalizado: document.getElementById('cfgContexto').value
+    };
+
+    fetch(`/ifood/configurar/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF()
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        showToast('Configurações salvas com sucesso!', 'success');
+        if (modalConfigurarInstance) modalConfigurarInstance.hide();
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast('Erro ao salvar: ' + (data.error || ''), 'danger');
+      }
+    })
+    .catch(e => showToast('Erro ao salvar configurações.', 'danger'));
+  }
+
+  function sincronizarLojaIfood(id) {
+    const toastId = showPersistentToast('<span class="spinner-border spinner-border-sm me-2"></span> Sincronizando e respondendo avaliações do iFood com IA...', 'info');
+    fetch(`/ifood/sincronizar/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF()
+      }
+    })
+    .then(r => r.json())
+    .then(data => {
+      removePersistentToast(toastId);
+      if (data.success) {
+        showToast(`Sincronização concluída! ${data.novas_avaliacoes} novas avaliações, ${data.respostas_enviadas} respostas enviadas.`, 'success');
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        showToast('Erro ao sincronizar: ' + (data.error || ''), 'danger');
+      }
+    })
+    .catch(e => {
+      removePersistentToast(toastId);
+      showToast('Erro de comunicação.', 'danger');
+    });
+  }
+
+  function desconectarLojaIfood(id, name) {
+    askConfirm(`Deseja realmente desconectar a loja <b>${name}</b> do iFood?`, function() {
+      fetch(`/ifood/desconectar/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRF()
+        }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast('Loja desconectada com sucesso.', 'info');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast('Erro ao desconectar.', 'danger');
+        }
+      })
+      .catch(e => showToast('Erro de comunicação.', 'danger'));
+    });
+  }
+</script>
+{% endblock %}

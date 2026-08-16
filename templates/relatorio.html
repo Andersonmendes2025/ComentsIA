@@ -168,15 +168,15 @@
     <div class="hero-content">
       <div class="d-flex align-items-center mb-2">
         <span class="badge bg-white text-primary rounded-pill px-3 py-1 me-2 fw-bold shadow-sm">
-            <i class="bi bi-stars me-1"></i> Inteligência ComentsIA
+            <i class="bi bi-stars me-1"></i> {{ t('reports_page.title') }}
         </span>
       </div>
-      <h1 class="display-6 fw-bold mb-2">Relatórios Executivos & Auditoria</h1>
-      <p class="mb-0 opacity-90 fs-5" style="font-weight: 300;">Diagnóstico completo de feedbacks, fidelidade estatística e plano de ação estratégico.</p>
+      <h1 class="display-6 fw-bold mb-2">{{ t('reports_page.title') }}</h1>
+      <p class="mb-0 opacity-90 fs-5" style="font-weight: 300;">{{ t('reports_page.subtitle') }}</p>
     </div>
     <div class="hero-content">
        <a href="{{ url_for('historico_relatorios') }}" class="btn btn-glass">
-         <i class="bi bi-clock-history me-2"></i>Histórico de PDFs
+         <i class="bi bi-clock-history me-2"></i>{{ t('reports_page.history_btn') }}
        </a>
     </div>
   </div>
@@ -194,11 +194,11 @@
     <form method="GET" action="{{ url_for('gerar_relatorio') }}" class="row align-items-center g-3">
       <div class="col-md-7 col-lg-6">
         <label class="form-label text-uppercase fw-bold text-muted small mb-1">
-          <i class="bi bi-shop me-1 text-primary"></i> Filtrar Unidade / Loja
+          <i class="bi bi-shop me-1 text-primary"></i> {{ t('reports_page.store_label') }}
         </label>
         <select name="ficha" class="form-select form-select-lg fw-semibold text-dark" onchange="this.form.submit()">
           <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>
-            🌐 Todas as Lojas / Unidades Integradas
+            🌐 {{ t('reports_page.all_stores') }}
           </option>
           {% for f in fichas %}
             <option value="{{ f.id }}" {% if ficha_selecionada|int == f.id %}selected{% endif %}>
@@ -208,7 +208,7 @@
         </select>
       </div>
       <div class="col-md-5 col-lg-6 text-md-end text-muted small pt-md-4">
-        <i class="bi bi-shield-check text-success me-1"></i> Dados sincronizados em tempo real com o Google Business Profile
+        <i class="bi bi-shield-check text-success me-1"></i> {{ t('footer.secure') }}
       </div>
     </form>
   </div>
@@ -224,9 +224,9 @@
             </div>
           </div>
           <div class="stat-value">{{ total }}</div>
-          <div class="stat-label">Total de Avaliações</div>
+          <div class="stat-label">{{ t('dashboard.total_reviews') }}</div>
         </div>
-        <div class="stat-meta">Base integral de feedbacks</div>
+        <div class="stat-meta">{{ t('reports_page.integral_base') }}</div>
       </div>
     </div>
 
@@ -239,9 +239,9 @@
             </div>
           </div>
           <div class="stat-value">{{ avg }} ★</div>
-          <div class="stat-label">Nota Média Oficial</div>
+          <div class="stat-label">{{ t('dashboard.avg_rating') }}</div>
         </div>
-        <div class="stat-meta">Escala de 1.00 a 5.00</div>
+        <div class="stat-meta">{{ t('reports_page.rating_scale') }}</div>
       </div>
     </div>
 
@@ -255,9 +255,9 @@
             <span class="badge bg-success bg-opacity-10 text-success rounded-pill">{{ pct }}%</span>
           </div>
           <div class="stat-value">{{ responded }}</div>
-          <div class="stat-label">Respondidas</div>
+          <div class="stat-label">{{ t('dashboard.replied') }}</div>
         </div>
-        <div class="stat-meta text-success">{{ pending }} pendentes de resposta</div>
+        <div class="stat-meta text-success">{{ pending }} {{ t('home.kpi_pending_waiting') }}</div>
       </div>
     </div>
 
@@ -271,9 +271,9 @@
             <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill">NPS</span>
           </div>
           <div class="stat-value">+{{ nps }}</div>
-          <div class="stat-label">Índice NPS Estimado</div>
+          <div class="stat-label">{{ t('reports_page.nps_title') }}</div>
         </div>
-        <div class="stat-meta">Satisfação Líquida do Cliente</div>
+        <div class="stat-meta">{{ t('reports_page.nps_subtitle') }}</div>
       </div>
     </div>
   </div>
@@ -284,9 +284,9 @@
       <div class="chart-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="fw-bold text-dark mb-0">
-            <i class="bi bi-activity text-primary me-2"></i>Evolução da Nota Média
+            <i class="bi bi-activity text-primary me-2"></i>{{ t('reports_page.rating_evolution') }}
           </h5>
-          <span class="badge bg-light text-muted border">Histórico Mensal</span>
+          <span class="badge bg-light text-muted border">{{ t('reports_page.monthly_history') }}</span>
         </div>
         <div style="height: 270px;">
           <canvas id="chartEvolucaoMensal"></canvas>
@@ -298,9 +298,9 @@
       <div class="chart-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="fw-bold text-dark mb-0">
-            <i class="bi bi-bar-chart-fill text-success me-2"></i>Distribuição por Estrelas
+            <i class="bi bi-bar-chart-fill text-success me-2"></i>{{ t('reports_page.star_distribution') }}
           </h5>
-          <span class="badge bg-light text-muted border">Classificação</span>
+          <span class="badge bg-light text-muted border">{{ t('reports_page.classification') }}</span>
         </div>
         <div style="height: 270px;">
           <canvas id="chartDistribuicaoEstrelas"></canvas>
@@ -314,17 +314,17 @@
   <div class="alert alert-warning d-flex align-items-center shadow-sm border-warning border-opacity-25 rounded-4 mb-4 p-4" role="alert">
     <i class="bi bi-lock-fill fs-1 me-3 text-warning"></i>
     <div class="flex-grow-1">
-      <h5 class="alert-heading fw-bold mb-1">Geração de PDF Executivo Bloqueada</h5>
-      <div class="text-secondary">O download de relatórios completos em PDF com auditoria de inteligência artificial é exclusivo dos planos PRO e Business.</div>
+      <h5 class="alert-heading fw-bold mb-1">{{ t('reports_page.pdf_locked_title') }}</h5>
+      <div class="text-secondary">{{ t('reports_page.pdf_locked_desc') }}</div>
     </div>
-    <a href="{{ url_for('planos') }}" class="btn btn-warning fw-bold px-4 py-2 rounded-pill">Liberar Acesso</a>
+    <a href="{{ url_for('planos') }}" class="btn btn-warning fw-bold px-4 py-2 rounded-pill">{{ t('reports_page.unlock_access') }}</a>
   </div>
   {% elif limite_relatorio_atingido %}
   <div class="alert alert-danger d-flex align-items-center shadow-sm border-danger border-opacity-25 rounded-4 mb-4 p-4" role="alert">
     <i class="bi bi-exclamation-octagon-fill fs-1 me-3 text-danger"></i>
     <div>
-      <h5 class="alert-heading fw-bold mb-1">Limite Mensal Atingido</h5>
-      <div class="text-secondary">Você atingiu o limite mensal de geração de PDFs do seu plano atual. O limite será renovado no início do próximo mês.</div>
+      <h5 class="alert-heading fw-bold mb-1">{{ t('reports_page.limit_reached_title') }}</h5>
+      <div class="text-secondary">{{ t('reports_page.limit_reached_desc') }}</div>
     </div>
   </div>
   {% endif %}
@@ -340,51 +340,51 @@
             <i class="bi bi-file-earmark-pdf-fill fs-3"></i>
         </div>
         <div>
-          <h4 class="mb-0 fw-bold text-dark">Exportar Relatório Executivo em PDF</h4>
-          <p class="text-muted small mb-0">Auditoria aprofundada com gráficos de 300 DPI e diagnóstico estratégico com a IA da ComentsIA.</p>
+          <h4 class="mb-0 fw-bold text-dark">{{ t('reports_page.export_title') }}</h4>
+          <p class="text-muted small mb-0">{{ t('reports_page.export_desc') }}</p>
         </div>
       </div>
 
       <div class="row g-4">
         <div class="col-md-4">
-          <label class="form-label fw-semibold text-secondary">Período de Análise</label>
+          <label class="form-label fw-semibold text-secondary">{{ t('reports_page.period_label') }}</label>
           <select name="periodo" class="form-select form-select-lg">
-            <option value="90dias">Últimos 90 dias</option>
-            <option value="6meses">Últimos 6 meses</option>
-            <option value="1ano">Último 1 ano</option>
-            <option value="todas">Todo o Histórico</option>
+            <option value="90dias">{{ t('reports_page.period_90d') }}</option>
+            <option value="6meses">{{ t('reports_page.period_6m') }}</option>
+            <option value="1ano">{{ t('reports_page.period_1y') }}</option>
+            <option value="todas">{{ t('reports_page.period_all') }}</option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold text-secondary">Filtrar por Nota</label>
+          <label class="form-label fw-semibold text-secondary">{{ t('reports_page.rating_filter_label') }}</label>
           <select name="nota" class="form-select form-select-lg">
-            <option value="todas">Todas as notas (1 a 5 estrelas)</option>
-            <option value="5">⭐⭐⭐⭐⭐ 5 Estrelas</option>
-            <option value="4">⭐⭐⭐⭐ 4 Estrelas</option>
-            <option value="3">⭐⭐⭐ 3 Estrelas</option>
-            <option value="2">⭐⭐ 2 Estrelas</option>
-            <option value="1">⭐ 1 Estrela</option>
+            <option value="todas">{{ t('reports_page.all_ratings') }}</option>
+            <option value="5">{{ t('reports_page.stars_5') }}</option>
+            <option value="4">{{ t('reports_page.stars_4') }}</option>
+            <option value="3">{{ t('reports_page.stars_3') }}</option>
+            <option value="2">{{ t('reports_page.stars_2') }}</option>
+            <option value="1">{{ t('reports_page.stars_1') }}</option>
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label fw-semibold text-secondary">Status de Resposta</label>
+          <label class="form-label fw-semibold text-secondary">{{ t('reports_page.status_filter_label') }}</label>
           <select name="respondida" class="form-select form-select-lg">
-            <option value="todas">Qualquer status</option>
-            <option value="sim">✅ Apenas Respondidas</option>
-            <option value="nao">⚠️ Apenas Pendentes</option>
+            <option value="todas">{{ t('reports_page.status_all_option') }}</option>
+            <option value="sim">{{ t('reports_page.status_only_replied') }}</option>
+            <option value="nao">{{ t('reports_page.status_only_pending') }}</option>
           </select>
         </div>
       </div>
 
       <div class="mt-5 d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div class="text-muted small">
-          <i class="bi bi-info-circle me-1 text-primary"></i> O PDF inclui métricas oficiais, gráficos em alta resolução e análise de sentimentos.
+          <i class="bi bi-info-circle me-1 text-primary"></i> {{ t('reports_page.pdf_features_note') }}
         </div>
         <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg fw-bold" id="btn-gerar-pdf"
           {% if user_plano == 'free' or limite_relatorio_atingido %}disabled
              style="filter: grayscale(1); opacity: 0.7;"
-             title="Faça upgrade para liberar"{% endif %}>
-          <i class="bi bi-cloud-arrow-down-fill me-2"></i> Gerar Relatório Executivo PDF
+             title="{{ t('reports_page.upgrade_to_unlock') }}"{% endif %}>
+          <i class="bi bi-cloud-arrow-down-fill me-2"></i> {{ t('reports_page.export_btn') }}
         </button>
       </div>
     </form>
@@ -398,8 +398,8 @@
     <div class="mb-4">
         <div class="spinner-border text-primary" style="width: 3.2rem; height: 3.2rem;" role="status"></div>
     </div>
-    <h5 class="fw-bold text-dark mb-2">Processando Auditoria de IA...</h5>
-    <p class="text-muted small mb-3">Calculando métricas oficiais, compilando gráficos de 300 DPI<br>e formulando o parecer executivo com a IA ComentsIA.</p>
+    <h5 class="fw-bold text-dark mb-2">{{ t('reports_page.ai_generating') }}</h5>
+    <p class="text-muted small mb-3">{{ t('reports_page.ai_wait') }}</p>
     <div class="progress" style="height: 6px;">
         <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
     </div>
