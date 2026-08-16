@@ -300,16 +300,15 @@
 {% block content %}
 <div class="container py-2">
 
-  {% if not logged_in %}
-  <!-- =======================================================
-       SEÇÃO NÃO LOGADO (LANDING PAGE FUTURISTA MULTICANAL)
+  {% if not logged_in   <!-- =======================================================
+       SEÇÃO NÃO LOGADO (LANDING PAGE FUTURISTA GOOGLE CLEAN)
        ======================================================= -->
 
   <!-- Hero Section -->
   <section class="text-center pt-4 pb-5">
     <div class="live-pill">
       <span class="pulsing-dot"></span>
-      <span>Inteligência Artificial Multicanal para Reputação & Vendas</span>
+      <span>Inteligência Artificial Integrada ao Google Meu Negócio</span>
     </div>
 
     <h1 class="hero-gradient-title">
@@ -317,46 +316,30 @@
     </h1>
 
     <p class="hero-subtext">
-      Monitore, interprete e responda feedbacks em tempo real no <strong>Google Meu Negócio</strong>, <strong>Mercado Livre</strong> e <strong>iFood</strong> com inteligência artificial de alta conversão e voz de marca.
+      Monitore, interprete e responda todas as avaliações no <strong>Google Meu Negócio</strong> em tempo real com o tom ideal da sua marca e relatórios completos.
     </p>
-
-    <!-- Badges de Canais Oficiais -->
-    <div class="d-flex flex-wrap justify-content-center align-items-center gap-2.5 mb-4">
-      <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm d-inline-flex align-items-center">
-        <img src="{{ url_for('static', filename='google-logo.svg') }}" alt="Google" style="width: 18px; height: 18px;" class="me-2">
-        <strong>Google Meu Negócio</strong>
-      </span>
-      <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm d-inline-flex align-items-center">
-        <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 24px; height: 16px;" class="me-2">
-        <strong>Mercado Livre</strong> <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7rem;">Add-on</span>
-      </span>
-      <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-sm d-inline-flex align-items-center">
-        <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 28px; height: 14px;" class="me-2">
-        <strong>iFood</strong> <span class="badge bg-danger text-white ms-2" style="font-size: 0.7rem;">Add-on</span>
-      </span>
-    </div>
 
     <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
       <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg px-4 shadow">
         <i class="bi bi-google me-2"></i> Conectar com o Google
       </a>
       <a href="{{ url_for('planos') }}" class="btn btn-outline-primary btn-lg px-4">
-        Conhecer os Planos & Add-ons
+        Conhecer os Planos
       </a>
     </div>
 
     <div class="d-flex justify-content-center align-items-center gap-4 text-muted small flex-wrap mt-3">
       <span><i class="bi bi-shield-check text-success me-1"></i> 100% Conforme LGPD</span>
       <span><i class="bi bi-check2-circle text-primary me-1"></i> Sem instalação complexa</span>
-      <span><i class="bi bi-star-fill text-warning me-1"></i> Suporte a Redes e Multiunidades</span>
+      <span><i class="bi bi-star-fill text-warning me-1"></i> Suporte a Multiunidades</span>
     </div>
   </section>
 
   <!-- Grid de Recursos (Futuristic Glass Cards) -->
   <section class="mb-5">
     <div class="text-center mb-4">
-      <h3 class="fw-bold text-dark">Ecossistema Completo de Gestão de Reputação</h3>
-      <p class="text-muted">Projetado com velocidade, inteligência de ponta e foco total em conversão de clientes.</p>
+      <h3 class="fw-bold text-dark">Tudo o que você precisa para gerenciar sua presença online</h3>
+      <p class="text-muted">Projetado com velocidade, tecnologia de ponta e foco total em conversão.</p>
     </div>
 
     <div class="row g-4">
@@ -367,7 +350,7 @@
           </div>
           <h5 class="fw-bold text-dark mb-2">IA com Voz de Marca</h5>
           <p class="text-muted small mb-0">
-            Respostas contextuais, educadas e empáticas com calibração precisa em 5 tons corporativos.
+            Respostas contextuais, educadas e empáticas que protegem sua autoridade e encantam o cliente.
           </p>
         </div>
       </div>
@@ -377,9 +360,9 @@
           <div class="feature-icon-bubble bubble-green">
             <i class="bi bi-arrow-repeat"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Sincronização Contínua</h5>
+          <h5 class="fw-bold text-dark mb-2">Sincronização 48h</h5>
           <p class="text-muted small mb-0">
-            Coleta automática de novas avaliações direto das APIs oficiais sem você precisar conferir manualmente.
+            Coleta contínua de novas avaliações direto da API oficial do Google sem você precisar conferir manualmente.
           </p>
         </div>
       </div>
@@ -389,7 +372,7 @@
           <div class="feature-icon-bubble bubble-yellow">
             <i class="bi bi-shop"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Gestão de Filiais & Matriz</h5>
+          <h5 class="fw-bold text-dark mb-2">Gestão de Filiais</h5>
           <p class="text-muted small mb-0">
             Painel Matriz com visão consolidada e individual de todas as suas lojas, franquias e filiais.
           </p>
@@ -401,98 +384,10 @@
           <div class="feature-icon-bubble bubble-cyan">
             <i class="bi bi-file-earmark-pdf"></i>
           </div>
-          <h5 class="fw-bold text-dark mb-2">Auditorias em PDF</h5>
+          <h5 class="fw-bold text-dark mb-2">Relatórios em PDF</h5>
           <p class="text-muted small mb-0">
-            Diagnósticos executivos com gráficos de 300 DPI, notas por período e parecer estratégico de IA.
+            Diagnósticos executivos com gráficos de sentimentos, notas por período e destaques de atendimento.
           </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CANAIS E ADD-ONS ESPECIALISTAS (Vitrine dos Canais) -->
-  <section class="mb-5">
-    <div class="text-center mb-4">
-      <h3 class="fw-bold text-dark">Canais Integrados e Módulos Especialistas</h3>
-      <p class="text-muted">Centralize seus canais de venda e atendimento em uma única plataforma.</p>
-    </div>
-
-    <div class="row g-4">
-      <!-- Canal 1: Google Meu Negócio -->
-      <div class="col-12 col-md-4">
-        <div class="glass-card-futuristic p-4 h-100 d-flex flex-column justify-content-between border-top border-4 border-primary">
-          <div>
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="d-flex align-items-center gap-2">
-                <img src="{{ url_for('static', filename='google-logo.svg') }}" alt="Google" style="width: 28px; height: 28px;">
-                <h5 class="fw-bold text-dark mb-0">Google Business</h5>
-              </div>
-              <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 small fw-bold">Incluso no Plano</span>
-            </div>
-            <p class="text-muted small mb-3">
-              Respostas automáticas de avaliações do Google Maps, busca local, sincronização 48h e relatórios de satisfação por filial.
-            </p>
-            <ul class="small text-muted ps-3 mb-4 space-y-1">
-              <li>Respostas inteligentes em múltiplos idiomas</li>
-              <li>Alerta imediato de notas negativas (1★ e 2★)</li>
-              <li>Gestão multi-fichas centralizada</li>
-            </ul>
-          </div>
-          <a href="{{ url_for('authorize') }}" class="btn btn-outline-primary w-100 rounded-pill fw-semibold">
-            Conectar Google
-          </a>
-        </div>
-      </div>
-
-      <!-- Canal 2: Mercado Livre -->
-      <div class="col-12 col-md-4">
-        <div class="glass-card-futuristic p-4 h-100 d-flex flex-column justify-content-between border-top border-4" style="border-color: #ffe600 !important;">
-          <div>
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="d-flex align-items-center gap-2">
-                <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 32px; height: 22px;">
-                <h5 class="fw-bold text-dark mb-0">Mercado Livre</h5>
-              </div>
-              <span class="badge rounded-pill px-2.5 py-1 small fw-bold" style="background: #fff3c4; color: #854d0e;">Add-on R$ 29,90/mês</span>
-            </div>
-            <p class="text-muted small mb-3">
-              Auditoria de saúde da conta, monitoramento de termômetro e medalha, respostas IA para perguntas pré-venda e dados de faturamento.
-            </p>
-            <ul class="small text-muted ps-3 mb-4 space-y-1">
-              <li>Resposta direta de perguntas via OAuth oficial</li>
-              <li>Monitoramento de Claims, Atrasos e Cancelamentos</li>
-              <li>Dossiê de avaliações dos produtos da loja</li>
-            </ul>
-          </div>
-          <span class="badge bg-light text-secondary border rounded-pill py-2 text-center w-100 fw-semibold" style="font-size: 0.8rem;">
-            <i class="bi bi-lock-fill me-1 text-warning"></i> Exclusivo a partir do Plano Pro
-          </span>
-        </div>
-      </div>
-
-      <!-- Canal 3: iFood Delivery -->
-      <div class="col-12 col-md-4">
-        <div class="glass-card-futuristic p-4 h-100 d-flex flex-column justify-content-between border-top border-4 border-danger">
-          <div>
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div class="d-flex align-items-center gap-2">
-                <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 36px; height: 20px;">
-                <h5 class="fw-bold text-dark mb-0">iFood Restaurantes</h5>
-              </div>
-              <span class="badge rounded-pill px-2.5 py-1 small fw-bold" style="background: #fee2e2; color: #991b1b;">Add-on R$ 29,90/mês</span>
-            </div>
-            <p class="text-muted small mb-3">
-              Automação de respostas no iFood com IA calibrada para o ecossistema de gastronomia, restaurantes e dark kitchens.
-            </p>
-            <ul class="small text-muted ps-3 mb-4 space-y-1">
-              <li>Respostas humanizadas para delivery</li>
-              <li>Contexto personalizado por unidade/cozinha</li>
-              <li>Sincronização contínua de pedidos e reviews</li>
-            </ul>
-          </div>
-          <span class="badge bg-light text-secondary border rounded-pill py-2 text-center w-100 fw-semibold" style="font-size: 0.8rem;">
-            <i class="bi bi-lock-fill me-1 text-danger"></i> Exclusivo a partir do Plano Pro
-          </span>
         </div>
       </div>
     </div>
@@ -528,13 +423,13 @@
     </div>
   </section>
 
-  <!-- Planos Resumidos com Add-ons em Destaque -->
+  <!-- Planos Resumidos -->
   <section class="mb-5">
     <div class="text-center mb-4">
       <h3 class="fw-bold text-dark">Planos transparentes e escaláveis</h3>
       <p class="text-muted">Comece sem custos e evolua conforme o crescimento do seu negócio.</p>
     </div>
-    <div class="row g-4 mb-4">
+    <div class="row g-4">
       <div class="col-12 col-md-4">
         <div class="pricing-mini-card">
           <span class="badge bg-light text-secondary border align-self-start mb-2">Início</span>
@@ -542,8 +437,8 @@
           <div class="fs-2 fw-bold text-dark my-2">R$ 0<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>20 avaliações/mês</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Dashboard de métricas Google</li>
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Personalização de tom de voz</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Dashboard de métricas</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Personalização de tom</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Começar Grátis</a>
         </div>
@@ -559,7 +454,7 @@
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas com IA Ilimitadas</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Automação Google Meu Negócio</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Contexto e Branding avançados</li>
-            <li class="mb-2"><i class="bi bi-stars text-warning me-2 fw-bold"></i><strong>Elegível para Add-ons Mercado Livre & iFood</strong></li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas hiper empáticas</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-primary w-100">Assinar Plano Pro</a>
         </div>
@@ -571,30 +466,14 @@
           <h4 class="fw-bold text-dark mb-1">Business</h4>
           <div class="fs-2 fw-bold text-dark my-2">R$ 79,99<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
-            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes (Matriz)</li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Relatórios Executivos em PDF</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Sincronização prioritária</li>
-            <li class="mb-2"><i class="bi bi-stars text-warning me-2 fw-bold"></i><strong>Elegível para Add-ons Mercado Livre & iFood</strong></li>
+            <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Suporte VIP dedicado</li>
           </ul>
           <a href="{{ url_for('planos') }}" class="btn btn-outline-primary w-100">Assinar Business</a>
         </div>
       </div>
-    </div>
-
-    <!-- Destaque de Add-ons -->
-    <div class="p-3.5 rounded-4 border bg-white shadow-sm d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="p-2.5 rounded-3 bg-warning bg-opacity-25 text-dark">
-          <i class="bi bi-puzzle-fill fs-4 text-warning"></i>
-        </div>
-        <div>
-          <strong class="d-block text-dark">Precisa de canais adicionais? Conheça os Add-ons Especialistas</strong>
-          <span class="text-muted small">Adicione o <strong>Mercado Livre</strong> (R$ 29,90/mês) ou <strong>iFood</strong> (R$ 29,90/mês) à sua assinatura. <em>(Disponível a partir do Plano Pro)</em></span>
-        </div>
-      </div>
-      <a href="{{ url_for('planos') }}" class="btn btn-outline-dark btn-sm fw-bold px-4 py-2 rounded-pill text-nowrap">
-        Ver Detalhes dos Add-ons <i class="bi bi-arrow-right ms-1"></i>
-      </a>
     </div>
   </section>
 
@@ -607,7 +486,7 @@
       </div>
 
       <p class="text-secondary fs-6 leading-relaxed mb-3">
-        A <strong>ComentsIA</strong> é a solução definitiva em inteligência de reputação digital multicanal. Criada para ajudar empresas a interpretar feedbacks e responder com velocidade, empatia e assertividade no <strong>Google Meu Negócio</strong>, <strong>Mercado Livre</strong> e <strong>iFood</strong>.
+        A <strong>ComentsIA</strong> é a solução definitiva em inteligência de reputação digital. Criada para ajudar empresas a interpretar feedbacks e responder com velocidade, empatia e assertividade no <strong>Google Meu Negócio</strong>.
       </p>
       <p class="text-secondary fs-6 leading-relaxed mb-4">
         Hoje, mais de 90% dos consumidores leem avaliações antes de visitar ou comprar de um negócio. Empresas que respondem com regularidade geram maior autoridade no algoritmo de busca local e convertem muito mais clientes.
@@ -617,7 +496,7 @@
         <div class="col-md-6">
           <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
-            <div><strong>Centralização Multicanal:</strong> Monitore todas as avaliações do Google, Mercado Livre e iFood em um único lugar seguro.</div>
+            <div><strong>Centralização Completa:</strong> Monitore todas as avaliações da sua empresa e filiais em um único lugar seguro.</div>
           </div>
         </div>
         <div class="col-md-6">
@@ -635,7 +514,7 @@
         <div class="col-md-6">
           <div class="d-flex align-items-start gap-2">
             <i class="bi bi-check-circle-fill text-success fs-5 mt-1"></i>
-            <div><strong>Segurança e LGPD:</strong> Autenticação direta oficial com criptografia de ponta a ponta e respeito à privacidade.</div>
+            <div><strong>Segurança e LGPD:</strong> Autenticação direta pelo Google com criptografia de ponta a ponta e respeito à privacidade.</div>
           </div>
         </div>
       </div>
@@ -747,69 +626,6 @@
           <i class="bi bi-diagram-3 me-1 text-primary"></i> {{ t('navbar.matrix_panel') }}
         </a>
       {% endif %}
-  <!-- HUB MULTICANAL & MÓDULOS DE REPUTAÇÃO -->
-  <div class="row g-3 mb-4">
-    <!-- Canal 1: Google Meu Negócio -->
-    <div class="col-12 col-md-4">
-      <div class="glass-card-futuristic p-3.5 h-100 d-flex flex-column justify-content-between border-start border-4 border-primary">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <img src="{{ url_for('static', filename='google-logo.svg') }}" alt="Google" style="width: 22px; height: 22px;">
-            <strong class="text-dark">Google Meu Negócio</strong>
-          </div>
-          <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 small">
-            <i class="bi bi-check-circle-fill me-1"></i> Incluso
-          </span>
-        </div>
-        <p class="text-muted small mb-3">
-          Sincronização 48h, respostas automáticas com IA e monitoramento de avaliações em todas as fichas.
-        </p>
-        <a href="{{ url_for('reviews', ficha=filtro_ficha) }}" class="btn btn-sm btn-outline-primary fw-semibold rounded-pill w-100">
-          Gerenciar Google <i class="bi bi-arrow-right ms-1"></i>
-        </a>
-      </div>
-    </div>
-
-    <!-- Canal 2: Mercado Livre (Add-on) -->
-    <div class="col-12 col-md-4">
-      <div class="glass-card-futuristic p-3.5 h-100 d-flex flex-column justify-content-between border-start border-4" style="border-color: #ffe600 !important;">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 26px; height: 18px;">
-            <strong class="text-dark">Mercado Livre</strong>
-          </div>
-          <span class="badge rounded-pill px-2 py-0.5 small fw-bold" style="background: #fff3c4; color: #854d0e;">
-            Add-on R$ 29,90/mês
-          </span>
-        </div>
-        <p class="text-muted small mb-3">
-          Score de saúde, termômetro, faturamento, resposta IA para perguntas pré-venda e dossiê de produtos.
-        </p>
-        <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-sm btn-warning fw-bold text-dark rounded-pill w-100 shadow-sm">
-          Acessar Mercado Livre Hub <i class="bi bi-arrow-right ms-1"></i>
-        </a>
-      </div>
-    </div>
-
-    <!-- Canal 3: iFood Delivery (Add-on) -->
-    <div class="col-12 col-md-4">
-      <div class="glass-card-futuristic p-3.5 h-100 d-flex flex-column justify-content-between border-start border-4 border-danger">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <div class="d-flex align-items-center gap-2">
-            <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 30px; height: 16px;">
-            <strong class="text-dark">iFood Restaurantes</strong>
-          </div>
-          <span class="badge rounded-pill px-2 py-0.5 small fw-bold" style="background: #fee2e2; color: #991b1b;">
-            Add-on R$ 29,90/mês
-          </span>
-        </div>
-        <p class="text-muted small mb-3">
-          Respostas automáticas no iFood com IA calibrada para o ecossistema gastronômico e delivery.
-        </p>
-        <a href="{{ url_for('integracoes') }}" class="btn btn-sm btn-danger fw-bold rounded-pill w-100 shadow-sm">
-          Gerenciar iFood <i class="bi bi-arrow-right ms-1"></i>
-        </a>
-      </div>
     </div>
   </div>
 

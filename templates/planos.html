@@ -353,119 +353,30 @@
 
   </div>
 
-  <!-- SEÇÃO DE MÓDULOS & ADD-ONS ESPECIALISTAS -->
-  <div class="mt-5 pt-4 border-top">
-    <div class="text-center mb-5">
-      <span class="badge bg-warning bg-opacity-25 text-dark fw-bold px-3 py-1.5 rounded-pill mb-2">
-        <i class="bi bi-puzzle-fill me-1 text-warning"></i> Expansão Multicanal
-      </span>
-      <h2 class="fw-bold text-dark fs-1">Módulos & Add-ons Especialistas</h2>
-      <p class="text-muted" style="max-width: 650px; margin: 0 auto;">
-        Potencialize sua operação conectando canais extras de alta performance. 
-        <br><strong class="text-dark">Aviso importante:</strong> Os Add-ons são opcionais e estão disponíveis <u>exclusivamente para assinantes a partir do Plano Pro</u>.
-      </p>
-    </div>
-
-    <div class="row g-4 justify-content-center">
-      <!-- Add-on 1: Mercado Livre -->
-      <div class="col-12 col-lg-6">
-        <div class="plan-card p-4" style="border: 2px solid #ffe600; background: linear-gradient(180deg, #ffffff 0%, #fffdf0 100%);">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex align-items-center gap-3">
-              <div class="p-2 rounded-3 bg-white shadow-sm border" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;">
-                <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 38px; height: 26px;">
-              </div>
-              <div>
-                <h4 class="fw-bold text-dark mb-0">Mercado Livre Hub</h4>
-                <span class="text-muted small">Analytics ML & Monitor de Reputação</span>
-              </div>
-            </div>
-            <span class="badge bg-warning bg-opacity-25 text-dark fw-bold border border-warning rounded-pill px-3 py-1">
-              Add-on
-            </span>
-          </div>
-
-          <div class="d-flex align-items-baseline gap-1 my-2">
-            <span class="fs-1 fw-bold text-dark">R$ 29,90</span>
-            <span class="text-muted fw-semibold">/mês por loja</span>
-          </div>
-          <p class="small text-muted mb-3">
-            Diagnóstico de saúde da conta, monitoramento contínuo do termômetro de reputação, faturamento bruto e respostas diretas para perguntas de compradores.
-          </p>
-
-          <div class="divider"></div>
-
-          <ul class="features mb-4">
-            <li><i class="bi bi-check2-circle text-warning"></i> <strong>Exame de Saúde Completo (0 a 100)</strong> e Medalhas MercadoLíder</li>
-            <li><i class="bi bi-check2-circle text-warning"></i> <strong>Monitor de 4 Pilares:</strong> Reclamações (Claims), Atrasos e Cancelamentos</li>
-            <li><i class="bi bi-check2-circle text-warning"></i> <strong>Resposta Direta com IA:</strong> Responda perguntas pré-venda direto no ML via OAuth</li>
-            <li><i class="bi bi-check2-circle text-warning"></i> <strong>Dossiê de Avaliações:</strong> Análise de prós, contras e defeitos de produtos</li>
-            <li><i class="bi bi-check2-circle text-warning"></i> <strong>Auditoria Executiva em PDF:</strong> Relatórios com parecer da IA Especialista em Dados</li>
-          </ul>
-
-          <div class="mt-auto">
-            {% if current_score >= 10 %}
-              <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-warning fw-bold text-dark w-100 py-3 rounded-3 shadow-sm">
-                <i class="bi bi-arrow-right-circle me-1"></i> Acessar Mercado Livre Hub
-              </a>
-            {% else %}
-              <button class="btn btn-outline-warning text-dark fw-bold w-100 py-3 rounded-3" onclick="processarPlano('pro_mensal')">
-                <i class="bi bi-lock-fill me-1 text-warning"></i> Assinar Plano Pro para Desbloquear
-              </button>
-            {% endif %}
-          </div>
+  <!-- Add-ons Opcionais (Discreto, Elegante e Harmônico) -->
+  <div class="mt-5 p-4 rounded-4 bg-white border shadow-sm" style="border-color: #e2e8f0 !important;">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1.5">
+          <span class="badge bg-warning bg-opacity-25 text-dark fw-bold px-2.5 py-1 rounded-pill small">
+            <i class="bi bi-puzzle-fill text-warning me-1"></i> Add-ons Opcionais
+          </span>
+          <span class="text-muted small">Disponíveis a partir do <strong>Plano Pro</strong></span>
         </div>
+        <h5 class="fw-bold text-dark mb-1">Deseja conectar outros canais de venda?</h5>
+        <p class="text-muted small mb-0">
+          Adicione canais extras à sua assinatura:
+          <span class="d-inline-flex align-items-center gap-1 mx-1 text-dark fw-semibold">
+            <img src="{{ url_for('static', filename='mercadolivre-logo.svg') }}" alt="Mercado Livre" style="width: 20px; height: 14px;"> Mercado Livre (R$ 29,90/mês)
+          </span> e 
+          <span class="d-inline-flex align-items-center gap-1 mx-1 text-dark fw-semibold">
+            <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 22px; height: 12px;"> iFood (R$ 29,90/mês)
+          </span>.
+        </p>
       </div>
-
-      <!-- Add-on 2: iFood -->
-      <div class="col-12 col-lg-6">
-        <div class="plan-card p-4" style="border: 2px solid #ea1d2c; background: linear-gradient(180deg, #ffffff 0%, #fff5f5 100%);">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex align-items-center gap-3">
-              <div class="p-2 rounded-3 bg-white shadow-sm border" style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;">
-                <img src="{{ url_for('static', filename='ifood-logo.svg') }}" alt="iFood" style="width: 40px; height: 22px;">
-              </div>
-              <div>
-                <h4 class="fw-bold text-dark mb-0">iFood Restaurantes</h4>
-                <span class="text-muted small">Automação de Delivery & Gastronomia</span>
-              </div>
-            </div>
-            <span class="badge bg-danger bg-opacity-25 text-danger fw-bold border border-danger rounded-pill px-3 py-1">
-              Add-on
-            </span>
-          </div>
-
-          <div class="d-flex align-items-baseline gap-1 my-2">
-            <span class="fs-1 fw-bold text-dark">R$ 29,90</span>
-            <span class="text-muted fw-semibold">/mês por restaurante</span>
-          </div>
-          <p class="small text-muted mb-3">
-            Respostas automatizadas em tempo real para avaliações de clientes no iFood com IA calibrada para o tom do seu restaurante ou dark kitchen.
-          </p>
-
-          <div class="divider"></div>
-
-          <ul class="features mb-4">
-            <li><i class="bi bi-check2-circle text-danger"></i> <strong>Respostas Automáticas com IA</strong> 24h para novas avaliações no iFood</li>
-            <li><i class="bi bi-check2-circle text-danger"></i> <strong>Contexto Personalizado da Cozinha:</strong> Instruções especiais e pratos da casa</li>
-            <li><i class="bi bi-check2-circle text-danger"></i> <strong>5 Estilos Gastronômicos:</strong> Acolhedor, Empático, Sofisticado e Direto</li>
-            <li><i class="bi bi-check2-circle text-danger"></i> <strong>Sincronização Oficial Contínua:</strong> Conexão via Portal do Parceiro iFood</li>
-            <li><i class="bi bi-check2-circle text-danger"></i> <strong>Suporte Multi-Lojas:</strong> Adicione quantas unidades e filiais precisar</li>
-          </ul>
-
-          <div class="mt-auto">
-            {% if current_score >= 10 %}
-              <a href="{{ url_for('stripe_bp.checkout_addon_ifood') }}" class="btn btn-danger fw-bold w-100 py-3 rounded-3 shadow-sm">
-                <i class="bi bi-plus-circle me-1"></i> Contratar Add-on iFood (R$ 29,90/mês)
-              </a>
-            {% else %}
-              <button class="btn btn-outline-danger fw-bold w-100 py-3 rounded-3" onclick="processarPlano('pro_mensal')">
-                <i class="bi bi-lock-fill me-1 text-danger"></i> Assinar Plano Pro para Desbloquear
-              </button>
-            {% endif %}
-          </div>
-        </div>
-      </div>
+      <a href="{{ url_for('integracoes') }}" class="btn btn-outline-dark btn-sm px-3.5 py-2 fw-semibold rounded-pill text-nowrap align-self-start align-self-md-center">
+        Ver Detalhes das Integrações <i class="bi bi-arrow-right ms-1"></i>
+      </a>
     </div>
   </div>
 </div>
