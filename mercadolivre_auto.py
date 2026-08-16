@@ -246,7 +246,7 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
     if access_token:
         try:
             auth_headers = {**headers_base, "Authorization": f"Bearer {access_token}"}
-            url = f"{ML_API_BASE}/my/received_questions/search?sort=date_desc&limit=30"
+            url = f"{ML_API_BASE}/my/received_questions/search?api_version=4&sort=date_desc&limit=50"
             resp = requests.get(url, headers=auth_headers, timeout=12)
             if resp.status_code == 200:
                 data = resp.json()
@@ -257,7 +257,7 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
 
     if not raw_questions:
         try:
-            url_pub = f"{ML_API_BASE}/questions/search?seller_id={seller_id}&sort=date_desc&limit=30"
+            url_pub = f"{ML_API_BASE}/questions/search?seller_id={seller_id}&sort=date_desc&limit=50"
             resp_pub = requests.get(url_pub, headers=headers_base, timeout=12)
             if resp_pub.status_code == 200:
                 data = resp_pub.json()
@@ -353,6 +353,123 @@ def fetch_account_questions(seller_id: str, access_token: Optional[str] = None) 
                 "answer_date": None
             }
         ]
+    }
+
+
+def fetch_account_orders_and_metrics(seller_id: str, access_token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Busca pedidos reais, status de vendas e feedbacks de compradores via /orders/search.
+    Documentação oficial do Mercado Livre: GET /orders/search?seller={seller_id}
+    """
+    if not access_token:
+        return {
+            "total_orders": 0,
+            "completed_orders": 0,
+            "canceled_orders": 0,
+            "positive_feedback_count": 0,
+            "negative_feedback_count": 0,
+            "neutral_feedback_count": 0,
+            "delayed_shipments": 0,
+            "recent_orders": []
+        }
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "User-Agent": "ComentsIA/1.0"
+    }
+
+    try:
+        url = f"{ML_API_BASE}/orders/search?seller={seller_id}&sort=date_desc&limit=50"
+        resp = requests.get(url, headers=headers, timeout=12)
+        if resp.status_code == 200:
+            data = resp.json()
+            total_orders = int((data.get("paging") or {}).get("total", 0))
+            results = data.get("results") or []
+
+            completed_orders = 0
+            canceled_orders = 0
+            pos_fb = 0
+            neg_fb = 0
+            neu_fb = 0
+            delayed_count = 0
+            recent_orders = []
+
+            # Analisa filtros agregados da API se disponíveis
+            available_filters = data.get("available_filters") or []
+            for f in available_filters:
+                fid = f.get("id")
+                fvals = f.get("values") or []
+                if fid == "order.status":
+                    for v in fvals:
+                        if v.get("id") == "paid":
+                            completed_orders = int(v.get("results", 0))
+                        elif v.get("id") == "cancelled":
+                            canceled_orders = int(v.get("results", 0))
+                elif fid == "feedback.sale.rating":
+                    for v in fvals:
+                        if v.get("id") == "positive":
+                            pos_fb = int(v.get("results", 0))
+                        elif v.get("id") == "negative":
+                            neg_fb = int(v.get("results", 0))
+                        elif v.get("id") == "neutral":
+                            neu_fb = int(v.get("results", 0))
+                elif fid == "shipping.substatus":
+                    for v in fvals:
+                        if v.get("id") in ["delayed", "waiting_for_carrier_authorization"]:
+                            delayed_count += int(v.get("results", 0))
+
+            # Se não vieram nos filtros agregados, calcula dos pedidos retornados
+            if completed_orders == 0 and results:
+                completed_orders = sum(1 for o in results if o.get("status") == "paid")
+                canceled_orders = sum(1 for o in results if o.get("status") == "cancelled")
+                for o in results:
+                    fb = (o.get("feedback") or {}).get("sale") or {}
+                    rating = fb.get("rating")
+                    if rating == "positive":
+                        pos_fb += 1
+                    elif rating == "negative":
+                        neg_fb += 1
+                    elif rating == "neutral":
+                        neu_fb += 1
+
+            for o in results[:10]:
+                order_id = o.get("id")
+                date_created = o.get("date_created")
+                total_amount = float(o.get("total_amount", 0.0))
+                items = o.get("order_items") or []
+                item_title = items[0].get("item", {}).get("title") if items else "Produto Mercado Livre"
+                status = o.get("status")
+                recent_orders.append({
+                    "id": order_id,
+                    "date_created": date_created,
+                    "total_amount": total_amount,
+                    "item_title": item_title,
+                    "status": status
+                })
+
+            return {
+                "total_orders": total_orders or len(results),
+                "completed_orders": completed_orders or total_orders,
+                "canceled_orders": canceled_orders,
+                "positive_feedback_count": pos_fb,
+                "negative_feedback_count": neg_fb,
+                "neutral_feedback_count": neu_fb,
+                "delayed_shipments": delayed_count,
+                "recent_orders": recent_orders
+            }
+    except Exception as e:
+        logger.warning(f"[MercadoLivre Orders] Erro ao buscar pedidos: {e}")
+
+    return {
+        "total_orders": 0,
+        "completed_orders": 0,
+        "canceled_orders": 0,
+        "positive_feedback_count": 0,
+        "negative_feedback_count": 0,
+        "neutral_feedback_count": 0,
+        "delayed_shipments": 0,
+        "recent_orders": []
     }
 
 
@@ -951,7 +1068,24 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar avaliações da loja: {e}")
 
-    # 4. Score de Saúde e Alertas
+    # 4. Pedidos Reais e Feedbacks via OAuth (/orders/search)
+    try:
+        if token:
+            orders_data = fetch_account_orders_and_metrics(account.seller_id, token)
+            if orders_data["completed_orders"] > 0:
+                account.completed_transactions = orders_data["completed_orders"]
+                account.canceled_transactions = orders_data["canceled_orders"]
+                account.total_transactions = orders_data["total_orders"]
+                
+                total_fb = orders_data["positive_feedback_count"] + orders_data["negative_feedback_count"] + orders_data["neutral_feedback_count"]
+                if total_fb > 0:
+                    account.positive_rating_pct = round(orders_data["positive_feedback_count"] / total_fb, 3)
+                    account.negative_rating_pct = round(orders_data["negative_feedback_count"] / total_fb, 3)
+                    account.neutral_rating_pct = round(orders_data["neutral_feedback_count"] / total_fb, 3)
+    except Exception as e:
+        logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais: {e}")
+
+    # 5. Score de Saúde e Alertas
     health = account.calculate_account_health()
     account.health_score = health["overall_score"]
     account.last_sync_at = default_brt_now()
