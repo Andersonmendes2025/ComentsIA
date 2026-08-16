@@ -560,17 +560,17 @@
       </div>
       <div class="modal-body pt-3">
         <p class="text-muted small mb-4">
-          Insira o <strong>ID do Vendedor</strong>, o <strong>Apelido (Nickname)</strong> ou o link de qualquer <strong>anúncio (MLB)</strong> da sua loja no Mercado Livre.
+          Insira o <strong>ID do Vendedor (User ID)</strong> ou o <strong>Apelido (Nickname)</strong> da sua conta no Mercado Livre para carregar a saúde e o termômetro.
         </p>
         
         <form method="POST" action="{{ url_for('mercadolivre.conectar_publico') }}">
           <div class="mb-3">
-            <label class="form-label small fw-bold text-dark">Identificador da Loja</label>
-            <input type="text" name="identifier" class="form-control rounded-3 py-2.5" placeholder="Ex: 123456789 ou MINHA_LOJA ou https://produto..." required>
+            <label class="form-label small fw-bold text-dark">ID da Conta ou Nickname da Loja</label>
+            <input type="text" name="identifier" class="form-control rounded-3 py-2.5" placeholder="Ex: 123456789 ou MINHA_LOJA_OFICIAL" required>
           </div>
           <div class="d-grid gap-2">
             <button type="submit" class="btn btn-warning fw-bold text-dark py-2.5 rounded-3 shadow-sm">
-              <i class="bi bi-check2-circle me-1"></i> Conectar e Sincronizar
+              <i class="bi bi-check2-circle me-1"></i> Conectar e Sincronizar Loja
             </button>
             {% if oauth_available %}
               <a href="{{ url_for('mercadolivre.conectar_oauth') }}" class="btn btn-outline-primary py-2 rounded-3 fw-semibold">
