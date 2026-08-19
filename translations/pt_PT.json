@@ -257,7 +257,8 @@
       "category": "Hotéis, Pousadas & Alojamentos",
       "description": "Importação simplificada de relatórios de avaliações do extranet da Booking.com para consolidar notas e métricas nos relatórios executivos.",
       "import_via": "Importação via Excel / CSV",
-      "import_button": "Importar Avaliações"
+      "import_button": "Importar Avaliações",
+      "metrics_button": "Ver Métricas"
     },
     "connected_stores_title": "Lojas iFood Ligadas",
     "connected_stores_desc": "Gira a IA e a resposta automática individual de cada restaurante ligado.",

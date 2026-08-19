@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Admin — Editar Cupom {{ c.code }}{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    .admin-card {
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      padding: 24px;
+    }
+  </style>
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="bi bi-percent text-primary me-2"></i>Editar Cupom
+        <span class="badge bg-light text-dark border ms-1">{{ c.code }}</span>
+      </h1>
+      <p class="text-muted small mb-0">Usos: {{ c.uses_count or 0 }}{% if c.max_uses %} de {{ c.max_uses }}{% else %} (ilimitado){% endif %}</p>
+    </div>
+    <a href="{{ url_for('admin.coupons') }}" class="btn btn-outline-secondary rounded-pill px-3">
+      <i class="bi bi-arrow-left me-1"></i> Voltar aos Cupons
+    </a>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-8">
+      <form method="post" class="admin-card">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Código</label>
+            <input class="form-control" value="{{ c.code }}" disabled>
+            <div class="form-text small text-muted">O código não pode ser alterado depois de criado.</div>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold small">Descrição</label>
+            <input name="description" class="form-control" value="{{ c.description or '' }}" placeholder="Texto visível no checkout (opcional)">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Tipo</label>
+            <select name="discount_type" class="form-select">
+              <option value="percent" {{ 'selected' if c.discount_type == 'percent' }}>Percentual (%)</option>
+              <option value="fixed" {{ 'selected' if c.discount_type == 'fixed' }}>Fixo (centavos)</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Valor</label>
+            <input name="discount_value" class="form-control" value="{{ c.discount_value }}" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Máx. usos (0 = ilimitado)</label>
+            <input name="max_uses" type="number" class="form-control" min="0" value="{{ c.max_uses or 0 }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Início</label>
+            <input type="datetime-local" name="valid_from" class="form-control" value="{{ c.valid_from.strftime('%Y-%m-%dT%H:%M') if c.valid_from else '' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Fim</label>
+            <input type="datetime-local" name="valid_until" class="form-control" value="{{ c.valid_until.strftime('%Y-%m-%dT%H:%M') if c.valid_until else '' }}">
+          </div>
+
+          <div class="col-md-4 d-flex align-items-center gap-4">
+            <div class="form-check mt-4">
+              <input class="form-check-input" type="checkbox" id="recurring" name="recurring" {{ 'checked' if c.recurring }}>
+              <label class="form-check-label" for="recurring">Recorrente</label>
+            </div>
+            <div class="form-check mt-4">
+              <input class="form-check-input" type="checkbox" id="active" name="active" {{ 'checked' if c.active }}>
+              <label class="form-check-label" for="active">Ativo</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+          <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm">
+            <i class="bi bi-check2-circle me-1"></i> Salvar Alterações
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="admin-card h-100 bg-light">
+        <h6 class="fw-bold text-dark mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>Detalhes</h6>
+        <ul class="small text-muted ps-3 mb-0 d-flex flex-column gap-2">
+          <li><strong>Criado em:</strong> {{ c.created_at.strftime('%d/%m/%Y %H:%M') if c.created_at else '—' }}</li>
+          <li><strong>Usos até agora:</strong> {{ c.uses_count or 0 }}</li>
+          <li>Desativar o cupom impede novos usos, mas não afeta assinaturas já criadas com ele.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

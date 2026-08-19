@@ -257,7 +257,8 @@
       "category": "Hotels & Accommodations",
       "description": "Easy review report import from Booking.com extranet to consolidate executive metrics.",
       "import_via": "Import via Excel / CSV",
-      "import_button": "Import Reviews"
+      "import_button": "Import Reviews",
+      "metrics_button": "View Metrics"
     },
     "connected_stores_title": "Connected iFood Stores",
     "connected_stores_desc": "Manage the AI and automatic replies for each connected restaurant individually.",

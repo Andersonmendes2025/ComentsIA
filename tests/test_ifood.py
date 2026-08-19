@@ -48,11 +48,17 @@ def ifood_setup(app):
             settings = UserSettings(
                 user_id="test_ifood_user",
                 has_addon_ifood=True,
+                terms_accepted=True,
+                business_name="Pizzaria Teste",
+                contact_info="contato@pizzaria.com",
                 plano="pro"
             )
             db.session.add(settings)
         else:
             settings.has_addon_ifood = True
+            settings.terms_accepted = True
+            settings.business_name = "Pizzaria Teste"
+            settings.contact_info = "contato@pizzaria.com"
 
         from utils.crypto import encrypt as crypto_encrypt
 
@@ -176,3 +182,30 @@ def test_rota_integracoes_logado(client, ifood_setup):
     assert response.status_code == 200
     assert b"iFood Delivery" in response.data
     assert b"Google Meu Neg" in response.data
+
+
+def test_ver_loja_ifood_dashboard(client, ifood_setup):
+    user, settings, merchant = ifood_setup
+    with client.session_transaction() as sess:
+        sess["user_info"] = {"id": "test_ifood_user", "email": "ifood_tester@comentsia.com.br", "name": "Tester iFood"}
+        sess["credentials"] = {"token": "dummy"}
+
+    response = client.get(f"/ifood/loja/{merchant.id}")
+    assert response.status_code == 200
+    assert b"iFood Merchant Store Hub" in response.data
+    assert b"Faturamento" in response.data
+    assert b"Ticket M" in response.data
+    assert b"Evolu" in response.data
+
+
+def test_reviews_filter_ifood(client, ifood_setup):
+    user, settings, merchant = ifood_setup
+    with client.session_transaction() as sess:
+        sess["user_id"] = "test_ifood_user"
+        sess["_user_id"] = "test_ifood_user"
+        sess["user_info"] = {"id": "test_ifood_user", "email": "ifood_tester@comentsia.com.br", "name": "Tester iFood"}
+        sess["credentials"] = {"token": "dummy"}
+        sess["terms_accepted"] = True
+
+    response = client.get(f"/reviews?origem=ifood", follow_redirects=True)
+    assert response.status_code == 200

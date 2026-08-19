@@ -200,11 +200,24 @@
           <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>
             🌐 {{ t('reports_page.all_stores') }}
           </option>
-          {% for f in fichas %}
-            <option value="{{ f.id }}" {% if ficha_selecionada|int == f.id %}selected{% endif %}>
-              📍 {{ f.location_name or 'Loja sem nome' }}
-            </option>
-          {% endfor %}
+          {% if fichas %}
+            <optgroup label="Google Business">
+              {% for f in fichas %}
+                <option value="{{ f.id }}" {% if ficha_selecionada|string == f.id|string %}selected{% endif %}>
+                  📍 {{ f.location_name or 'Loja sem nome' }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+          {% if ifood_merchants %}
+            <optgroup label="iFood Delivery">
+              {% for m in ifood_merchants %}
+                <option value="ifood:{{ m.id }}" {% if ficha_selecionada == 'ifood:' ~ m.id %}selected{% endif %}>
+                  🍔 {{ m.name or ('Loja iFood #' ~ m.id) }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
         </select>
       </div>
       <div class="col-md-5 col-lg-6 text-md-end text-muted small pt-md-4">

@@ -2,8 +2,46 @@
 {% block title %}Planos & Preços - ComentsIA{% endblock %}
 
 {% block extra_head %}
+<meta name="description" content="Conheça os planos e preços do ComentsIA: automação de avaliações Google Meu Negócio, iFood e Mercado Livre com Inteligência Artificial.">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- SCHEMA JSON-LD PARA PREÇOS / PLANOS -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "ComentsIA - Planos de Assinatura",
+  "description": "Planos e preços para automação de respostas no Google Business, iFood e Mercado Livre.",
+  "brand": {
+    "@type": "Brand",
+    "name": "ComentsIA"
+  },
+  "offers": [
+    {
+      "@type": "Offer",
+      "name": "Plano Gratuito",
+      "price": "{{ '%.2f'|format(planos['free'].preco) }}",
+      "priceCurrency": "BRL",
+      "description": "Até {{ planos['free'].avaliacoes_mes }} avaliações por mês, sem automação nem relatórios em PDF."
+    },
+    {
+      "@type": "Offer",
+      "name": "Plano Pro",
+      "price": "{{ '%.2f'|format(planos['pro'].preco) }}",
+      "priceCurrency": "BRL",
+      "description": "Automação 24h no Google, até {{ planos['pro'].avaliacoes_mes }} avaliações/mês e relatório executivo em PDF."
+    },
+    {
+      "@type": "Offer",
+      "name": "Plano Business",
+      "price": "{{ '%.2f'|format(planos['business'].preco) }}",
+      "priceCurrency": "BRL",
+      "description": "Avaliações e relatórios ilimitados, Painel Matriz para redes e franquias."
+    }
+  ]
+}
+</script>
 
 <style>
   .plans-page-wrapper {

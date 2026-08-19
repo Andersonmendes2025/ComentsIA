@@ -214,12 +214,12 @@ def cancelar_assinatura_geral():
 
 
 # -----------------------
-# 🍔 ADD-ON IFOOD (R$ 30,00/MÊS)
+# 🍔 ADD-ON IFOOD & MERCADO LIVRE (R$ 30,00/MÊS)
 # -----------------------
 
 @stripe_bp.route("/addon/ifood/checkout", methods=["POST", "GET"])
 def checkout_addon_ifood():
-    """Inicia o checkout Stripe para o Add-on de automação iFood (R$ 30,00/mês)."""
+    """Inicia o checkout Stripe para o Add-on de automação iFood usando o mesmo checkout unificado."""
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id") or user_info.get("email")
     email = user_info.get("email") or "cliente@comentsia.com.br"
@@ -235,7 +235,7 @@ def checkout_addon_ifood():
         db.session.commit()
 
     customer_id = _get_or_create_stripe_customer(settings, email)
-    price_id = STRIPE_PRICE_ADDON_IFOOD
+    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") or STRIPE_PRICE_ADDON_IFOOD
     domain = _get_domain_url()
 
     try:
@@ -255,6 +255,48 @@ def checkout_addon_ifood():
         return redirect(checkout.url, code=303)
     except Exception as e:
         logging.exception("Erro ao criar checkout Stripe para addon iFood: %s", e)
+        flash(f"Erro ao iniciar pagamento com Stripe: {str(e)}", "danger")
+        return redirect("/integracoes")
+
+
+@stripe_bp.route("/addon/mercadolivre/checkout", methods=["POST", "GET"])
+def checkout_addon_mercadolivre():
+    """Inicia o checkout Stripe para o Add-on do Mercado Livre usando o mesmo checkout."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    email = user_info.get("email") or "cliente@comentsia.com.br"
+
+    if not user_id:
+        flash("Faça login para assinar o Add-on do Mercado Livre.", "warning")
+        return redirect(url_for("authorize"))
+
+    settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+    if not settings:
+        settings = UserSettings(user_id=str(user_id))
+        db.session.add(settings)
+        db.session.commit()
+
+    customer_id = _get_or_create_stripe_customer(settings, email)
+    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") or STRIPE_PRICE_ADDON_IFOOD
+    domain = _get_domain_url()
+
+    try:
+        checkout = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="subscription",
+            customer=customer_id,
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{domain}/mercadolivre/dashboard?status=addon_ml_success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{domain}/integracoes?status=addon_ml_cancel",
+            metadata={
+                "type": "addon_mercadolivre",
+                "user_id": str(user_id)
+            },
+            client_reference_id=str(user_id)
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as e:
+        logging.exception("Erro ao criar checkout Stripe para addon Mercado Livre: %s", e)
         flash(f"Erro ao iniciar pagamento com Stripe: {str(e)}", "danger")
         return redirect("/integracoes")
 

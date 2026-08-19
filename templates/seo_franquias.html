@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Reputação para Franquias e Redes de Lojas | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="Plataforma de gestão de reputação, auditoria consolidada e respostas com IA para redes de franquias, matriz e múltiplas filiais.">
+<meta name="keywords" content="gestão de reputação franquias, auditoria multi-lojas, painel matriz filiais avaliações, software para franquias Google">
+
+<!-- JSON-LD SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "ComentsIA - Módulo Matriz & Franquias",
+  "image": "https://comentsia.com.br/static/logo-symbol.png",
+  "description": "Painel executivo de governança e auditoria de reputação corporativa para redes de lojas e redes franqueadas.",
+  "brand": {
+    "@type": "Brand",
+    "name": "ComentsIA"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "https://comentsia.com.br/planos",
+    "priceCurrency": "BRL",
+    "price": "199.90",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 1100px;">
+  
+  <!-- HERO SECTION -->
+  <div class="text-center py-4 mb-5">
+    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-primary-subtle text-primary fw-bold small mb-3">
+      <i class="bi bi-buildings-fill"></i> Enterprise & Franquias
+    </div>
+    <h1 class="display-5 fw-bold text-dark mb-3">
+      Governança e Padronização de Reputação para Todas as suas Filiais
+    </h1>
+    <p class="lead text-muted mx-auto" style="max-width: 760px;">
+      Garanta que todas as unidades da sua rede sigam rigorosamente as diretrizes corporativas da matriz com relatórios consolidados e respostas automatizadas por IA.
+    </p>
+    <div class="d-flex justify-content-center gap-3 mt-4">
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg rounded-pill px-4 fw-bold shadow-sm">
+        <i class="bi bi-rocket-takeoff me-2"></i> Iniciar com Minha Rede
+      </a>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-dark btn-lg rounded-pill px-4 fw-bold">
+        Ver Planos Enterprise
+      </a>
+    </div>
+  </div>
+
+  <!-- BENEFÍCIOS -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-primary-subtle text-primary d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-diagram-3 fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Visão Matriz vs Filiais</h3>
+        <p class="text-muted small mb-0">Acompanhe rankings internos, filiais que mais convertem e identifique unidades que necessitam de treinamento operacional.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-success-subtle text-success d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-file-earmark-pdf fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Relatórios Executivos 300 DPI</h3>
+        <p class="text-muted small mb-0">Emita relatórios consolidados em PDF com parecer estratégico do GPT-4o para reuniões de diretoria.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-warning-subtle text-warning d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-qr-code fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Pesquisas NPS com QR Code</h3>
+        <p class="text-muted small mb-0">Colete avaliações no balcão físico via QR Code dinâmico e redirecione clientes satisfeitos diretamente para o Google.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="p-5 rounded-4 text-center text-white" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+    <h2 class="h3 fw-bold mb-2">Escale a reputação da sua franquia</h2>
+    <p class="mb-4 text-muted">Controle centralizado com autonomia operacional para cada gerente de unidade.</p>
+    <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow">
+      Solicitar Acesso Matriz
+    </a>
+  </div>
+
+</div>
+{% endblock %}

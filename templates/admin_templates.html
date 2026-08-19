@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Admin — Templates de E-mail{% endblock %}
+{% block content %}
+<div class="container py-4">
+
+  <style>
+    .admin-card {
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      padding: 24px;
+    }
+    .template-row:hover { background-color: #f8fafc; }
+    .html-snippet {
+      max-width: 360px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+  </style>
+
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold text-dark mb-1">
+        <i class="bi bi-file-earmark-richtext-fill text-primary me-2"></i>Templates de E-mail
+      </h1>
+      <p class="text-muted small mb-0">Modelos reutilizáveis usados no Broadcast e nos avisos automáticos de cobrança.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <i class="bi bi-arrow-left me-1"></i> Painel Admin
+      </a>
+      <button type="button" class="btn btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#templateModal" onclick="abrirNovoTemplate()">
+        <i class="bi bi-plus-lg me-1"></i> Novo Template
+      </button>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr class="text-muted small text-uppercase">
+            <th>Chave</th>
+            <th>Assunto</th>
+            <th>Conteúdo</th>
+            <th>Criado em</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in templates %}
+          <tr class="template-row">
+            <td><span class="badge bg-light text-dark border">{{ t.key }}</span></td>
+            <td class="fw-semibold text-dark">{{ t.subject }}</td>
+            <td><span class="html-snippet" title="{{ t.html }}">{{ t.html }}</span></td>
+            <td class="small text-muted">{{ t.created_at.strftime('%d/%m/%Y') if t.created_at else '—' }}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                      onclick='abrirEdicaoTemplate({{ t.id }}, {{ t.key|tojson }}, {{ t.subject|tojson }}, {{ t.html|tojson }})'>
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="{{ url_for('admin.email_templates') }}" class="d-inline" onsubmit="return confirm('Remover o template \'{{ t.key }}\'? Isso pode afetar avisos automáticos que dependem dele.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="action" value="delete"/>
+                <input type="hidden" name="template_id" value="{{ t.id }}"/>
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center text-muted py-4">Nenhum template criado ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Criar/Editar Template -->
+<div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form class="modal-content" method="post" action="{{ url_for('admin.email_templates') }}" id="templateForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <input type="hidden" name="action" id="templateAction" value="create"/>
+      <input type="hidden" name="template_id" id="templateId" value=""/>
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="templateModalTitle">Novo Template</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert alert-info bg-primary bg-opacity-10 border-0 rounded-3 small text-dark mb-3">
+          <i class="bi bi-info-circle-fill text-primary me-1"></i>
+          Use variáveis dinâmicas no assunto ou no corpo: elas são substituídas na hora do envio.
+          <div class="d-flex flex-wrap gap-2 mt-2">
+            <span class="badge bg-white text-primary border var-badge" onclick="insertVar('{% raw %}{{nome_usuario}}{% endraw %}')">&#123;&#123;nome_usuario&#125;&#125;</span>
+            <span class="badge bg-white text-primary border var-badge" onclick="insertVar('{% raw %}{{nome_empresa}}{% endraw %}')">&#123;&#123;nome_empresa&#125;&#125;</span>
+            <span class="badge bg-white text-primary border var-badge" onclick="insertVar('{% raw %}{{email}}{% endraw %}')">&#123;&#123;email&#125;&#125;</span>
+            <span class="badge bg-white text-primary border var-badge" onclick="insertVar('{% raw %}{{plano}}{% endraw %}')">&#123;&#123;plano&#125;&#125;</span>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small">Chave (identificador único)</label>
+            <input name="key" id="templateKey" class="form-control" required placeholder="ex: boas_vindas_pro">
+            <div class="form-text small text-muted">Não pode ser alterada depois de criada.</div>
+          </div>
+          <div class="col-md-8">
+            <label class="form-label fw-semibold small">Assunto do E-mail</label>
+            <input name="subject" id="templateSubject" class="form-control" required placeholder="Ex.: Bem-vindo ao ComentsIA">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold small">Conteúdo (HTML)</label>
+            <textarea name="html" id="templateHtml" class="form-control font-monospace" rows="10" required placeholder="{% raw %}<p>Olá {{nome_usuario}},</p>{% endraw %}"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-check2-circle me-1"></i> Salvar Template
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function insertVar(varName) {
+    const textarea = document.getElementById('templateHtml');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + varName + text.substring(end);
+    textarea.focus();
+    textarea.selectionEnd = start + varName.length;
+  }
+
+  function abrirNovoTemplate() {
+    document.getElementById('templateModalTitle').textContent = 'Novo Template';
+    document.getElementById('templateAction').value = 'create';
+    document.getElementById('templateId').value = '';
+    document.getElementById('templateKey').value = '';
+    document.getElementById('templateKey').disabled = false;
+    document.getElementById('templateSubject').value = '';
+    document.getElementById('templateHtml').value = '';
+  }
+
+  function abrirEdicaoTemplate(id, key, subject, html) {
+    document.getElementById('templateModalTitle').textContent = 'Editar Template: ' + key;
+    document.getElementById('templateAction').value = 'edit';
+    document.getElementById('templateId').value = id;
+    document.getElementById('templateKey').value = key;
+    document.getElementById('templateKey').disabled = true;
+    document.getElementById('templateSubject').value = subject;
+    document.getElementById('templateHtml').value = html;
+    const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+    modal.show();
+  }
+</script>
+{% endblock %}

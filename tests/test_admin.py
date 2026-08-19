@@ -6,7 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from main import app as flask_app
-from models import db, User, UserSettings, Company, Ticket, PlanPrice, AppNotification
+from models import db, User, UserSettings, Company, Ticket, PlanPrice, AppNotification, EmailTemplate, Coupon
 from admin import get_plan_prices
 
 @pytest.fixture
@@ -157,3 +157,97 @@ def test_admin_broadcast_email_and_inapp(mock_enviar_email, client):
     assert res_marcar.get_json()['success'] is True
     db.session.refresh(notif)
     assert notif.is_read is True
+
+
+def test_admin_email_templates_crud(client):
+    """Testa a pagina de Templates de E-mail (criar, editar, excluir)."""
+    EmailTemplate.query.filter_by(key='teste_automatizado_tpl').delete()
+    db.session.commit()
+
+    # 1. GET lista (garante que o template admin_templates.html existe e renderiza)
+    res = client.get('/admin/templates')
+    assert res.status_code == 200
+    assert "Templates de E-mail" in res.data.decode('utf-8')
+
+    # 2. Criar
+    res_create = client.post('/admin/templates', data={
+        'action': 'create',
+        'key': 'teste_automatizado_tpl',
+        'subject': 'Assunto de Teste',
+        'html': '<p>Ola {{nome_usuario}}</p>',
+    }, follow_redirects=True)
+    assert res_create.status_code == 200
+    tpl = EmailTemplate.query.filter_by(key='teste_automatizado_tpl').first()
+    assert tpl is not None
+    assert tpl.subject == 'Assunto de Teste'
+
+    # a listagem deve mostrar o conteudo literal (nao processado pelo Jinja)
+    assert '{{nome_usuario}}' in res_create.data.decode('utf-8')
+
+    # 3. Editar
+    res_edit = client.post('/admin/templates', data={
+        'action': 'edit',
+        'template_id': tpl.id,
+        'subject': 'Assunto Editado',
+        'html': '<p>Editado {{nome_empresa}}</p>',
+    }, follow_redirects=True)
+    assert res_edit.status_code == 200
+    db.session.refresh(tpl)
+    assert tpl.subject == 'Assunto Editado'
+
+    # 4. Excluir
+    res_delete = client.post('/admin/templates', data={
+        'action': 'delete',
+        'template_id': tpl.id,
+    }, follow_redirects=True)
+    assert res_delete.status_code == 200
+    assert EmailTemplate.query.filter_by(key='teste_automatizado_tpl').first() is None
+
+
+def test_admin_coupon_edit_page_renders(client):
+    """Garante que a pagina de edicao de cupom existe e processa o POST (regressao: faltava o template)."""
+    Coupon.query.filter_by(code='TESTEAUTOMATIZADO').delete()
+    db.session.commit()
+
+    coupon = Coupon(code='TESTEAUTOMATIZADO', discount_type='percent', discount_value=10, active=True)
+    db.session.add(coupon)
+    db.session.commit()
+
+    # GET precisa renderizar o formulario de edicao sem erro
+    res_get = client.get(f'/admin/coupons/{coupon.id}/edit')
+    assert res_get.status_code == 200
+    assert 'TESTEAUTOMATIZADO' in res_get.data.decode('utf-8')
+
+    # POST atualiza o cupom
+    res_post = client.post(f'/admin/coupons/{coupon.id}/edit', data={
+        'description': 'Cupom de teste automatizado',
+        'discount_type': 'percent',
+        'discount_value': '20',
+        'max_uses': '0',
+        'active': 'on',
+    }, follow_redirects=True)
+    assert res_post.status_code == 200
+    db.session.refresh(coupon)
+    assert coupon.discount_value == 20
+    assert coupon.description == 'Cupom de teste automatizado'
+
+    Coupon.query.filter_by(code='TESTEAUTOMATIZADO').delete()
+    db.session.commit()
+
+
+def test_admin_historical_pricing_requires_permission_and_redirects(client):
+    """Regressao: essa rota nao tinha NENHUMA protecao de permissao antes."""
+    res = client.get('/admin/pricing/historical', follow_redirects=False)
+    # Com o admin logado (fixture), deve redirecionar pra /admin/pricing (nao mais 500)
+    assert res.status_code == 302
+    assert '/admin/pricing' in res.headers['Location']
+
+
+def test_admin_payment_failed_webhook_removed():
+    """Regressao de seguranca: essa rota publica sem autenticacao (nem verificacao de
+    assinatura) permitia que qualquer pessoa disparasse e-mails reais de 'pagamento
+    falhou' para qualquer user_id. Ela era redundante com o webhook assinado do
+    Stripe em stripe_pay.py, entao foi removida."""
+    with flask_app.test_client() as anon_client:
+        res = anon_client.post('/admin/webhooks/payment_failed', json={'user_id': 'vitima@example.com'})
+        assert res.status_code == 404

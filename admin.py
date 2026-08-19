@@ -710,9 +710,13 @@ def invalidate_historical_cache():
 
 
 @admin_bp.route("/pricing/historical", methods=["GET", "POST"])
+@require_perm("pricing.view", "read")
 def admin_historical_pricing():
-    prices = get_historical_sync_prices()
+    # A edição desses preços já acontece embutida em /admin/pricing (form
+    # "Sincronização Retroativa"); esta rota só processa o POST e volta pra lá.
     if request.method == "POST":
+        if not user_can(_get_current_user_id(), "pricing.edit", "write"):
+            abort(403)
         for period in ["30", "60", "90", "180"]:
             field_name = f"price_{period}"
             value = request.form.get(field_name)
@@ -727,8 +731,7 @@ def admin_historical_pricing():
         db.session.commit()
         invalidate_historical_cache()
         flash("Preços atualizados!", "success")
-        return redirect(url_for("admin.pricing"))
-    return render_template("admin_historical_pricing.html", prices=prices)
+    return redirect(url_for("admin.pricing"))
 
 
 # -----------------------------------------------------------------------------
@@ -800,6 +803,14 @@ def _resolve_segment(segment: str):
     return q
 
 
+_BROADCAST_SEGMENTS = ("all", "pro", "business", "free", "delinquent", "trial_expiring")
+
+
+def _segment_counts() -> Dict[str, int]:
+    """Quantos destinatários cada segmento do broadcast atinge agora mesmo."""
+    return {seg: _resolve_segment(seg).count() for seg in _BROADCAST_SEGMENTS}
+
+
 def _render_template_html(html: str, vars_dict: Dict[str, str]) -> str:
     out = html or ""
     for k, v in (vars_dict or {}).items():
@@ -833,6 +844,46 @@ def broadcast():
         else:
             flash("Informe o assunto e a mensagem ou escolha um template.", "warning")
             return redirect(url_for("admin.broadcast"))
+
+        # Trava contra reenvio acidental: mesmo assunto + segmento já disparado
+        # nos últimos 30 minutos exige confirmação explícita antes de repetir.
+        confirm_duplicate = request.form.get("confirm_duplicate") == "1"
+        if not confirm_duplicate:
+            cutoff = agora_brt() - timedelta(minutes=30)
+            recentes = (
+                AdminActionLog.query.filter(
+                    AdminActionLog.action == "broadcast",
+                    AdminActionLog.created_at >= cutoff,
+                )
+                .order_by(AdminActionLog.created_at.desc())
+                .all()
+            )
+            duplicado = next(
+                (
+                    r
+                    for r in recentes
+                    if (r.meta or {}).get("subject") == assunto_base[:80]
+                    and (r.meta or {}).get("segment") == segment
+                ),
+                None,
+            )
+            if duplicado:
+                templates = EmailTemplate.query.order_by(EmailTemplate.key).all()
+                return render_template(
+                    "admin_broadcast.html",
+                    templates=templates,
+                    segment_counts=_segment_counts(),
+                    duplicate_warning={
+                        "sent_at": duplicado.created_at,
+                        "count_email": (duplicado.meta or {}).get("count_email", 0),
+                        "count_inapp": (duplicado.meta or {}).get("count_inapp", 0),
+                        "subject": assunto_base,
+                        "segment": segment,
+                        "channel": channel,
+                        "html": html_base,
+                        "template_key": template_key or "",
+                    },
+                )
 
         # Trata imagem anexada/embutida caso enviada
         image_file = request.files.get("image")
@@ -940,7 +991,9 @@ def broadcast():
         return redirect(url_for("admin.broadcast"))
         
     templates = EmailTemplate.query.order_by(EmailTemplate.key).all()
-    return render_template("admin_broadcast.html", templates=templates)
+    return render_template(
+        "admin_broadcast.html", templates=templates, segment_counts=_segment_counts()
+    )
 
 
 def _send_billing_email(user_id: str, template_key: str, event_id: int):
@@ -977,27 +1030,6 @@ def _send_billing_email(user_id: str, template_key: str, event_id: int):
         )
     )
     db.session.commit()
-
-
-@admin_bp.route("/webhooks/payment_failed", methods=["POST"])
-def payment_failed_webhook():
-    data = request.get_json(silent=True) or {}
-    ext_id = (data.get("event_id") or data.get("charge_id") or "")[:128]
-    user_id = (data.get("user_id") or "").strip()
-    if not user_id:
-        return jsonify({"ok": False, "error": "missing user_id"}), 400
-    ev = BillingEvent.query.filter_by(
-        event="payment_failed", external_id=ext_id
-    ).first()
-    if not ev:
-        ev = BillingEvent(user_id=user_id, event="payment_failed", external_id=ext_id)
-        db.session.add(ev)
-        db.session.commit()
-    if not ev.handled_immediate:
-        _send_billing_email(user_id, "billing_failed_immediate", ev.id)
-        ev.handled_immediate = True
-        db.session.commit()
-    return jsonify({"ok": True})
 
 
 def run_daily_billing_followups():

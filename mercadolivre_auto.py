@@ -962,6 +962,60 @@ Responda EXCLUSIVAMENTE em formato JSON estruturado com os seguintes campos:
     return fallback_report
 
 
+def formalizar_resposta_ia(texto_usuario: str, pergunta_texto: str = "", item_titulo: Optional[str] = None) -> str:
+    """
+    Reescreve o texto livre escrito pelo usuário/vendedor para torná-lo mais formal, polido e profissional,
+    sem alterar em hipótese alguma o significado, os fatos, preços, prazos, garantias ou instruções do texto original.
+    """
+    texto_usuario = (texto_usuario or "").strip()
+    if not texto_usuario:
+        return "Olá! Agradecemos o contato. Ficamos à total disposição para tirar qualquer dúvida."
+
+    prompt = f"""Você é o redator executivo de atendimento oficial de uma loja de alta reputação no Mercado Livre.
+O lojista/atendente escreveu o seguinte rascunho de resposta para uma dúvida de comprador (pré ou pós-venda):
+
+Rascunho do lojista:
+\"\"\"{texto_usuario}\"\"\"
+
+Contexto da pergunta do comprador: \"{pergunta_texto or 'Dúvida sobre o produto/pedido'}\"
+Produto: {item_titulo or 'Item anunciado'}
+
+SUAS DIRETRIZES RÍGIDAS:
+1. Deixe o texto mais FORMAL, educado, polido, claro e profissional.
+2. NUNCA altere o significado, as decisões, os valores, os prazos, os dados técnicos ou a essência do que o lojista escreveu.
+3. Não invente informações que não constam no rascunho do lojista.
+4. Mantenha o tom cordial de atendimento no Mercado Livre (ex: "Olá, agradecemos o contato.", "Ficamos à disposição.").
+5. Não inclua links externos, telefones ou contatos proibidos pelo Mercado Livre.
+6. Retorne APENAS a resposta final formalizada pronta para ser enviada, sem explicações extras.
+"""
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        try:
+            client = OpenAI(api_key=openai_key)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=250
+            )
+            formal = resp.choices[0].message.content.strip()
+            if formal.startswith('"') and formal.endswith('"') and len(formal) > 2:
+                formal = formal[1:-1].strip()
+            return formal
+        except Exception as e:
+            logger.warning(f"[MercadoLivre AI Formalize] Falha no OpenAI: {e}")
+
+    # Fallback elegante de formalização caso a API externa esteja indisponível
+    cumprimento = "Olá! Agradecemos o seu contato. "
+    fechamento = " Ficamos à total disposição para eventuais dúvidas!"
+    texto_limpo = texto_usuario.strip()
+    if not any(texto_limpo.lower().startswith(c) for c in ["olá", "ola", "bom dia", "boa tarde", "boa noite"]):
+        texto_limpo = cumprimento + texto_limpo
+    if not any(texto_limpo.lower().endswith(c) for c in ["disposição", "disposicao", "abraço", "obrigado", "obrigada", "!"]):
+        texto_limpo = texto_limpo + fechamento
+    return texto_limpo
+
+
 def sugerir_resposta_pergunta_ia(pergunta_texto: str, item_titulo: Optional[str] = None) -> str:
     """Gera uma sugestão de resposta educada, persuasiva e vendedora para o Mercado Livre."""
     prompt = f"""Você é o atendente de elite de uma loja oficial no Mercado Livre.
@@ -1598,16 +1652,48 @@ def baixar_relatorio_pdf(account_id: int):
         return redirect(url_for("mercadolivre.dashboard", account_id=account.id))
 
 
-@mercadolivre_bp.route("/pergunta/sugerir_resposta", methods=["POST"])
-def sugerir_resposta_ajax():
-    """Sugere resposta com IA para pergunta pré-venda via AJAX."""
+@mercadolivre_bp.route("/pergunta/formalizar", methods=["POST"])
+def formalizar_resposta_ajax():
+    """Transforma o texto escrito pelo vendedor em uma versão mais formal com IA sem alterar o significado."""
     user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
     if not user_id:
         return jsonify({"success": False, "error": "Não autenticado"}), 401
 
     data = request.get_json() or request.form
+    texto_usuario = (data.get("texto_usuario") or "").strip()
+    pergunta = (data.get("pergunta") or "").strip()
+    item_titulo = data.get("item_titulo", "")
+
+    if not texto_usuario:
+        return jsonify({"success": False, "error": "Por favor, digite sua resposta no campo antes de torná-la mais formal."}), 400
+
+    try:
+        resposta_formal = formalizar_resposta_ia(texto_usuario, pergunta, item_titulo)
+        return jsonify({"success": True, "resposta_formal": resposta_formal})
+    except Exception as e:
+        logger.error(f"[MercadoLivre AI Formalize] Erro: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@mercadolivre_bp.route("/pergunta/sugerir_resposta", methods=["POST"])
+def sugerir_resposta_ajax():
+    """Sugere ou formaliza resposta com IA para pergunta pré/pós-venda via AJAX."""
+    user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Não autenticado"}), 401
+
+    data = request.get_json() or request.form
+    texto_usuario = (data.get("texto_usuario") or "").strip()
     pergunta = data.get("pergunta", "").strip()
     item_titulo = data.get("item_titulo", "")
+
+    if texto_usuario:
+        try:
+            resposta_formal = formalizar_resposta_ia(texto_usuario, pergunta, item_titulo)
+            return jsonify({"success": True, "resposta": resposta_formal, "resposta_formal": resposta_formal})
+        except Exception as e:
+            logger.error(f"[MercadoLivre AI Formalize] Erro: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
 
     if not pergunta:
         return jsonify({"success": False, "error": "Texto da pergunta não informado"}), 400

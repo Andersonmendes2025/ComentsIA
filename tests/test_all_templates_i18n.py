@@ -27,14 +27,9 @@ def setup_db(app):
         db.session.rollback()
         user = User.query.filter_by(id="test_i18n_user").first()
         if not user:
-            from datetime import datetime
-            user = User(id="test_i18n_user", email="i18n_user@example.com", terms_accepted_at=datetime.utcnow(), is_admin=True)
+            user = User(id="test_i18n_user", email="i18n_user@example.com")
             db.session.add(user)
-        else:
-            from datetime import datetime
-            user.terms_accepted_at = datetime.utcnow()
-            user.is_admin = True
-        
+
         from datetime import datetime, timedelta
         from utils.crypto import encrypt
         settings = UserSettings.query.filter_by(user_id="test_i18n_user").first()
@@ -67,6 +62,10 @@ def test_render_all_public_routes_in_all_languages(client):
         "/quem-somos",
         "/privacy-policy",
         "/terms",
+        "/integracao/google-meu-negocio",
+        "/integracao/mercadolivre",
+        "/integracao/ifood",
+        "/solucoes/franquias-e-redes",
     ]
     
     for lang_code in SUPPORTED_LANGUAGES:
@@ -97,7 +96,9 @@ def test_render_all_authenticated_routes_in_all_languages(app, client):
         "/integracoes",
         "/planos",
         "/ajuda",
-        "/mercadolivre/dashboard"
+        "/mercadolivre/dashboard",
+        "/booking/",
+        "/booking/dashboard"
     ]
     
     for lang_code in SUPPORTED_LANGUAGES:

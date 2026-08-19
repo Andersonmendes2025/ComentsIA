@@ -1,3 +1,44 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /reviews
+Disallow: /google-locations
+Disallow: /relatorio
+Disallow: /dashboard
+
+# Permissão explícita para IAs e indexadores modernos
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
 Sitemap: https://comentsia.com.br/sitemap.xml

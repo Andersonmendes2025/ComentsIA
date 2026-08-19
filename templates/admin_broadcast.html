@@ -37,6 +37,34 @@
     </div>
   </div>
 
+  {% if duplicate_warning %}
+  <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 mb-4 d-flex gap-3 align-items-start">
+    <i class="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold text-dark mb-1">Esse mesmo comunicado já foi enviado há pouco tempo</div>
+      <p class="small text-muted mb-2">
+        O assunto <strong>"{{ duplicate_warning.subject }}"</strong> já foi disparado para o segmento
+        selecionado em <strong>{{ duplicate_warning.sent_at.strftime('%d/%m/%Y às %H:%M') }}</strong>
+        ({{ duplicate_warning.count_email }} e-mails, {{ duplicate_warning.count_inapp }} notificações in-app).
+        Isso normalmente acontece por clique duplo ou reenvio acidental do formulário.
+      </p>
+      <form method="post" id="forceResendForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="confirm_duplicate" value="1"/>
+        <input type="hidden" name="segment" value="{{ duplicate_warning.segment }}"/>
+        <input type="hidden" name="channel" value="{{ duplicate_warning.channel }}"/>
+        <input type="hidden" name="template_key" value="{{ duplicate_warning.template_key }}"/>
+        <input type="hidden" name="subject" value="{{ duplicate_warning.subject }}"/>
+        <input type="hidden" name="html" value="{{ duplicate_warning.html }}"/>
+        <button type="submit" class="btn btn-warning btn-sm fw-bold" id="btnForceResend">
+          <i class="bi bi-send-fill me-1"></i> Enviar mesmo assim
+        </button>
+        <a href="{{ url_for('admin.broadcast') }}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="row g-4">
     <div class="col-12 col-lg-8">
       <form method="post" class="admin-card" enctype="multipart/form-data" id="broadcastForm">
@@ -62,30 +90,31 @@
           <!-- Assunto -->
           <div class="col-12 col-md-8">
             <label class="form-label fw-bold text-dark small">Assunto do E-mail</label>
-            <input type="text" id="subjectInput" name="subject" class="form-control form-control-lg" placeholder="Ex.: Novas funcionalidades disponíveis no ComentsIA" required>
+            <input type="text" id="subjectInput" name="subject" class="form-control form-control-lg" placeholder="Ex.: Novas funcionalidades disponíveis no ComentsIA" value="{{ duplicate_warning.subject if duplicate_warning else '' }}" required>
           </div>
 
           <!-- Canal -->
           <div class="col-12 col-md-4">
             <label class="form-label fw-bold text-dark small">Canal de Envio</label>
-            <select name="channel" class="form-select form-select-lg">
-              <option value="email">📧 Apenas E-mail (SMTP)</option>
-              <option value="inapp">🔔 Apenas Notificação no Sistema (Sininho)</option>
-              <option value="both">🚀 Ambos (E-mail + Notificação no Sistema)</option>
+            <select name="channel" id="channelSelect" class="form-select form-select-lg">
+              <option value="email" {{ 'selected' if duplicate_warning and duplicate_warning.channel == 'email' }}>📧 Apenas E-mail (SMTP)</option>
+              <option value="inapp" {{ 'selected' if duplicate_warning and duplicate_warning.channel == 'inapp' }}>🔔 Apenas Notificação no Sistema (Sininho)</option>
+              <option value="both" {{ 'selected' if duplicate_warning and duplicate_warning.channel == 'both' }}>🚀 Ambos (E-mail + Notificação no Sistema)</option>
             </select>
           </div>
 
           <!-- Segmentação -->
           <div class="col-12 col-md-6">
             <label class="form-label fw-bold text-dark small">Público-Alvo (Segmento)</label>
-            <select name="segment" class="form-select">
-              <option value="all">👥 Todos os Usuários Cadastrados</option>
-              <option value="pro">⭐ Assinantes do Plano Pro</option>
-              <option value="business">🏢 Assinantes do Plano Business</option>
-              <option value="free">🌱 Usuários no Plano Free (Gratuito)</option>
-              <option value="delinquent">⚠️ Contas com Assinatura Vencida</option>
-              <option value="trial_expiring">⏳ Assinaturas Expirando em até 7 dias</option>
+            <select name="segment" id="segmentSelect" class="form-select">
+              <option value="all" data-count="{{ segment_counts.all if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'all' }}>👥 Todos os Usuários Cadastrados</option>
+              <option value="pro" data-count="{{ segment_counts.pro if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'pro' }}>⭐ Assinantes do Plano Pro</option>
+              <option value="business" data-count="{{ segment_counts.business if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'business' }}>🏢 Assinantes do Plano Business</option>
+              <option value="free" data-count="{{ segment_counts.free if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'free' }}>🌱 Usuários no Plano Free (Gratuito)</option>
+              <option value="delinquent" data-count="{{ segment_counts.delinquent if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'delinquent' }}>⚠️ Contas com Assinatura Vencida</option>
+              <option value="trial_expiring" data-count="{{ segment_counts.trial_expiring if segment_counts else 0 }}" {{ 'selected' if duplicate_warning and duplicate_warning.segment == 'trial_expiring' }}>⏳ Assinaturas Expirando em até 7 dias</option>
             </select>
+            <div class="form-text small text-primary fw-semibold" id="segmentCountLabel"></div>
           </div>
 
           <!-- Anexo / Imagem -->
@@ -98,17 +127,17 @@
           <div class="col-12">
             <div class="d-flex flex-wrap align-items-center gap-2 py-1">
               <span class="small fw-semibold text-muted">Variáveis dinâmicas (clique para inserir):</span>
-              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{nome_usuario}}')">&#123;&#123;nome_usuario&#125;&#125;</span>
-              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{nome_empresa}}')">&#123;&#123;nome_empresa&#125;&#125;</span>
-              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{email}}')">&#123;&#123;email&#125;&#125;</span>
-              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{{plano}}')">&#123;&#123;plano&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{% raw %}{{nome_usuario}}{% endraw %}')">&#123;&#123;nome_usuario&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{% raw %}{{nome_empresa}}{% endraw %}')">&#123;&#123;nome_empresa&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{% raw %}{{email}}{% endraw %}')">&#123;&#123;email&#125;&#125;</span>
+              <span class="badge bg-light text-primary border var-badge" onclick="insertVar('{% raw %}{{plano}}{% endraw %}')">&#123;&#123;plano&#125;&#125;</span>
             </div>
           </div>
 
           <!-- Corpo HTML / Mensagem -->
           <div class="col-12">
             <label class="form-label fw-bold text-dark small">Conteúdo da Mensagem (HTML ou Texto)</label>
-            <textarea id="htmlInput" name="html" class="form-control font-monospace" rows="9" placeholder="<p>Olá <strong>{{nome_usuario}}</strong>,</p><p>Temos novidades incríveis para a sua empresa!</p>" required></textarea>
+            <textarea id="htmlInput" name="html" class="form-control font-monospace" rows="9" placeholder="{% raw %}<p>Olá <strong>{{nome_usuario}}</strong>,</p><p>Temos novidades incríveis para a sua empresa!</p>{% endraw %}" required>{{ duplicate_warning.html if duplicate_warning else '' }}</textarea>
             <div class="form-text small text-muted">Tags HTML como &lt;h2&gt;, &lt;p&gt;, &lt;strong&gt;, &lt;a href="..."&gt;, &lt;ul&gt; são suportadas.</div>
           </div>
         </div>
@@ -117,7 +146,7 @@
           <button type="button" class="btn btn-outline-secondary px-4 rounded-pill" data-bs-toggle="modal" data-bs-target="#previewModal" id="btnLivePreview">
             <i class="bi bi-eye me-1"></i> Pré-visualizar
           </button>
-          <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm" onclick="return confirm('Tem certeza que deseja disparar esta comunicação para todos os usuários do segmento selecionado?');">
+          <button type="submit" class="btn btn-primary px-4 rounded-pill shadow-sm" id="btnSendBroadcast">
             <i class="bi bi-send-fill me-1"></i> Enviar Comunicação Agora
           </button>
         </div>
@@ -197,13 +226,55 @@
     let html = document.getElementById('htmlInput').value || '<p class="text-muted">(Nenhum conteúdo digitado)</p>';
     
     // Substitui variáveis fictícias para a prévia
+    {% raw %}
     html = html.replaceAll('{{nome_usuario}}', 'João Silva')
                .replaceAll('{{nome_empresa}}', 'Pizzaria Bella')
                .replaceAll('{{email}}', 'joao@exemplo.com.br')
                .replaceAll('{{plano}}', 'PRO');
+    {% endraw %}
 
     document.getElementById('previewSubject').textContent = subject;
     document.getElementById('previewContainer').innerHTML = html;
   });
+
+  // Contagem de destinatários por segmento (evita disparo "às cegas")
+  const segmentSelect = document.getElementById('segmentSelect');
+  const segmentCountLabel = document.getElementById('segmentCountLabel');
+  function atualizarContagemSegmento() {
+    if (!segmentSelect || !segmentCountLabel) return;
+    const opt = segmentSelect.options[segmentSelect.selectedIndex];
+    const count = opt ? (opt.getAttribute('data-count') || '0') : '0';
+    segmentCountLabel.textContent = `Este envio alcançará ${count} usuário(s).`;
+  }
+  if (segmentSelect) {
+    segmentSelect.addEventListener('change', atualizarContagemSegmento);
+    atualizarContagemSegmento();
+  }
+
+  // Trava contra reenvio acidental (duplo clique / clique repetido)
+  const broadcastForm = document.getElementById('broadcastForm');
+  const btnSendBroadcast = document.getElementById('btnSendBroadcast');
+  if (broadcastForm && btnSendBroadcast) {
+    broadcastForm.addEventListener('submit', function(ev) {
+      const opt = segmentSelect ? segmentSelect.options[segmentSelect.selectedIndex] : null;
+      const count = opt ? (opt.getAttribute('data-count') || '0') : '0';
+      const ok = confirm(`Confirma o disparo desta comunicação para ${count} usuário(s)? Essa ação não pode ser desfeita.`);
+      if (!ok) {
+        ev.preventDefault();
+        return false;
+      }
+      btnSendBroadcast.disabled = true;
+      btnSendBroadcast.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Enviando...';
+    });
+  }
+
+  const forceResendForm = document.getElementById('forceResendForm');
+  const btnForceResend = document.getElementById('btnForceResend');
+  if (forceResendForm && btnForceResend) {
+    forceResendForm.addEventListener('submit', function() {
+      btnForceResend.disabled = true;
+      btnForceResend.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Enviando...';
+    });
+  }
 </script>
 {% endblock %}

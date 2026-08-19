@@ -291,11 +291,16 @@
           </p>
         </div>
 
-        <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+        <div class="pt-3 border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
           <span class="small text-muted">{{ t('integrations.booking.import_via') }}</span>
-          <a href="/booking/upload" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-cloud-upload me-1"></i> {{ t('integrations.booking.import_button') }}
-          </a>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('booking.dashboard') }}" class="btn btn-dark btn-sm fw-bold">
+              <i class="bi bi-graph-up-arrow me-1"></i> {{ t('integrations.booking.metrics_button') }}
+            </a>
+            <a href="{{ url_for('booking.form_upload') }}" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-cloud-upload me-1"></i> {{ t('integrations.booking.import_button') }}
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -382,9 +387,12 @@
             <div><i class="bi bi-clock-history text-secondary me-1"></i> {{ t('integrations.synced_label') }} {{ m.last_sync_at.strftime('%d/%m %H:%M') if m.last_sync_at else t('integrations.sync_pending') }}</div>
           </div>
 
-          <div class="d-flex gap-2 border-top pt-2">
-            <button class="btn btn-light btn-sm flex-grow-1 text-primary fw-semibold" onclick="abrirModalConfigurarIfood('{{ m.id }}', '{{ m.name|escape }}', '{{ m.tone }}', '{{ m.auto_reply_enabled }}', '{{ m.default_greeting|escape }}', '{{ m.default_closing|escape }}', '{{ m.contexto_personalizado|escape }}')">
-              <i class="bi bi-sliders me-1"></i> {{ t('integrations.configure_btn') }}
+          <div class="d-flex flex-wrap gap-2 border-top pt-2">
+            <a href="{{ url_for('ifood.ver_loja_ifood', merchant_db_id=m.id) }}" class="btn btn-danger btn-sm flex-grow-1 fw-bold">
+              <i class="bi bi-graph-up-arrow me-1"></i> Ver Loja & Métricas
+            </a>
+            <button class="btn btn-light btn-sm text-primary fw-semibold" title="Configurar Loja" onclick="abrirModalConfigurarIfood('{{ m.id }}', '{{ m.name|escape }}', '{{ m.tone }}', '{{ m.auto_reply_enabled }}', '{{ m.default_greeting|escape }}', '{{ m.default_closing|escape }}', '{{ m.contexto_personalizado|escape }}')">
+              <i class="bi bi-sliders"></i>
             </button>
             <button class="btn btn-light btn-sm text-success" title="Sincronizar avaliações agora" onclick="sincronizarLojaIfood('{{ m.id }}')">
               <i class="bi bi-arrow-repeat"></i>
@@ -414,43 +422,84 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('common.close') }}"></button>
       </div>
 
-      <div class="modal-body py-4">
-        <!-- Passo 1: Gerando código -->
-        <div id="ifoodPasso1">
-          <p class="text-muted small mb-4">
-            {{ t('integrations.modal_connect_step1') }}
-          </p>
+      <div class="modal-body py-3">
+        <!-- Navegação de Modos: Centralizado vs Distribuído -->
+        <ul class="nav nav-pills nav-fill mb-4 p-1 bg-light rounded-3" id="ifoodConnectTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-3 py-2 fw-bold small text-dark" id="tab-centralizado" data-bs-toggle="pill" data-bs-target="#pane-centralizado" type="button" role="tab">
+              <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Conexão Direta (Centralizado)
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-3 py-2 fw-bold small text-dark" id="tab-distribuido" data-bs-toggle="pill" data-bs-target="#pane-distribuido" type="button" role="tab">
+              <i class="bi bi-key-fill text-danger me-1"></i> Código de Pareamento
+            </button>
+          </li>
+        </ul>
 
-          <div class="text-center py-3">
-            <button class="btn btn-ifood btn-lg px-4" id="btnGerarCodigoIfood" onclick="gerarCodigoConexaoIfood()">
-              <i class="bi bi-key-fill me-2"></i> {{ t('integrations.modal_generate_code_btn') }}
+        <div class="tab-content" id="ifoodConnectTabContent">
+          <!-- ABA 1: CENTRALIZADO (Pizzaria / Loja Própria sem homologação) -->
+          <div class="tab-pane fade show active" id="pane-centralizado" role="tabpanel">
+            <div class="alert alert-warning bg-warning bg-opacity-10 border-0 rounded-3 p-3 mb-3">
+              <div class="d-flex gap-2">
+                <i class="bi bi-info-circle-fill text-warning fs-5"></i>
+                <div class="small text-dark">
+                  <strong>Aplicativo Centralizado iFood:</strong> Conecta diretamente sua própria loja/pizzaria com as credenciais cadastradas, sem necessidade de código no portal.
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small text-dark">Merchant ID da Loja (Opcional se houver apenas uma):</label>
+              <input type="text" class="form-control rounded-3" id="inputCentralizedMerchantId" placeholder="Ex: 4040847 ou UUID da loja">
+              <span class="text-muted" style="font-size: 0.75rem;">Se deixar em branco, o sistema buscará todas as lojas vinculadas às suas credenciais.</span>
+            </div>
+
+            <button class="btn btn-ifood w-100 py-2.5 fw-bold shadow-sm" id="btnConectarCentralizado" onclick="conectarCentralizadoIfood()">
+              <i class="bi bi-shop me-2"></i> Conectar Minha Loja / Pizzaria Agora
             </button>
           </div>
-        </div>
 
-        <!-- Passo 2: Código gerado e link de autorização -->
-        <div id="ifoodPasso2" style="display: none;">
-          <div class="alert alert-danger bg-danger bg-opacity-10 border-0 rounded-4 text-center p-3 mb-3">
-            <span class="small text-muted d-block mb-1">{{ t('integrations.modal_pairing_code_label') }}</span>
-            <div class="fs-2 fw-bold text-danger letter-spacing-2" id="displayUserCode">----</div>
+          <!-- ABA 2: DISTRIBUÍDO (OAuth / userCode) -->
+          <div class="tab-pane fade" id="pane-distribuido" role="tabpanel">
+            <!-- Passo 1: Gerando código -->
+            <div id="ifoodPasso1">
+              <p class="text-muted small mb-4">
+                {{ t('integrations.modal_connect_step1') }}
+              </p>
+
+              <div class="text-center py-3">
+                <button class="btn btn-ifood btn-lg px-4" id="btnGerarCodigoIfood" onclick="gerarCodigoConexaoIfood()">
+                  <i class="bi bi-key-fill me-2"></i> {{ t('integrations.modal_generate_code_btn') }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Passo 2: Código gerado e link de autorização -->
+            <div id="ifoodPasso2" style="display: none;">
+              <div class="alert alert-danger bg-danger bg-opacity-10 border-0 rounded-4 text-center p-3 mb-3">
+                <span class="small text-muted d-block mb-1">{{ t('integrations.modal_pairing_code_label') }}</span>
+                <div class="fs-2 fw-bold text-danger letter-spacing-2" id="displayUserCode">----</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step1_instruction') }}</label>
+                <a href="#" target="_blank" id="btnAbrirPortalIfood" class="btn btn-outline-danger w-100 py-2 fw-semibold">
+                  <i class="bi bi-box-arrow-up-right me-1"></i> {{ t('integrations.modal_open_portal_btn') }}
+                </a>
+              </div>
+
+              <div class="mb-4">
+                <label for="inputAuthCode" class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step2_instruction') }}</label>
+                <input type="text" class="form-control form-control-lg rounded-3" id="inputAuthCode" placeholder="{{ t('integrations.modal_auth_placeholder') }}">
+                <span class="text-muted" style="font-size: 0.75rem;">{{ t('integrations.modal_auth_hint') }}</span>
+              </div>
+
+              <button class="btn btn-ifood w-100 py-2 fw-bold" id="btnConfirmarAuthIfood" onclick="confirmarConexaoIfood()">
+                <i class="bi bi-check2-circle me-1"></i> {{ t('integrations.modal_confirm_btn') }}
+              </button>
+            </div>
           </div>
-
-          <div class="mb-3">
-            <label class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step1_instruction') }}</label>
-            <a href="#" target="_blank" id="btnAbrirPortalIfood" class="btn btn-outline-danger w-100 py-2 fw-semibold">
-              <i class="bi bi-box-arrow-up-right me-1"></i> {{ t('integrations.modal_open_portal_btn') }}
-            </a>
-          </div>
-
-          <div class="mb-4">
-            <label for="inputAuthCode" class="form-label fw-semibold small text-dark">{{ t('integrations.modal_step2_instruction') }}</label>
-            <input type="text" class="form-control form-control-lg rounded-3" id="inputAuthCode" placeholder="{{ t('integrations.modal_auth_placeholder') }}">
-            <span class="text-muted" style="font-size: 0.75rem;">{{ t('integrations.modal_auth_hint') }}</span>
-          </div>
-
-          <button class="btn btn-ifood w-100 py-2 fw-bold" id="btnConfirmarAuthIfood" onclick="confirmarConexaoIfood()">
-            <i class="bi bi-check2-circle me-1"></i> {{ t('integrations.modal_confirm_btn') }}
-          </button>
         </div>
       </div>
     </div>
@@ -471,6 +520,12 @@
 
       <div class="modal-body py-3">
         <input type="hidden" id="cfgMerchantId">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark">Nome Comercial / de Exibição da Loja:</label>
+          <input type="text" class="form-control rounded-3" id="cfgStoreName" placeholder="Ex: Pizzaria Sabor Real">
+          <div class="text-muted" style="font-size: 0.75rem;">Nome que aparecerá no dashboard, relatórios e na assinatura das respostas da IA.</div>
+        </div>
 
         <div class="form-check form-switch mb-3 p-3 bg-light rounded-3 border">
           <input class="form-check-input ms-0 me-2" type="checkbox" role="switch" id="cfgAutoReply" style="cursor: pointer;">
@@ -570,6 +625,39 @@
     });
   }
 
+  function conectarCentralizadoIfood() {
+    const merchantId = document.getElementById('inputCentralizedMerchantId').value.trim();
+    const btn = document.getElementById('btnConectarCentralizado');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Autenticando Pizzaria no iFood...';
+
+    fetch('/ifood/conectar-centralizado', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF()
+      },
+      body: JSON.stringify({ merchantId: merchantId })
+    })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-shop me-2"></i> Conectar Minha Loja / Pizzaria Agora';
+
+      if (data.success) {
+        showToast(data.message || 'Pizzaria conectada com sucesso!', 'success');
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        showToast('Erro ao conectar: ' + (data.error || 'Verifique as credenciais no portal do iFood.'), 'danger');
+      }
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-shop me-2"></i> Conectar Minha Loja / Pizzaria Agora';
+      showToast('Erro de comunicação com o servidor.', 'danger');
+    });
+  }
+
   function confirmarConexaoIfood() {
     const code = document.getElementById('inputAuthCode').value.trim();
     if (!code) {
@@ -610,6 +698,7 @@
 
   function abrirModalConfigurarIfood(id, name, tone, autoReply, greeting, closing, contexto) {
     document.getElementById('cfgMerchantId').value = id;
+    document.getElementById('cfgStoreName').value = (name && name !== 'None') ? name : '';
     document.getElementById('cfgTone').value = tone || 'amigavel';
     document.getElementById('cfgAutoReply').checked = (autoReply === 'True' || autoReply === true);
     document.getElementById('cfgGreeting').value = (greeting && greeting !== 'None') ? greeting : 'Olá';
@@ -624,6 +713,7 @@
   function salvarConfiguracaoIfood() {
     const id = document.getElementById('cfgMerchantId').value;
     const payload = {
+      name: document.getElementById('cfgStoreName').value,
       auto_reply_enabled: document.getElementById('cfgAutoReply').checked,
       tone: document.getElementById('cfgTone').value,
       default_greeting: document.getElementById('cfgGreeting').value,
@@ -642,14 +732,14 @@
     .then(r => r.json())
     .then(data => {
       if (data.success) {
-        showToast('Configurações salvas com sucesso!', 'success');
+        showToast('Configurações da loja atualizadas com sucesso!', 'success');
         if (modalConfigurarInstance) modalConfigurarInstance.hide();
         setTimeout(() => window.location.reload(), 1000);
       } else {
-        showToast('Erro ao salvar: ' + (data.error || ''), 'danger');
+        showToast('Erro ao salvar: ' + (data.error || 'Tente novamente.'), 'danger');
       }
     })
-    .catch(e => showToast('Erro ao salvar configurações.', 'danger'));
+    .catch(e => showToast('Erro de comunicação com o servidor.', 'danger'));
   }
 
   function sincronizarLojaIfood(id) {

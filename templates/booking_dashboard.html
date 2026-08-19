@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Booking.com | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --booking-blue: #003580;
+    --booking-blue-subtle: #e6edf7;
+  }
+
+  .hero-booking-panel {
+    background: linear-gradient(135deg, #003580 0%, #001c40 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 32px 30px;
+    box-shadow: 0 16px 36px -8px rgba(0, 53, 128, 0.35);
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-booking-panel::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 90% 15%, rgba(0, 119, 255, 0.25) 0%, transparent 45%),
+                      radial-gradient(circle at 10% 85%, rgba(255, 255, 255, 0.08) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  .stat-card-booking {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 22px;
+    height: 100%;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card-booking:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.1);
+  }
+  .stat-card-booking::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px;
+  }
+  .stat-card-booking.blue::before { background: linear-gradient(90deg, #003580, #0071c2); }
+  .stat-card-booking.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+  .stat-card-booking.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+  .stat-card-booking.gray::before { background: linear-gradient(90deg, #64748b, #475569); }
+
+  .icon-bubble-booking {
+    width: 46px; height: 46px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem;
+  }
+
+  .chart-card-booking {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+    height: 100%;
+  }
+
+  .review-item-card-booking {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 14px;
+    padding: 18px;
+    transition: all 0.2s ease;
+  }
+  .review-item-card-booking:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  }
+
+  .upload-row-booking td { vertical-align: middle; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- HERO -->
+  <div class="hero-booking-panel">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+      <div>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white bg-opacity-10 text-white fw-bold small mb-2 border border-white border-opacity-25">
+          <i class="bi bi-building"></i> Booking.com Reviews Hub
+        </div>
+        <h1 class="h3 fw-bold mb-1 text-white">Painel de Avaliações do Booking.com</h1>
+        <p class="mb-0 text-white-50 small">
+          <i class="bi bi-info-circle me-1"></i> Métricas calculadas 100% a partir das avaliações que você importou via CSV.
+        </p>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('booking.form_upload') }}" class="btn btn-light fw-bold rounded-pill px-3 shadow-sm d-flex align-items-center gap-2">
+          <i class="bi bi-cloud-upload"></i> Nova Importação
+        </a>
+        <a href="{{ url_for('integracoes') }}" class="btn btn-outline-light rounded-pill px-3">
+          <i class="bi bi-arrow-left me-1"></i> Voltar às Integrações
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% if metricas.total_reviews == 0 %}
+  <div class="alert alert-info bg-primary bg-opacity-10 border-0 rounded-4 p-4 text-dark d-flex align-items-start gap-3 mb-4">
+    <i class="bi bi-info-circle-fill text-primary fs-4"></i>
+    <div>
+      <strong>Nenhuma avaliação do Booking.com importada ainda.</strong>
+      <p class="mb-0 small text-muted">
+        Acesse sua Extranet do Booking.com &rarr; <em>Guest reviews</em> &rarr; <em>Download guest reviews</em>,
+        baixe o CSV e importe em <a href="{{ url_for('booking.form_upload') }}">Nova Importação</a> para ver as métricas aqui.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- KPIS -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-booking blue">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Avaliações Importadas</span>
+          <div class="icon-bubble-booking bg-primary-subtle text-primary">
+            <i class="bi bi-chat-square-text-fill"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">{{ "{:,}".format(metricas.total_reviews).replace(',', '.') }}</div>
+        <span class="text-muted small">Total acumulado</span>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-booking yellow">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Nota Média</span>
+          <div class="icon-bubble-booking bg-warning-subtle text-warning">
+            <i class="bi bi-star-fill text-warning"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">
+          {{ metricas.avg_rating }} <span class="fs-6 text-warning">★★★★★</span>
+        </div>
+        <span class="text-muted small">Escala de 1 a 5</span>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-booking green">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Taxa de Resposta</span>
+          <div class="icon-bubble-booking bg-success-subtle text-success">
+            <i class="bi bi-reply-fill"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">{{ metricas.taxa_resposta }}%</div>
+        <span class="text-muted small">{{ metricas.respondidas }} respondidas &bull; {{ metricas.pendentes }} pendentes</span>
+      </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-booking gray">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Importações Feitas</span>
+          <div class="icon-bubble-booking bg-secondary-subtle text-secondary">
+            <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">{{ metricas.total_uploads }}</div>
+        <span class="text-muted small">
+          {% if metricas.ultima_importacao %}
+            Última: {{ metricas.ultima_importacao.strftime('%d/%m/%Y %H:%M') }}
+          {% else %}
+            Nenhuma importação ainda
+          {% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div class="row g-4 mb-4">
+    <div class="col-lg-7">
+      <div class="chart-card-booking">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Avaliações Importadas por Mês</h5>
+            <small class="text-muted">Baseado na data da avaliação informada no CSV</small>
+          </div>
+          <span class="badge rounded-pill px-3 py-1 fw-bold small" style="background: var(--booking-blue-subtle); color: var(--booking-blue);">Últimos 6 Meses</span>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="chartVolumeMensal"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="chart-card-booking">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Distribuição de Avaliações</h5>
+            <small class="text-muted">Proporção por estrelas</small>
+          </div>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="chartDistribuicaoEstrelas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO DE IMPORTAÇÕES -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Histórico de Importações</h5>
+        <small class="text-muted">Últimos arquivos CSV enviados</small>
+      </div>
+      <a href="{{ url_for('booking.form_upload') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold">
+        Ver Todas <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    {% if uploads %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr class="text-muted small text-uppercase">
+            <th>Arquivo</th>
+            <th>Data</th>
+            <th>Status</th>
+            <th class="text-end">Inseridas</th>
+            <th class="text-end">Duplicadas</th>
+            <th class="text-end">Ignoradas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in uploads %}
+          <tr class="upload-row-booking">
+            <td class="fw-semibold text-dark">{{ u.filename or '-' }}</td>
+            <td class="small text-muted">{{ u.started_at.strftime('%d/%m/%Y %H:%M') if u.started_at else '-' }}</td>
+            <td>
+              {% if u.status == 'success' %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-2">Concluído</span>
+              {% elif u.status == 'error' %}
+                <span class="badge bg-danger-subtle text-danger rounded-pill px-2">Erro</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning rounded-pill px-2">{{ u.status|capitalize }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ u.inserted or 0 }}</td>
+            <td class="text-end">{{ u.duplicates or 0 }}</td>
+            <td class="text-end">{{ u.skipped or 0 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+      <i class="bi bi-file-earmark-spreadsheet fs-1 d-block mb-2 text-secondary opacity-50"></i>
+      Nenhum arquivo importado ainda.
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- AVALIAÇÕES RECENTES -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-chat-heart-fill text-primary me-2"></i>Avaliações Recentes do Booking.com</h5>
+        <small class="text-muted">Feed das avaliações importadas mais recentes</small>
+      </div>
+      <a href="{{ url_for('reviews', origem='booking') }}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold">
+        Ver Todas no Módulo Geral <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    {% if reviews %}
+      <div class="row g-3">
+        {% for r in reviews %}
+        <div class="col-12 col-md-6">
+          <div class="review-item-card-booking h-100 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary-subtle text-primary rounded-pill px-2 py-1 fw-bold small">
+                    <i class="bi bi-person-fill"></i> {{ r.reviewer_name or 'Hóspede Booking' }}
+                  </span>
+                  <span class="text-warning small">
+                    {% set stars = r.rating or 0 %}
+                    {% for s in range(1, 6) %}{{ '★' if s <= stars else '' }}{% endfor %}
+                  </span>
+                </div>
+                <small class="text-muted">{{ r.date.strftime('%d/%m/%Y') if r.date else '' }}</small>
+              </div>
+              <p class="text-dark small mb-3">
+                "{{ r.text or 'Sem comentário por escrito.' }}"
+              </p>
+            </div>
+
+            {% if r.reply %}
+            <div class="p-2.5 rounded-3 bg-light border border-light-subtle small">
+              <div class="d-flex align-items-center gap-1.5 fw-bold text-primary mb-1">
+                <i class="bi bi-robot"></i> Resposta:
+              </div>
+              <span class="text-muted fst-italic">{{ r.reply }}</span>
+            </div>
+            {% else %}
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+              <span class="badge bg-warning-subtle text-warning small rounded-pill px-2">Pendente de Resposta</span>
+              <a href="{{ url_for('reviews', origem='booking') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold">
+                Responder
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-chat-square-dots fs-1 d-block mb-2 text-secondary opacity-50"></i>
+        Nenhuma avaliação encontrada ainda. Importe um CSV da sua Extranet do Booking.com para começar.
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const labels = {{ metricas.graficos.labels | tojson }};
+  const contagem = {{ metricas.graficos.contagem | tojson }};
+  const notas = {{ metricas.graficos.nota | tojson }};
+  const dist = {{ metricas.dist_estrelas | tojson }};
+
+  const ctxVolume = document.getElementById('chartVolumeMensal').getContext('2d');
+  new Chart(ctxVolume, {
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Avaliações Importadas',
+          data: contagem,
+          backgroundColor: 'rgba(0, 53, 128, 0.85)',
+          borderRadius: 8,
+          yAxisID: 'y'
+        },
+        {
+          type: 'line',
+          label: 'Nota Média do Mês',
+          data: notas,
+          borderColor: '#f59e0b',
+          backgroundColor: '#f59e0b',
+          tension: 0.35,
+          pointRadius: 5,
+          spanGaps: true,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { type: 'linear', position: 'left', beginAtZero: true, ticks: { precision: 0 } },
+        y1: { type: 'linear', position: 'right', min: 0, max: 5, grid: { drawOnChartArea: false } }
+      }
+    }
+  });
+
+  const ctxDist = document.getElementById('chartDistribuicaoEstrelas').getContext('2d');
+  new Chart(ctxDist, {
+    type: 'doughnut',
+    data: {
+      labels: ['5 Estrelas', '4 Estrelas', '3 Estrelas', '2 Estrelas', '1 Estrela'],
+      datasets: [{
+        data: [dist[5] || 0, dist[4] || 0, dist[3] || 0, dist[2] || 0, dist[1] || 0],
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#f97316', '#ef4444']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

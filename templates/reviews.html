@@ -128,11 +128,24 @@
                     style="cursor: pointer; min-width: 220px;"
                     onchange="document.getElementById('filtersForm').submit()">
               <option value="todas" {% if ficha_selecionada == 'todas' %}selected{% endif %}>{{ t('reviews.all_stores') }}</option>
-              {% for f in fichas %}
-                <option value="{{ f.id }}" {% if ficha_selecionada|int == f.id %}selected{% endif %}>
-                  {{ f.location_name or f.business_name or t('common.inactive') }}
-                </option>
-              {% endfor %}
+              {% if fichas %}
+                <optgroup label="Google Business">
+                  {% for f in fichas %}
+                    <option value="{{ f.id }}" {% if ficha_selecionada|string == f.id|string %}selected{% endif %}>
+                      🏢 {{ f.location_name or f.business_name or t('common.inactive') }}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+              {% if ifood_merchants %}
+                <optgroup label="iFood Delivery">
+                  {% for m in ifood_merchants %}
+                    <option value="ifood:{{ m.id }}" {% if ficha_selecionada == 'ifood:' ~ m.id %}selected{% endif %}>
+                      🍔 {{ m.name or ('Loja iFood #' ~ m.id) }}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
             </select>
           </div>
           <div class="ps-2 pe-3 text-muted"><i class="bi bi-chevron-down small"></i></div>
@@ -188,7 +201,9 @@
           <select name="origem" class="form-select">
             <option value="" {% if o=='' %}selected{% endif %}>{{ t('reviews.all_origins') }}</option>
             <option value="google" {% if o=='google' %}selected{% endif %}>Google</option>
-            <option value="ifood" {% if o=='ifood' %}selected{% endif %}>iFood 🍔</option>
+            {% if ifood_merchants %}
+              <option value="ifood" {% if o=='ifood' %}selected{% endif %}>iFood 🍔</option>
+            {% endif %}
             <option value="booking" {% if o=='booking' %}selected{% endif %}>Booking</option>
           </select>
         </div>

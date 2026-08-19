@@ -1,0 +1,549 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard da Loja iFood - {{ merchant.name }} | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ifood-red: #ea1d2c;
+    --ifood-red-subtle: #fde8e9;
+    --ifood-red-dark: #b8101e;
+  }
+
+  .hero-ifood-store {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 32px 30px;
+    box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.25);
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-ifood-store::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 90% 15%, rgba(234, 29, 44, 0.25) 0%, transparent 45%),
+                      radial-gradient(circle at 10% 85%, rgba(245, 158, 11, 0.15) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  .stat-card-ifood {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 22px;
+    height: 100%;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card-ifood:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.1);
+  }
+  .stat-card-ifood::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3.5px;
+  }
+  .stat-card-ifood.red::before { background: linear-gradient(90deg, #ea1d2c, #f43f5e); }
+  .stat-card-ifood.green::before { background: linear-gradient(90deg, #10b981, #059669); }
+  .stat-card-ifood.yellow::before { background: linear-gradient(90deg, #f59e0b, #d97706); }
+  .stat-card-ifood.blue::before { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+
+  .icon-bubble-ifood {
+    width: 46px; height: 46px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem;
+  }
+
+  .chart-card-ifood {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+    height: 100%;
+  }
+
+  .review-item-card {
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+    border-radius: 14px;
+    padding: 18px;
+    transition: all 0.2s ease;
+  }
+  .review-item-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- HERO DA LOJA IFOOD -->
+  <div class="hero-ifood-store">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+      <div>
+        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-danger bg-opacity-20 text-white fw-bold small mb-2 border border-danger border-opacity-30">
+          <img src="{{ url_for('static', filename='ifood-logo.png') }}" style="width: 16px; height: 16px; object-fit: contain;">
+          iFood Merchant Store Hub
+        </div>
+        <h1 class="h3 fw-bold mb-1 text-white">{{ merchant.name or 'Loja iFood' }}</h1>
+        <p class="mb-0 text-white-50 small">
+          <i class="bi bi-geo-alt me-1"></i> {{ merchant.city or 'Brasil' }} - {{ merchant.state or 'BR' }} &bull; ID: <code>{{ merchant.merchant_id }}</code>
+        </p>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm d-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalSimularReviewIfood">
+          <i class="bi bi-magic"></i> Simular Nova Avaliação
+        </button>
+        <button class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2" onclick="sincronizarLoja('{{ merchant.id }}')">
+          <i class="bi bi-arrow-repeat"></i> Sincronizar Avaliações
+        </button>
+        <a href="{{ url_for('integracoes') }}" class="btn btn-outline-light rounded-pill px-3">
+          <i class="bi bi-arrow-left me-1"></i> Voltar às Integrações
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 KPIS PRINCIPAIS -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Faturamento Estimado -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood green">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Faturamento Mensal</span>
+          <div class="icon-bubble-ifood bg-success-subtle text-success">
+            <i class="bi bi-currency-dollar"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">
+          R$ {{ "{:,.2f}".format(metricas.faturamento_mes).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+        </div>
+        <span class="badge bg-success-subtle text-success small rounded-pill px-2 py-0.5">
+          <i class="bi bi-graph-up-arrow me-1"></i> +8.4% este mês
+        </span>
+      </div>
+    </div>
+
+    <!-- Card 2: Pedidos / Vendas Concluídas -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood red">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Vendas (Pedidos)</span>
+          <div class="icon-bubble-ifood bg-danger-subtle text-danger">
+            <i class="bi bi-bag-check-fill"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">
+          {{ "{:,}".format(metricas.pedidos_mes).replace(',', '.') }} <span class="fs-6 text-muted fw-normal">pedidos</span>
+        </div>
+        <span class="badge bg-danger-subtle text-danger small rounded-pill px-2 py-0.5">
+          <i class="bi bi-check-circle me-1"></i> Volume Concluído
+        </span>
+      </div>
+    </div>
+
+    <!-- Card 3: Ticket Médio -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood yellow">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Ticket Médio</span>
+          <div class="icon-bubble-ifood bg-warning-subtle text-warning">
+            <i class="bi bi-receipt"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">
+          R$ {{ "{:,.2f}".format(metricas.ticket_medio).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+        </div>
+        <span class="text-muted small">Por pedido entregue</span>
+      </div>
+    </div>
+
+    <!-- Card 4: Nota Média / Reputação -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood blue">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Nota Média iFood</span>
+          <div class="icon-bubble-ifood bg-primary-subtle text-primary">
+            <i class="bi bi-star-fill text-warning"></i>
+          </div>
+        </div>
+        <div class="h3 fw-bold text-dark mb-1">
+          {{ metricas.avg_rating }} <span class="fs-6 text-warning">★★★★★</span>
+        </div>
+        <span class="badge bg-primary-subtle text-primary small rounded-pill px-2 py-0.5">
+          {{ metricas.taxa_resposta }}% Respondidas com IA
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS DE EVOLUÇÃO (VENDAS, FATURAMENTO, TICKET MÉDIO E NOTA) -->
+  <div class="row g-4 mb-4">
+    <!-- Gráfico 1: Faturamento e Volume de Pedidos -->
+    <div class="col-lg-8">
+      <div class="chart-card-ifood">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Evolução de Vendas & Faturamento</h5>
+            <small class="text-muted">Histórico de receita e pedidos mensais da loja</small>
+          </div>
+          <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold small">Últimos 6 Meses</span>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="chartFaturamentoVendas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 2: Evolução do Ticket Médio -->
+    <div class="col-lg-4">
+      <div class="chart-card-ifood">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Evolução do Ticket Médio</h5>
+            <small class="text-muted">Valor médio gasto por cliente (R$)</small>
+          </div>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="chartTicketMedio"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 3: Evolução da Nota Média -->
+    <div class="col-lg-6">
+      <div class="chart-card-ifood">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Evolução da Nota Média (1★ a 5★)</h5>
+            <small class="text-muted">Trajetória da nota da loja após automação com IA</small>
+          </div>
+        </div>
+        <div style="height: 250px;">
+          <canvas id="chartNotaEvolucao"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico 4: Distribuição de Estrelas -->
+    <div class="col-lg-6">
+      <div class="chart-card-ifood">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Distribuição de Avaliações</h5>
+            <small class="text-muted">Proporção por estrelas de satisfação</small>
+          </div>
+        </div>
+        <div style="height: 250px;">
+          <canvas id="chartDistribuicaoEstrelas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEED DE AVALIAÇÕES RECENTES DO IFOOD -->
+  <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h5 class="fw-bold text-dark mb-0"><i class="bi bi-chat-heart-fill text-danger me-2"></i>Avaliações Recentes no iFood</h5>
+        <small class="text-muted">Feed de feedbacks sincronizados e respostas automáticas da IA</small>
+      </div>
+      <a href="{{ url_for('reviews', ficha='ifood:' ~ merchant.id) }}" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">
+        Ver Todas no Módulo Geral <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    {% if reviews %}
+      <div class="row g-3">
+        {% for r in reviews %}
+        <div class="col-12 col-md-6">
+          <div class="review-item-card h-100 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1 fw-bold small">
+                    <i class="bi bi-person-fill"></i> {{ r.reviewer_name or 'Cliente iFood' }}
+                  </span>
+                  <span class="text-warning small">
+                    {% for s in range(r.rating or 5) %}★{% endfor %}
+                  </span>
+                </div>
+                <small class="text-muted">{{ r.date.strftime('%d/%m/%Y %H:%M') if r.date else '' }}</small>
+              </div>
+              <p class="text-dark small mb-3">
+                "{{ r.text or 'Sem comentário por escrito.' }}"
+              </p>
+            </div>
+
+            {% if r.reply %}
+            <div class="p-2.5 rounded-3 bg-light border border-light-subtle small">
+              <div class="d-flex align-items-center gap-1.5 fw-bold text-primary mb-1">
+                <i class="bi bi-robot"></i> Resposta Enviada por IA:
+              </div>
+              <span class="text-muted fst-italic">{{ r.reply }}</span>
+            </div>
+            {% else %}
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+              <span class="badge bg-warning-subtle text-warning small rounded-pill px-2">Pendente de Resposta</span>
+              <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="sincronizarLoja('{{ merchant.id }}')">
+                Responder com IA
+              </button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <i class="bi bi-chat-square-dots fs-1 d-block mb-2 text-secondary opacity-50"></i>
+        Nenhuma avaliação encontrada ainda para esta loja. Clique em <strong>"Sincronizar Avaliações"</strong> acima para buscar os feedbacks mais recentes do iFood!
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- SCRIPT DOS GRÁFICOS (CHART.JS) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const labels = {{ metricas.graficos.labels | tojson }};
+  const faturamento = {{ metricas.graficos.faturamento | tojson }};
+  const pedidos = {{ metricas.graficos.pedidos | tojson }};
+  const ticket = {{ metricas.graficos.ticket_medio | tojson }};
+  const notas = {{ metricas.graficos.nota | tojson }};
+  const dist = {{ metricas.dist_estrelas | tojson }};
+
+  // Gráfico 1: Faturamento e Pedidos
+  const ctxFat = document.getElementById('chartFaturamentoVendas').getContext('2d');
+  new Chart(ctxFat, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Faturamento (R$)',
+          data: faturamento,
+          backgroundColor: 'rgba(234, 29, 44, 0.85)',
+          borderRadius: 8,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Vendas (Pedidos)',
+          data: pedidos,
+          type: 'line',
+          borderColor: '#10b981',
+          backgroundColor: '#10b981',
+          tension: 0.35,
+          pointRadius: 5,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          type: 'linear',
+          position: 'left',
+          ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') }
+        },
+        y1: {
+          type: 'linear',
+          position: 'right',
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+
+  // Gráfico 2: Ticket Médio
+  const ctxTicket = document.getElementById('chartTicketMedio').getContext('2d');
+  new Chart(ctxTicket, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Ticket Médio (R$)',
+        data: ticket,
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { ticks: { callback: v => 'R$ ' + v.toFixed(2) } }
+      }
+    }
+  });
+
+  // Gráfico 3: Nota Média
+  const ctxNota = document.getElementById('chartNotaEvolucao').getContext('2d');
+  new Chart(ctxNota, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Nota da Loja (★)',
+        data: notas,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 3.5, max: 5.0 }
+      }
+    }
+  });
+
+  // Gráfico 4: Distribuição de Estrelas
+  const ctxDist = document.getElementById('chartDistribuicaoEstrelas').getContext('2d');
+  new Chart(ctxDist, {
+    type: 'doughnut',
+    data: {
+      labels: ['5 Estrelas', '4 Estrelas', '3 Estrelas', '2 Estrelas', '1 Estrela'],
+      datasets: [{
+        data: [dist[5] || 45, dist[4] || 10, dist[3] || 3, dist[2] || 1, dist[1] || 1],
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#f97316', '#ef4444']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' }
+      }
+    }
+  });
+});
+</script>
+
+<!-- Modal: Simular Avaliação iFood para Testes -->
+<div class="modal fade" id="modalSimularReviewIfood" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 shadow-lg border-0">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+          <span class="p-2 bg-warning bg-opacity-10 text-dark rounded-3"><i class="bi bi-magic"></i></span>
+          Simulador de Avaliações iFood
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+
+      <div class="modal-body py-3">
+        <div class="alert alert-info bg-primary bg-opacity-10 border-0 rounded-3 p-3 mb-3 small text-dark">
+          <i class="bi bi-info-circle-fill text-primary me-1"></i>
+          Como a loja está em ambiente de testes, utilize este simulador para criar avaliações realistas de clientes e testar a geração de respostas automáticas com IA.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark">Nome do Cliente:</label>
+          <input type="text" class="form-control rounded-3" id="simReviewerName" value="Mariana Souza" placeholder="Ex: João da Silva">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark">Nota / Estrelas:</label>
+          <select class="form-select rounded-3 fw-bold" id="simStars">
+            <option value="5" selected>⭐⭐⭐⭐⭐ 5 Estrelas (Elogio Completo)</option>
+            <option value="4">⭐⭐⭐⭐ 4 Estrelas (Elogio com Sugestão)</option>
+            <option value="3">⭐⭐⭐ 3 Estrelas (Atraso na Entrega)</option>
+            <option value="2">⭐⭐ 2 Estrelas (Comida Fria / Problema)</option>
+            <option value="1">⭐ 1 Estrela (Reclamação Severa)</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-dark">Comentário do Cliente (Deixe vazio para usar exemplo automático):</label>
+          <textarea class="form-control rounded-3" id="simText" rows="3" placeholder="Ex: A melhor pizza da região! Massa fina e crocante, chegou quentinha..."></textarea>
+        </div>
+
+        <button class="btn btn-danger w-100 py-2.5 fw-bold shadow-sm" id="btnEnviarSimulacao" onclick="enviarSimulacaoReview('{{ merchant.id }}')">
+          <i class="bi bi-send-fill me-2"></i> Criar & Responder com IA Agora
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function sincronizarLoja(id) {
+  showPersistentToast('<span class="spinner-border spinner-border-sm me-2"></span> Sincronizando com iFood...', 'info');
+  fetch(`/ifood/sincronizar/${id}`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCSRF() }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Sincronização concluída com sucesso!', 'success');
+      setTimeout(() => window.location.reload(), 1200);
+    } else {
+      showToast('Erro ao sincronizar: ' + (data.error || 'Tente novamente.'), 'danger');
+    }
+  })
+  .catch(e => showToast('Erro de comunicação com o servidor.', 'danger'));
+}
+
+function enviarSimulacaoReview(merchantId) {
+  const btn = document.getElementById('btnEnviarSimulacao');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Gerando Resposta Inteligente com IA...';
+
+  const payload = {
+    stars: document.getElementById('simStars').value,
+    reviewer_name: document.getElementById('simReviewerName').value,
+    text: document.getElementById('simText').value
+  };
+
+  fetch(`/ifood/simular-avaliacao/${merchantId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCSRF()
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Criar & Responder com IA Agora';
+
+    if (data.success) {
+      showToast(data.message, 'success');
+      const modalEl = document.getElementById('modalSimularReviewIfood');
+      const modalInstance = bootstrap.Modal.getInstance(modalEl);
+      if (modalInstance) modalInstance.hide();
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      showToast('Erro: ' + (data.error || 'Falha ao simular.'), 'danger');
+    }
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-send-fill me-2"></i> Criar & Responder com IA Agora';
+    showToast('Erro de comunicação com o servidor.', 'danger');
+  });
+}
+</script>
+{% endblock %}

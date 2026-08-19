@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Mercado Livre: Guardião de Reputação & Respostas Inteligentes | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="Proteja seu termômetro no Mercado Livre. Monitore os 4 pilares de desempenho, previna reclamações e responda perguntas pré e pós-venda com IA formalizadora.">
+<meta name="keywords" content="Mercado Livre reputação, termômetro MercadoLíder, responder perguntas Mercado Livre IA, pós-venda Mercado Livre, evitar reclamações ML">
+
+<!-- JSON-LD SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "ComentsIA - Módulo Mercado Livre Store Hub",
+  "image": "https://comentsia.com.br/static/mercadolivre-logo.png",
+  "description": "Monitoramento em tempo real do Score de Saúde da Conta no Mercado Livre, índice de reclamações, tempo de resposta e formalização de respostas com IA.",
+  "brand": {
+    "@type": "Brand",
+    "name": "ComentsIA"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "https://comentsia.com.br/planos",
+    "priceCurrency": "BRL",
+    "price": "49.90",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 1100px;">
+  
+  <!-- HERO SECTION -->
+  <div class="text-center py-4 mb-5">
+    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill fw-bold small mb-3" style="background-color: #fff159; color: #2d3277;">
+      <img src="{{ url_for('static', filename='mercadolivre-logo.png') }}" alt="ML" style="width: 20px; height: 20px; object-fit: contain;">
+      Mercado Livre Store Hub & AI
+    </div>
+    <h1 class="display-5 fw-bold text-dark mb-3">
+      Blinde sua Reputação Verde Líder e Converta Mais Vendas no Mercado Livre
+    </h1>
+    <p class="lead text-muted mx-auto" style="max-width: 760px;">
+      Auditoria contínua dos 4 pilares operacionais, alertas preventivos contra queda de medalha e respostas rápidas para perguntas de pré e pós-venda com IA.
+    </p>
+    <div class="d-flex justify-content-center gap-3 mt-4">
+      <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-warning btn-lg rounded-pill px-4 fw-bold text-dark shadow-sm">
+        <i class="bi bi-shop me-2"></i> Acessar Módulo Mercado Livre
+      </a>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-dark btn-lg rounded-pill px-4 fw-bold">
+        Ver Planos
+      </a>
+    </div>
+  </div>
+
+  <!-- 4 PILARES DE DESEMPENHO -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-3">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white text-center">
+        <div class="p-3 rounded-circle bg-primary-subtle text-primary mx-auto mb-3" style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
+          <i class="bi bi-truck fs-4"></i>
+        </div>
+        <h3 class="h6 fw-bold text-dark mb-1">1. Logística & Envio</h3>
+        <p class="text-muted small mb-0">Controle do teto máximo de atraso (15%) para manter a medalha MercadoLíder.</p>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white text-center">
+        <div class="p-3 rounded-circle bg-danger-subtle text-danger mx-auto mb-3" style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
+          <i class="bi bi-shield-x fs-4"></i>
+        </div>
+        <h3 class="h6 fw-bold text-dark mb-1">2. Zero Reclamações</h3>
+        <p class="text-muted small mb-0">Monitoramento da taxa de claims com teto de segurança em 2.0%.</p>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white text-center">
+        <div class="p-3 rounded-circle bg-success-subtle text-success mx-auto mb-3" style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
+          <i class="bi bi-chat-dots fs-4"></i>
+        </div>
+        <h3 class="h6 fw-bold text-dark mb-1">3. Atendimento Ágil</h3>
+        <p class="text-muted small mb-0">Respostas pré-venda em menos de 15 minutos aumentam em até 40% as conversões.</p>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white text-center">
+        <div class="p-3 rounded-circle bg-warning-subtle text-warning mx-auto mb-3" style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
+          <i class="bi bi-box-seam fs-4"></i>
+        </div>
+        <h3 class="h6 fw-bold text-dark mb-1">4. Operação & Estoque</h3>
+        <p class="text-muted small mb-0">Prevenção de cancelamentos por ruptura de estoque com limite de 2.5%.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOVO MODAL E IA FORMALIZADORA -->
+  <div class="card border-0 shadow-sm rounded-4 p-5 bg-white mb-5">
+    <div class="row align-items-center g-4">
+      <div class="col-md-6">
+        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 fw-bold small mb-2">Exclusivo ComentsIA</span>
+        <h2 class="h3 fw-bold text-dark mb-3">IA Formalizadora de Respostas</h2>
+        <p class="text-muted">
+          Digite sua resposta com suas próprias palavras no modal centralizado. Com um clique em <strong>"Deixar mais formal"</strong>, a IA reescreve seu texto em padrão executivo impecável, sem alterar nenhuma informação técnica ou preço.
+        </p>
+        <ul class="text-muted small ps-3 mb-0">
+          <li>Compare a versão original e a versão formal na mesma tela.</li>
+          <li>Publique a resposta diretamente no anúncio oficial do Mercado Livre.</li>
+          <li>Atenda dúvidas de pré e pós-venda em segundos.</li>
+        </ul>
+      </div>
+      <div class="col-md-6 text-center">
+        <div class="p-4 rounded-4 bg-light border shadow-sm">
+          <i class="bi bi-stars text-warning fs-1 d-block mb-2"></i>
+          <h4 class="h5 fw-bold text-dark">Parecer Estratégico com GPT-4o</h4>
+          <p class="text-muted small mb-0">Diagnóstico completo em PDF com orientações personalizadas para aumentar seu faturamento no Mercado Livre.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="p-5 rounded-4 text-center text-dark" style="background: linear-gradient(135deg, #fff159 0%, #ffe600 100%);">
+    <h2 class="h3 fw-bold mb-2">Mantenha sua conta sempre no Verde Escuro</h2>
+    <p class="mb-4 text-muted">Audite sua loja agora e descubra oportunidades de crescimento.</p>
+    <a href="{{ url_for('mercadolivre.dashboard') }}" class="btn btn-dark btn-lg rounded-pill px-5 fw-bold shadow">
+      Auditar Minha Conta no Mercado Livre
+    </a>
+  </div>
+
+</div>
+{% endblock %}

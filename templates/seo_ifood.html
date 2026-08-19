@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Automação de Avaliações iFood Delivery com IA | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="Responda automaticamente avaliações de clientes no iFood Delivery com Inteligência Artificial. Proteja a reputação do seu restaurante e fidelize clientes.">
+<meta name="keywords" content="iFood avaliações automáticas, responder clientes iFood IA, reputação restaurante iFood, automação delivery">
+
+<!-- JSON-LD SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "ComentsIA - Módulo iFood Delivery",
+  "image": "https://comentsia.com.br/static/ifood-logo.png",
+  "description": "Automação de respostas a feedbacks e avaliações no iFood Delivery com inteligência artificial calibrada para gastronomia e atendimento ao cliente.",
+  "brand": {
+    "@type": "Brand",
+    "name": "ComentsIA"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "https://comentsia.com.br/planos",
+    "priceCurrency": "BRL",
+    "price": "29.90",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 1100px;">
+  
+  <!-- HERO SECTION -->
+  <div class="text-center py-4 mb-5">
+    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-danger-subtle text-danger fw-bold small mb-3">
+      <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" style="width: 20px; height: 20px; object-fit: contain;">
+      iFood Delivery Integration
+    </div>
+    <h1 class="display-5 fw-bold text-dark mb-3">
+      Transforme Avaliações no iFood em Clientes Fiéis com Respostas por IA
+    </h1>
+    <p class="lead text-muted mx-auto" style="max-width: 760px;">
+      Conecte seu restaurante no iFood via código oficial do Portal do Parceiro. Responda elogios e trate críticas gastronômicas com velocidade máxima e empatia.
+    </p>
+    <div class="d-flex justify-content-center gap-3 mt-4">
+      <a href="{{ url_for('integracoes') }}" class="btn btn-danger btn-lg rounded-pill px-4 fw-bold shadow-sm">
+        <i class="bi bi-shop me-2"></i> Conectar Restaurante iFood
+      </a>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-dark btn-lg rounded-pill px-4 fw-bold">
+        Ver Planos
+      </a>
+    </div>
+  </div>
+
+  <!-- BENEFÍCIOS -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-danger-subtle text-danger d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-clock-history fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Tempo Zero de Espera</h3>
+        <p class="text-muted small mb-0">Clientes de delivery valorizam respostas imediatas quando relatam atrasos ou elogiam pratos.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-success-subtle text-success d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-heart-pulse fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Respostas Empáticas</h3>
+        <p class="text-muted small mb-0">A IA reconhece problemas operacionais (embalagem, temperatura, entrega) e responde acolhendo o cliente.</p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-primary-subtle text-primary d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-buildings fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Multi-Restaurantes</h3>
+        <p class="text-muted small mb-0">Gerencie múltiplas marcas, franquias e dark kitchens no mesmo painel unificado.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="p-5 rounded-4 text-center text-white" style="background: linear-gradient(135deg, #ea1d2c 0%, #b91c1c 100%);">
+    <h2 class="h3 fw-bold mb-2">Aumente a nota do seu restaurante no iFood</h2>
+    <p class="mb-4 opacity-75">Integre sua loja hoje mesmo em poucos segundos.</p>
+    <a href="{{ url_for('integracoes') }}" class="btn btn-light btn-lg rounded-pill px-5 fw-bold text-danger shadow">
+      Conectar Loja iFood
+    </a>
+  </div>
+
+</div>
+{% endblock %}

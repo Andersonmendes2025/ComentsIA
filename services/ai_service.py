@@ -271,3 +271,40 @@ def get_language_instructions(idioma: Optional[str]) -> Tuple[str, str]:
         )
         
     return system_inst, prompt_rule
+
+
+def generate_claude_response(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    model: str = "claude-3-5-haiku-20241022",
+    max_tokens: int = 500,
+    api_key: Optional[str] = None
+) -> Optional[str]:
+    """
+    Gera respostas ou análises utilizando a API do Claude (Anthropic).
+    Suporta modelos como claude-3-7-sonnet-20250219, claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022.
+    """
+    import os
+    key = api_key or os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        logging.warning("[Claude AI] ANTHROPIC_API_KEY não configurada.")
+        return None
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=key)
+        kwargs = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        if system_prompt:
+            kwargs["system"] = system_prompt
+
+        response = client.messages.create(**kwargs)
+        if response and response.content:
+            return response.content[0].text.strip()
+    except Exception as e:
+        logging.error(f"[Claude AI] Erro ao chamar Anthropic Claude: {e}")
+    return None
+

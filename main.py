@@ -275,6 +275,9 @@ app.register_blueprint(ifood_bp)
 from mercadolivre_auto import mercadolivre_bp
 app.register_blueprint(mercadolivre_bp)
 
+from booking import booking_bp
+app.register_blueprint(booking_bp)
+
 # -------------------------------------------------------------------
 # Inicialização do Motor de Internacionalização (i18n)
 # -------------------------------------------------------------------
@@ -876,7 +879,9 @@ def calcular_metricas_reviews(reviews: list) -> dict:
 def index():
     """Página inicial do aplicativo com resumo das avaliações e suporte a seleção de filial/fichas."""
     if "credentials" not in flask.session:
-        return render_template("index.html", logged_in=False, now=datetime.now())
+        return render_template(
+            "index.html", logged_in=False, now=datetime.now(), PLANOS=PLANOS
+        )
 
     user_info = flask.session.get("user_info") or {}
     user_id = user_info.get("id")
@@ -903,6 +908,15 @@ def index():
         .all()
     )
 
+    # Lista de lojas iFood conectadas (se houver)
+    from models import IFoodMerchant
+    ifood_merchants = (
+        IFoodMerchant.query
+        .filter_by(user_id=str(user_id), is_active=True)
+        .order_by(IFoodMerchant.name)
+        .all()
+    )
+
     # Lista de filiais vinculadas (se for matriz / parent)
     vinculos = FilialVinculo.query.filter_by(parent_user_id=user_id, status="aceito").all()
     filiais = []
@@ -917,7 +931,16 @@ def index():
     # Filtro da ficha/filial selecionada
     filtro_ficha = flask.request.args.get("ficha", "todas")
 
-    if filtro_ficha.startswith("filial:"):
+    if filtro_ficha.startswith("ifood:"):
+        try:
+            ifood_m_id = int(filtro_ficha.split("ifood:", 1)[1])
+            user_reviews = Review.query.filter(
+                Review.user_id == str(user_id),
+                Review.ifood_merchant_id == ifood_m_id
+            ).order_by(Review.date.desc()).all()
+        except Exception:
+            user_reviews = Review.query.filter(Review.user_id == user_id).order_by(Review.date.desc()).all()
+    elif filtro_ficha.startswith("filial:"):
         filial_target_id = filtro_ficha.split("filial:", 1)[1]
         if filial_target_id == user_id or is_parent_of(user_id, filial_target_id):
             user_reviews = Review.query.filter(Review.user_id == filial_target_id).order_by(Review.date.desc()).all()
@@ -970,7 +993,9 @@ def index():
         response_rate_str=response_rate_str,
         fichas=fichas,
         filiais=filiais,
+        ifood_merchants=ifood_merchants,
         filtro_ficha=filtro_ficha,
+        PLANOS=PLANOS,
     )
 
 
@@ -1242,6 +1267,137 @@ def quem_somos():
     return render_template("quem-somos.html")
 
 
+# ==========================================
+# ROTAS PROGRAMÁTICAS DE SEO & LANDING PAGES
+# ==========================================
+
+@app.route("/integracao/google-meu-negocio")
+def seo_google():
+    """Página de destino SEO para automação no Google Meu Negócio."""
+    return render_template("seo_google.html")
+
+
+@app.route("/integracao/mercadolivre")
+def seo_mercadolivre():
+    """Página de destino SEO para gestão e respostas no Mercado Livre."""
+    return render_template("seo_mercadolivre.html")
+
+
+@app.route("/integracao/ifood")
+def seo_ifood():
+    """Página de destino SEO para respostas e reputação no iFood."""
+    return render_template("seo_ifood.html")
+
+
+@app.route("/solucoes/franquias-e-redes")
+def seo_franquias():
+    """Página de destino SEO para governança de franquias e multi-lojas."""
+    return render_template("seo_franquias.html")
+
+
+@app.route("/api/auditoria-publica", methods=["POST"])
+def auditoria_publica_api():
+    """Gera um diagnóstico de reputação personalizado com IA para o Lead Magnet da home."""
+    data = request.get_json(silent=True) or request.form or {}
+    nome = (data.get("nome") or "").strip()
+    canal = (data.get("canal") or "google").strip().lower()
+    volume = int(data.get("volume") or 15)
+
+    if not nome:
+        return jsonify({"success": False, "error": "Nome da empresa não informado."}), 400
+
+    canal_nomes = {
+        "google": "Google Meu Negócio & Maps",
+        "mercadolivre": "Mercado Livre Store",
+        "ifood": "iFood Delivery"
+    }
+    canal_label = canal_nomes.get(canal, "Google Meu Negócio")
+
+    # Tenta gerar com OpenAI ou Gemini
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            prompt = f"""Você é o auditor de reputação digital de elite do ComentsIA.
+Analise a seguinte empresa e gere um diagnóstico de reputação e um exemplo realista de resposta personalizada para avaliação de cliente.
+
+Empresa: "{nome}"
+Canal: {canal_label}
+Volume mensal aproximado: {volume} avaliações/mês
+
+Retorne APENAS um JSON válido no formato exato:
+{{
+  "segmento": "Segmento detectado (ex: Peças e Acessórios Automotivos, Gastronomia, Odontologia, etc)",
+  "score": 85 a 96 (número inteiro coerente),
+  "visibilidade_impacto": "Texto curto de ganho (ex: '+160% no Maps', '+35% conversão ML', 'Top 3 Delivery')",
+  "horas_economizadas": 12 a 60 (número inteiro de horas calculadas com base no volume),
+  "risco_perda_mensal": "Valor em reais estimado de faturamento protegido (ex: 'R$ 3.200 / mês')",
+  "exemplo_pergunta_ou_avaliacao": "Exemplo curto de avaliação ou dúvida típica de cliente para esse negócio",
+  "exemplo_resposta_ia": "Resposta humanizada, cordial, altamente profissional citando o nome {nome} e o nicho da empresa"
+}}
+"""
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=350,
+                response_format={"type": "json_object"}
+            )
+            raw_content = resp.choices[0].message.content.strip()
+            ai_data = json.loads(raw_content)
+            return jsonify({
+                "success": True,
+                "nome": nome,
+                "canal": canal,
+                "canal_label": canal_label,
+                "segmento": ai_data.get("segmento", "Comércio & Serviços"),
+                "score": ai_data.get("score", 90),
+                "visibilidade_impacto": ai_data.get("visibilidade_impacto", "+144% no Maps"),
+                "horas_economizadas": f"{ai_data.get('horas_economizadas', 24)}h / mês",
+                "risco_perda_mensal": ai_data.get("risco_perda_mensal", "R$ 2.800 / mês"),
+                "exemplo_avaliacao": ai_data.get("exemplo_pergunta_ou_avaliacao", "Excelente atendimento e rapidez na entrega!"),
+                "exemplo_resposta": ai_data.get("exemplo_resposta_ia", f"Olá! Agradecemos muito a sua avaliação da {nome}! Ficamos à sua inteira disposição!")
+            })
+        except Exception as e:
+            logging.warning("[Auditoria API] Falha na IA: %s", e)
+
+    # Fallback contextual inteligente baseado no nome e canal
+    palavras = nome.lower()
+    segmento = "Comércio & Serviços Especializados"
+    if any(w in palavras for w in ["moto", "carro", "auto", "pneu", "mecanic", "peca", "peça"]):
+        segmento = "Motopeças & Automotivo"
+        if canal == "mercadolivre":
+            exemplo = f"“Olá! Agradecemos a preferência pela {nome}! Todas as nossas peças e produtos são enviados com nota fiscal, garantia e envio expresso. Qualquer dúvida técnica estamos à disposição!”"
+        else:
+            exemplo = f"“Olá! Muito obrigado pela confiança nos serviços da {nome}! Cuidar do seu veículo com agilidade e qualidade é nossa prioridade. Volte sempre!”"
+    elif any(w in palavras for w in ["restaurante", "pizz", "burger", "gourmet", "lanche", "comida", "bar", "sabor", "cafe", "café"]):
+        segmento = "Gastronomia & Alimentação"
+        exemplo = f"“Olá! Ficamos muito felizes que tenha tido uma experiência incrível na {nome}! Preparamos cada prato com ingredientes frescos e carinho. Esperamos você novamente em breve!”"
+    elif any(w in palavras for w in ["odonto", "dent", "clinica", "clínica", "saude", "saúde", "estetica", "estética", "med"]):
+        segmento = "Saúde, Estética & Bem-Estar"
+        exemplo = f"“Olá! Agradecemos de coração a sua avaliação positiva da {nome}. Cuidar do seu bem-estar com segurança e acolhimento é o nosso maior propósito!”"
+    else:
+        exemplo = f"“Olá! Muito obrigado por avaliar a {nome} com 5 estrelas! Trabalhamos diariamente para entregar o melhor atendimento e qualidade. Conte sempre conosco!”"
+
+    score_calc = 88 + (hash(nome) % 8)
+    horas_calc = max(10, int(volume * 0.45))
+    
+    return jsonify({
+        "success": True,
+        "nome": nome,
+        "canal": canal,
+        "canal_label": canal_label,
+        "segmento": segmento,
+        "score": score_calc,
+        "visibilidade_impacto": "+155% no Maps" if canal == "google" else "+38% Conversão",
+        "horas_economizadas": f"{horas_calc}h / mês",
+        "risco_perda_mensal": f"R$ {volume * 45:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        "exemplo_avaliacao": "Atendimento impecável e rápida entrega!",
+        "exemplo_resposta": exemplo
+    })
+
+
 @app.route("/set-lang/<lang>")
 def set_language(lang):
     """Permite ao usuário trocar de idioma manualmente e salva em cookie/sessão."""
@@ -1351,13 +1507,19 @@ def gerar_relatorio():
     # 3. GET: EXIBE A PÁGINA COM AS MÉTRICAS (MESMA LÓGICA DO DASHBOARD)
     # =====================================================================
     if request.method == "GET":
-        # mesmo padrão do dashboard: vem "todas" ou GoogleLocation.id (int)
+        # mesmo padrão do dashboard: vem "todas", GoogleLocation.id ou ifood:<id>
         ficha = request.args.get("ficha", "todas")
 
         # base query
         q = Review.query.filter(Review.user_id == user_id)
 
-        if ficha != "todas":
+        if ficha.startswith("ifood:"):
+            try:
+                ifood_m_id = int(ficha.split("ifood:", 1)[1])
+                avaliacoes_query = q.filter(Review.ifood_merchant_id == ifood_m_id).order_by(Review.date.desc()).all()
+            except Exception:
+                avaliacoes_query = q.order_by(Review.date.desc()).all()
+        elif ficha != "todas":
             try:
                 ficha_id = int(ficha)
 
@@ -1390,6 +1552,14 @@ def gerar_relatorio():
             .all()
         )
 
+        from models import IFoodMerchant
+        ifood_merchants = (
+            IFoodMerchant.query
+            .filter_by(user_id=str(user_id), is_active=True)
+            .order_by(IFoodMerchant.name)
+            .all()
+        )
+
         metrics = calcular_metricas_reviews(avaliacoes_query)
 
         # Monta dados mensais ordenados para os gráficos no front-end
@@ -1417,6 +1587,7 @@ def gerar_relatorio():
             metrics=metrics,
             limite_relatorio_atingido=limite_atingido,
             fichas=fichas,
+            ifood_merchants=ifood_merchants,
             ficha_selecionada=ficha,
             chart_labels=chart_labels,
             chart_values=chart_values,
@@ -2339,13 +2510,28 @@ def reviews():
         .all()
     )
 
+    # Lista de lojas iFood conectadas (se houver)
+    from models import IFoodMerchant
+    ifood_merchants = (
+        IFoodMerchant.query
+        .filter_by(user_id=str(user_id), is_active=True)
+        .order_by(IFoodMerchant.name)
+        .all()
+    )
+
     # -----------------------------
     # 2) BASE QUERY
     # -----------------------------
     q = Review.query.filter(Review.user_id == user_id)
 
-    # Filtro por ficha (GoogleLocation.id -> Review.google_location_id)
-    if ficha_selecionada != "todas":
+    # Filtro por ficha (GoogleLocation ou IFoodMerchant)
+    if ficha_selecionada.startswith("ifood:"):
+        try:
+            ifood_m_id = int(ficha_selecionada.split("ifood:", 1)[1])
+            q = q.filter(Review.ifood_merchant_id == ifood_m_id)
+        except ValueError:
+            ficha_selecionada = "todas"
+    elif ficha_selecionada != "todas":
         try:
             ficha_id = int(ficha_selecionada)
             q = q.filter(Review.google_location_id == ficha_id)
@@ -2375,7 +2561,7 @@ def reviews():
         q = q.filter(Review.rating == int(estrelas))
 
     # Filtro por origem
-    if origem in {"google", "booking"}:
+    if origem in {"google", "booking", "ifood", "mercadolivre"}:
         q = q.filter(Review.source == origem)
 
     # Filtro por status (respondida / pendente)
@@ -2409,6 +2595,7 @@ def reviews():
         user_plano=user_plano,
         user_settings=user_settings,
         fichas=fichas,
+        ifood_merchants=ifood_merchants,
         ficha_selecionada=ficha_selecionada,
     )
 
@@ -3359,8 +3546,12 @@ def aplicar_migracoes():
                         db.session.rollback()
 
             try:
-                # Normaliza avaliações vindas do Google
-                db.session.execute(text("UPDATE reviews SET source = 'google' WHERE (external_id IS NOT NULL OR auto_origin = 'gbp' OR google_location_id IS NOT NULL) AND (source IS NULL OR source = '' OR source = 'booking')"))
+                # Normaliza avaliações antigas sem "source" que vieram do Google.
+                # IMPORTANTE: nunca inclua source = 'booking' aqui — todo review
+                # importado do Booking.com tem external_id preenchido (número da
+                # reserva), então essa normalização reclassificaria avaliações
+                # legítimas do Booking como se fossem do Google.
+                db.session.execute(text("UPDATE reviews SET source = 'google' WHERE (external_id IS NOT NULL OR auto_origin = 'gbp' OR google_location_id IS NOT NULL) AND (source IS NULL OR source = '')"))
                 db.session.commit()
             except Exception:
                 db.session.rollback()
@@ -3403,33 +3594,39 @@ if __name__ == "__main__":
     port = int(os.getenv("FLASK_RUN_PORT", "8000"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
 
-    # --- Inicia o scheduler (cron diário do Google) ---
+    # Inicializacao de Schedulers
     scheduler = BackgroundScheduler(timezone=pytz.timezone("America/Sao_Paulo"))
     scheduler.start()
 
     try:
         from google_auto import register_gbp_cron
         register_gbp_cron(scheduler, app)
-        print("[gbp] ⏰ Job diário do Google registrado com sucesso!")
+        print("[gbp] Job diario do Google registrado.")
     except Exception as e:
         import logging
-        logging.exception(f"[gbp] Falha ao registrar job diário: {e}")
+        logging.exception(f"[gbp] Falha ao registrar job diario: {e}")
 
-    # Fecha o scheduler ao encerrar o app
+    try:
+        from ifood_auto import register_ifood_daily_cron
+        register_ifood_daily_cron(scheduler, app)
+        print("[ifood] Job de sincronizacao iFood registrado.")
+    except Exception as e:
+        import logging
+        logging.exception(f"[ifood] Falha ao registrar job do iFood: {e}")
+
     atexit.register(lambda: scheduler.shutdown(wait=False))
-    # 🚀 JOB DE COBRANÇA: Avisa devedores no dia 1 e 2
+
     try:
         from admin import run_daily_billing_followups
         def job_cobranca():
             with app.app_context():
                 run_daily_billing_followups()
         
-        # Roda todo dia às 09:00 da manhã
         scheduler.add_job(job_cobranca, 'cron', hour=9, minute=0, id='billing_followups')
-        print("[billing] ⏰ Job de cobrança diária ativado!")
+        print("[billing] Job de cobranca diaria registrado.")
     except Exception as e:
         import logging
-        logging.exception(f"[billing] Falha ao registrar job de cobrança: {e}")
-    # --- Executa o servidor Flask ---
-    print(f"🚀 Servidor Flask rodando em http://{host}:{port}")
+        logging.exception(f"[billing] Falha ao registrar job de cobranca: {e}")
+
+    print(f"Servidor Flask iniciado em http://{host}:{port}")
     app.run(host=host, port=port, debug=True)

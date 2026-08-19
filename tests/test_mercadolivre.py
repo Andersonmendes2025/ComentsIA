@@ -26,6 +26,7 @@ from mercadolivre_auto import (
     fetch_account_store_ratings_and_items,
     generate_account_health_ai_report,
     sugerir_resposta_pergunta_ia,
+    formalizar_resposta_ia,
     gerar_pdf_relatorio_mercadolivre,
     analyze_account_health_and_generate_alerts
 )
@@ -273,3 +274,26 @@ def test_conectar_oauth_and_dashboard_flow(app, client):
     html = res_dash.data.decode("utf-8")
     assert "LOJA_OFICIAL_CALCADOS" in html
     assert "Saúde & Performance da Loja" in html or "Saúde" in html
+
+
+def test_formalizar_resposta_ia(app, client):
+    # 1. Teste da função de formalização mantendo a mensagem
+    texto_rascunho = "sim temos em estoque e enviamos hoje mesmo"
+    resposta = formalizar_resposta_ia(texto_rascunho, pergunta_texto="Tem a pronta entrega?")
+    assert "estoque" in resposta.lower()
+    assert len(resposta) > len(texto_rascunho)
+
+    # 2. Teste da rota AJAX /pergunta/formalizar
+    with client.session_transaction() as sess:
+        sess["user_id"] = "test_ml_user"
+        sess["user_info"] = {"id": "test_ml_user", "email": "ml_user@example.com"}
+
+    res = client.post(
+        "/mercadolivre/pergunta/formalizar",
+        json={"texto_usuario": "tem garantia de 1 ano sim", "pergunta": "Tem garantia?"}
+    )
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["success"] is True
+    assert "garantia" in data["resposta_formal"].lower()
+

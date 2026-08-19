@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Automação de Respostas para Google Meu Negócio | ComentsIA{% endblock %}
+
+{% block extra_head %}
+<meta name="description" content="Automatize respostas às avaliações no Google Meu Negócio (Google Business Profile) com IA GPT-4o e Gemini. Melhore seu SEO local e converta mais clientes.">
+<meta name="keywords" content="Google Meu Negócio IA, responder avaliações Google automaticamente, automação Google Business Profile, SEO local, reputação Google Maps">
+
+<!-- JSON-LD SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "ComentsIA - Módulo Google Meu Negócio",
+  "image": "https://comentsia.com.br/static/google-logo.svg",
+  "description": "Automação e gestão inteligente de avaliações no Google Meu Negócio com IA, detecção de idioma e calibragem de tom de voz corporativo.",
+  "brand": {
+    "@type": "Brand",
+    "name": "ComentsIA"
+  },
+  "offers": {
+    "@type": "Offer",
+    "url": "https://comentsia.com.br/planos",
+    "priceCurrency": "BRL",
+    "price": "49.90",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 1100px;">
+  
+  <!-- HERO SECTION -->
+  <div class="text-center py-4 mb-5">
+    <div class="d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill bg-primary-subtle text-primary fw-bold small mb-3">
+      <img src="{{ url_for('static', filename='google-logo.svg') }}" alt="Google" style="width: 18px; height: 18px;">
+      Google Business Profile Partner
+    </div>
+    <h1 class="display-5 fw-bold text-dark mb-3">
+      Responda 100% das Avaliações no Google Maps em Segundos com Inteligência Artificial
+    </h1>
+    <p class="lead text-muted mx-auto" style="max-width: 760px;">
+      O ComentsIA conecta-se via API oficial do Google para monitorar comentários, gerar respostas humanizadas no tom de voz da sua marca e turbinar o ranqueamento do seu SEO local.
+    </p>
+    <div class="d-flex justify-content-center gap-3 mt-4">
+      <a href="{{ url_for('authorize') }}" class="btn btn-primary btn-lg rounded-pill px-4 fw-bold shadow-sm">
+        <i class="bi bi-google me-2"></i> Conectar Ficha Grátis
+      </a>
+      <a href="{{ url_for('planos') }}" class="btn btn-outline-dark btn-lg rounded-pill px-4 fw-bold">
+        Ver Planos
+      </a>
+    </div>
+  </div>
+
+  <!-- BENEFÍCIOS PRINCIPAIS -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-success-subtle text-success d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-graph-up-arrow fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Suba no Ranking Local (SEO)</h3>
+        <p class="text-muted small mb-0">
+          O algoritmo do Google prioriza empresas que respondem rapidamente a 100% das avaliações com palavras-chave relevantes.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-primary-subtle text-primary d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-translate fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Multilíngue Automático</h3>
+        <p class="text-muted small mb-0">
+          Seu cliente avaliou em inglês, espanhol, francês ou alemão? O ComentsIA detecta o idioma e responde perfeitamente na língua nativa do turista.
+        </p>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100 p-4 border-0 shadow-sm rounded-4 bg-white">
+        <div class="p-3 rounded-circle bg-warning-subtle text-warning d-inline-flex mb-3" style="width: 54px; height: 54px; align-items: center; justify-content: center;">
+          <i class="bi bi-shield-check fs-4"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-2">Proteção Contra Crises</h3>
+        <p class="text-muted small mb-0">
+          Respostas empáticas e calibradas para avaliações negativas (1 a 3 estrelas), revertendo insatisfações antes que afetem suas vendas.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMO FUNCIONA -->
+  <div class="card border-0 shadow-sm rounded-4 p-5 bg-white mb-5">
+    <h2 class="h3 fw-bold text-center text-dark mb-4">Como Funciona em 3 Passos Simples</h2>
+    <div class="row text-center g-4">
+      <div class="col-md-4">
+        <div class="h1 fw-bold text-primary mb-2">1</div>
+        <h4 class="h6 fw-bold text-dark">Conexão Oficial</h4>
+        <p class="text-muted small">Faça login com a conta Google que gerencia suas fichas.</p>
+      </div>
+      <div class="col-md-4">
+        <div class="h1 fw-bold text-primary mb-2">2</div>
+        <h4 class="h6 fw-bold text-dark">Calibre o Tom de Voz</h4>
+        <p class="text-muted small">Escolha entre Profissional, Amigável, Empático, Direto ou Luxo.</p>
+      </div>
+      <div class="col-md-4">
+        <div class="h1 fw-bold text-primary mb-2">3</div>
+        <h4 class="h6 fw-bold text-dark">Piloto Automático</h4>
+        <p class="text-muted small">Suas novas avaliações recebem respostas instantâneas 24 horas por dia.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ ESPECÍFICO -->
+  <div class="mb-5">
+    <h2 class="h4 fw-bold text-dark mb-3">Perguntas Frequentes sobre Google Meu Negócio</h2>
+    <div class="accordion" id="faqGoogle">
+      <div class="accordion-item border-0 shadow-sm rounded-3 mb-2">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed fw-bold rounded-3" type="button" data-bs-toggle="collapse" data-bs-target="#f1">
+            O Google permite respostas automáticas com IA?
+          </button>
+        </h2>
+        <div id="f1" class="accordion-collapse collapse" data-bs-parent="#faqGoogle">
+          <div class="accordion-body text-muted small">
+            Sim! O ComentsIA utiliza a API oficial Google Business Profile. O Google incentiva que empresas respondam com agilidade e contexto humanizado.
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item border-0 shadow-sm rounded-3 mb-2">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed fw-bold rounded-3" type="button" data-bs-toggle="collapse" data-bs-target="#f2">
+            Posso gerenciar mais de uma filial ou unidade?
+          </button>
+        </h2>
+        <div id="f2" class="accordion-collapse collapse" data-bs-parent="#faqGoogle">
+          <div class="accordion-body text-muted small">
+            Com certeza. O ComentsIA suporta multi-fichas com visão consolidada ou individualizada para cada filial da sua rede.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="p-5 rounded-4 text-center text-white" style="background: linear-gradient(135deg, #1a73e8 0%, #4f46e5 100%);">
+    <h2 class="h3 fw-bold mb-2">Pronto para dominar as buscas locais no Google?</h2>
+    <p class="mb-4 opacity-75">Comece hoje mesmo a transformar avaliações em novas vendas.</p>
+    <a href="{{ url_for('authorize') }}" class="btn btn-light btn-lg rounded-pill px-5 fw-bold text-primary shadow">
+      Experimentar Gratuitamente
+    </a>
+  </div>
+
+</div>
+{% endblock %}

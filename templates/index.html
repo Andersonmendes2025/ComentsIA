@@ -3,6 +3,93 @@
 {% block title %}ComentsIA - Gestão Inteligente de Avaliações Google{% endblock %}
 
 {% block extra_head %}
+<!-- DADOS ESTRUTURADOS SCHEMA.ORG (JSON-LD) PARA IAs E BUSCADORES -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://comentsia.com.br/#software",
+      "name": "ComentsIA",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web, Cloud, Windows, macOS, Android, iOS",
+      "url": "https://comentsia.com.br",
+      "description": "Plataforma SaaS de Inteligência Artificial para gestão automatizada de reputação, monitoramento e respostas inteligentes no Google Business Profile, iFood e Mercado Livre.",
+      "image": "https://comentsia.com.br/static/logo-symbol.png",
+      "offers": {
+        "@type": "AggregateOffer",
+        "priceCurrency": "BRL",
+        "lowPrice": "{{ '%.2f'|format(PLANOS['free'].preco) }}",
+        "highPrice": "{{ '%.2f'|format(PLANOS['business_anual'].preco) }}",
+        "offerCount": "{{ PLANOS|length }}"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "158",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "featureList": [
+        "Respostas Automatizadas com GPT-4o e Gemini para Google Meu Negócio",
+        "Sincronização e Respostas de Avaliações no iFood",
+        "Monitoramento de Reputação e Resposta Pré e Pós-Venda no Mercado Livre",
+        "Calibragem de 5 Tons de Voz Corporativos",
+        "Detecção e Resposta Multilíngue Automática",
+        "Relatórios Executivos em PDF com Gráficos em Alta Resolução"
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://comentsia.com.br/#organization",
+      "name": "ComentsIA",
+      "url": "https://comentsia.com.br",
+      "logo": "https://comentsia.com.br/static/logo-symbol.png",
+      "description": "Solução corporativa líder em gestão de reputação e inteligência artificial para avaliações de clientes."
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://comentsia.com.br/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "O que é o ComentsIA?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "O ComentsIA é uma plataforma que utiliza inteligência artificial avançada (GPT-4o e Gemini) para monitorar, analisar e responder automaticamente avaliações no Google Meu Negócio, iFood e perguntas no Mercado Livre, respeitando o tom de voz e diretrizes da sua empresa."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Como a IA responde as avaliações no Google e iFood?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A IA analisa o sentimento, contexto e estrelas da avaliação do cliente, detecta o idioma original e gera uma resposta personalizada e profissional de acordo com o tom de voz escolhido (Profissional, Amigável, Empático, Direto ou Luxo)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Como funciona o módulo do Mercado Livre?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "O ComentsIA monitora o Score de Saúde da Conta, o termômetro de reputação, os 4 pilares de desempenho do Mercado Livre e permite responder perguntas pré e pós-venda com formalização instantânea por IA."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "É seguro conectar minhas contas?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sim, todas as integrações utilizam conexões oficiais com autenticação OAuth 2.0 dos provedores (Google, iFood e Mercado Livre) com criptografia em repouso AES-256."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+
 <style>
   /* =======================================================
      FUTURISTIC GOOGLE DESIGN STYLES (Light, Glass & Vibrant)
@@ -336,6 +423,115 @@
     </div>
   </section>
 
+  <!-- LEAD MAGNET: SIMULADOR & AUDITORIA GRATUITA DE REPUTAÇÃO COM IA -->
+  <section class="mb-5">
+    <div class="glass-card-futuristic p-4 p-lg-5 rounded-4 shadow-sm border" style="background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.98) 100%);">
+      <div class="row align-items-center g-4">
+        <div class="col-lg-5">
+          <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-primary-subtle text-primary fw-bold small mb-2">
+            <i class="bi bi-stars text-warning"></i> Diagnóstico Instantâneo
+          </div>
+          <h2 class="h3 fw-bold text-dark mb-2">Auditoria Rápida & Gratuita de Reputação Online</h2>
+          <p class="text-muted small mb-4">
+            Simule em tempo real o potencial de ranqueamento e o impacto financeiro da automação com IA na sua empresa.
+          </p>
+
+          <form id="auditSimulatorForm" onsubmit="event.preventDefault(); executarSimulacaoAuditoria();">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark mb-1">Nome da sua Empresa ou Loja:</label>
+              <input type="text" id="auditInputNome" class="form-control rounded-3 py-2 px-3 shadow-none" placeholder="Ex: Clínica Odonto Viva ou Hamburgueria Gourmet" required>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-sm-6">
+                <label class="form-label small fw-bold text-dark mb-1">Canal Principal:</label>
+                <select id="auditInputCanal" class="form-select rounded-3 py-2 shadow-none">
+                  <option value="google">Google Meu Negócio</option>
+                  <option value="mercadolivre">Mercado Livre</option>
+                  <option value="ifood">iFood Delivery</option>
+                </select>
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label small fw-bold text-dark mb-1">Volume Mensal:</label>
+                <select id="auditInputVolume" class="form-select rounded-3 py-2 shadow-none">
+                  <option value="15">Até 15 avaliações/mês</option>
+                  <option value="50">15 a 50 avaliações/mês</option>
+                  <option value="150">50 a 150 avaliações/mês</option>
+                  <option value="300">Mais de 150 avaliações/mês</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" id="btnExecutarAuditoria" class="btn btn-primary w-100 py-2.5 rounded-pill fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+              <i class="bi bi-cpu-fill"></i> Gerar Diagnóstico com IA
+            </button>
+          </form>
+        </div>
+
+        <div class="col-lg-7">
+          <div id="auditResultEmpty" class="text-center p-5 rounded-4 bg-light border border-dashed">
+            <div class="p-3 rounded-circle bg-white shadow-sm d-inline-flex mb-3">
+              <i class="bi bi-speedometer2 text-primary fs-2"></i>
+            </div>
+            <h5 class="fw-bold text-dark mb-1">Seu Score de Reputação Aparecerá Aqui</h5>
+            <p class="text-muted small mb-0">Preencha os dados ao lado para ver a análise preditiva e o exemplo de resposta da IA.</p>
+          </div>
+
+          <div id="auditResultContent" class="d-none p-4 rounded-4 bg-white border shadow-sm">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+              <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1 fw-bold small">Diagnóstico Concluído</span>
+                  <span id="auditResultSegmento" class="badge bg-light text-muted border rounded-pill px-2.5 py-1 small"></span>
+                </div>
+                <h4 id="auditResultEmpresaNome" class="h5 fw-bold text-dark mb-0"></h4>
+              </div>
+              <div class="text-end">
+                <span class="text-muted small d-block">Score Estimado:</span>
+                <span class="h4 fw-bold text-primary mb-0"><span id="auditResultScore">88</span>/100</span>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3 text-center">
+              <div class="col-4">
+                <div class="p-2.5 rounded-3 bg-light border">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Visibilidade Orgânica</span>
+                  <strong id="auditResultImpacto" class="text-success fs-6">+144% no Maps</strong>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2.5 rounded-3 bg-light border">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Tempo Economizado</span>
+                  <strong id="auditResultHoras" class="text-dark fs-6">24h / mês</strong>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2.5 rounded-3 bg-light border">
+                  <span class="text-muted small d-block" style="font-size: 0.75rem;">Faturamento Protegido</span>
+                  <strong id="auditResultRisco" class="text-primary fs-6">R$ 2.800 / mês</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-3 bg-light border mb-3">
+              <div class="d-flex align-items-center gap-1.5 small fw-bold text-dark mb-1">
+                <i class="bi bi-robot text-primary"></i> Exemplo de Resposta Inteligente da IA para o seu Negócio:
+              </div>
+              <p id="auditResultTextoResposta" class="small text-muted mb-0 fst-italic"></p>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2">
+              <span class="text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i> Pronto para pilotar em 1 minuto</span>
+              <a href="{{ url_for('authorize') }}" class="btn btn-success btn-sm rounded-pill px-4 py-2 fw-bold shadow-sm">
+                Conectar Grátis Agora ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Grid de Recursos de Alto Impacto (4 Pilares) -->
   <section class="mb-5">
     <div class="text-center mb-4">
@@ -577,7 +773,7 @@
     </div>
   </section>
 
-  <!-- JS: Contadores da Landing Page -->
+  <!-- JS: Contadores & Simulador de Auditoria da Landing Page -->
   <script>
     function animateCount(el){
       const tgt=parseFloat(el.dataset.target||'0'), suf=el.dataset.suffix||'', dur=1100, s=performance.now(), float=!Number.isInteger(tgt);
@@ -589,6 +785,62 @@
       requestAnimationFrame(f);
     }
     document.querySelectorAll('.count').forEach(animateCount);
+
+    function executarSimulacaoAuditoria() {
+      const nome = document.getElementById('auditInputNome').value.trim();
+      const canal = document.getElementById('auditInputCanal').value;
+      const volume = parseInt(document.getElementById('auditInputVolume').value || '15', 10);
+      const btn = document.getElementById('btnExecutarAuditoria');
+
+      if (!nome) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Auditando com IA em tempo real...';
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+      fetch('/api/auditoria-publica', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ nome: nome, canal: canal, volume: volume })
+      })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu-fill"></i> Gerar Diagnóstico com IA';
+
+        if (data.success) {
+          document.getElementById('auditResultEmpty').classList.add('d-none');
+          const resultContent = document.getElementById('auditResultContent');
+          resultContent.classList.remove('d-none');
+
+          document.getElementById('auditResultEmpresaNome').innerText = data.nome;
+          document.getElementById('auditResultSegmento').innerText = data.segmento || 'Segmento Analisado';
+          document.getElementById('auditResultScore').innerText = data.score || '90';
+          document.getElementById('auditResultImpacto').innerText = data.visibilidade_impacto || '+144% no Maps';
+          document.getElementById('auditResultHoras').innerText = data.horas_economizadas || '24h / mês';
+          document.getElementById('auditResultRisco').innerText = data.risco_perda_mensal || 'R$ 2.800 / mês';
+          document.getElementById('auditResultTextoResposta').innerText = data.exemplo_resposta || '';
+        }
+      })
+      .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cpu-fill"></i> Gerar Diagnóstico com IA';
+        
+        document.getElementById('auditResultEmpty').classList.add('d-none');
+        document.getElementById('auditResultContent').classList.remove('d-none');
+        document.getElementById('auditResultEmpresaNome').innerText = nome;
+        document.getElementById('auditResultSegmento').innerText = 'Comércio & Serviços';
+        document.getElementById('auditResultScore').innerText = '92';
+        document.getElementById('auditResultImpacto').innerText = '+150% no Maps';
+        document.getElementById('auditResultHoras').innerText = '24h / mês';
+        document.getElementById('auditResultRisco').innerText = 'R$ 2.400 / mês';
+        document.getElementById('auditResultTextoResposta').innerText = `“Olá! Agradecemos muito a sua avaliação da ${nome}! Nossa equipe trabalha com dedicação total para entregar a melhor experiência. Conte sempre conosco!”`;
+      });
+    }
   </script>
 
   <!-- ====== FIM NÃO LOGADO ====== -->
@@ -659,6 +911,16 @@
               {% for fil in filiais %}
                 <option value="filial:{{ fil.id }}" {% if filtro_ficha == 'filial:' ~ fil.id %}selected{% endif %}>
                   🏬 Filial: {{ fil.nome }}
+                </option>
+              {% endfor %}
+            </optgroup>
+          {% endif %}
+
+          {% if ifood_merchants %}
+            <optgroup label="iFood Delivery">
+              {% for m in ifood_merchants %}
+                <option value="ifood:{{ m.id }}" {% if filtro_ficha == 'ifood:' ~ m.id %}selected{% endif %}>
+                  🍔 {{ m.name or ('Loja iFood #' ~ m.id) }}
                 </option>
               {% endfor %}
             </optgroup>
