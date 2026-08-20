@@ -62,6 +62,28 @@ ML_AUTH_URL = "https://auth.mercadolivre.com.br/authorization"
 ML_TOKEN_URL = f"{ML_API_BASE}/oauth/token"
 
 
+def usuario_tem_addon_mercadolivre(user_id: str) -> bool:
+    """
+    Verifica se o usuário tem acesso ao módulo Mercado Livre. O plano do Google
+    (Free/Pro/Business) NÃO libera o Mercado Livre — é sempre um add-on pago à
+    parte (R$29,90/mês), independente do plano contratado.
+    """
+    if not user_id:
+        return False
+    try:
+        from models import User, UserSettings
+        user = User.query.filter_by(id=str(user_id)).first()
+        if user and getattr(user, "is_admin", False):
+            return True
+        settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+        if settings and getattr(settings, "has_addon_mercadolivre", False):
+            return True
+        return False
+    except Exception:
+        logger.exception("[ML] Falha ao verificar addon do Mercado Livre para user_id=%s", user_id)
+        return False
+
+
 def seguro_latin1(texto: str) -> str:
     """Sanitiza strings para impressão segura em PDFs com FPDF2."""
     if not isinstance(texto, str):
@@ -1559,6 +1581,10 @@ def dashboard():
         flash("Faça login para acessar o módulo do Mercado Livre.", "warning")
         return redirect(url_for("login"))
 
+    if not usuario_tem_addon_mercadolivre(user_id):
+        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para acessar este módulo.", "warning")
+        return redirect(url_for("integracoes"))
+
     accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id)).all()
     selected_account_id = request.args.get("account_id", type=int)
     
@@ -1599,6 +1625,10 @@ def conectar_publico():
 def sincronizar_conta(account_id: int):
     """Sincroniza todos os dados e métricas em tempo real da conta."""
     user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
+    if not usuario_tem_addon_mercadolivre(user_id):
+        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para sincronizar esta conta.", "warning")
+        return redirect(url_for("integracoes"))
+
     account = MercadoLivreAccount.query.filter_by(id=account_id, user_id=str(user_id)).first_or_404()
 
     try:
@@ -1808,6 +1838,10 @@ def conectar_oauth():
     if not user_id:
         flash("Faça login para conectar sua conta.", "warning")
         return redirect(url_for("login"))
+
+    if not usuario_tem_addon_mercadolivre(user_id):
+        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para conectar uma conta.", "warning")
+        return redirect(url_for("integracoes"))
 
     client_id, _, redirect_uri = get_ml_credentials()
     if not client_id:

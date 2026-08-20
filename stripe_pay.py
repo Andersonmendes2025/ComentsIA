@@ -13,6 +13,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_ADDON_PRICE_ID = os.getenv("STRIPE_ADDON_PRICE_ID", "price_SEU_ID_AQUI")
 STRIPE_PRICE_ADDON_IFOOD = os.getenv("STRIPE_PRICE_ADDON_IFOOD", "price_1U4qebHdM7mYgSGKImuFU85G")
 STRIPE_PROD_ADDON_IFOOD = os.getenv("STRIPE_PROD_ADDON_IFOOD", "prod_V50fovspMA5NmF")
+STRIPE_PRICE_ADDON_MERCADOLIVRE = os.getenv("STRIPE_PRICE_ADDON_MERCADOLIVRE", "price_1U6JcmHdM7mYgSGKhx3gi9ha")
+STRIPE_PROD_ADDON_MERCADOLIVRE = os.getenv("STRIPE_PROD_ADDON_MERCADOLIVRE", "prod_V6WgBfKchC5hek")
 
 stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
 
@@ -235,7 +237,6 @@ def checkout_addon_ifood():
         db.session.commit()
 
     customer_id = _get_or_create_stripe_customer(settings, email)
-    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") or STRIPE_PRICE_ADDON_IFOOD
     domain = _get_domain_url()
 
     try:
@@ -243,8 +244,8 @@ def checkout_addon_ifood():
             payment_method_types=["card"],
             mode="subscription",
             customer=customer_id,
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=f"{domain}/integracoes?status=addon_ifood_success&session_id={{CHECKOUT_SESSION_ID}}",
+            line_items=[{"price": STRIPE_PRICE_ADDON_IFOOD, "quantity": 1}],
+            success_url=f"{domain}/stripe/addon/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{domain}/integracoes?status=addon_ifood_cancel",
             metadata={
                 "type": "addon_ifood",
@@ -257,6 +258,26 @@ def checkout_addon_ifood():
         logging.exception("Erro ao criar checkout Stripe para addon iFood: %s", e)
         flash(f"Erro ao iniciar pagamento com Stripe: {str(e)}", "danger")
         return redirect("/integracoes")
+
+
+@stripe_bp.route("/addon/ifood/cancel", methods=["POST"])
+def cancelar_addon_ifood():
+    """Cancela o add-on do iFood ao final do período já pago (mantém acesso até lá)."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não logado"}), 401
+
+    settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+    if not settings or not settings.addon_ifood_subscription_id:
+        return jsonify({"success": False, "error": "Nenhum add-on do iFood ativo."}), 400
+
+    try:
+        stripe.Subscription.modify(settings.addon_ifood_subscription_id, cancel_at_period_end=True)
+        return jsonify({"success": True, "message": "Add-on do iFood será cancelado ao final do período já pago."})
+    except Exception as e:
+        logging.exception("Erro ao cancelar addon iFood: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @stripe_bp.route("/addon/mercadolivre/checkout", methods=["POST", "GET"])
@@ -277,7 +298,6 @@ def checkout_addon_mercadolivre():
         db.session.commit()
 
     customer_id = _get_or_create_stripe_customer(settings, email)
-    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") or STRIPE_PRICE_ADDON_IFOOD
     domain = _get_domain_url()
 
     try:
@@ -285,8 +305,8 @@ def checkout_addon_mercadolivre():
             payment_method_types=["card"],
             mode="subscription",
             customer=customer_id,
-            line_items=[{"price": price_id, "quantity": 1}],
-            success_url=f"{domain}/mercadolivre/dashboard?status=addon_ml_success&session_id={{CHECKOUT_SESSION_ID}}",
+            line_items=[{"price": STRIPE_PRICE_ADDON_MERCADOLIVRE, "quantity": 1}],
+            success_url=f"{domain}/stripe/addon/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{domain}/integracoes?status=addon_ml_cancel",
             metadata={
                 "type": "addon_mercadolivre",
@@ -299,6 +319,26 @@ def checkout_addon_mercadolivre():
         logging.exception("Erro ao criar checkout Stripe para addon Mercado Livre: %s", e)
         flash(f"Erro ao iniciar pagamento com Stripe: {str(e)}", "danger")
         return redirect("/integracoes")
+
+
+@stripe_bp.route("/addon/mercadolivre/cancel", methods=["POST"])
+def cancelar_addon_mercadolivre():
+    """Cancela o add-on do Mercado Livre ao final do período já pago (mantém acesso até lá)."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id") or user_info.get("email")
+    if not user_id:
+        return jsonify({"success": False, "error": "Usuário não logado"}), 401
+
+    settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+    if not settings or not settings.addon_mercadolivre_subscription_id:
+        return jsonify({"success": False, "error": "Nenhum add-on do Mercado Livre ativo."}), 400
+
+    try:
+        stripe.Subscription.modify(settings.addon_mercadolivre_subscription_id, cancel_at_period_end=True)
+        return jsonify({"success": True, "message": "Add-on do Mercado Livre será cancelado ao final do período já pago."})
+    except Exception as e:
+        logging.exception("Erro ao cancelar addon Mercado Livre: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # -----------------------
@@ -453,6 +493,72 @@ def success():
         return redirect(next_url)
 
 
+@stripe_bp.route("/addon/success")
+def addon_success():
+    """
+    Destino único do checkout dos add-ons (iFood e Mercado Livre). Só ativa o
+    add-on depois de confirmar com a própria Stripe que o pagamento foi
+    concluído — nunca confia em parâmetros de URL sozinhos (isso permitia
+    ativar o add-on de graça só visitando a URL de sucesso manualmente).
+    """
+    session_id = request.args.get("session_id")
+    if not session_id:
+        flash("Sessão de pagamento inválida.", "danger")
+        return redirect(url_for("integracoes"))
+
+    try:
+        checkout = stripe.checkout.Session.retrieve(session_id)
+
+        payment_ok = (
+            checkout.get("payment_status") == "paid"
+            or checkout.get("status") == "complete"
+        )
+        if not payment_ok:
+            logging.warning("[stripe] Tentativa de acesso a /addon/success com checkout não pago: %s", session_id)
+            flash("O pagamento ainda não foi confirmado. Se já finalizou, aguarde alguns instantes.", "warning")
+            return redirect(url_for("integracoes"))
+
+        addon_type = (checkout.get("metadata") or {}).get("type")
+        user_id = (checkout.get("metadata") or {}).get("user_id") or checkout.get("client_reference_id")
+        if not user_id:
+            return redirect(url_for("integracoes"))
+
+        settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+        if not settings:
+            return redirect(url_for("integracoes"))
+
+        subscription_id = checkout.get("subscription")
+        until = None
+        if subscription_id:
+            try:
+                sub = stripe.Subscription.retrieve(subscription_id)
+                until = datetime.utcfromtimestamp(sub.current_period_end)
+            except Exception:
+                pass
+
+        if addon_type == "addon_ifood":
+            settings.has_addon_ifood = True
+            settings.addon_ifood_subscription_id = subscription_id
+            settings.addon_ifood_until = until
+            db.session.commit()
+            flash("🎉 Add-on do iFood ativado com sucesso!", "success")
+        elif addon_type == "addon_mercadolivre":
+            settings.has_addon_mercadolivre = True
+            settings.addon_mercadolivre_subscription_id = subscription_id
+            settings.addon_mercadolivre_until = until
+            db.session.commit()
+            flash("🎉 Add-on do Mercado Livre ativado com sucesso!", "success")
+        else:
+            logging.warning("[stripe] /addon/success com metadata.type desconhecido: %r", addon_type)
+
+        return redirect(url_for("integracoes"))
+
+    except Exception:
+        logging.exception("[stripe] Erro ao processar /addon/success para session_id=%s", session_id)
+        flash("Não foi possível confirmar o pagamento agora. Se o valor foi cobrado, entre em contato com o suporte.", "danger")
+        return redirect(url_for("integracoes"))
+
+
 @stripe_bp.route("/cancel")
 def cancel():
     next_url = _safe_next_url(request.args.get("next"), "/dashboard")
@@ -503,6 +609,7 @@ def stripe_webhook():
                 subs = stripe.Subscription.list(customer=customer_id, status="active")
                 addon_qty = 0
                 has_ifood = False
+                has_ml = False
                 for s in subs.auto_paging_iter():
                     for item in s["items"]["data"]:
                         if item.price.id == STRIPE_ADDON_PRICE_ID:
@@ -514,10 +621,19 @@ def stripe_webhook():
                                 settings.addon_ifood_until = datetime.utcfromtimestamp(s.current_period_end)
                             except Exception:
                                 pass
+                        if item.price.id == STRIPE_PRICE_ADDON_MERCADOLIVRE:
+                            has_ml = True
+                            settings.addon_mercadolivre_subscription_id = s.id
+                            try:
+                                settings.addon_mercadolivre_until = datetime.utcfromtimestamp(s.current_period_end)
+                            except Exception:
+                                pass
 
                 settings.gbp_slots_extras = addon_qty
                 if has_ifood:
                     settings.has_addon_ifood = True
+                if has_ml:
+                    settings.has_addon_mercadolivre = True
                 db.session.commit()
 
     # ❌ Assinatura cancelada (Stripe encerrou mesmo, não é só cancel_at_period_end)
@@ -538,6 +654,13 @@ def stripe_webhook():
         if settings_ifood:
             settings_ifood.has_addon_ifood = False
             settings_ifood.addon_ifood_subscription_id = None
+            db.session.commit()
+
+        # Checa se a assinatura cancelada foi a do Mercado Livre
+        settings_ml = UserSettings.query.filter_by(addon_mercadolivre_subscription_id=sub_id).first()
+        if settings_ml:
+            settings_ml.has_addon_mercadolivre = False
+            settings_ml.addon_mercadolivre_subscription_id = None
             db.session.commit()
     # ❌ Pagamento Falhou (Dispara e-mail Imediato de falha no cartão)
     if event["type"] == "invoice.payment_failed":

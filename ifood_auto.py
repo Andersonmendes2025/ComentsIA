@@ -53,7 +53,9 @@ def get_ifood_credentials(is_distributed: bool = False) -> Tuple[str, str]:
 
 def usuario_tem_addon_ifood(user_id: str) -> bool:
     """
-    Verifica se o usuário tem acesso ao módulo iFood (Add-on ativo, plano Pro/Business ou Admin).
+    Verifica se o usuário tem acesso ao módulo iFood. O plano do Google (Free/Pro/
+    Business) NÃO libera iFood — é sempre um add-on pago à parte (R$29,90/mês),
+    independente do plano contratado.
     """
     if not user_id:
         return False
@@ -63,13 +65,8 @@ def usuario_tem_addon_ifood(user_id: str) -> bool:
         if user and getattr(user, "is_admin", False):
             return True
         settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
-        if settings:
-            if getattr(settings, "has_addon_ifood", False):
-                return True
-            if getattr(settings, "plano", "") in ["business", "ilimitado", "enterprise", "pro"]:
-                return True
-            if getattr(settings, "gbp_slots_extras", 0) > 0:
-                return True
+        if settings and getattr(settings, "has_addon_ifood", False):
+            return True
         return False
     except Exception:
         return False
@@ -266,7 +263,7 @@ def generate_ifood_ai_reply(merchant: IFoodMerchant, stars: int, review_text: st
     """
     try:
         from main import client as openai_client
-        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
+        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions, limpar_resposta_ia
 
         clean_text = limpar_texto_review(review_text)
         store_name = merchant.name or "Nosso Restaurante"
@@ -283,7 +280,7 @@ def generate_ifood_ai_reply(merchant: IFoodMerchant, stars: int, review_text: st
 Avaliação recebida no iFood:
 - Cliente: {reviewer_name or 'Cliente iFood'}
 - Nota: {stars} de 5 estrelas
-- Comentário do Cliente: "{clean_text}"
+- Comentário do Cliente: {clean_text}
 
 DIRETRIZES DE RESPOSTA NO IFOOD:
 {prompt_lang_rule}
@@ -294,9 +291,10 @@ DIRETRIZES DE RESPOSTA NO IFOOD:
 - Se a avaliação for POSITIVA (4 ou 5 estrelas): Agradeça calorosamente pela preferência, celebre o carinho com a comida/preparo e convide para pedir novamente em breve!
 - Se a avaliação for CRÍTICA ou NEGATIVA (1 a 3 estrelas): Acolha o feedback com extrema educação e humildade, lamente profundamente que a experiência com o pedido não tenha sido perfeita e reforce o compromisso da cozinha/equipe em aprimorar.
 - Nunca dê desculpas genéricas ou culpe o entregador.
-- Comece com "{greeting} {reviewer_name}," (se houver nome) ou "{greeting},"
-- Encerre com uma despedida calorosa e a assinatura "{closing} {store_name}".
+- Comece com: {greeting} {reviewer_name}, (se houver nome) ou {greeting},
+- Encerre com uma despedida calorosa e a assinatura: {closing} {store_name}
 - Tamanho: 2 a 4 frases bem escritas, naturais e humanizadas.
+- FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela entre aspas duplas ("") ou simples (''). Não use blocos de código markdown.
 """
         if contexto:
             prompt += f"\n🚨 CONTEXTO E INSTRUÇÕES ESPECÍFICAS DA LOJA: {contexto}\n"
@@ -310,7 +308,7 @@ DIRETRIZES DE RESPOSTA NO IFOOD:
             temperature=0.7,
             max_tokens=350,
         )
-        return cp.choices[0].message.content.strip()
+        return limpar_resposta_ia(cp.choices[0].message.content or "")
     except Exception as e:
         logger.exception("Erro ao gerar resposta com IA para iFood: %s", e)
         # Fallback elegante caso a API de IA tenha instabilidade
@@ -348,6 +346,9 @@ def sync_merchant_reviews(merchant_db_id: int, auto_reply: bool = True) -> Dict[
     merchant = IFoodMerchant.query.get(merchant_db_id)
     if not merchant or not merchant.is_active:
         return {"success": False, "error": "Loja iFood inativa ou não encontrada."}
+
+    if not usuario_tem_addon_ifood(merchant.user_id):
+        return {"success": False, "error": "addon_required", "message": "Add-on do iFood inativo para este usuário."}
 
     token = get_valid_merchant_token(merchant)
     url = f"{IFOOD_REVIEW_URL}/merchants/{merchant.merchant_id}/reviews"
@@ -910,6 +911,10 @@ def ver_loja_ifood(merchant_db_id: int):
         flash("Loja iFood não encontrada ou não pertence à sua conta.", "danger")
         return redirect(url_for("integracoes"))
 
+    if not usuario_tem_addon_ifood(user_id):
+        flash("Assine o Add-on do iFood (R$ 29,90/mês) para acessar esta loja.", "warning")
+        return redirect(url_for("integracoes"))
+
     metricas = calcular_metricas_loja_ifood(merchant)
     reviews_recentes = Review.query.filter_by(ifood_merchant_id=merchant.id).order_by(Review.date.desc()).limit(15).all()
 
@@ -1049,18 +1054,18 @@ def register_ifood_daily_cron(scheduler, app):
         run_ifood_daily_sync(app)
 
     scheduler.add_job(
-        job_wrapper,
-        'cron',
+        id='ifood_daily_sync',
+        func=job_wrapper,
+        trigger='cron',
         hour=8,
         minute=30,
-        id='ifood_daily_sync',
         replace_existing=True
     )
 
     scheduler.add_job(
-        job_wrapper,
-        'interval',
-        hours=2,
         id='ifood_interval_sync',
+        func=job_wrapper,
+        trigger='interval',
+        hours=2,
         replace_existing=True
     )

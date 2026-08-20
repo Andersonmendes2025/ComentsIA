@@ -176,6 +176,11 @@ class UserSettings(db.Model):
     addon_ifood_subscription_id = db.Column(db.String(255), nullable=True)
     addon_ifood_until = db.Column(db.DateTime, nullable=True)
 
+    # Add-on Mercado Livre (R$ 29,90/mês)
+    has_addon_mercadolivre = db.Column(db.Boolean, default=False)
+    addon_mercadolivre_subscription_id = db.Column(db.String(255), nullable=True)
+    addon_mercadolivre_until = db.Column(db.DateTime, nullable=True)
+
     # Tour de onboarding — marca True após o usuário concluir ou pular o tour
     onboarding_done = db.Column(db.Boolean, default=False)
 

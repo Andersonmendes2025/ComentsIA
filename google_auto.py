@@ -891,7 +891,7 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
     try:
         from main import client as openai_client
         from main import get_user_settings
-        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
+        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions, limpar_resposta_ia
 
         settings = get_user_settings(user_id)
         clean_text = limpar_texto_review(text)
@@ -926,19 +926,28 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
 Avaliação recebida:
 - Nome: {reviewer_name}
 - Nota: {stars} estrelas
-- Comentário Original: "{clean_text}"
+- Comentário Original: {clean_text}
 
 REGRAS ESTRITAS DE RESPOSTA:
 {prompt_lang_rule}
 
 2. {tone_inst}
+"""
+        rule_num = 3
+        if greeting:
+            prompt += f"{rule_num}. SAUDAÇÃO: Comece a mensagem com: {greeting} {reviewer_name},\n"
+            rule_num += 1
+        if closing:
+            prompt += f"{rule_num}. DESPEDIDA: Finalize com a frase: {closing}\n"
+            rule_num += 1
+        if contact_info:
+            prompt += f"{rule_num}. CONTATO: Inclua a informação: {contact_info}\n"
+            rule_num += 1
 
-3. SAUDAÇÃO: Comece com "{greeting} {reviewer_name},"
-4. DESPEDIDA: Finalize com "{closing}"
-5. CONTATO: "{contact_info}"
-6. ASSINATURA EXATA:
+        prompt += f"""{rule_num}. ASSINATURA EXATA:
 {assinatura}
-7. TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas. Nunca use a palavra "Atenciosamente".
+{rule_num+1}. TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas. Nunca use a palavra "Atenciosamente".
+{rule_num+2}. FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela (saudação, despedida, contato ou assinatura) entre aspas duplas ("") ou simples (''). Não use blocos de código ou markdown. Entregue apenas o texto corrido e pronto para publicação direta.
 """
         if is_hiper_enabled:
             prompt += "\n\n🚨 MODO HIPER COMPREENSIVO: Ignore a regra de tamanho e escreva de 8 a 15 frases com escuta ativa profunda e empatia total."
@@ -950,7 +959,7 @@ REGRAS ESTRITAS DE RESPOSTA:
                 {"role": "user", "content": prompt},
             ],
         )
-        return (cp.choices[0].message.content or "").strip()
+        return limpar_resposta_ia(cp.choices[0].message.content or "")
     except Exception:
         logging.exception("[gbp] Falha na geração da resposta com IA")
         return "Obrigado pelo seu feedback! Estamos sempre à disposição."
@@ -1709,14 +1718,13 @@ def run_sync_for_user(user_id: str) -> int:
 
     tz_brt = pytz.timezone("America/Sao_Paulo")
     agora = datetime.now(tz_brt)
-    inicio_dia = agora.replace(hour=0, minute=0, second=0, microsecond=0)
 
     total_processadas = 0
 
     for loc in all_locations:
-        account_ref = loc.get("account_name")      
-        location_ref = loc.get("location_name")    
-        location_id = _extract_id(location_ref)    
+        account_ref = loc.get("account_name")
+        location_ref = loc.get("location_name")
+        location_id = _extract_id(location_ref)
 
         if not account_ref or not location_id:
             continue
@@ -1768,13 +1776,19 @@ def run_sync_for_user(user_id: str) -> int:
             if not precisa_responder:
                 continue
 
+            # Janela de segurança: só ignora avaliações realmente antigas (edição
+            # ou republicação fora da janela normal de sincronização). Antes disso
+            # comparava com "meia-noite de hoje", o que fazia qualquer avaliação
+            # chegada depois do horário do cron nunca mais ser respondida (no dia
+            # seguinte ela já contava como "de ontem" e era pulada para sempre).
             data_referencia = r.get("updateTime") or r.get("createTime")
             if data_referencia:
                 try:
                     dt_utc = datetime.fromisoformat(data_referencia.replace("Z", "+00:00"))
                     dt_brt = dt_utc.astimezone(tz_brt)
-                    
-                    if dt_brt < inicio_dia:
+                    limite_seguranca = agora - timedelta(hours=48)
+
+                    if dt_brt < limite_seguranca:
                         continue
                 except Exception:
                     pass
@@ -1804,10 +1818,10 @@ def run_sync_for_user(user_id: str) -> int:
             ok = _publish_reply(
                 creds=creds,
                 account_ref=account_ref,
-                location_ref=location_id,   
+                location_ref=location_id,
                 review_id=rid,
                 reply_text=reply,
-                user_id_for_fallback=user_id,  
+                user_id_for_fallback=user_id,
             )
 
             if ok:

@@ -1,15 +1,12 @@
 import logging
-from main import create_app # 👈 Assume que sua função de inicialização da app está em main.py
-from google_auto import run_sync_for_user # 👈 Importa a função de sincronização
+from main import app # main.py não define create_app(); a instância já pronta é "app"
+from google_auto import run_sync_last_48h # janela de 48h evita perder avaliações postadas fora do horário exato do cron
 
 # Importa os modelos (necessário para consultas dentro do contexto)
 from models import UserSettings # 👈 Assumindo que UserSettings está em models.py
 
 # 1. Configurações básicas (Opcional, mas útil para o log do Cron Job)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
-
-# 2. Inicializa a aplicação Flask (sem iniciar o servidor)
-app = create_app()
 
 print("\n[CRON] ⚡ Iniciando Cron Job do Render...")
 
@@ -24,14 +21,17 @@ with app.app_context():
         total_geral = 0
         for s in enabled_users:
             logging.info(f"[CRON] ▶️ Rodando sync para user_id={s.user_id}")
-            
-            # CHAMA A FUNÇÃO DE SINCRONIZAÇÃO DIÁRIA
-            # Nota: run_sync_for_user sincroniza APENAS o dia atual (do 00:00 BRT)
-            total_processadas = run_sync_for_user(s.user_id) 
-            
-            logging.info(f"[CRON] ✅ {s.user_id}: {total_processadas} avaliações processadas.")
-            total_geral += total_processadas
-            
+
+            try:
+                # Janela de 48h: pega qualquer avaliação postada desde a última
+                # execução, mesmo que o cron tenha atrasado ou o dia tenha virado.
+                total_processadas = run_sync_last_48h(s.user_id)
+                logging.info(f"[CRON] ✅ {s.user_id}: {total_processadas} avaliações processadas.")
+                total_geral += total_processadas
+            except Exception:
+                # Uma conta com erro nao pode travar a sincronizacao dos demais clientes.
+                logging.exception(f"[CRON] 💥 Falha ao sincronizar user_id={s.user_id}. Pulando para o próximo.")
+
         logging.info(f"[CRON] ✅ Job diário concluído com sucesso. Total: {total_geral}")
 
     except Exception:

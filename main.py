@@ -198,18 +198,45 @@ def _unauth():
 db.init_app(app)
 migrate = Migrate(app, db)
 
-scheduler = BackgroundScheduler()
-scheduler.start()
-
 app.register_blueprint(google_auto_bp)
 # 👉 depois registra os blueprints
 app.register_blueprint(admin_bp)
 scheduler = APScheduler()
 scheduler.init_app(app)
 
-
-
+# IMPORTANTE: estes registros ficam aqui (nível de módulo) e não dentro de
+# `if __name__ == "__main__":` porque em produção o Render roda `gunicorn
+# main:app`, que importa este módulo sem nunca executar esse bloco — qualquer
+# job registrado só dentro dele nunca existe em produção.
 register_gbp_cron(scheduler, app)
+
+try:
+    from ifood_auto import register_ifood_daily_cron
+    register_ifood_daily_cron(scheduler, app)
+except Exception:
+    logging.exception("[ifood] Falha ao registrar job diário do iFood")
+
+try:
+    from admin import run_daily_billing_followups
+
+    def _job_cobranca_diaria():
+        with app.app_context():
+            run_daily_billing_followups()
+
+    scheduler.add_job(
+        id="billing_followups",
+        func=_job_cobranca_diaria,
+        trigger="cron",
+        hour=9,
+        minute=0,
+        replace_existing=True,
+    )
+except Exception:
+    logging.exception("[billing] Falha ao registrar job de cobrança diária")
+
+# init_app() só carrega a config e os jobs — NÃO inicia a thread do scheduler.
+# Sem este start(), os jobs diários ficam registrados mas nunca disparam.
+scheduler.start()
 # 👉 só então roda o seed (dentro do app_context)
 from sqlalchemy import inspect
 
@@ -465,9 +492,12 @@ limiter = Limiter(
 def agora_brt():
     return datetime.now(pytz.timezone("America/Sao_Paulo"))
 
-from stripe_pay import stripe_bp
+from stripe_pay import stripe_bp, stripe_webhook
 app.register_blueprint(stripe_bp)
-# 🔐 Isenta o webhook do Stripe do CSRF global — a segurança é feita pela assinatura Stripe-Signature
+# 🔐 Isenta o webhook do Stripe do CSRF global — a segurança é feita pela assinatura Stripe-Signature.
+# Sem isso, toda chamada real da Stripe (renovação, cancelamento, falha de pagamento) é rejeitada
+# com "CSRF token missing" antes mesmo de chegar na validação da assinatura.
+csrf.exempt(stripe_webhook)
 from routes_ajuda import support_chat, onboarding_done
 csrf.exempt(support_chat)
 csrf.exempt(onboarding_done)
@@ -1426,6 +1456,8 @@ def integracoes():
 
     settings = get_user_settings(user_id)
     has_ifood_addon = usuario_tem_addon_ifood(user_id)
+    from mercadolivre_auto import usuario_tem_addon_mercadolivre
+    has_ml_addon = usuario_tem_addon_mercadolivre(user_id)
 
     # Busca lojas iFood, Google e Mercado Livre do usuário
     from models import IFoodMerchant, GoogleLocation
@@ -1434,23 +1466,18 @@ def integracoes():
     google_locations = GoogleLocation.query.filter_by(user_id=str(user_id)).all()
     ml_accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id)).all()
 
+    # A ativação de verdade acontece em /stripe/addon/success (só depois de
+    # confirmar o pagamento com a Stripe). Aqui só tratamos o aviso de cancelamento.
     status_param = request.args.get("status")
-    if status_param == "addon_ifood_success":
-        # Ativa o add-on caso tenha vindo do checkout com sucesso
-        settings_db = UserSettings.query.filter_by(user_id=str(user_id)).first()
-        if settings_db:
-            settings_db.has_addon_ifood = True
-            db.session.commit()
-            has_ifood_addon = True
-        flash("🎉 Parabéns! O Add-on do iFood foi ativado com sucesso em sua conta!", "success")
-    elif status_param == "addon_ifood_cancel":
-        flash("O checkout do Add-on iFood foi cancelado.", "info")
+    if status_param in ("addon_ifood_cancel", "addon_ml_cancel"):
+        flash("O checkout do add-on foi cancelado.", "info")
 
     return render_template(
         "integracoes.html",
         user=user_info,
         settings=settings,
         has_ifood_addon=has_ifood_addon,
+        has_ml_addon=has_ml_addon,
         ifood_merchants=ifood_merchants,
         google_locations=google_locations,
         ml_accounts=ml_accounts,
@@ -2628,7 +2655,12 @@ def suggest_reply():
         except ValueError:
             review_id = None
 
-    from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions
+    from services.ai_service import (
+        limpar_texto_review,
+        get_tone_instructions,
+        get_language_instructions,
+        limpar_resposta_ia,
+    )
 
     review = None
     if review_id:
@@ -2707,7 +2739,7 @@ def suggest_reply():
     prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
 - Nota: {star_rating} estrelas
-- Comentário Original: "{review_text}"
+- Comentário Original: {review_text}
 
 REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
 {prompt_lang_rule}
@@ -2720,18 +2752,19 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
         rule_n += 1
     
     if greeting_info:
-        prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{greeting_info} {reviewer_name},\"\n"
+        prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase com: {greeting_info} {reviewer_name},\n"
         rule_n += 1
     if closing_info:
-        prompt += f"{rule_n}. DESPEDIDA: Finalize o texto exatamente com a frase \"{closing_info}\"\n"
+        prompt += f"{rule_n}. DESPEDIDA: Finalize o texto com a frase: {closing_info}\n"
         rule_n += 1
     if contact_info:
-        prompt += f"{rule_n}. CONTATO: Insira esta informação de contato no final: \"{contact_info}\"\n"
+        prompt += f"{rule_n}. CONTATO: Insira a informação de contato ao final: {contact_info}\n"
         rule_n += 1
         
     prompt += f"""{rule_n}. ASSINATURA FINAL EXATA: Assine ao final exatamente assim:
 {assinatura}
 {rule_n+1}. TAMANHO E CONTEÚDO: Escreva entre 3 e 5 frases focadas no que o cliente disse. Nunca use a palavra "Atenciosamente".
+{rule_n+2}. FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela (saudação, despedida, contato ou assinatura) entre aspas duplas ("") ou simples (''). Não use blocos de código ou formatação markdown. Entregue apenas o texto limpo, corrido e pronto para publicação direta.
 """
     if hiper_compreensiva:
         prompt += f"\n🚨 ATENÇÃO - MODO HIPER COMPREENSIVO ATIVADO: Ignore a regra de tamanho acima. Escreva uma resposta longa, de 8 a 15 frases. Mostre escuta ativa profunda, empatia absoluta e responda detalhadamente a cada elogio ou crítica."
@@ -2745,7 +2778,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
             ],
         )
 
-        suggested_reply = (completion.choices[0].message.content or "").strip()
+        suggested_reply = limpar_resposta_ia(completion.choices[0].message.content or "")
         if not suggested_reply:
             return jsonify({"success": False, "error": "Não foi possível gerar a resposta agora."})
 
@@ -3507,6 +3540,9 @@ def aplicar_migracoes():
                 db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS has_addon_ifood BOOLEAN DEFAULT FALSE"))
                 db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_ifood_subscription_id VARCHAR(255)"))
                 db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_ifood_until TIMESTAMP WITH TIME ZONE"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS has_addon_mercadolivre BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_mercadolivre_subscription_id VARCHAR(255)"))
+                db.session.execute(text("ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS addon_mercadolivre_until TIMESTAMP WITH TIME ZONE"))
                 db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS tone VARCHAR(32)"))
                 db.session.execute(text("ALTER TABLE google_locations ADD COLUMN IF NOT EXISTS idioma_resposta VARCHAR(50)"))
                 db.session.execute(text("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS ifood_merchant_id INTEGER"))
@@ -3535,6 +3571,9 @@ def aplicar_migracoes():
                     "ALTER TABLE user_settings ADD COLUMN has_addon_ifood BOOLEAN DEFAULT 0",
                     "ALTER TABLE user_settings ADD COLUMN addon_ifood_subscription_id VARCHAR(255)",
                     "ALTER TABLE user_settings ADD COLUMN addon_ifood_until DATETIME",
+                    "ALTER TABLE user_settings ADD COLUMN has_addon_mercadolivre BOOLEAN DEFAULT 0",
+                    "ALTER TABLE user_settings ADD COLUMN addon_mercadolivre_subscription_id VARCHAR(255)",
+                    "ALTER TABLE user_settings ADD COLUMN addon_mercadolivre_until DATETIME",
                     "ALTER TABLE google_locations ADD COLUMN tone VARCHAR(32)",
                     "ALTER TABLE google_locations ADD COLUMN idioma_resposta VARCHAR(50)",
                     "ALTER TABLE reviews ADD COLUMN ifood_merchant_id INTEGER",
@@ -3582,9 +3621,7 @@ def _flush_logs():
 atexit.register(_flush_logs)
 
 if __name__ == "__main__":
-    import pytz
     import atexit
-    from apscheduler.schedulers.background import BackgroundScheduler
 
     # Ambiente local
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -3594,39 +3631,10 @@ if __name__ == "__main__":
     port = int(os.getenv("FLASK_RUN_PORT", "8000"))
     debug = os.getenv("FLASK_DEBUG", "1") == "1"
 
-    # Inicializacao de Schedulers
-    scheduler = BackgroundScheduler(timezone=pytz.timezone("America/Sao_Paulo"))
-    scheduler.start()
-
-    try:
-        from google_auto import register_gbp_cron
-        register_gbp_cron(scheduler, app)
-        print("[gbp] Job diario do Google registrado.")
-    except Exception as e:
-        import logging
-        logging.exception(f"[gbp] Falha ao registrar job diario: {e}")
-
-    try:
-        from ifood_auto import register_ifood_daily_cron
-        register_ifood_daily_cron(scheduler, app)
-        print("[ifood] Job de sincronizacao iFood registrado.")
-    except Exception as e:
-        import logging
-        logging.exception(f"[ifood] Falha ao registrar job do iFood: {e}")
-
+    # gbp/ifood/billing já foram registrados e iniciados no scheduler de nível
+    # de módulo acima (roda tanto aqui quanto sob gunicorn em produção) — não
+    # recriar outro scheduler aqui para não disparar os mesmos jobs em duplicidade.
     atexit.register(lambda: scheduler.shutdown(wait=False))
-
-    try:
-        from admin import run_daily_billing_followups
-        def job_cobranca():
-            with app.app_context():
-                run_daily_billing_followups()
-        
-        scheduler.add_job(job_cobranca, 'cron', hour=9, minute=0, id='billing_followups')
-        print("[billing] Job de cobranca diaria registrado.")
-    except Exception as e:
-        import logging
-        logging.exception(f"[billing] Falha ao registrar job de cobranca: {e}")
 
     print(f"Servidor Flask iniciado em http://{host}:{port}")
     app.run(host=host, port=port, debug=True)

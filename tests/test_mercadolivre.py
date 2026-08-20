@@ -28,7 +28,8 @@ from mercadolivre_auto import (
     sugerir_resposta_pergunta_ia,
     formalizar_resposta_ia,
     gerar_pdf_relatorio_mercadolivre,
-    analyze_account_health_and_generate_alerts
+    analyze_account_health_and_generate_alerts,
+    usuario_tem_addon_mercadolivre,
 )
 
 @pytest.fixture
@@ -79,8 +80,10 @@ def ml_setup(app):
 
         settings = UserSettings.query.filter_by(user_id="test_ml_user").first()
         if not settings:
-            settings = UserSettings(user_id="test_ml_user", plano="pro")
+            settings = UserSettings(user_id="test_ml_user", plano="pro", has_addon_mercadolivre=True)
             db.session.add(settings)
+        else:
+            settings.has_addon_mercadolivre = True
 
         MercadoLivreAccount.query.filter_by(user_id="test_ml_user").delete()
         db.session.commit()
@@ -296,4 +299,45 @@ def test_formalizar_resposta_ia(app, client):
     data = res.get_json()
     assert data["success"] is True
     assert "garantia" in data["resposta_formal"].lower()
+
+
+def test_plano_pro_business_nao_libera_ml_sem_addon(app):
+    """
+    Regressão: o plano do Google (Free/Pro/Business) nunca deve liberar o
+    Mercado Livre sozinho — é sempre um add-on pago à parte.
+    """
+    with app.app_context():
+        for plano in ("free", "pro", "pro_anual", "business", "business_anual"):
+            user_id = f"test_ml_sem_addon_{plano}"
+            settings = UserSettings.query.filter_by(user_id=user_id).first()
+            if not settings:
+                settings = UserSettings(user_id=user_id, plano=plano, has_addon_mercadolivre=False)
+                db.session.add(settings)
+            else:
+                settings.plano = plano
+                settings.has_addon_mercadolivre = False
+            db.session.commit()
+
+            assert usuario_tem_addon_mercadolivre(user_id) is False, f"plano={plano} não deveria liberar ML sem addon"
+
+
+def test_dashboard_ml_exige_addon(app, client):
+    """Sem o add-on ativo, o dashboard do ML deve redirecionar para /integracoes."""
+    with app.app_context():
+        user_id = "test_ml_sem_addon_dashboard"
+        settings = UserSettings.query.filter_by(user_id=user_id).first()
+        if not settings:
+            settings = UserSettings(user_id=user_id, plano="business", has_addon_mercadolivre=False)
+            db.session.add(settings)
+        else:
+            settings.has_addon_mercadolivre = False
+        db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = user_id
+        sess["user_info"] = {"id": user_id, "email": "sem_addon@example.com"}
+
+    res = client.get("/mercadolivre/dashboard", follow_redirects=False)
+    assert res.status_code == 302
+    assert "/integracoes" in res.location
 

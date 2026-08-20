@@ -350,13 +350,24 @@ class RelatorioAvaliacoes:
             manager_str = f'O gerente/responsavel operacional e "{manager_name}".' if manager_name else ""
 
             amostra_comentarios = []
+            total_com_texto = 0
             if not self.df.empty and "texto" in self.df.columns:
-                reviews_com_texto = self.df[self.df["texto"].str.len() > 5]
-                for _, row in reviews_com_texto.head(40).iterrows():
+                reviews_com_texto = self.df[self.df["texto"].astype(str).str.strip().str.len() > 3]
+                total_com_texto = len(reviews_com_texto)
+
+                # Prioriza amostra balanceada: Detratores (1-2 estrelas) primeiro, depois Neutros (3), depois Promotores (4-5)
+                criticas = reviews_com_texto[reviews_com_texto["nota"].isin([1.0, 2.0, 1, 2])].head(20)
+                neutras = reviews_com_texto[reviews_com_texto["nota"].isin([3.0, 3])].head(10)
+                positivas = reviews_com_texto[reviews_com_texto["nota"].isin([4.0, 5.0, 4, 5])].head(15)
+
+                amostra_df = pd.concat([criticas, neutras, positivas]).drop_duplicates()
+                for _, row in amostra_df.iterrows():
                     amostra_comentarios.append({
                         "nota": row["nota"],
-                        "comentario": seguro_latin1(str(row["texto"])[:300])
+                        "comentario": seguro_latin1(str(row["texto"])[:350])
                     })
+
+            total_sem_texto = max(0, self.total_avaliacoes - total_com_texto)
 
             prompt_ai = f"""
 Voce e um Diretor de Inteligencia de Mercado e Auditor Senior de Experiencia do Cliente.
@@ -365,18 +376,30 @@ Gere um relatorio executivo estrategico de alto padrao destinado a diretoria da 
 DADOS ESTATISTICOS OFICIAIS CALCULADOS PELO SISTEMA (Use rigorosamente estes numeros para evitar qualquer divergencia):
 - Unidade / Ficha: {self.nome_ficha}
 - Periodo Analisado: {periodo_analisado}
-- Total de Avaliacoes: {self.total_avaliacoes}
+- Total de Avaliacoes: {self.total_avaliacoes} ({total_com_texto} avaliacoes com texto descritivo e {total_sem_texto} avaliacoes apenas por pontuacao de estrelas)
 - Nota Media Oficial: {self.media_oficial:.2f} de 5.00 estrelas
 - Distribuicao de Estrelas: 5 estrelas ({self.star_counts[5]} | {self.star_pcts[5]}%), 4 estrelas ({self.star_counts[4]} | {self.star_pcts[4]}%), 3 estrelas ({self.star_counts[3]} | {self.star_pcts[3]}%), 2 estrelas ({self.star_counts[2]} | {self.star_pcts[2]}%), 1 estrela ({self.star_counts[1]} | {self.star_pcts[1]}%)
 - Taxa de Resposta: {self.taxa_resposta:.1f}% ({self.total_respondidas} respondidas de {self.total_avaliacoes})
 - Net Promoter Score (NPS Estimado): +{self.nps_score}
 {manager_str}
 
-REGRAS ESTRITAS DE COERENCIA MATEMATICA E ESCRITA:
+REGRAS ESTRITAS DE COERENCIA MATEMATICA, ANTI-ALUCINACAO E INTERVENCAO:
 1. CONSISTENCIA DE DADOS: Cite sempre a Nota Media Oficial de {self.media_oficial:.2f} estrelas e as contagens exatas fornecidas. NUNCA calcule nem afirme uma media diferente de {self.media_oficial:.2f}.
-2. POSTURA CONSULTIVA DE ELITE: Texto formal, analitico, direto, corporativo e com profundo rigor de governanca.
-3. SEM TERMOS DE IA: E expressamente PROIBIDO mencionar 'prompt', 'inteligencia artificial', 'modelo de linguagem' ou 'parametros'.
-4. ESTRUTURA OBRIGATORIA (Use exatamente estas secoes em letras maiusculas):
+2. ANTI-ALUCINACAO ABSOLUTA (DADOS INSUFICIENTES):
+   - NUNCA invente, presuma ou deduza queixas, elogios, setores, produtos ou incidentes que nao estejam relatados expressamente na AMOSTRA DE COMENTARIOS abaixo.
+   - Se NAO houver comentarios em texto suficientes ou se as notas baixas/altas nao tiverem explicacao em texto (ex: avaliacoes apenas por estrelas sem texto descritivo), declare de forma transparente e profissional na secao correspondente:
+     "Os dados textuais disponiveis no periodo sao insuficientes para diagnosticar gargalos operacionais especificos, visto que a base e predominantemente composta por avaliacoes de estrelas sem comentarios descritivos."
+   - E expressamente PROIBIDO inventar falhas ou situacoes nao comprovadas (ex: problemas em ar-condicionado, higiene, alimentos, ruido, atendimento) caso nenhum cliente tenha citado isso nos comentarios reais fornecidos.
+3. SUGESTOES DE INTERVENCAO PRATICAS E MENOS GENERICAS:
+   - Quando HOUVER comentarios em texto com queixas ou sugestoes, as recomendacoes na secao PLANO DE ACAO E RECOMENDACOES ESTRATEGICAS devem ser altamente especificas e cirurgicas, ancoradas nos fatos e setores EXATOS relatados pelos clientes (ex: recepcao, cafe da manha, tempo de espera, checkout, embalagem, entrega, estacionamento, etc.).
+   - Evite recomendacoes vagas e genericas como apenas "treinar a equipe" ou "melhorar o atendimento". Estruture cada acao recomendada com:
+     * Fato ou gargalo real apontado pelo cliente;
+     * Area ou setor operacional responsavel;
+     * Acao corretiva direta e objetiva;
+     * Metrica ou indicador para acompanhamento.
+4. POSTURA CONSULTIVA DE ELITE: Texto formal, analitico, direto, corporativo e com profundo rigor de governanca.
+5. SEM TERMOS DE IA: E expressamente PROIBIDO mencionar 'prompt', 'inteligencia artificial', 'modelo de linguagem' ou 'parametros'.
+6. ESTRUTURA OBRIGATORIA (Use exatamente estas secoes em letras maiusculas):
    RESUMO EXECUTIVO & DIAGNOSTICO
    AUDITORIA QUANTITATIVA & DISTRIBUICAO
    ANALISE QUALITATIVA DE ASPECTOS E SENTIMENTOS
@@ -385,8 +408,8 @@ REGRAS ESTRITAS DE COERENCIA MATEMATICA E ESCRITA:
    PLANO DE ACAO E RECOMENDACOES ESTRATEGICAS
    METODOLOGIA TECNICA APLICADA
 
-AMOSTRA DE COMENTARIOS DO PERIODO:
-{amostra_comentarios if amostra_comentarios else "Sem comentarios adicionais em texto."}
+AMOSTRA DE COMENTARIOS REAIS DO PERIODO ({total_com_texto} com texto):
+{amostra_comentarios if amostra_comentarios else "Nenhum comentario descritivo em texto no periodo analisado. Apenas pontuacoes por estrelas."}
 """
 
             try:
@@ -398,7 +421,8 @@ AMOSTRA DE COMENTARIOS DO PERIODO:
                             "role": "system",
                             "content": (
                                 "Voce e um auditor senior de inteligencia corporativa. "
-                                "Gere relatorios analiticos impecaveis, mantendo 100% de consistencia com os numeros oficiais fornecidos."
+                                "Gere relatorios analiticos impecaveis, mantendo 100% de consistencia com os numeros oficiais fornecidos "
+                                "e nunca alucine fatos nao comprovados pelos dados."
                             )
                         },
                         {"role": "user", "content": prompt_ai}
@@ -409,15 +433,24 @@ AMOSTRA DE COMENTARIOS DO PERIODO:
                 conteudo_analise = (completion.choices[0].message.content or "").strip()
             except Exception as ex_ai:
                 logging.exception("Falha na chamada do GPT-4o para relatório: %s", ex_ai)
+                obs_qualitativa = (
+                    f"Com base nas {total_com_texto} avaliacoes com texto registradas, as manifestacoes demonstram consistencia com a nota media de {self.media_oficial:.2f}."
+                    if total_com_texto > 0 else
+                    "Os dados textuais disponiveis no periodo sao insuficientes para diagnosticar aspectos operacionais detalhados, pois o volume registrado consiste em pontuacoes por estrelas sem comentarios descritivos."
+                )
                 conteudo_analise = (
                     f"RESUMO EXECUTIVO & DIAGNOSTICO\n"
                     f"A unidade {self.nome_ficha} registrou um volume de {self.total_avaliacoes} avaliacoes no periodo analisado ({periodo_analisado}), "
-                    f"atingindo uma Nota Media Oficial de {self.media_oficial:.2f} de 5.00 estrelas com taxa de engajamento de {self.taxa_resposta:.1f}%.\n\n"
+                    f"atingindo uma Nota Media Oficial de {self.media_oficial:.2f} de 5.00 estrelas com taxa de engajamento de {self.taxa_resposta:.1f}% e NPS de +{self.nps_score}.\n\n"
                     f"AUDITORIA QUANTITATIVA & DISTRIBUICAO\n"
                     f"A base demonstra {self.star_counts[5]} avaliacoes de 5 estrelas ({self.star_pcts[5]}%), {self.star_counts[4]} de 4 estrelas ({self.star_pcts[4]}%), "
                     f"{self.star_counts[3]} de 3 estrelas ({self.star_pcts[3]}%), {self.star_counts[2]} de 2 estrelas ({self.star_pcts[2]}%) e {self.star_counts[1]} de 1 estrela ({self.star_pcts[1]}%).\n\n"
+                    f"ANALISE QUALITATIVA DE ASPECTOS E SENTIMENTOS\n"
+                    f"{obs_qualitativa}\n\n"
+                    f"PONTOS CRITICOS & GARGALOS OPERACIONAIS\n"
+                    f"Identificacao e acompanhamento prioritario de avaliacoes com pontuacao inferior a 3 estrelas para rapida resolucao de pendencias.\n\n"
                     f"PLANO DE ACAO E RECOMENDACOES ESTRATEGICAS\n"
-                    f"Manter o monitoramento continuo das avaliacoes e responder ativamente a todos os feedbacks dos clientes."
+                    f"Manter o monitoramento continuo das avaliacoes, priorizar respostas ativas aos clientes e incentivar a coleta de feedbacks detalhados."
                 )
 
             texto_limpo = limpa_markdown(conteudo_analise)

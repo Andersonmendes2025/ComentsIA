@@ -99,3 +99,32 @@ def test_get_language_instructions():
     sys_es, rule_es = get_language_instructions("Espanhol")
     assert "ESPANHOL" in sys_es
     assert "ESPANHOL" in rule_es
+
+
+def test_limpar_resposta_ia_quotes_and_formatting():
+    from services.ai_service import limpar_resposta_ia
+
+    # 1. Resposta envolvida em aspas duplas externas
+    r1 = '"Olá Wagner, agradecemos muito pelo seu retorno e esperamos recebê-lo novamente!\nFront Hotel Teófilo Otoni"'
+    assert limpar_resposta_ia(r1) == "Olá Wagner, agradecemos muito pelo seu retorno e esperamos recebê-lo novamente!\nFront Hotel Teófilo Otoni"
+
+    # 2. Resposta envolvida em aspas tipográficas “...”
+    r2 = '“Olá Maria, ficamos imensamente felizes com a sua visita!\nEquipe Hotel”'
+    assert limpar_resposta_ia(r2) == "Olá Maria, ficamos imensamente felizes com a sua visita!\nEquipe Hotel"
+
+    # 3. Aspas isoladas no início ou fim de linhas
+    r3 = '"Olá Carlos,\nMuito obrigado pelo carinho!\n"Equipe ComentsIA"'
+    limpo_3 = limpar_resposta_ia(r3)
+    assert not limpo_3.startswith('"')
+    assert not limpo_3.endswith('"')
+    assert "Olá Carlos," in limpo_3
+    assert "Equipe ComentsIA" in limpo_3
+
+    # 4. Markdown fences ```markdown ... ```
+    r4 = "```markdown\nOlá Beatriz, obrigado pelo feedback!\nGerência\n```"
+    assert limpar_resposta_ia(r4) == "Olá Beatriz, obrigado pelo feedback!\nGerência"
+
+    # 5. Entrada nula ou vazia
+    assert limpar_resposta_ia("") == ""
+    assert limpar_resposta_ia(None) == ""
+

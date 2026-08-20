@@ -21,9 +21,14 @@ def executar_fluxo():
 
             for s in enabled:
                 logger.info(f"▶️ Executando sync para user_id={s.user_id}")
-                total = run_sync_last_48h(s.user_id)
-                total_global += total
-                logger.info(f"✅ {s.user_id}: {total} avaliações processadas.")
+                try:
+                    total = run_sync_last_48h(s.user_id)
+                    total_global += total
+                    logger.info(f"✅ {s.user_id}: {total} avaliações processadas.")
+                except Exception:
+                    # Uma conta com erro (token revogado, ficha removida no Google, etc.)
+                    # nao pode travar a sincronizacao diaria de todos os outros clientes.
+                    logger.exception(f"💥 Falha ao sincronizar user_id={s.user_id}. Pulando para o próximo.")
 
             logger.info(f"🎯 Execução concluída. Total geral: {total_global} avaliações processadas.")
         except Exception as e:

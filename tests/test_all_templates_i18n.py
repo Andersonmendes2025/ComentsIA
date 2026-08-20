@@ -40,7 +40,8 @@ def setup_db(app):
                 plano_ate=datetime.utcnow() + timedelta(days=365),
                 business_name=encrypt("Empresa Teste"),
                 contact_info=encrypt("contato@empresa.com"),
-                terms_accepted=True
+                terms_accepted=True,
+                has_addon_mercadolivre=True,
             )
             db.session.add(settings)
         else:
@@ -49,7 +50,8 @@ def setup_db(app):
             settings.terms_accepted = True
             settings.plano = "pro"
             settings.plano_ate = datetime.utcnow() + timedelta(days=365)
-            
+            settings.has_addon_mercadolivre = True
+
         db.session.commit()
         yield
         db.session.rollback()

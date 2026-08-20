@@ -58,3 +58,27 @@ def test_gerar_pdf_sem_erros():
 
     assert len(pdf_bytes) > 1000
     assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_gerar_pdf_com_dados_insuficientes_sem_texto():
+    # Avaliações sem texto (apenas notas numéricas de estrelas)
+    avaliacoes = [
+        {"data": datetime(2026, 1, 15), "nota": 5, "texto": "", "respondida": 1},
+        {"data": datetime(2026, 1, 20), "nota": 4, "texto": None, "respondida": 0},
+        {"data": datetime(2026, 2, 10), "nota": 2, "texto": "   ", "respondida": 0},
+    ]
+
+    rel = RelatorioAvaliacoes(
+        avaliacoes,
+        settings={"business_name": "Hotel Estrela", "manager_name": "Gerente Ana"},
+        nome_ficha="Unidade Centro"
+    )
+
+    buffer = io.BytesIO()
+    rel.gerar_pdf(buffer)
+    buffer.seek(0)
+    pdf_bytes = buffer.getvalue()
+
+    assert len(pdf_bytes) > 1000
+    assert pdf_bytes.startswith(b"%PDF")
+

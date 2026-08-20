@@ -91,6 +91,26 @@ def test_usuario_tem_addon_ifood(app, ifood_setup):
         assert usuario_tem_addon_ifood("user_inexistente_999") is False
 
 
+def test_plano_pro_business_nao_libera_ifood_sem_addon(app):
+    """
+    Regressão: o plano do Google (Free/Pro/Business) nunca deve liberar o
+    iFood sozinho — é sempre um add-on pago à parte, independente do plano.
+    """
+    with app.app_context():
+        for plano in ("free", "pro", "pro_anual", "business", "business_anual"):
+            user_id = f"test_ifood_sem_addon_{plano}"
+            settings = UserSettings.query.filter_by(user_id=user_id).first()
+            if not settings:
+                settings = UserSettings(user_id=user_id, plano=plano, has_addon_ifood=False)
+                db.session.add(settings)
+            else:
+                settings.plano = plano
+                settings.has_addon_ifood = False
+            db.session.commit()
+
+            assert usuario_tem_addon_ifood(user_id) is False, f"plano={plano} não deveria liberar iFood sem addon"
+
+
 def test_parse_jwt_merchant_ids():
     # Cria um JWT simulado com merchant_scope
     import base64

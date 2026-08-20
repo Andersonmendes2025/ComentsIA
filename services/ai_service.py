@@ -196,7 +196,73 @@ def limpar_texto_review(text: Optional[str], target_lang: str = "pt") -> str:
     if trans and trans_lang == target_lang:
         return trans
 
-    return orig
+def limpar_resposta_ia(texto: Optional[str]) -> str:
+    """
+    Higieniza a resposta gerada por modelos de IA:
+    - Remove delimitadores de código markdown (ex: ```markdown ... ```).
+    - Remove aspas externas envolventes (", ', “, ”, «, »).
+    - Remove aspas soltas / indesejadas em saudações, despedidas ou linhas isoladas.
+    - Remove aspas soltas no início ou fim do texto.
+    """
+    if not texto:
+        return ""
+
+    t = str(texto).strip()
+
+    # 1. Remove blocos markdown de código ```...```
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
+        t = re.sub(r"\n?```$", "", t)
+        t = t.strip()
+
+    # 2. Remove aspas externas que englobam todo o texto
+    while len(t) >= 2 and (
+        (t.startswith('"') and t.endswith('"')) or
+        (t.startswith("'") and t.endswith("'")) or
+        (t.startswith("“") and t.endswith("”")) or
+        (t.startswith("‘") and t.endswith("’")) or
+        (t.startswith("«") and t.endswith("»"))
+    ):
+        t = t[1:-1].strip()
+
+    # 3. Limpeza linha por linha (ex: "Olá Anderson," ou "Ficamos à disposição!")
+    linhas = t.split("\n")
+    linhas_limpas = []
+    for linha in linhas:
+        l = linha.strip()
+        if not l:
+            linhas_limpas.append("")
+            continue
+        
+        # Se a linha inteira estiver entre aspas, remove
+        if len(l) >= 2 and (
+            (l.startswith('"') and l.endswith('"')) or
+            (l.startswith("'") and l.endswith("'")) or
+            (l.startswith("“") and l.endswith("”")) or
+            (l.startswith("«") and l.endswith("»"))
+        ):
+            l = l[1:-1].strip()
+
+        # Remove aspas soltas no início da linha
+        l = re.sub(r'^["\'“”«»]+', '', l).strip()
+        # Remove aspas soltas no final da linha
+        l = re.sub(r'["\'“”«»]+$', '', l).strip()
+
+        # Remove aspas desnecessárias que envolvam segmentos no início
+        l = re.sub(r'^["\'“”«»]([^"\'“”«»]+)["\'“”«»]', r'\1', l).strip()
+
+        linhas_limpas.append(l)
+
+    t = "\n".join(linhas_limpas).strip()
+
+    # 4. Remove qualquer aspas remanescente nas extremidades
+    t = re.sub(r'^["\'“”«»`]+', '', t)
+    t = re.sub(r'["\'“”«»`]+$', '', t)
+    
+    # 5. Normaliza múltiplos saltos de linha excessivos
+    t = re.sub(r'\n{3,}', '\n\n', t)
+
+    return t.strip()
 
 
 def get_tone_instructions(tone: Optional[str]) -> str:
