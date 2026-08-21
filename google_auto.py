@@ -1302,6 +1302,11 @@ def register_gbp_cron(scheduler, app):
         minute=0,
         timezone=pytz.timezone("America/Sao_Paulo"),
         replace_existing=True,
+        # Tolerancia: o agendador so sobe na primeira requisicao do worker.
+        # Se o servico reiniciar perto do horario, sem isso o APScheduler
+        # descartaria o job (tolerancia padrao de 1 segundo).
+        misfire_grace_time=3600,
+        coalesce=True,
     )
 
 

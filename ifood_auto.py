@@ -1073,7 +1073,9 @@ def register_ifood_daily_cron(scheduler, app):
         trigger='cron',
         hour=8,
         minute=30,
-        replace_existing=True
+        replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True
     )
 
     scheduler.add_job(

@@ -241,6 +241,8 @@ try:
         hour=9,
         minute=0,
         replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
     )
 except Exception:
     logging.exception("[billing] Falha ao registrar job de cobrança diária")
