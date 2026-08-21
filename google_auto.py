@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 from flask import (
     Blueprint,
     flash,
+    has_request_context,
     jsonify,
     redirect,
     render_template,
@@ -66,6 +67,14 @@ def _get_gbp_limits(settings: Optional[UserSettings]) -> dict:
 google_auto_bp = Blueprint("google_auto", __name__, url_prefix="/auto")
 GBP_SCOPE = "https://www.googleapis.com/auth/business.manage"
 
+# Quantas avaliações o sync automático lê por ficha. A API do Google devolve
+# as mais recentes primeiro, então esse punhado já cobre a janela de 48h com
+# folga. Antes o sync paginava o histórico inteiro (700+ avaliações em contas
+# antigas) toda vez, gastando minutos e dezenas de chamadas para achar o que
+# quase sempre eram zero novidades. Aumente se algum cliente passar a receber
+# mais avaliações do que isso entre duas execuções do cron.
+MAX_REVIEWS_SYNC_AUTOMATICO = 10
+
 RATING_MAP = {
     "ONE": 1,
     "TWO": 2,
@@ -91,6 +100,12 @@ def get_current_user_id():
     return user_info.get("id")
 
 def _get_session_credentials() -> Optional[Credentials]:
+    # O cron/worker roda fora de qualquer requisição HTTP: acessar `session`
+    # ali levanta RuntimeError e derrubava o sync inteiro daquela conta.
+    # Fora de request só existem as credenciais persistidas no banco.
+    if not has_request_context():
+        return None
+
     creds_dict = session.get("credentials")
     if not creds_dict:
         return None
@@ -449,11 +464,22 @@ def debug_accounts():
 # ---------------------------------------------------------
 # 🚨 CORREÇÃO CRÍTICA API V1 (Reviews)
 # ---------------------------------------------------------
-def _list_reviews(creds: Credentials, account_ref: str, location_ref: str) -> List[Dict]:
+def _list_reviews(
+    creds: Credentials,
+    account_ref: str,
+    location_ref: str,
+    max_reviews: Optional[int] = None,
+) -> List[Dict]:
     """
     Lista reviews (com paginação) na API v4.
     account_ref pode ser: "accounts/123" ou "123"
     location_ref pode ser: "locations/999" ou "999"
+
+    max_reviews limita quantas avaliações buscar. A API devolve as mais
+    recentes primeiro (ordenadas por updateTime desc), então para o sync
+    automático basta ler a primeira página: buscar o histórico inteiro a
+    cada execução gasta dezenas de chamadas à API sem encontrar nada novo.
+    Passe None (padrão) para percorrer tudo — usado no histórico/reconcile.
     """
     try:
         headers = _make_auth_headers(creds)
@@ -473,7 +499,11 @@ def _list_reviews(creds: Credentials, account_ref: str, location_ref: str) -> Li
         page_token: Optional[str] = None
 
         while True:
-            params = {"pageSize": 50}
+            page_size = 50
+            if max_reviews:
+                page_size = min(50, max_reviews - len(reviews_all))
+
+            params = {"pageSize": page_size}
             if page_token:
                 params["pageToken"] = page_token
 
@@ -486,6 +516,10 @@ def _list_reviews(creds: Credentials, account_ref: str, location_ref: str) -> Li
             data = resp.json()
             reviews = data.get("reviews", []) or []
             reviews_all.extend(reviews)
+
+            if max_reviews and len(reviews_all) >= max_reviews:
+                reviews_all = reviews_all[:max_reviews]
+                break
 
             page_token = data.get("nextPageToken")
             if not page_token:
@@ -1692,6 +1726,37 @@ def _list_all_locations(creds: Credentials, accounts: List[str]) -> List[Dict]:
 # ✅ FUNÇÕES DE SINCRONIZAÇÃO (COM PROTEÇÃO DE TRADUÇÃO)
 # ---------------------------------------------------------
 
+def _pode_usar_automacao_gbp(user_id: str) -> bool:
+    """
+    A automação de respostas do Google exige plano pago vigente. Antes o cron
+    olhava só o gbp_auto_enabled, então uma conta com plano vencido (ou nunca
+    pago) continuava sendo atendida indefinidamente.
+    """
+    try:
+        from main import PLANOS
+
+        settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
+        if not settings:
+            return False
+
+        plano = (settings.plano or "free").strip()
+        if plano == "free" or plano not in PLANOS:
+            return False
+
+        if not settings.plano_ate:
+            return False
+
+        vence = settings.plano_ate
+        if vence.tzinfo is None:
+            vence = pytz.timezone("America/Sao_Paulo").localize(vence)
+        return vence >= datetime.now(pytz.timezone("America/Sao_Paulo"))
+    except Exception:
+        # Falha ao checar não deve derrubar o cron inteiro: registra e libera,
+        # para nunca deixar cliente pagante sem resposta por erro nosso.
+        logging.exception("[gbp] Falha ao verificar plano de %s — liberando por segurança", user_id)
+        return True
+
+
 def run_sync_for_user(user_id: str) -> int:
     try:
         from main import registrar_uso_resposta_especial, usuario_pode_usar_resposta_especial
@@ -1700,6 +1765,10 @@ def run_sync_for_user(user_id: str) -> int:
         def registrar_uso_resposta_especial(uid): pass
 
     logging.info(f"[gbp] ▶️ Sync iniciado para user_id={user_id}")
+
+    if not _pode_usar_automacao_gbp(user_id):
+        logging.info("[gbp] Plano inativo/gratuito — automação ignorada para %s", user_id)
+        return 0
 
     creds = _get_persisted_credentials(user_id) or _get_session_credentials()
     if not creds:
@@ -1734,7 +1803,7 @@ def run_sync_for_user(user_id: str) -> int:
 
         ficha_db = GoogleLocation.query.filter_by(user_id=user_id, location_id=location_id).first()
 
-        reviews = _list_reviews(creds, account_ref, location_id)
+        reviews = _list_reviews(creds, account_ref, location_id, max_reviews=MAX_REVIEWS_SYNC_AUTOMATICO)
         if not reviews:
             continue
 
@@ -1843,6 +1912,10 @@ def run_sync_last_48h(user_id: str) -> int:
 
     logging.info(f"\n[gbp] ▶️ Iniciando sync (48h) para {user_id}")
 
+    if not _pode_usar_automacao_gbp(user_id):
+        logging.info("[gbp] Plano inativo/gratuito — automação ignorada para %s", user_id)
+        return 0
+
     creds = _get_persisted_credentials(user_id) or _get_session_credentials()
     if not creds:
         logging.warning("[gbp] Sem credenciais")
@@ -1877,7 +1950,7 @@ def run_sync_last_48h(user_id: str) -> int:
 
         ficha_db = GoogleLocation.query.filter_by(user_id=user_id, location_id=location_id).first()
 
-        reviews = _list_reviews(creds, account_ref, location_id)
+        reviews = _list_reviews(creds, account_ref, location_id, max_reviews=MAX_REVIEWS_SYNC_AUTOMATICO)
         if not reviews:
             continue
 

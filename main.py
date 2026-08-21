@@ -171,6 +171,16 @@ if db_url.startswith("postgres://"):
 app.config.update(
     SQLALCHEMY_DATABASE_URI=db_url,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    # Sem isso, conexões do pool que ficam ociosas por horas (ex.: entre
+    # execuções do cron diário) apodrecem no lado do Postgres/proxy e o
+    # SQLAlchemy tenta reusá-las, quebrando com "SSL error: decryption
+    # failed or bad record mac". pool_pre_ping testa a conexão antes de
+    # cada uso e reconecta se estiver morta; pool_recycle descarta
+    # conexões com mais de ~4,5min antes que o Render as derrube sozinho.
+    SQLALCHEMY_ENGINE_OPTIONS={
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    },
     MAX_CONTENT_LENGTH=512 * 1024,  # 🔒 limite global de upload 512KB
     # Cookies de sessão seguros
     SESSION_COOKIE_SECURE=(os.getenv("FLASK_ENV") == "production"),
