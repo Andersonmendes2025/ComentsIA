@@ -844,6 +844,112 @@ def fetch_account_claims_data(seller_id: str, access_token: Optional[str] = None
     return {"total_opened": 0, "affecting_reputation_count": 0, "claims": []}
 
 
+PERIODOS_FINANCEIROS = {7: "7 dias", 30: "30 dias", 90: "90 dias", 180: "6 meses"}
+
+
+def fetch_visitas_periodo(seller_id: str, access_token: str, dias: int = 30) -> int:
+    """Visitas nos anuncios do vendedor dentro do periodo pedido."""
+    if not access_token:
+        return 0
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json",
+               "User-Agent": "ComentsIA/1.0"}
+    try:
+        agora = default_brt_now()
+        ini = (agora - timedelta(days=dias)).strftime("%Y-%m-%d")
+        fim = agora.strftime("%Y-%m-%d")
+        url = (f"{ML_API_BASE}/users/{seller_id}/items_visits"
+               f"?date_from={ini}T00:00:00Z&date_to={fim}T23:59:59Z")
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            return int(r.json().get("total_visits", 0))
+        logger.warning("[ML] Visitas HTTP %s: %s", r.status_code, r.text[:150])
+    except Exception as e:
+        logger.warning("[ML] Falha ao buscar visitas: %s", e)
+    return 0
+
+
+def calcular_metricas_financeiras(seller_id: str, access_token: str, dias: int = 30) -> Dict[str, Any]:
+    """
+    Faturamento REAL do periodo, somando o valor de cada pedido pago.
+
+    Substitui o calculo anterior, que multiplicava o ticket medio dos ultimos
+    50 pedidos pelo total de vendas de todos os tempos — numero inventado, que
+    nao correspondia a faturamento nenhum. Aqui, se a API nao responder, os
+    campos voltam vazios com `dados_disponiveis=False`: e melhor a tela dizer
+    que nao ha dados do que exibir estimativa como se fosse real.
+    """
+    vazio = {
+        "dias": dias, "dados_disponiveis": False,
+        "pedidos_pagos": 0, "pedidos_cancelados": 0, "pedidos_total": 0,
+        "faturamento": 0.0, "ticket_medio": 0.0,
+        "visitas": 0, "taxa_conversao": 0.0, "erro": None,
+    }
+    if not access_token or not seller_id:
+        vazio["erro"] = "sem credenciais"
+        return vazio
+
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json",
+               "User-Agent": "ComentsIA/1.0"}
+    agora = default_brt_now()
+    ini = (agora - timedelta(days=dias)).strftime("%Y-%m-%dT00:00:00.000-03:00")
+    fim = agora.strftime("%Y-%m-%dT23:59:59.000-03:00")
+
+    pagos, cancelados, valores = 0, 0, []
+    total_periodo = 0
+    offset, LIMITE_PAGINAS = 0, 20  # ate 1000 pedidos
+
+    try:
+        for _ in range(LIMITE_PAGINAS):
+            url = (f"{ML_API_BASE}/orders/search?seller={seller_id}"
+                   f"&order.date_created.from={ini}&order.date_created.to={fim}"
+                   f"&sort=date_desc&limit=50&offset={offset}")
+            r = requests.get(url, headers=headers, timeout=20)
+            if r.status_code != 200:
+                if offset == 0:
+                    vazio["erro"] = f"HTTP {r.status_code}"
+                    logger.warning("[ML] Pedidos HTTP %s: %s", r.status_code, r.text[:200])
+                    return vazio
+                break
+
+            data = r.json()
+            total_periodo = int((data.get("paging") or {}).get("total", 0))
+            resultados = data.get("results") or []
+            if not resultados:
+                break
+
+            for o in resultados:
+                status = o.get("status")
+                if status == "cancelled":
+                    cancelados += 1
+                    continue
+                if status in ("paid", "delivered", "shipped", "confirmed"):
+                    pagos += 1
+                    valor = float(o.get("total_amount") or 0.0)
+                    if valor > 0:
+                        valores.append(valor)
+
+            offset += len(resultados)
+            if offset >= total_periodo:
+                break
+
+        faturamento = round(sum(valores), 2)
+        ticket = round(faturamento / len(valores), 2) if valores else 0.0
+        visitas = fetch_visitas_periodo(seller_id, access_token, dias)
+        conversao = round((pagos / visitas) * 100, 2) if visitas > 0 else 0.0
+
+        return {
+            "dias": dias, "dados_disponiveis": True,
+            "pedidos_pagos": pagos, "pedidos_cancelados": cancelados,
+            "pedidos_total": total_periodo or (pagos + cancelados),
+            "faturamento": faturamento, "ticket_medio": ticket,
+            "visitas": visitas, "taxa_conversao": conversao, "erro": None,
+        }
+    except Exception as e:
+        logger.warning("[ML] Falha ao calcular metricas financeiras: %s", e)
+        vazio["erro"] = str(e)[:120]
+        return vazio
+
+
 def fetch_account_visits_data(seller_id: str, access_token: Optional[str] = None) -> int:
     """
     Busca o total de visitas na conta do vendedor nos últimos 30 dias:
@@ -1456,8 +1562,13 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
                     account.completed_transactions = orders_data["completed_orders"]
                     account.canceled_transactions = orders_data["canceled_orders"]
                     account.total_transactions = orders_data["total_orders"]
-                account.total_revenue = orders_data.get("total_revenue", 0.0)
-                account.avg_ticket = orders_data.get("avg_ticket", 0.0)
+
+            # Faturamento gravado e o REAL dos ultimos 30 dias (soma pedido a
+            # pedido), nao mais uma extrapolacao do ticket medio.
+            fin30 = calcular_metricas_financeiras(account.seller_id, token, dias=30)
+            if fin30["dados_disponiveis"]:
+                account.total_revenue = fin30["faturamento"]
+                account.avg_ticket = fin30["ticket_medio"]
                 
                 total_fb = orders_data["positive_feedback_count"] + orders_data["negative_feedback_count"] + orders_data["neutral_feedback_count"]
                 if total_fb > 0:
@@ -1474,26 +1585,11 @@ def sync_all_account_data(account: MercadoLivreAccount) -> None:
             billing_data["avg_ticket"] = account.avg_ticket
             account.billing_summary_json = json.dumps(billing_data, ensure_ascii=False)
 
-        # Se total_revenue for 0 mas houver vendas concluídas e/ou anúncios na loja
-        if (account.total_revenue or 0.0) == 0.0 and (account.completed_transactions or 0) > 0:
-            items = store_data.get("items") or []
-            prices = [float(it.get("price", 0.0)) for it in items if float(it.get("price", 0.0)) > 0]
-            avg_price = float(np.mean(prices)) if prices else 119.90
-            account.avg_ticket = round(avg_price, 2)
-            account.total_revenue = round((account.completed_transactions or 0) * account.avg_ticket, 2)
-            
-            # Estimativa de comissão do Mercado Livre (~16% taxa padrão Brasil)
-            est_commission = round(account.total_revenue * 0.16, 2)
-            account.billing_summary_json = json.dumps({
-                "total_revenue": account.total_revenue,
-                "avg_ticket": account.avg_ticket,
-                "total_charges": est_commission,
-                "charges": [
-                    {"label": "Comissão Mercado Livre (Estimada ~16%)", "amount": est_commission, "type": "CV"},
-                    {"label": "Tarifa de Processamento", "amount": round(account.total_revenue * 0.02, 2), "type": "MP"}
-                ],
-                "bonuses": []
-            }, ensure_ascii=False)
+        # Nao inventar faturamento: antes, quando a API nao trazia valores, a tela
+        # exibia o preco medio dos anuncios (ou R$119,90 fixo) multiplicado pelo
+        # numero de vendas, com comissao "estimada" de 16% — tudo numero chutado,
+        # apresentado como financeiro real. Sem dado da API, fica zerado e a tela
+        # informa que os dados nao estao disponiveis.
     except Exception as e:
         logger.warning(f"[MercadoLivre] Falha parcial ao sincronizar pedidos reais, faturamento e reclamações: {e}")
 
@@ -1602,6 +1698,21 @@ def dashboard():
     recent_questions = current_account.get_recent_questions() if current_account else []
     alerts = current_account.alerts.order_by(MercadoLivreAlert.created_at.desc()).all() if current_account else []
 
+    # Filtro de periodo do painel financeiro. Os numeros sao buscados ao vivo
+    # para o periodo escolhido: e a unica forma de o valor bater com o que o
+    # vendedor ve no Mercado Livre.
+    try:
+        periodo = int(request.args.get("periodo", 30))
+    except (TypeError, ValueError):
+        periodo = 30
+    if periodo not in PERIODOS_FINANCEIROS:
+        periodo = 30
+
+    financeiro = None
+    if current_account:
+        token = get_fresh_ml_token(current_account)
+        financeiro = calcular_metricas_financeiras(current_account.seller_id, token, dias=periodo)
+
     client_id, _, _ = get_ml_credentials()
     oauth_available = bool(client_id)
 
@@ -1613,7 +1724,10 @@ def dashboard():
         ai_report=ai_report,
         recent_questions=recent_questions,
         alerts=alerts,
-        oauth_available=oauth_available
+        oauth_available=oauth_available,
+        financeiro=financeiro,
+        periodo=periodo,
+        periodos=PERIODOS_FINANCEIROS,
     )
 
 

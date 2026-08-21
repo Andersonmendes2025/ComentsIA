@@ -223,49 +223,76 @@
     <!-- LINHA FINANCEIRA & FATURAMENTO MERCADO LIVRE -->
     {% set billing = current_account.get_billing_summary() %}
     <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
           <h2 class="h5 fw-bold text-dark mb-1">
             <i class="bi bi-cash-stack text-success me-1.5"></i> Faturamento & Visão Financeira
           </h2>
-          <p class="text-muted small mb-0">Receita bruta gerada, ticket médio por venda e demonstrativo de faturamento oficial do Mercado Livre.</p>
+          <p class="text-muted small mb-0">Valores somados pedido a pedido, direto da API do Mercado Livre.</p>
         </div>
-        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 rounded-pill small fw-semibold">
-          <i class="bi bi-graph-up-arrow me-1"></i> Faturamento Real
-        </span>
+
+        <!-- Filtro de período -->
+        <div class="btn-group btn-group-sm" role="group" aria-label="Período">
+          {% for dias, rotulo in periodos.items() %}
+            <a href="{{ url_for('mercadolivre.dashboard', account_id=current_account.id, periodo=dias) }}"
+               class="btn {{ 'btn-success' if periodo == dias else 'btn-outline-secondary' }}">{{ rotulo }}</a>
+          {% endfor %}
+        </div>
       </div>
 
+      {% if financeiro and not financeiro.dados_disponiveis %}
+        <div class="alert alert-warning border-0 rounded-4 small mb-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          Não foi possível obter os dados financeiros do Mercado Livre agora
+          {%- if financeiro.erro %} ({{ financeiro.erro }}){% endif %}.
+          Os valores abaixo aparecem zerados de propósito — preferimos não exibir estimativa como se fosse faturamento real.
+        </div>
+      {% endif %}
+
       <div class="row g-3">
-        <!-- Faturamento Bruto -->
-        <div class="col-md-4">
+        <!-- Faturamento do período -->
+        <div class="col-md-3">
           <div class="p-3 rounded-4 bg-light border h-100">
-            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Faturamento Estimado / Pedidos</span>
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Faturamento ({{ periodos[periodo] }})</span>
             <div class="h3 fw-bold text-dark mb-1">
-              R$ {{ "{:,.2f}".format(current_account.total_revenue or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+              R$ {{ "{:,.2f}".format((financeiro.faturamento if financeiro else 0.0) or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
             </div>
-            <span class="text-muted small">Volume financeiro de vendas processadas</span>
+            <span class="text-muted small">{{ (financeiro.pedidos_pagos if financeiro else 0) }} pedido(s) pago(s)</span>
           </div>
         </div>
 
         <!-- Ticket Médio -->
-        <div class="col-md-4">
+        <div class="col-md-3">
           <div class="p-3 rounded-4 bg-light border h-100">
-            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Ticket Médio por Venda</span>
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Ticket Médio</span>
             <div class="h3 fw-bold text-primary mb-1">
-              R$ {{ "{:,.2f}".format(current_account.avg_ticket or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
+              R$ {{ "{:,.2f}".format((financeiro.ticket_medio if financeiro else 0.0) or 0.0).replace(",", "X").replace(".", ",").replace("X", ".") }}
             </div>
-            <span class="text-muted small">Valor médio faturado por pedido concluído</span>
+            <span class="text-muted small">Valor médio por pedido pago</span>
           </div>
         </div>
 
-        <!-- Encargos e Comissões do Período -->
-        <div class="col-md-4">
+        <!-- Taxa de conversão -->
+        <div class="col-md-3">
+          <div class="p-3 rounded-4 bg-light border h-100">
+            <span class="text-muted small text-uppercase fw-bold d-block mb-1">Taxa de Conversão</span>
+            <div class="h3 fw-bold text-success mb-1">
+              {{ "{:.2f}".format((financeiro.taxa_conversao if financeiro else 0.0) or 0.0).replace(".", ",") }}%
+            </div>
+            <span class="text-muted small">
+              {{ "{:,}".format((financeiro.visitas if financeiro else 0) or 0).replace(",", ".") }} visita(s) no período
+            </span>
+          </div>
+        </div>
+
+        <!-- Encargos e Comissões -->
+        <div class="col-md-3">
           <div class="p-3 rounded-4 bg-light border h-100">
             <span class="text-muted small text-uppercase fw-bold d-block mb-1">Encargos & Taxas ML</span>
             <div class="h3 fw-bold text-secondary mb-1">
               R$ {{ "{:,.2f}".format(billing.get('total_charges', 0.0)).replace(",", "X").replace(".", ",").replace("X", ".") }}
             </div>
-            <span class="text-muted small">Comissões de venda, Mercado Envios e publicidade</span>
+            <span class="text-muted small">Comissões, envios e publicidade</span>
           </div>
         </div>
       </div>
