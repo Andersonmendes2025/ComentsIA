@@ -2385,19 +2385,11 @@ def oauth2callback():
     topico = os.getenv("GBP_PUBSUB_TOPIC")
     if topico:
         try:
-            from google_auto import _registrar_topico_em_background
+            from google_auto import disparar_registro_topico
 
-            scheduler.add_job(
-                id=f"pubsub_registro_{user_id}",
-                func=_registrar_topico_em_background,
-                args=[user_id, topico],
-                trigger="date",
-                run_date=datetime.now(pytz.timezone("America/Sao_Paulo")) + timedelta(seconds=5),
-                replace_existing=True,
-                misfire_grace_time=300,
-            )
+            disparar_registro_topico(user_id, topico)
         except Exception:
-            logging.exception("[gbp/pubsub] Falha ao agendar registro de notificações de %s", user_id)
+            logging.exception("[gbp/pubsub] Falha ao disparar registro de notificações de %s", user_id)
 
     # 7) Done
     return redirect(url_for("reviews"))

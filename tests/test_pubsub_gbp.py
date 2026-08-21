@@ -76,39 +76,60 @@ def test_rejeita_token_invalido(client):
     assert res.status_code == 403
 
 
-def test_nova_avaliacao_agenda_sync(client):
-    """Notificacao valida de avaliacao nova deve agendar o sync do dono da ficha."""
+def test_nova_avaliacao_dispara_sync(client):
+    """Notificacao valida de avaliacao nova deve disparar o sync do dono da ficha."""
+    import google_auto
+    google_auto._ultimo_sync_pubsub.clear()
+
     with patch.dict(os.environ, {"PUBSUB_PUSH_TOKEN": TOKEN}), \
-         patch("google_auto._sync_em_background") as mock_sync, \
-         patch("main.scheduler.add_job") as mock_add_job:
+         patch("google_auto.threading.Thread") as mock_thread:
         res = client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope())
 
     assert res.status_code == 204
-    assert mock_add_job.called, "deveria ter agendado o sync"
-    kwargs = mock_add_job.call_args.kwargs
-    assert kwargs["args"] == [USER_ID], "sync deve ser do dono da ficha notificada"
-    # nao pode rodar inline: a resposta ao Pub/Sub tem que ser rapida
-    assert not mock_sync.called
+    assert mock_thread.called, "deveria ter disparado o sync em thread"
+    kwargs = mock_thread.call_args.kwargs
+    assert kwargs["args"] == (USER_ID,), "sync deve ser do dono da ficha notificada"
+    assert kwargs["daemon"] is True
+
+
+def test_avisos_seguidos_viram_um_sync_so(client):
+    """Varias avaliacoes chegando juntas nao devem gerar um sync por aviso."""
+    import google_auto
+    google_auto._ultimo_sync_pubsub.clear()
+
+    with patch.dict(os.environ, {"PUBSUB_PUSH_TOKEN": TOKEN}), \
+         patch("google_auto.threading.Thread") as mock_thread:
+        client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope())
+        client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope())
+        client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope())
+
+    assert mock_thread.call_count == 1, "3 avisos seguidos deveriam virar 1 sync"
 
 
 def test_ignora_tipo_irrelevante(client):
     """Notificacao que nao e de avaliacao nao deve disparar nada."""
+    import google_auto
+    google_auto._ultimo_sync_pubsub.clear()
+
     with patch.dict(os.environ, {"PUBSUB_PUSH_TOKEN": TOKEN}), \
-         patch("main.scheduler.add_job") as mock_add_job:
+         patch("google_auto.threading.Thread") as mock_thread:
         res = client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope(notification_type="NEW_QUESTION"))
 
     assert res.status_code == 204
-    assert not mock_add_job.called
+    assert not mock_thread.called
 
 
 def test_ignora_ficha_desconhecida(client):
     """Ficha que nao pertence a nenhum cliente daqui e ignorada sem erro."""
+    import google_auto
+    google_auto._ultimo_sync_pubsub.clear()
+
     with patch.dict(os.environ, {"PUBSUB_PUSH_TOKEN": TOKEN}), \
-         patch("main.scheduler.add_job") as mock_add_job:
+         patch("google_auto.threading.Thread") as mock_thread:
         res = client.post(f"/auto/pubsub/gbp/{TOKEN}", json=_envelope(location="locations/000000"))
 
     assert res.status_code == 204
-    assert not mock_add_job.called
+    assert not mock_thread.called
 
 
 def test_payload_quebrado_nao_derruba(client):

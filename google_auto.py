@@ -3,6 +3,8 @@ import base64
 import json
 import logging
 import os
+import threading
+import time
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from models import UserSettings, GoogleLocation
@@ -301,6 +303,13 @@ def cron_run_gbp_48h(token):
 
 TIPOS_NOTIFICACAO_AVALIACAO = {"NEW_REVIEW", "UPDATED_REVIEW"}
 
+# Intervalo mínimo entre dois syncs do mesmo cliente disparados por notificação.
+# Várias avaliações chegando juntas viram um sync só, em vez de um por aviso.
+INTERVALO_MINIMO_SYNC_PUBSUB = 30  # segundos
+
+_ultimo_sync_pubsub: Dict[str, float] = {}
+_lock_sync_pubsub = threading.Lock()
+
 
 def _sync_em_background(user_id: str) -> None:
     """Roda o sync fora da requisição do Pub/Sub, que precisa responder rápido."""
@@ -312,6 +321,31 @@ def _sync_em_background(user_id: str) -> None:
             logging.info("[gbp/pubsub] Sync concluído para %s: %s avaliações", user_id, total)
     except Exception:
         logging.exception("[gbp/pubsub] Falha no sync em background de %s", user_id)
+
+
+def _disparar_sync_pubsub(user_id: str) -> bool:
+    """
+    Dispara o sync numa thread própria.
+
+    Usa thread em vez do APScheduler de propósito: sob gunicorn o agendador
+    pode não estar rodando (ex.: FLASK_DEBUG ligado faz o Flask-APScheduler
+    recusar o start), e nesse caso o job era aceito mas nunca executado — a
+    notificação chegava e nada acontecia. Thread não depende desse estado.
+    """
+    with _lock_sync_pubsub:
+        agora = time.time()
+        if agora - _ultimo_sync_pubsub.get(user_id, 0) < INTERVALO_MINIMO_SYNC_PUBSUB:
+            logging.info("[gbp/pubsub] Sync de %s já disparado há pouco — agrupando", user_id)
+            return False
+        _ultimo_sync_pubsub[user_id] = agora
+
+    threading.Thread(
+        target=_sync_em_background,
+        args=(user_id,),
+        name=f"pubsub-sync-{user_id}",
+        daemon=True,
+    ).start()
+    return True
 
 
 @google_auto_bp.route("/pubsub/gbp/<token>", methods=["POST"])
@@ -359,22 +393,7 @@ def pubsub_gbp_notification(token: str):
     logging.info("[gbp/pubsub] %s na ficha %s (user=%s) — agendando sync",
                  tipo, location_id, ficha.user_id)
 
-    try:
-        from main import scheduler
-
-        scheduler.add_job(
-            id=f"pubsub_sync_{ficha.user_id}",
-            func=_sync_em_background,
-            args=[ficha.user_id],
-            trigger="date",
-            run_date=datetime.now(pytz.timezone("America/Sao_Paulo")) + timedelta(seconds=5),
-            replace_existing=True,  # várias avaliações seguidas = um sync só
-            misfire_grace_time=300,
-        )
-    except Exception:
-        # Sem agendador disponível, faz na hora para não perder o aviso.
-        logging.exception("[gbp/pubsub] Falha ao agendar; executando inline")
-        _sync_em_background(ficha.user_id)
+    _disparar_sync_pubsub(ficha.user_id)
 
     return ("", 204)
 
@@ -389,6 +408,17 @@ def _registrar_topico_em_background(user_id: str, topic_name: str) -> None:
             logging.info("[gbp/pubsub] Registro de notificações para %s: %s", user_id, resultado)
     except Exception:
         logging.exception("[gbp/pubsub] Falha ao registrar notificações de %s", user_id)
+
+
+def disparar_registro_topico(user_id: str, topic_name: str) -> None:
+    """Registra o tópico em thread própria (mesmo motivo do sync: não depender
+    do APScheduler, que pode não estar rodando sob gunicorn)."""
+    threading.Thread(
+        target=_registrar_topico_em_background,
+        args=(user_id, topic_name),
+        name=f"pubsub-registro-{user_id}",
+        daemon=True,
+    ).start()
 
 
 def registrar_topico_pubsub(user_id: str, topic_name: str) -> List[dict]:
