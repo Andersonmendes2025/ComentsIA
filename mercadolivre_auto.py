@@ -77,7 +77,9 @@ def usuario_tem_addon_mercadolivre(user_id: str) -> bool:
             return True
         settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
         if settings and getattr(settings, "has_addon_mercadolivre", False):
-            return True
+            from ifood_auto import _addon_dentro_da_validade
+
+            return _addon_dentro_da_validade(getattr(settings, "addon_mercadolivre_until", None))
         return False
     except Exception:
         logger.exception("[ML] Falha ao verificar addon do Mercado Livre para user_id=%s", user_id)

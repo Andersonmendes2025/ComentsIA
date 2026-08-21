@@ -51,6 +51,20 @@ def get_ifood_credentials(is_distributed: bool = False) -> Tuple[str, str]:
     return client_id.strip(), client_secret.strip()
 
 
+def _addon_dentro_da_validade(until) -> bool:
+    """
+    True se o add-on ainda vale. `until` vazio significa sem prazo definido
+    (assinatura ativa na Stripe, cuja renovacao o webhook mantem em dia);
+    com data preenchida, o acesso expira sozinho — e o que permite conceder
+    cortesia por tempo limitado sem precisar lembrar de remover depois.
+    """
+    if not until:
+        return True
+    if until.tzinfo is None:
+        until = pytz.timezone("America/Sao_Paulo").localize(until)
+    return until >= datetime.now(pytz.timezone("America/Sao_Paulo"))
+
+
 def usuario_tem_addon_ifood(user_id: str) -> bool:
     """
     Verifica se o usuário tem acesso ao módulo iFood. O plano do Google (Free/Pro/
@@ -66,7 +80,7 @@ def usuario_tem_addon_ifood(user_id: str) -> bool:
             return True
         settings = UserSettings.query.filter_by(user_id=str(user_id)).first()
         if settings and getattr(settings, "has_addon_ifood", False):
-            return True
+            return _addon_dentro_da_validade(getattr(settings, "addon_ifood_until", None))
         return False
     except Exception:
         return False

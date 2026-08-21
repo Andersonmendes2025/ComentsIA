@@ -229,3 +229,29 @@ def test_reviews_filter_ifood(client, ifood_setup):
 
     response = client.get(f"/reviews?origem=ifood", follow_redirects=True)
     assert response.status_code == 200
+
+
+def test_addon_expirado_perde_acesso(app):
+    """
+    Cortesia por tempo limitado precisa expirar sozinha: com data no passado,
+    o add-on deixa de valer mesmo com o campo ligado.
+    """
+    from datetime import datetime, timedelta
+
+    with app.app_context():
+        casos = [
+            ("test_addon_vencido", datetime.now() - timedelta(days=1), False),
+            ("test_addon_vigente", datetime.now() + timedelta(days=30), True),
+            ("test_addon_sem_prazo", None, True),
+        ]
+        for user_id, until, esperado in casos:
+            s = UserSettings.query.filter_by(user_id=user_id).first()
+            if not s:
+                s = UserSettings(user_id=user_id, plano="free")
+                db.session.add(s)
+            s.has_addon_ifood = True
+            s.addon_ifood_until = until
+            db.session.commit()
+
+            assert usuario_tem_addon_ifood(user_id) is esperado, \
+                f"{user_id}: until={until} deveria dar {esperado}"
