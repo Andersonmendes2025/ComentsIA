@@ -2,6 +2,7 @@
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
 import sys
+import threading
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
@@ -244,9 +245,58 @@ try:
 except Exception:
     logging.exception("[billing] Falha ao registrar job de cobrança diária")
 
-# init_app() só carrega a config e os jobs — NÃO inicia a thread do scheduler.
-# Sem este start(), os jobs diários ficam registrados mas nunca disparam.
-scheduler.start()
+# ATENÇÃO: o scheduler NÃO é iniciado aqui de propósito.
+#
+# Sob gunicorn, este módulo é carregado antes do worker nascer. Threads não
+# sobrevivem ao fork: o worker herdaria um scheduler que se diz "rodando" mas
+# cuja thread não existe ali. add_job() era aceito e o job nunca executava —
+# falha silenciosa, sem erro em log nenhum (foi o que segurou as notificações
+# do Pub/Sub e, provavelmente, os jobs diários de iFood e cobrança).
+#
+# Por isso o start acontece na primeira requisição, já dentro do worker
+# (_garantir_scheduler_ativo, logo abaixo da criação das rotas).
+_scheduler_iniciado = False
+_lock_scheduler = threading.Lock()
+
+
+def _scheduler_tem_thread_viva(sched=None) -> bool:
+    """True se a thread do scheduler existe e está viva NESTE processo."""
+    sched = sched if sched is not None else scheduler
+    base = getattr(sched, "_scheduler", sched)
+    thread = getattr(base, "_thread", None)
+    return bool(thread and thread.is_alive())
+
+
+@app.before_request
+def _garantir_scheduler_ativo():
+    """Inicia o scheduler dentro do worker, uma única vez por processo."""
+    global _scheduler_iniciado
+    if _scheduler_iniciado:
+        return
+
+    with _lock_scheduler:
+        if _scheduler_iniciado:
+            return
+        try:
+            if not _scheduler_tem_thread_viva():
+                base = getattr(scheduler, "_scheduler", scheduler)
+                # Estado herdado do processo pai diz "rodando"; zera para o
+                # start() valer de verdade aqui dentro.
+                try:
+                    from apscheduler.schedulers.base import STATE_STOPPED
+
+                    base._state = STATE_STOPPED
+                except Exception:
+                    pass
+                scheduler.start()
+                logging.info(
+                    "[scheduler] Iniciado no worker (jobs: %s)",
+                    [j.id for j in scheduler.get_jobs()],
+                )
+            _scheduler_iniciado = True
+        except Exception:
+            logging.exception("[scheduler] Falha ao iniciar no worker")
+            _scheduler_iniciado = True  # não tenta a cada requisição
 # 👉 só então roda o seed (dentro do app_context)
 from sqlalchemy import inspect
 
