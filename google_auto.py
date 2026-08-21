@@ -1,4 +1,6 @@
 from __future__ import annotations
+import base64
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -289,7 +291,146 @@ def cron_run_gbp_48h(token):
             "error": str(e)
         }), 500
 
-    
+
+# ---------------------------------------------------------
+# 🔔 NOTIFICAÇÕES EM TEMPO REAL (Google Pub/Sub)
+# ---------------------------------------------------------
+# O Google não entrega a avaliação em si: ele publica um aviso de "mudou algo
+# nessa ficha" no tópico Pub/Sub, e nós buscamos a novidade. O cron diário
+# continua existindo como rede de segurança para avisos que se percam.
+
+TIPOS_NOTIFICACAO_AVALIACAO = {"NEW_REVIEW", "UPDATED_REVIEW"}
+
+
+def _sync_em_background(user_id: str) -> None:
+    """Roda o sync fora da requisição do Pub/Sub, que precisa responder rápido."""
+    try:
+        from main import app as flask_app
+
+        with flask_app.app_context():
+            total = run_sync_last_48h(user_id)
+            logging.info("[gbp/pubsub] Sync concluído para %s: %s avaliações", user_id, total)
+    except Exception:
+        logging.exception("[gbp/pubsub] Falha no sync em background de %s", user_id)
+
+
+@google_auto_bp.route("/pubsub/gbp/<token>", methods=["POST"])
+def pubsub_gbp_notification(token: str):
+    """
+    Recebe as notificações do Google via Pub/Sub (push).
+
+    Responde 204 rapidamente em quase todos os casos: o Pub/Sub reentrega a
+    mensagem se demorarmos ou devolvermos erro, e o sync pode levar dezenas de
+    segundos. Por isso o trabalho real vai para segundo plano.
+    """
+    esperado = os.getenv("PUBSUB_PUSH_TOKEN")
+    if not esperado or token != esperado:
+        logging.warning("[gbp/pubsub] Token inválido na notificação recebida")
+        return jsonify({"success": False, "error": "Acesso negado"}), 403
+
+    envelope = request.get_json(silent=True) or {}
+    mensagem = envelope.get("message") or {}
+
+    payload = {}
+    dados_b64 = mensagem.get("data")
+    if dados_b64:
+        try:
+            payload = json.loads(base64.b64decode(dados_b64).decode("utf-8"))
+        except Exception:
+            logging.exception("[gbp/pubsub] Payload ilegível: %r", dados_b64)
+            # 204 de propósito: reentregar não conserta payload quebrado.
+            return ("", 204)
+
+    tipo = payload.get("notificationType")
+    if tipo not in TIPOS_NOTIFICACAO_AVALIACAO:
+        logging.info("[gbp/pubsub] Ignorado (tipo=%s)", tipo)
+        return ("", 204)
+
+    location_id = _extract_id(payload.get("location") or "")
+    if not location_id:
+        logging.warning("[gbp/pubsub] Notificação sem location: %r", payload)
+        return ("", 204)
+
+    ficha = GoogleLocation.query.filter_by(location_id=location_id).first()
+    if not ficha or not ficha.user_id:
+        logging.info("[gbp/pubsub] Ficha %s não pertence a nenhum usuário aqui", location_id)
+        return ("", 204)
+
+    logging.info("[gbp/pubsub] %s na ficha %s (user=%s) — agendando sync",
+                 tipo, location_id, ficha.user_id)
+
+    try:
+        from main import scheduler
+
+        scheduler.add_job(
+            id=f"pubsub_sync_{ficha.user_id}",
+            func=_sync_em_background,
+            args=[ficha.user_id],
+            trigger="date",
+            run_date=datetime.now(pytz.timezone("America/Sao_Paulo")) + timedelta(seconds=5),
+            replace_existing=True,  # várias avaliações seguidas = um sync só
+            misfire_grace_time=300,
+        )
+    except Exception:
+        # Sem agendador disponível, faz na hora para não perder o aviso.
+        logging.exception("[gbp/pubsub] Falha ao agendar; executando inline")
+        _sync_em_background(ficha.user_id)
+
+    return ("", 204)
+
+
+def _registrar_topico_em_background(user_id: str, topic_name: str) -> None:
+    """Registra o tópico sem segurar o login do cliente."""
+    try:
+        from main import app as flask_app
+
+        with flask_app.app_context():
+            resultado = registrar_topico_pubsub(user_id, topic_name)
+            logging.info("[gbp/pubsub] Registro de notificações para %s: %s", user_id, resultado)
+    except Exception:
+        logging.exception("[gbp/pubsub] Falha ao registrar notificações de %s", user_id)
+
+
+def registrar_topico_pubsub(user_id: str, topic_name: str) -> List[dict]:
+    """
+    Assina o tópico Pub/Sub nas contas Google do usuário, para o Google passar
+    a avisar sobre avaliações novas. Precisa ser chamado uma vez por conta.
+    """
+    creds = _get_persisted_credentials(user_id)
+    if not creds:
+        return [{"ok": False, "erro": "sem credenciais"}]
+
+    resultados = []
+    for account_ref in _list_all_accounts(creds):
+        url = (
+            f"https://mybusinessnotifications.googleapis.com/v1/{account_ref}"
+            f"/notificationSetting?updateMask=pubsubTopic"
+        )
+        try:
+            resp = requests.patch(
+                url,
+                headers={**_make_auth_headers(creds), "Content-Type": "application/json"},
+                json={"pubsubTopic": topic_name},
+                timeout=20,
+            )
+            ok = resp.status_code == 200
+            resultados.append({
+                "conta": account_ref,
+                "ok": ok,
+                "status": resp.status_code,
+                "resposta": resp.text[:300],
+            })
+            if ok:
+                logging.info("[gbp/pubsub] Tópico registrado em %s", account_ref)
+            else:
+                logging.error("[gbp/pubsub] Falha em %s: %s %s", account_ref, resp.status_code, resp.text[:300])
+        except Exception as e:
+            logging.exception("[gbp/pubsub] Erro ao registrar tópico em %s", account_ref)
+            resultados.append({"conta": account_ref, "ok": False, "erro": str(e)})
+
+    return resultados
+
+
 @google_auto_bp.route("/google/locations/sync", methods=["POST"])
 def sync_google_locations():
     user_id = get_current_user_id()

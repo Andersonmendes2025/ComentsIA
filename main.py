@@ -508,6 +508,12 @@ app.register_blueprint(stripe_bp)
 # Sem isso, toda chamada real da Stripe (renovação, cancelamento, falha de pagamento) é rejeitada
 # com "CSRF token missing" antes mesmo de chegar na validação da assinatura.
 csrf.exempt(stripe_webhook)
+
+# 🔐 Mesmo caso do Stripe: o Google Pub/Sub faz POST sem token CSRF.
+# A autenticação aqui é o token secreto na própria URL (PUBSUB_PUSH_TOKEN).
+from google_auto import pubsub_gbp_notification
+csrf.exempt(pubsub_gbp_notification)
+
 from routes_ajuda import support_chat, onboarding_done
 csrf.exempt(support_chat)
 csrf.exempt(onboarding_done)
@@ -2369,7 +2375,31 @@ def oauth2callback():
         flash("Erro interno ao preparar sua conta. Tente novamente.", "danger")
         return redirect(url_for("logout"))
 
-    # 6) Done
+    # 6) Assina as notificações do Google (Pub/Sub) para esta conta.
+    # Como todo acesso ao ComentsIA passa por aqui, todo cliente acaba
+    # registrado sozinho — inclusive os antigos, no próximo login.
+    # Roda em segundo plano por dois motivos: não atrasar o login do cliente
+    # e não depender do refresh_token desta requisição (o Google só o envia
+    # na primeira autorização; nos logins seguintes usamos o salvo no banco).
+    # Falhar aqui nunca pode quebrar o login: o cron continua como rede de segurança.
+    topico = os.getenv("GBP_PUBSUB_TOPIC")
+    if topico:
+        try:
+            from google_auto import _registrar_topico_em_background
+
+            scheduler.add_job(
+                id=f"pubsub_registro_{user_id}",
+                func=_registrar_topico_em_background,
+                args=[user_id, topico],
+                trigger="date",
+                run_date=datetime.now(pytz.timezone("America/Sao_Paulo")) + timedelta(seconds=5),
+                replace_existing=True,
+                misfire_grace_time=300,
+            )
+        except Exception:
+            logging.exception("[gbp/pubsub] Falha ao agendar registro de notificações de %s", user_id)
+
+    # 7) Done
     return redirect(url_for("reviews"))
 
 def build_flow(state=None, redirect_uri=None):
