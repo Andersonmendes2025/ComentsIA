@@ -1274,21 +1274,32 @@ def _update_local_reply_status(user_id: str, external_id: str, reply_text: Optio
 
 def register_gbp_cron(scheduler, app):
     import pytz
+
     def _gbp_job():
         with app.app_context():
             try:
                 enabled = UserSettings.query.filter_by(gbp_auto_enabled=True).all()
-                for s in enabled:
-                    run_sync_for_user(s.user_id)
             except Exception:
-                logging.exception("[gbp] 💥 Job diário falhou.")
+                logging.exception("[gbp] 💥 Job diário falhou ao listar contas.")
+                return
+
+            logging.info("[gbp] 🕐 Job diário iniciado — %s contas habilitadas.", len(enabled))
+            total = 0
+            for s in enabled:
+                # Isola por conta: token revogado ou ficha removida no Google
+                # nao pode impedir a sincronizacao dos demais clientes.
+                try:
+                    total += run_sync_last_48h(s.user_id)
+                except Exception:
+                    logging.exception("[gbp] 💥 Falha ao sincronizar %s — seguindo para o próximo.", s.user_id)
+            logging.info("[gbp] ✅ Job diário concluído. Total: %s avaliações.", total)
 
     scheduler.add_job(
         id="gbp_daily_sync",
         func=_gbp_job,
         trigger="cron",
-        hour=10,
-        minute=15,
+        hour=18,
+        minute=0,
         timezone=pytz.timezone("America/Sao_Paulo"),
         replace_existing=True,
     )
