@@ -241,12 +241,29 @@
       </div>
 
       {% if financeiro and not financeiro.dados_disponiveis %}
+        {% if financeiro.erro == 'sem_permissao_ml' %}
+        <div class="alert alert-warning border-0 rounded-4 mb-3">
+          <div class="fw-bold mb-1"><i class="bi bi-shield-lock-fill me-1"></i> Mercado Livre não autoriza o acesso aos dados de vendas</div>
+          <p class="small mb-2">
+            Sua conta está conectada corretamente (perguntas e reputação funcionam normalmente),
+            mas o Mercado Livre bloqueia este aplicativo nos endpoints de <strong>pedidos</strong>,
+            <strong>faturamento</strong> e <strong>visitas</strong> — por isso faturamento, ticket médio
+            e taxa de conversão não podem ser calculados.
+          </p>
+          <p class="small mb-0">
+            É uma restrição da plataforma deles, não da sua conta. Para liberar, é preciso solicitar
+            a permissão desses escopos ao suporte do Mercado Livre para o aplicativo integrador.
+            <strong>Enquanto isso, preferimos deixar os campos zerados a exibir estimativa como se fosse faturamento real.</strong>
+          </p>
+        </div>
+        {% else %}
         <div class="alert alert-warning border-0 rounded-4 small mb-3">
           <i class="bi bi-exclamation-triangle-fill me-1"></i>
           Não foi possível obter os dados financeiros do Mercado Livre agora
           {%- if financeiro.erro %} ({{ financeiro.erro }}){% endif %}.
           Os valores abaixo aparecem zerados de propósito — preferimos não exibir estimativa como se fosse faturamento real.
         </div>
+        {% endif %}
       {% endif %}
 
       <div class="row g-3">

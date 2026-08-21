@@ -101,3 +101,28 @@ def test_periodo_vai_na_consulta():
 
 def test_periodos_disponiveis():
     assert set(PERIODOS_FINANCEIROS) == {7, 30, 90, 180}
+
+
+def test_bloqueio_do_policyagent_e_identificado():
+    """
+    403 do PolicyAgent significa que o Mercado Livre bloqueia o app naquele
+    endpoint — situacao diferente de token invalido, e com acao diferente
+    para resolver. A tela precisa saber distinguir para orientar direito.
+    """
+    corpo = {
+        "message": "At least one policy returned UNAUTHORIZED.",
+        "blocked_by": "PolicyAgent",
+        "code": "PA_UNAUTHORIZED_RESULT_FROM_POLICIES",
+        "status": 403,
+    }
+    resp = MagicMock()
+    resp.status_code = 403
+    resp.json.return_value = corpo
+    resp.text = str(corpo)
+
+    with patch("mercadolivre_auto.requests.get", return_value=resp):
+        r = calcular_metricas_financeiras("123", "token", dias=30)
+
+    assert r["dados_disponiveis"] is False
+    assert r["erro"] == "sem_permissao_ml"
+    assert r["faturamento"] == 0.0

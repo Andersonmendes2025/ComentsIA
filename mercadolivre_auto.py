@@ -906,7 +906,13 @@ def calcular_metricas_financeiras(seller_id: str, access_token: str, dias: int =
             r = requests.get(url, headers=headers, timeout=20)
             if r.status_code != 200:
                 if offset == 0:
-                    vazio["erro"] = f"HTTP {r.status_code}"
+                    # 403 do PolicyAgent = o Mercado Livre bloqueia o app para
+                    # esse endpoint (restricao de plataforma, nao token invalido).
+                    # Vale distinguir: a acao para resolver e outra.
+                    if r.status_code == 403 and "POLICIES" in (r.text or "").upper():
+                        vazio["erro"] = "sem_permissao_ml"
+                    else:
+                        vazio["erro"] = f"HTTP {r.status_code}"
                     logger.warning("[ML] Pedidos HTTP %s: %s", r.status_code, r.text[:200])
                     return vazio
                 break
