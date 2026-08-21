@@ -222,6 +222,10 @@
 
     <!-- LINHA FINANCEIRA & FATURAMENTO MERCADO LIVRE -->
     {% set billing = current_account.get_billing_summary() %}
+    {# Painel financeiro so aparece quando o Mercado Livre libera os dados.
+       Hoje /orders, /billing e items_visits voltam 403 (PolicyAgent), entao
+       exibir cards zerados so poluiria a tela. #}
+    {% if financeiro and financeiro.dados_disponiveis %}
     <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
@@ -327,6 +331,7 @@
         </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- GRID DOS 4 PILARES DE DESEMPENHO -->
     <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
@@ -518,6 +523,9 @@
       </div>
 
       <!-- AVALIAÇÕES GLOBAIS DA CONTA E PRODUTOS -->
+      {# Avaliacoes de produto dependem de /items, hoje bloqueado pelo ML.
+         Sem anuncio nem avaliacao, o bloco fica fora da tela. #}
+      {% if (current_account.total_store_reviews or 0) > 0 or (current_account.total_active_items or 0) > 0 %}
       <div class="col-lg-5">
         <div class="card border-0 shadow-sm rounded-4 p-4 h-100 bg-white">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -587,6 +595,7 @@
 
         </div>
       </div>
+      {% endif %}
 
     </div>
 

@@ -126,3 +126,70 @@ def test_bloqueio_do_policyagent_e_identificado():
     assert r["dados_disponiveis"] is False
     assert r["erro"] == "sem_permissao_ml"
     assert r["faturamento"] == 0.0
+
+
+@pytest.fixture
+def client_ml():
+    """Sessao logada com conta ML e add-on ativo, para renderizar o painel."""
+    from main import app as flask_app
+    from models import db, User, UserSettings
+    from models_mercadolivre import MercadoLivreAccount
+
+    flask_app.config['TESTING'] = True
+    flask_app.config['WTF_CSRF_ENABLED'] = False
+    uid = "test_ml_painel"
+
+    with flask_app.app_context():
+        if not User.query.filter_by(id=uid).first():
+            db.session.add(User(id=uid, email="painel@example.com"))
+        s = UserSettings.query.filter_by(user_id=uid).first()
+        if not s:
+            s = UserSettings(user_id=uid, plano="pro")
+            db.session.add(s)
+        s.has_addon_mercadolivre = True
+        s.addon_mercadolivre_until = None
+        MercadoLivreAccount.query.filter_by(user_id=uid).delete()
+        db.session.add(MercadoLivreAccount(
+            user_id=uid, seller_id="999888", nickname="LOJA_TESTE",
+        ))
+        db.session.commit()
+
+    c = flask_app.test_client()
+    with c.session_transaction() as sess:
+        sess["user_id"] = uid
+        sess["user_info"] = {"id": uid, "email": "painel@example.com"}
+    return c
+
+
+BLOQUEADO = {"dias": 30, "dados_disponiveis": False, "erro": "sem_permissao_ml",
+             "pedidos_pagos": 0, "pedidos_cancelados": 0, "pedidos_total": 0,
+             "faturamento": 0.0, "ticket_medio": 0.0, "visitas": 0, "taxa_conversao": 0.0}
+
+LIBERADO = {"dias": 30, "dados_disponiveis": True, "erro": None,
+            "pedidos_pagos": 10, "pedidos_cancelados": 1, "pedidos_total": 11,
+            "faturamento": 1500.0, "ticket_medio": 150.0, "visitas": 3000, "taxa_conversao": 0.33}
+
+
+def test_painel_financeiro_some_quando_ml_bloqueia(client_ml):
+    """Sem dado liberado, o bloco financeiro nao deve aparecer na tela."""
+    with patch("mercadolivre_auto.calcular_metricas_financeiras", return_value=BLOQUEADO),          patch("mercadolivre_auto.get_fresh_ml_token", return_value="tok"):
+        html = client_ml.get("/mercadolivre/").data.decode("utf-8")
+
+    assert "Visão Financeira" not in html
+    assert "Taxa de Conversão" not in html
+
+
+def test_painel_financeiro_aparece_quando_ha_dados(client_ml):
+    with patch("mercadolivre_auto.calcular_metricas_financeiras", return_value=LIBERADO),          patch("mercadolivre_auto.get_fresh_ml_token", return_value="tok"):
+        html = client_ml.get("/mercadolivre/").data.decode("utf-8")
+
+    assert "Visão Financeira" in html
+    assert "Taxa de Conversão" in html
+
+
+def test_avaliacoes_da_loja_somem_sem_anuncios(client_ml):
+    """Avaliacoes de produto dependem de /items, hoje bloqueado."""
+    with patch("mercadolivre_auto.calcular_metricas_financeiras", return_value=BLOQUEADO),          patch("mercadolivre_auto.get_fresh_ml_token", return_value="tok"):
+        html = client_ml.get("/mercadolivre/").data.decode("utf-8")
+
+    assert "Avaliações da Loja" not in html
