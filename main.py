@@ -1530,9 +1530,11 @@ def integracoes():
     # Busca lojas iFood, Google e Mercado Livre do usuário
     from models import IFoodMerchant, GoogleLocation
     from models_mercadolivre import MercadoLivreAccount
-    ifood_merchants = IFoodMerchant.query.filter_by(user_id=str(user_id)).all()
+    # Lojas desconectadas continuam no banco para preservar historico e
+    # configuracoes, mas nao aparecem como conectadas na tela de integracoes.
+    ifood_merchants = IFoodMerchant.query.filter_by(user_id=str(user_id), is_active=True).all()
     google_locations = GoogleLocation.query.filter_by(user_id=str(user_id)).all()
-    ml_accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id)).all()
+    ml_accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id), is_active=True).all()
 
     # A ativação de verdade acontece em /stripe/addon/success (só depois de
     # confirmar o pagamento com a Stripe). Aqui só tratamos o aviso de cancelamento.

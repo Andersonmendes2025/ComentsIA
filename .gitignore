@@ -18,3 +18,9 @@ blobs.txt
 # Arquivos de teste e cache
 .pytest_cache/
 scratch/
+
+# Dados extraidos do ambiente de homologacao do iFood (nao versionar)
+_venda.json
+_fe.json
+_st.json
+_rec.csv

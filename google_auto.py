@@ -169,16 +169,16 @@ def escolher_ficha_google():
 
         # 2. EXCLUIR / REMOVER FICHA
         if action in ["excluir", "delete", "remover"]:
-            if ficha_alvo.is_active:
-                ficha_alvo.is_active = False
-            
-            # Desvincula avaliações associadas
-            Review.query.filter_by(user_id=user_id, google_location_id=ficha_alvo.id).update({"google_location_id": None})
+            # Removida de forma suave: a linha e mantida. Apagar de verdade nao
+            # removia nada em definitivo — a proxima sincronizacao com a API do
+            # Google recriava a ficha do zero, so que sem tom de voz, contexto
+            # personalizado, nome do gerente nem saudacao, e com as avaliacoes
+            # ja desvinculadas. Mantendo a linha, reativar restaura tudo.
+            ficha_alvo.is_active = False
 
             location_title = ficha_alvo.location_name or "Ficha"
-            db.session.delete(ficha_alvo)
             db.session.commit()
-            return jsonify({"success": True, "message": f"Ficha '{location_title}' excluída com sucesso."})
+            return jsonify({"success": True, "message": f"Ficha '{location_title}' removida com sucesso."})
 
         # 3. DESATIVAR
         if action == "desativar":
@@ -1230,20 +1230,19 @@ def excluir_ficha_especifica(location_id):
         flash("Ficha não encontrada.", "danger")
         return redirect(url_for("google_auto.escolher_ficha_google"))
 
-    if ficha.is_active:
-        ficha.is_active = False
-
-    # Desvincula avaliações associadas
-    Review.query.filter_by(user_id=user_id, google_location_id=ficha.id).update({"google_location_id": None})
+    # Remocao suave, mesmo criterio da acao "excluir" em escolher_ficha_google:
+    # a linha e mantida para preservar as configuracoes da ficha e o vinculo
+    # das avaliacoes. Apagar de verdade nao removia em definitivo — a proxima
+    # sincronizacao recriava a ficha zerada — e ainda desvinculava o historico.
+    ficha.is_active = False
 
     location_title = ficha.location_name or "Ficha"
-    db.session.delete(ficha)
     db.session.commit()
 
     if request.is_json:
-        return jsonify({"success": True, "message": f"Ficha '{location_title}' excluída com sucesso."})
-    
-    flash(f"Ficha '{location_title}' excluída com sucesso.", "success")
+        return jsonify({"success": True, "message": f"Ficha '{location_title}' removida com sucesso."})
+
+    flash(f"Ficha '{location_title}' removida com sucesso.", "success")
     return redirect(url_for("google_auto.escolher_ficha_google"))
 
 

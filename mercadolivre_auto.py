@@ -1689,7 +1689,9 @@ def dashboard():
         flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para acessar este módulo.", "warning")
         return redirect(url_for("integracoes"))
 
-    accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id)).all()
+    # Contas desconectadas continuam no banco para preservar historico,
+    # mas nao aparecem no painel como se estivessem conectadas.
+    accounts = MercadoLivreAccount.query.filter_by(user_id=str(user_id), is_active=True).all()
     selected_account_id = request.args.get("account_id", type=int)
     
     current_account = None
@@ -1930,14 +1932,38 @@ def responder_pergunta_ajax():
 
 @mercadolivre_bp.route("/desconectar/<int:account_id>", methods=["POST"])
 def desconectar_conta(account_id: int):
-    """Desconecta a conta do vendedor."""
+    """
+    Desconecta a conta do vendedor sem apagar o registro.
+
+    A linha e mantida de proposito. O relacionamento com itens e alertas usa
+    cascade="all, delete-orphan", entao apagar a conta levava junto todo o
+    historico de anuncios e alertas; e, como a reconexao procura por
+    (user_id, seller_id), a conta voltava como um registro novo e o vendedor
+    perdia tudo.
+
+    Os tokens sao zerados, entao a desconexao continua valendo de verdade:
+    sem token nao ha acesso a API do Mercado Livre ate reconectar.
+    """
     user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
     account = MercadoLivreAccount.query.filter_by(id=account_id, user_id=str(user_id)).first_or_404()
 
     nickname = account.nickname
-    db.session.delete(account)
+    account.is_active = False
+    account.access_token = None
+    account.refresh_token = None
+    account.token_expires_at = None
     db.session.commit()
-    flash(f"Conta '{nickname}' desconectada com sucesso.", "info")
+
+    logger.info(
+        "[MercadoLivre] Conta %s (seller %s) desconectada; registro preservado para reconexao.",
+        account.id, account.seller_id
+    )
+
+    flash(
+        f"Conta '{nickname}' desconectada. Seu histórico foi preservado — "
+        "ao reconectar, tudo volta de onde parou.",
+        "info"
+    )
     return redirect(url_for("mercadolivre.dashboard"))
 
 
@@ -2059,7 +2085,11 @@ def callback_oauth():
         except Exception as e:
             logger.debug(f"[MercadoLivre OAuth] /users/me falhou: {e}")
 
+        # Procura pelo seller_id do Mercado Livre, sem filtrar is_active: uma
+        # conta desconectada precisa ser reencontrada e reativada, para o
+        # vendedor continuar de onde parou em vez de comecar do zero.
         account = MercadoLivreAccount.query.filter_by(user_id=str(user_id), seller_id=seller_id).first()
+        reconectada = account is not None
         if not account:
             account = MercadoLivreAccount(
                 user_id=str(user_id),
@@ -2071,9 +2101,16 @@ def callback_oauth():
             db.session.add(account)
             db.session.commit()
         else:
+            # Só o que vem do Mercado Livre e atualizado; itens, alertas e
+            # metricas ja gravados ficam como estavam.
             account.nickname = nickname
             account.permalink = permalink
             account.site_id = site_id
+            account.is_active = True
+            logger.info(
+                "[MercadoLivre] Conta %s (seller %s) reconectada; historico preservado.",
+                account.id, seller_id
+            )
 
         if access_token:
             account.access_token = crypto_encrypt(access_token)

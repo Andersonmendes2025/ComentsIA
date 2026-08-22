@@ -341,3 +341,93 @@ def test_dashboard_ml_exige_addon(app, client):
     assert res.status_code == 302
     assert "/integracoes" in res.location
 
+
+
+def test_desconectar_conta_preserva_registro_itens_e_alertas(client):
+    """
+    Regressao: desconectar_conta chamava db.session.delete(account). Como o
+    relacionamento com itens e alertas usa cascade="all, delete-orphan", isso
+    apagava todo o historico do vendedor; e a reconexao, que procura por
+    (user_id, seller_id), criava uma conta nova do zero.
+    Desconectar tem que ser soft: mantem a linha e zera os tokens.
+    """
+    with flask_app.app_context():
+        account = MercadoLivreAccount(
+            user_id="test_ml_user",
+            seller_id="555444333",
+            nickname="LOJA_TESTE_DESCONEXAO",
+            access_token="token_falso",
+            refresh_token="refresh_falso",
+            health_score=87,
+        )
+        db.session.add(account)
+        db.session.commit()
+        account_id = account.id
+
+        db.session.add(MercadoLivreItem(
+            account_id=account_id, item_id="MLB1234567890", title="Produto Teste", price=99.9
+        ))
+        db.session.add(MercadoLivreAlert(
+            account_id=account_id, tipo="claims_risk",
+            titulo="Alerta Teste", mensagem="Mensagem de teste"
+        ))
+        db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = "test_ml_user"
+        sess["user_info"] = {"id": "test_ml_user", "email": "ml_user@example.com"}
+
+    resp = client.post(f"/mercadolivre/desconectar/{account_id}")
+    assert resp.status_code in (200, 302)
+
+    with flask_app.app_context():
+        conta = MercadoLivreAccount.query.get(account_id)
+        assert conta is not None, "a conta foi apagada; reconectar criaria um registro novo"
+        assert conta.is_active is False
+        # Desconexao precisa valer: sem token nao ha acesso a API do ML.
+        assert conta.access_token is None
+        assert conta.refresh_token is None
+        # E o historico do vendedor continua ali.
+        assert conta.seller_id == "555444333"
+        assert conta.health_score == 87
+        assert MercadoLivreItem.query.filter_by(account_id=account_id).count() == 1
+        assert MercadoLivreAlert.query.filter_by(account_id=account_id).count() == 1
+
+
+def test_reconectar_conta_ml_reaproveita_registro_existente():
+    """
+    O callback do OAuth procura por (user_id, seller_id) sem filtrar is_active,
+    entao uma conta desconectada e reencontrada e reativada com o mesmo id.
+    """
+    with flask_app.app_context():
+        account = MercadoLivreAccount(
+            user_id="test_ml_user",
+            seller_id="777666555",
+            nickname="LOJA_RECONEXAO",
+            is_active=False,
+            access_token=None,
+            health_score=93,
+        )
+        db.session.add(account)
+        db.session.commit()
+        account_id = account.id
+
+        antes = MercadoLivreAccount.query.filter_by(user_id="test_ml_user").count()
+
+        # Mesma consulta que o callback do OAuth faz ao reconectar.
+        achada = MercadoLivreAccount.query.filter_by(
+            user_id="test_ml_user", seller_id="777666555"
+        ).first()
+        assert achada is not None, "conta desconectada precisa ser reencontrada"
+        assert achada.id == account_id, "o id interno tem que ser o mesmo"
+
+        achada.is_active = True
+        achada.access_token = "novo_token"
+        db.session.commit()
+
+        depois = MercadoLivreAccount.query.filter_by(user_id="test_ml_user").count()
+        assert depois == antes, "reconectar nao pode criar uma segunda conta"
+
+        conta = MercadoLivreAccount.query.get(account_id)
+        assert conta.is_active is True
+        assert conta.health_score == 93, "historico perdido na reconexao"
