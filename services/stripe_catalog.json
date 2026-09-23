@@ -1,0 +1,71 @@
+{
+  "verified_at": "2026-09-23",
+  "prices": {
+    "addon_mercadolivre": {
+      "price_id": "price_1U6JcmHdM7mYgSGKhx3gi9ha",
+      "price_cents": 2990,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    "addon_ifood": {
+      "price_id": "price_1U4qebHdM7mYgSGKImuFU85G",
+      "price_cents": 2990,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    "addon_slot": {
+      "price_id": "price_1ShcEjHdM7mYgSGKVAqONXuR",
+      "price_cents": 2999,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    "retro_180": {
+      "price_id": "price_1SVv8DHdM7mYgSGKymEAk2Qz",
+      "price_cents": 9999,
+      "currency": "BRL",
+      "interval": null
+    },
+    "retro_90": {
+      "price_id": "price_1SVv6THdM7mYgSGKwJhIBMND",
+      "price_cents": 5999,
+      "currency": "BRL",
+      "interval": null
+    },
+    "retro_60": {
+      "price_id": "price_1SVv5dHdM7mYgSGKb5trKdSw",
+      "price_cents": 3499,
+      "currency": "BRL",
+      "interval": null
+    },
+    "retro_30": {
+      "price_id": "price_1SVv4oHdM7mYgSGKWAjcBGrV",
+      "price_cents": 1900,
+      "currency": "BRL",
+      "interval": null
+    },
+    "business_anual": {
+      "price_id": "price_1SVuysHdM7mYgSGKOUgftxMm",
+      "price_cents": 89999,
+      "currency": "BRL",
+      "interval": "year"
+    },
+    "business": {
+      "price_id": "price_1SVuxSHdM7mYgSGKzWq1PQpt",
+      "price_cents": 7999,
+      "currency": "BRL",
+      "interval": "month"
+    },
+    "pro_anual": {
+      "price_id": "price_1SVuuCHdM7mYgSGKRJUZE1wj",
+      "price_cents": 54999,
+      "currency": "BRL",
+      "interval": "year"
+    },
+    "pro": {
+      "price_id": "price_1SVusPHdM7mYgSGKEqW25X5U",
+      "price_cents": 4999,
+      "currency": "BRL",
+      "interval": "month"
+    }
+  }
+}

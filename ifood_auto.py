@@ -6,6 +6,7 @@ e publicação de respostas automatizadas com calibragem de tom de voz via GPT-4
 """
 
 from __future__ import annotations
+from services.ai_service import build_relevant_context, REVIEW_CONTEXT_POLICY
 import os
 import json
 import base64
@@ -68,7 +69,7 @@ def _addon_dentro_da_validade(until) -> bool:
 def usuario_tem_addon_ifood(user_id: str) -> bool:
     """
     Verifica se o usuário tem acesso ao módulo iFood. O plano do Google (Free/Pro/
-    Business) NÃO libera iFood — é sempre um add-on pago à parte (R$29,90/mês),
+    Business) NÃO libera iFood — é sempre um add-on pago à parte (assinatura mensal),
     independente do plano contratado.
     """
     if not user_id:
@@ -276,7 +277,7 @@ def generate_ifood_ai_reply(merchant: IFoodMerchant, stars: int, review_text: st
     levando em consideração o tom da loja, sabor, embalagem, entrega e cordialidade.
     """
     try:
-        from main import client as openai_client
+        from main import client as openai_client, get_user_settings
         from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions, limpar_resposta_ia
 
         clean_text = limpar_texto_review(review_text)
@@ -310,13 +311,13 @@ DIRETRIZES DE RESPOSTA NO IFOOD:
 - Tamanho: 2 a 4 frases bem escritas, naturais e humanizadas.
 - FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela entre aspas duplas ("") ou simples (''). Não use blocos de código markdown.
 """
-        if contexto:
-            prompt += f"\n🚨 CONTEXTO E INSTRUÇÕES ESPECÍFICAS DA LOJA: {contexto}\n"
+        prompt += build_relevant_context(openai_client, clean_text, contexto,
+                                         global_context=get_user_settings(merchant.user_id).get("contexto_personalizado"))
 
         cp = openai_client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_inst},
+                {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.7,
@@ -481,7 +482,7 @@ def conectar_ifood():
         return jsonify({
             "success": False,
             "error": "addon_required",
-            "message": "Você precisa assinar o Add-on do iFood (R$ 30,00/mês) para conectar lojas."
+            "message": "Você precisa assinar o Add-on do iFood para conectar lojas."
         }), 403
 
     try:
@@ -1039,7 +1040,7 @@ def ver_loja_ifood(merchant_db_id: int):
         return redirect(url_for("integracoes"))
 
     if not usuario_tem_addon_ifood(user_id):
-        flash("Assine o Add-on do iFood (R$ 29,90/mês) para acessar esta loja.", "warning")
+        flash("Assine o Add-on do iFood para acessar esta loja.", "warning")
         return redirect(url_for("integracoes"))
 
     metricas = calcular_metricas_loja_ifood(merchant)

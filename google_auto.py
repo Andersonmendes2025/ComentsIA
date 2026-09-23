@@ -1,4 +1,5 @@
 from __future__ import annotations
+from services.ai_service import build_relevant_context, REVIEW_CONTEXT_POLICY
 import base64
 import json
 import logging
@@ -145,7 +146,8 @@ def escolher_ficha_google():
     if not user_id:
         return redirect(url_for("authorize"))
 
-    PRECO_ADDON_FMT = "29,90"  # só pra exibir no front
+    from services.pricing import price_amount
+    PRECO_ADDON_FMT = price_amount("addon_slot")
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     limits = _get_gbp_limits(settings)
@@ -1111,7 +1113,7 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         contact_info = pick("contact_info", "contact_info")
         greeting = pick("default_greeting", "default_greeting")
         closing = pick("default_closing", "default_closing")
-        contexto = pick("contexto_personalizado", "contexto_personalizado")
+        contexto = getattr(location_db_obj, "contexto_personalizado", "") if location_db_obj else ""
 
         tone = pick("tone", "gbp_tone") or "profissional"
         idioma = pick("idioma_resposta", "idioma_resposta") or "Português (Brasil)"
@@ -1123,9 +1125,8 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         if manager_name:
             assinatura += f"\n{manager_name}"
 
-        prompt = ""
-        if contexto:
-            prompt += f"🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: {contexto}\n\n"
+        prompt = build_relevant_context(openai_client, clean_text, contexto,
+                                        global_context=settings.get("contexto_personalizado"))
 
         prompt += f"""Você é um especialista em sucesso e experiência do cliente da empresa "{business_name}".
 Avaliação recebida:
@@ -1160,7 +1161,7 @@ REGRAS ESTRITAS DE RESPOSTA:
         cp = openai_client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_inst},
+                {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
                 {"role": "user", "content": prompt},
             ],
         )

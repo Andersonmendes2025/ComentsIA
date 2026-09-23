@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     selectedLocName = locName;
                     if (modalAddon) {
                         document.getElementById('addonLocName').innerText = locName || "{{ t('locations.activate_btn') }}";
-                        document.getElementById('addonPrice').innerText = data.price_fmt || "29,90";
+                        document.getElementById('addonPrice').innerText = data.price_fmt || {{ price_amount("addon_slot")|tojson }};
                         modalAddon.show();
                     }
                 } else if (data.upgrade_required) {

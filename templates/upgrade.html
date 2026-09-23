@@ -29,6 +29,7 @@
         <div class="card-body d-flex flex-column">
 
           <h4 class="fw-bold text-center">{{ planos_info[key].title }}</h4>
+          <p class="text-center fw-bold">{{ price_label(key) }} / {{ "ano" if key.endswith("_anual") else "mês" }}</p>
 
           <ul class="mt-3">
             {% for b in planos_info[key].beneficios %}

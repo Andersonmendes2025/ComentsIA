@@ -66,7 +66,7 @@ def usuario_tem_addon_mercadolivre(user_id: str) -> bool:
     """
     Verifica se o usuário tem acesso ao módulo Mercado Livre. O plano do Google
     (Free/Pro/Business) NÃO libera o Mercado Livre — é sempre um add-on pago à
-    parte (R$29,90/mês), independente do plano contratado.
+    parte (assinatura mensal), independente do plano contratado.
     """
     if not user_id:
         return False
@@ -1686,7 +1686,7 @@ def dashboard():
         return redirect(url_for("login"))
 
     if not usuario_tem_addon_mercadolivre(user_id):
-        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para acessar este módulo.", "warning")
+        flash("Assine o Add-on do Mercado Livre para acessar este módulo.", "warning")
         return redirect(url_for("integracoes"))
 
     # Contas desconectadas continuam no banco para preservar historico,
@@ -1750,7 +1750,7 @@ def sincronizar_conta(account_id: int):
     """Sincroniza todos os dados e métricas em tempo real da conta."""
     user_id = session.get("user_id") or (session.get("user_info") or {}).get("id")
     if not usuario_tem_addon_mercadolivre(user_id):
-        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para sincronizar esta conta.", "warning")
+        flash("Assine o Add-on do Mercado Livre para sincronizar esta conta.", "warning")
         return redirect(url_for("integracoes"))
 
     account = MercadoLivreAccount.query.filter_by(id=account_id, user_id=str(user_id)).first_or_404()
@@ -1988,7 +1988,7 @@ def conectar_oauth():
         return redirect(url_for("login"))
 
     if not usuario_tem_addon_mercadolivre(user_id):
-        flash("Assine o Add-on do Mercado Livre (R$ 29,90/mês) para conectar uma conta.", "warning")
+        flash("Assine o Add-on do Mercado Livre para conectar uma conta.", "warning")
         return redirect(url_for("integracoes"))
 
     client_id, _, redirect_uri = get_ml_credentials()

@@ -1,5 +1,6 @@
 import os
 import stripe
+from services.pricing import get_price_id
 from datetime import datetime, timedelta
 import logging
 
@@ -10,10 +11,10 @@ from admin import STRIPE_PRICE_IDS, agora_brt
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # ⚠️ Configure aqui o ID do Preço do Slot Extra no Stripe
-STRIPE_ADDON_PRICE_ID = os.getenv("STRIPE_ADDON_PRICE_ID", "price_SEU_ID_AQUI")
-STRIPE_PRICE_ADDON_IFOOD = os.getenv("STRIPE_PRICE_ADDON_IFOOD", "price_1U4qebHdM7mYgSGKImuFU85G")
+STRIPE_ADDON_PRICE_ID = get_price_id("addon_slot")
+STRIPE_PRICE_ADDON_IFOOD = get_price_id("addon_ifood")
 STRIPE_PROD_ADDON_IFOOD = os.getenv("STRIPE_PROD_ADDON_IFOOD", "prod_V50fovspMA5NmF")
-STRIPE_PRICE_ADDON_MERCADOLIVRE = os.getenv("STRIPE_PRICE_ADDON_MERCADOLIVRE", "price_1U6JcmHdM7mYgSGKhx3gi9ha")
+STRIPE_PRICE_ADDON_MERCADOLIVRE = get_price_id("addon_mercadolivre")
 STRIPE_PROD_ADDON_MERCADOLIVRE = os.getenv("STRIPE_PROD_ADDON_MERCADOLIVRE", "prod_V6WgBfKchC5hek")
 
 stripe_bp = Blueprint("stripe_bp", __name__, url_prefix="/stripe")
@@ -419,7 +420,7 @@ def checkout_adicionar_ficha():
     email = user_info.get("email")
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     
-    price_id = os.getenv("STRIPE_ADDON_PRICE_ID") 
+    price_id = get_price_id("addon_slot")
 
     # Garante que o cliente existe no Stripe
     customer_id = _get_or_create_stripe_customer(settings, email)

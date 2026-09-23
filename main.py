@@ -1,3 +1,5 @@
+from services.pricing import get_price, price_label, price_amount, price_decimal
+from services.ai_service import build_relevant_context, REVIEW_CONTEXT_POLICY
 # --- std/3rd-party ---
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
@@ -443,7 +445,6 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 PLANOS = {
     "free": {
         "nome": "Gratuito",
-        "preco": 0,
         "avaliacoes_mes": 20,
         "hiper_dia": 0,
         "consideracoes_dia": 0,
@@ -455,7 +456,6 @@ PLANOS = {
     },
     "pro": {
         "nome": "Pro",
-        "preco": 49.99,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -467,7 +467,6 @@ PLANOS = {
     },
     "pro_anual": {
         "nome": "Pro Anual",
-        "preco": 499.00,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -480,7 +479,6 @@ PLANOS = {
     },
     "business": {
         "nome": "Business",
-        "preco": 79.99,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -492,7 +490,6 @@ PLANOS = {
     },
     "business_anual": {
         "nome": "Business Anual",
-        "preco": 799.00,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -870,6 +867,11 @@ from markupsafe import escape
 # Certifique-se de inicializar no setup do app:
 # csrf = CSRFProtect(app)
 
+
+
+@app.context_processor
+def inject_official_prices():
+    return {"price_label": price_label, "price_amount": price_amount, "price_decimal": price_decimal}
 
 
 @app.route("/planos", methods=["GET"])
@@ -2789,8 +2791,6 @@ def suggest_reply():
     contexto_final = ""
     if loc and getattr(loc, 'contexto_personalizado', None):
         contexto_final = str(loc.contexto_personalizado).strip()
-    if not contexto_final and settings.get("contexto_personalizado"):
-        contexto_final = str(settings["contexto_personalizado"]).strip()
 
     # Identidade
     business = (loc.business_name if loc and loc.business_name else None) or (settings.get("business_name") or "").strip()
@@ -2816,11 +2816,8 @@ def suggest_reply():
     # ==========================================================
     # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
     # ==========================================================
-    if contexto_final:
-        prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-        prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
-        prompt += f"Contexto: {contexto_final}\n"
-        prompt += "---------------------------------------\n\n"
+    prompt += build_relevant_context(client, review_text, contexto_final, consideracoes,
+                                     global_context=settings.get("contexto_personalizado"))
 
     prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
@@ -2833,9 +2830,6 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
 2. {tone_inst}
 """
     rule_n = 3
-    if consideracoes:
-        prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
-        rule_n += 1
     
     if greeting_info:
         prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase com: {greeting_info} {reviewer_name},\n"
@@ -2859,7 +2853,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_inst},
+                {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -2943,11 +2937,7 @@ def add_review():
         # ==========================================================
         # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
         # ==========================================================
-        if contexto_final:
-            prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-            prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
-            prompt += f"Contexto: {contexto_final}\n"
-            prompt += "---------------------------------------\n\n"
+        prompt += build_relevant_context(client, clean_comment, "", consideracoes, global_context=contexto_final)
 
         prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
@@ -2960,9 +2950,6 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
 2. {tone_inst}
 """
         rule_n = 3
-        if consideracoes:
-            prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
-            rule_n += 1
         
         if settings.get('default_greeting'):
             prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{settings['default_greeting']} {reviewer_name},\"\n"
@@ -2985,7 +2972,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
             completion = client.with_options(timeout=30.0).chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=[
-                    {"role": "system", "content": system_inst},
+                    {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
                     {"role": "user", "content": prompt}
                 ]
             )
@@ -3282,12 +3269,7 @@ def analyze_reviews():
     # ===========================
     prompt = ""
 
-    if settings.get("contexto_personalizado"):
-        contexto = settings["contexto_personalizado"].strip()
-        prompt += (
-            "INSTRUÇÃO PRIORITÁRIA: Use o contexto da empresa abaixo como referência principal.\n"
-            f"Contexto: {contexto}\n\n"
-        )
+    # Análises agregadas devem refletir apenas os relatos dos clientes.
 
     prompt += f"""
 Você é um analista profissional de satisfação do cliente.

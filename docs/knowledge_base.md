@@ -310,7 +310,7 @@ Acesse **Planos** (`/planos` ou `/upgrade`) no menu.
 
 | Recurso / Benefício | Starter Free | Pro Mensal | Pro Anual (2 meses OFF) | Business (Redes) | Business Anual |
 |---|:---:|:---:|:---:|:---:|:---:|
-| **Preço** | **R$ 0 / mês** | **R$ 49,99 / mês** | **R$ 499,00 / ano** (~R$ 41,58/mês) | **R$ 79,99 / mês** | **R$ 799,00 / ano** (~R$ 66,58/mês) |
+| **Preço** | **R$ 0 / mês** | **R$ 49,99 / mês** | **R$ 549,99 / ano** (~R$ 45,83/mês) | **R$ 79,99 / mês** | **R$ 899,99 / ano** (~R$ 75,00/mês) |
 | **Fichas Google Conectadas** | 0 (Manual) | 1 ficha | 1 ficha | 1 ficha + Multi Filiais | 1 ficha + Multi Filiais |
 | **Limite de Avaliações/Mês** | 20 avaliações | 200 avaliações | 200 avaliações | **Ilimitado** | **Ilimitado** |
 | **Respostas Hiper-Empáticas** | ❌ Não | 2 por dia | 2 por dia | **Ilimitado** | **Ilimitado** |

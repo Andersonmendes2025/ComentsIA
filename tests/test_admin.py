@@ -46,37 +46,20 @@ def client():
             yield client
 
 def test_admin_pricing_get_and_post(client):
-    """Testa leitura e atualização de preços de planos no Admin."""
-    # 1. GET Pricing
+    """Preços locais não podem divergir do checkout do Stripe."""
     res = client.get('/admin/pricing')
     assert res.status_code == 200
-    assert "Catálogo & Precificação" in res.data.decode('utf-8')
+    assert "Catálogo & Precificação" in res.get_data(as_text=True)
+    before = get_plan_prices()
+    res = client.post('/admin/pricing', data={
+        'pro_cents': '5990', 'business_reais': '89,90',
+    }, follow_redirects=True)
+    assert res.status_code == 200
+    assert "edição local está desativada" in res.get_data(as_text=True)
+    assert get_plan_prices() == before
+    assert before['pro_anual']['price_cents'] == 54999
+    assert before['business_anual']['price_cents'] == 89999
 
-    # 2. POST Pricing alterando Pro para 59.90 e Business para 89.90
-    post_data = {
-        'free_cents': '0',
-        'pro_reais': '59,90',
-        'pro_anual_reais': '599,00',
-        'business_reais': '89,90',
-        'business_anual_reais': '899,00',
-    }
-    res_post = client.post('/admin/pricing', data=post_data, follow_redirects=True)
-    assert res_post.status_code == 200
-    assert "Tabela oficial de preços atualizada com sucesso!" in res_post.data.decode('utf-8')
-
-    # Verifica no banco / cache
-    prices = get_plan_prices()
-    assert prices['pro']['price_cents'] == 5990
-    assert prices['business']['price_cents'] == 8990
-
-    # Restaura para valores padrão
-    client.post('/admin/pricing', data={
-        'free_cents': '0',
-        'pro_cents': '4999',
-        'pro_anual_cents': '49900',
-        'business_cents': '7999',
-        'business_anual_cents': '79900',
-    })
 
 def test_admin_tickets_crud_and_move(client):
     """Testa criação e movimentação de status no Kanban de tickets."""

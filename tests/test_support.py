@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from main import app as flask_app
 from models import db, User, UserSettings
 
+_real_getenv = os.getenv
+
 @pytest.fixture
 def client():
     flask_app.config['TESTING'] = True
@@ -36,7 +38,9 @@ def test_ajuda_page_loads(client):
 def test_support_chat_gemini_response(mock_getenv, mock_model, client):
     """Testa se o chat responde corretamente via mock do Gemini (sem function call)."""
     # Garante que temos uma API KEY fake
-    mock_getenv.return_value = "fake_api_key"
+    mock_getenv.side_effect = lambda key, default=None: (
+        "fake_api_key" if key == "GEMINI_API_KEY" else _real_getenv(key, default)
+    )
     
     # Prepara o Mock do Gemini
     mock_chat = MagicMock()
@@ -68,7 +72,10 @@ def test_support_chat_gemini_response(mock_getenv, mock_model, client):
 def test_support_chat_opens_ticket(mock_enviar_email, mock_getenv, mock_model, client):
     """Testa se o function calling abre um chamado enviando e-mail."""
     # Garante API key
-    mock_getenv.side_effect = lambda k, default=None: "fake_api_key" if k == "GEMINI_API_KEY" else "suporte@comentsia.com.br"
+    mock_getenv.side_effect = lambda key, default=None: (
+        {"GEMINI_API_KEY": "fake_api_key", "SUPPORT_EMAIL": "suporte@comentsia.com.br"}.get(key)
+        or _real_getenv(key, default)
+    )
     
     # Prepara o Mock do Gemini
     mock_chat = MagicMock()

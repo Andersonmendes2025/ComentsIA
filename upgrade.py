@@ -42,7 +42,7 @@ PLANOS_INFO = {
             "Suporte prioritário",
         ]
     },
-    "business": {
+    "business_mensal": {
         "title": "Business",
         "beneficios": [
             "Tudo do Pro",
@@ -74,13 +74,13 @@ def upgrade_page():
     plano_atual = settings.plano
 
     if plano_atual == "free":
-        planos_exibir = ["pro_mensal", "pro_anual", "business"]
+        planos_exibir = ["pro_mensal", "pro_anual", "business_mensal"]
 
     elif plano_atual == "pro":
-        planos_exibir = ["pro_anual", "business"]
+        planos_exibir = ["pro_anual", "business_mensal"]
 
     elif plano_atual == "pro_anual":
-        planos_exibir = ["business"]
+        planos_exibir = ["business_mensal"]
 
     else:
         planos_exibir = []
