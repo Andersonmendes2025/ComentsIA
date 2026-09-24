@@ -832,202 +832,29 @@ def desconectar_loja_ifood(merchant_db_id: int):
 
 
 # -----------------------------------------------------------------------------
-# Dashboard da Loja iFood (Metricas de Vendas, Faturamento, Ticket Medio e Nota)
+# Dashboard da Loja iFood: apenas avaliações e respostas
 # -----------------------------------------------------------------------------
 
-def fetch_ifood_financial_sales(access_token: str, merchant_id: str, days: int = 8,
-                                homologacao: bool = False) -> Dict[str, Any]:
-    """
-    Consulta as vendas da loja via API Financeira do iFood (v3.0).
-
-    A API aceita no maximo 8 dias por consulta, entao `days` e limitado a 8.
-    Nada aqui e estimado: se a API nao responder, o retorno vem com
-    success=False e todos os totais zerados, para o painel exibir
-    "sem dados" em vez de inventar numeros.
-
-    Com `homologacao=True` envia o header x-request-homologation, que faz o
-    iFood responder com os dados simulados do ambiente de homologacao.
-    """
-    dias = max(1, min(8, int(days or 8)))
-    now = datetime.now(pytz.timezone("America/Sao_Paulo"))
-    inicio = now - timedelta(days=dias - 1)
-    begin_str = inicio.strftime("%Y-%m-%d")
-    end_str = now.strftime("%Y-%m-%d")
-
-    vazio = {
-        "success": False,
-        "erro": None,
-        "periodo_inicio": begin_str,
-        "periodo_fim": end_str,
-        "periodo_dias": dias,
-        "total_pedidos": 0,
-        "cancelados": 0,
-        "faturamento": 0.0,
-        "liquido": 0.0,
-        "ticket_medio": 0.0,
-        "por_dia": [],
-        "sales": [],
-    }
-
-    url = f"{IFOOD_BASE_URL}/financial/v3.0/merchants/{merchant_id}/sales"
-    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
-    if homologacao:
-        headers["x-request-homologation"] = "true"
-    params = {"beginSalesDate": begin_str, "endSalesDate": end_str}
-
-    try:
-        res = requests.get(url, headers=headers, params=params, timeout=15)
-    except Exception as e:
-        logger.error(f"Erro ao consultar iFood Financial API: {e}")
-        return {**vazio, "erro": "falha_conexao"}
-
-    if res.status_code != 200:
-        logger.warning(f"iFood Financial API retornou status {res.status_code}: {res.text[:120]}")
-        erro = "sem_permissao_financeiro" if res.status_code in (401, 403) else "erro_api"
-        return {**vazio, "erro": erro}
-
-    try:
-        data = res.json()
-    except Exception:
-        return {**vazio, "erro": "resposta_invalida"}
-
-    sales = data if isinstance(data, list) else (data.get("sales") or [])
-
-    faturamento_total = 0.0
-    liquido_total = 0.0
-    concluidos = 0
-    cancelados = 0
-    por_dia: Dict[str, Dict[str, float]] = {}
-
-    for s in sales:
-        status = (s.get("currentStatus") or "").upper()
-        if status and status not in ("CONCLUDED", "CONCLUIDO"):
-            cancelados += 1
-            continue
-
-        gross = s.get("saleGrossValue") or {}
-        # Faturamento bruto da venda = itens + taxa de entrega.
-        # serviceFee NAO entra: a API devolve esse campo negativo, porque e
-        # uma taxa cobrada da loja e nao receita. Somar os tres campos, como
-        # era feito antes, gerava um valor que nao e nem o bruto nem o liquido.
-        bruto = float(gross.get("bag") or 0) + float(gross.get("deliveryFee") or 0)
-
-        # Liquido efetivamente repassado, ja com comissao e taxas descontadas.
-        liquido = float((s.get("billingSummary") or {}).get("saleBalance") or 0)
-
-        faturamento_total += bruto
-        liquido_total += liquido
-        concluidos += 1
-
-        dia = (s.get("createdAt") or "")[:10]
-        if dia:
-            acc = por_dia.setdefault(dia, {"pedidos": 0, "faturamento": 0.0, "liquido": 0.0})
-            acc["pedidos"] += 1
-            acc["faturamento"] += bruto
-            acc["liquido"] += liquido
-
-    ticket_medio = round(faturamento_total / concluidos, 2) if concluidos > 0 else 0.0
-
-    serie = [
-        {
-            "data": d,
-            "pedidos": v["pedidos"],
-            "faturamento": round(v["faturamento"], 2),
-            "liquido": round(v["liquido"], 2),
-        }
-        for d, v in sorted(por_dia.items())
-    ]
-
-    return {
-        "success": True,
-        "erro": None,
-        "periodo_inicio": begin_str,
-        "periodo_fim": end_str,
-        "periodo_dias": dias,
-        "total_pedidos": concluidos,
-        "cancelados": cancelados,
-        "faturamento": round(faturamento_total, 2),
-        "liquido": round(liquido_total, 2),
-        "ticket_medio": ticket_medio,
-        "por_dia": serie,
-        "sales": sales,
-    }
-
-
 def calcular_metricas_loja_ifood(merchant: IFoodMerchant) -> Dict[str, Any]:
-    """
-    Metricas da loja iFood.
-
-    Regra: nada e estimado. As avaliacoes vem do banco; o financeiro vem
-    exclusivamente da API Financeira do iFood. Quando a API nao responde ou
-    a loja nao tem vendas no periodo, `financeiro_disponivel` volta False e
-    o painel mostra "sem dados" no lugar dos numeros.
-    """
-    reviews = Review.query.filter_by(ifood_merchant_id=merchant.id).order_by(Review.date.desc()).all()
-    total_rev = len(reviews)
-    respondidas = sum(1 for r in reviews if r.replied)
-    pendentes = total_rev - respondidas
-
-    ratings = [r.rating for r in reviews if r.rating is not None]
-    # Sem avaliacoes nao existe nota media: devolve None para o painel exibir "-".
-    avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
-
-    dist_estrelas = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-    for r in ratings:
-        if 1 <= r <= 5:
-            dist_estrelas[r] += 1
-
-    taxa_resposta = round((respondidas / total_rev * 100), 1) if total_rev > 0 else None
-
-    token = None
-    try:
-        token = get_valid_merchant_token(merchant)
-    except Exception as e:
-        logger.warning(f"Sem token valido para a loja iFood {merchant.id}: {e}")
-
-    if token:
-        fin = fetch_ifood_financial_sales(token, merchant.merchant_id, days=8)
-    else:
-        fin = {
-            "success": False, "erro": "sem_token", "total_pedidos": 0,
-            "faturamento": 0.0, "liquido": 0.0, "ticket_medio": 0.0,
-            "cancelados": 0, "por_dia": [], "periodo_inicio": None,
-            "periodo_fim": None, "periodo_dias": 0,
-        }
-
-    tem_financeiro = bool(fin.get("success") and fin.get("total_pedidos", 0) > 0)
-
+    """Calcula indicadores de reputação a partir das avaliações sincronizadas."""
+    reviews = Review.query.filter_by(ifood_merchant_id=merchant.id).all()
+    total = len(reviews)
+    respondidas = sum(1 for review in reviews if review.replied)
+    ratings = [review.rating for review in reviews if review.rating is not None]
+    distribuicao = {star: ratings.count(star) for star in range(1, 6)}
     return {
-        "total_reviews": total_rev,
+        "total_reviews": total,
         "respondidas": respondidas,
-        "pendentes": pendentes,
-        "avg_rating": avg_rating,
-        "taxa_resposta": taxa_resposta,
-        "dist_estrelas": dist_estrelas,
-
-        "financeiro_disponivel": tem_financeiro,
-        "financeiro_erro": fin.get("erro"),
-        "periodo_inicio": fin.get("periodo_inicio"),
-        "periodo_fim": fin.get("periodo_fim"),
-        "periodo_dias": fin.get("periodo_dias", 0),
-        "pedidos_periodo": fin.get("total_pedidos", 0),
-        "cancelados_periodo": fin.get("cancelados", 0),
-        "faturamento_periodo": fin.get("faturamento", 0.0),
-        "liquido_periodo": fin.get("liquido", 0.0),
-        "ticket_medio": fin.get("ticket_medio", 0.0),
-
-        "graficos": {
-            "labels": [d["data"] for d in fin.get("por_dia", [])],
-            "faturamento": [d["faturamento"] for d in fin.get("por_dia", [])],
-            "liquido": [d["liquido"] for d in fin.get("por_dia", [])],
-            "pedidos": [d["pedidos"] for d in fin.get("por_dia", [])],
-        },
+        "pendentes": total - respondidas,
+        "avg_rating": round(sum(ratings) / len(ratings), 1) if ratings else None,
+        "taxa_resposta": round(respondidas / total * 100, 1) if total else None,
+        "dist_estrelas": distribuicao,
     }
 
 
 @ifood_bp.route("/loja/<int:merchant_db_id>")
 def ver_loja_ifood(merchant_db_id: int):
-    """Dashboard executivo da loja iFood com metricas de vendas, faturamento e avaliacoes."""
+    """Painel de avaliações e respostas da loja iFood."""
     user_info = session.get("user_info") or {}
     user_id = user_info.get("id") or user_info.get("email")
     if not user_id:
@@ -1126,7 +953,7 @@ def simular_avaliacao_ifood(merchant_db_id: int):
 def webhook_ifood():
     """
     Endpoint para recepcao de eventos via Webhook do iFood em tempo real.
-    Processa notificacoes de avaliacoes (REVIEW_CREATED), pedidos e alteracoes.
+    Processa apenas notificações de avaliações (REVIEW_CREATED).
     """
     payload = request.get_json(silent=True) or {}
     logger.info("iFood Webhook payload recebido: %s", payload)
@@ -1137,6 +964,9 @@ def webhook_ifood():
     for ev in events:
         merchant_id = ev.get("merchantId") or (ev.get("merchant") or {}).get("id")
         code = str(ev.get("fullCode") or ev.get("code") or "").upper()
+
+        if code != "REVIEW_CREATED":
+            continue
 
         if merchant_id and merchant_id not in processed_merchants:
             merchant = IFoodMerchant.query.filter_by(merchant_id=merchant_id, is_active=True).first()
@@ -1152,11 +982,11 @@ def webhook_ifood():
 
 
 # -----------------------------------------------------------------------------
-# Rotinas Periodicas e Schedulers (Metricas e Avaliacoes)
+# Rotinas periódicas de sincronização de avaliações
 # -----------------------------------------------------------------------------
 
 def run_ifood_daily_sync(app):
-    """Executa sincronizacao periodica de vendas e avaliacoes para lojas ativas."""
+    """Sincroniza somente avaliações para lojas ativas."""
     with app.app_context():
         merchants = IFoodMerchant.query.filter_by(is_active=True).all()
         logger.info("[ifood-cron] Sincronizacao periodica para %d lojas ativas.", len(merchants))
@@ -1164,12 +994,6 @@ def run_ifood_daily_sync(app):
         for m in merchants:
             try:
                 sync_merchant_reviews(m.id, auto_reply=m.auto_reply_enabled)
-                token = get_valid_merchant_token(m)
-                if token:
-                    fin_data = fetch_ifood_financial_sales(token, m.merchant_id, days=7)
-                    if fin_data.get("success"):
-                        logger.info("[ifood-cron] Loja %s: Vendas=%s, Faturamento=%s", m.name, fin_data.get("total_pedidos"), fin_data.get("faturamento"))
-
                 m.last_sync_at = datetime.now(pytz.timezone("America/Sao_Paulo"))
                 db.session.commit()
             except Exception as e:

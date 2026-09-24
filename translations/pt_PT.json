@@ -225,7 +225,7 @@
     "ifood": {
       "name": "iFood Delivery",
       "category": "Restaurantes & Food Delivery",
-      "description": "Sincronização contínua de pedidos avaliados com respostas automáticas por IA calibradas para gastronomia e delivery.",
+      "description": "Sincronização contínua de avaliações com respostas automáticas por IA calibradas para gastronomia e delivery.",
       "feature_1": "Respostas com IA no tom da sua marca (elogios, atrasos e queixas).",
       "feature_2": "Sincronização periódica sem necessidade de intervenção manual.",
       "feature_3": "Ajuste fino de saudação, despedida e regras da cozinha.",

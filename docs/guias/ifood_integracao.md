@@ -2,11 +2,17 @@
 
 O **ComentsIA** oferece automação inteligente de respostas a avaliações para restaurantes e empresas de delivery cadastradas no **iFood**.
 
+O aplicativo usa os módulos **Merchant** (identificação da loja) e **Review**
+(leitura de avaliações e publicação de respostas). Não consulta a API Financial
+nem dados de vendas. No Portal do Desenvolvedor iFood, configure somente esses
+módulos para esta integração; permissões já habilitadas no portal precisam ser
+ajustadas lá, pois mudar o código não revoga uma autorização existente.
+
 ---
 
 ## 🌟 1. Vantagens da Automação no iFood
 
-- **Respostas Instantâneas para Pedidos:** A IA analisa a nota (estrelas) e o comentário do cliente no app do iFood.
+- **Respostas a Avaliações:** A IA analisa a nota (estrelas) e o comentário do cliente no app do iFood.
 - **Reconhecimento de Pratos Elogiados:** Se o cliente elogiou a massa, o sabor do hambúrguer ou a entrega rápida, a IA destaca esses pontos positivos.
 - **Acolhimento Empático em Queixas de Entrega:** Se o cliente reclamar de demora ou embalagem, a IA se solidariza, preserva a reputação do restaurante e não transfere a culpa para o entregador parceiro.
 - **Publicação Oficial:** A resposta é enviada diretamente pela API do iFood e fica visível para o cliente no histórico do pedido.

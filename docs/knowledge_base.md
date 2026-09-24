@@ -408,7 +408,7 @@ Acesse **Planos** (`/planos` ou `/upgrade`) no menu.
 O **ComentsIA** oferece integração oficial com o **iFood Delivery** através do modelo de aplicativo distribuído e seguro via OAuth 2.0.
 
 ### 🌟 Principais Vantagens para Restaurantes:
-1. **Respostas Instantâneas para Pedidos Delivery:** A IA lê o comentário e a nota (estrelas) atribuídos ao restaurante no app do iFood.
+1. **Respostas a Avaliações do iFood:** A IA lê o comentário e a nota (estrelas) atribuídos ao restaurante no app do iFood.
 2. **Reconhecimento de Pratos e Itens Elogiados:** Se o cliente elogiou o sabor do hambúrguer, o ponto da pizza ou a temperatura da comida, a IA valoriza o prato e o trabalho da cozinha.
 3. **Gestão Inteligente de Reclamações de Entrega:** Caso o cliente reclame de demora ou embalagem, a IA responde com empatia profissional, acolhe o feedback sem transferir culpa para o entregador parceiro e preserva a reputação do restaurante.
 4. **Publicação Direta na API do iFood:** As respostas geradas pela IA são enviadas diretamente para a API oficial do iFood e aparecem no app do cliente.
