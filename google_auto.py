@@ -1,5 +1,4 @@
 from __future__ import annotations
-from services.ai_service import build_relevant_context, REVIEW_CONTEXT_POLICY
 import base64
 import json
 import logging
@@ -1113,7 +1112,7 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         contact_info = pick("contact_info", "contact_info")
         greeting = pick("default_greeting", "default_greeting")
         closing = pick("default_closing", "default_closing")
-        contexto = getattr(location_db_obj, "contexto_personalizado", "") if location_db_obj else ""
+        contexto = pick("contexto_personalizado", "contexto_personalizado")
 
         tone = pick("tone", "gbp_tone") or "profissional"
         idioma = pick("idioma_resposta", "idioma_resposta") or "Português (Brasil)"
@@ -1125,8 +1124,14 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
         if manager_name:
             assinatura += f"\n{manager_name}"
 
-        prompt = build_relevant_context(openai_client, clean_text, contexto,
-                                        global_context=settings.get("contexto_personalizado"))
+        prompt = ""
+        if stars <= 3 and contexto:
+            prompt += (
+                "🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: Use a caixa de contexto apenas "
+                "nesta avaliação negativa e somente se couber naturalmente no "
+                "assunto relatado pelo cliente. Se não couber, ignore-a. "
+                f"Contexto: {contexto}\n\n"
+            )
 
         prompt += f"""Você é um especialista em sucesso e experiência do cliente da empresa "{business_name}".
 Avaliação recebida:
@@ -1161,7 +1166,7 @@ REGRAS ESTRITAS DE RESPOSTA:
         cp = openai_client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
+                {"role": "system", "content": system_inst},
                 {"role": "user", "content": prompt},
             ],
         )

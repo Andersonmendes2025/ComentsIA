@@ -1,5 +1,4 @@
 from services.pricing import get_price, price_label, price_amount, price_decimal
-from services.ai_service import build_relevant_context, REVIEW_CONTEXT_POLICY
 # --- std/3rd-party ---
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
@@ -2791,6 +2790,8 @@ def suggest_reply():
     contexto_final = ""
     if loc and getattr(loc, 'contexto_personalizado', None):
         contexto_final = str(loc.contexto_personalizado).strip()
+    if not contexto_final and settings.get("contexto_personalizado"):
+        contexto_final = str(settings["contexto_personalizado"]).strip()
 
     # Identidade
     business = (loc.business_name if loc and loc.business_name else None) or (settings.get("business_name") or "").strip()
@@ -2813,11 +2814,11 @@ def suggest_reply():
 
     prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
     
-    # ==========================================================
-    # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
-    # ==========================================================
-    prompt += build_relevant_context(client, review_text, contexto_final, consideracoes,
-                                     global_context=settings.get("contexto_personalizado"))
+    if star_rating <= 3 and contexto_final:
+        prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
+        prompt += "INSTRUÇÃO CRÍTICA: Use esta caixa de contexto apenas nesta avaliação negativa e somente se a informação couber naturalmente no assunto relatado pelo cliente. Caso contrário, ignore-a. Não force detalhes do negócio, propaganda ou justificativas sem relação com a avaliação.\n"
+        prompt += f"Contexto: {contexto_final}\n"
+        prompt += "---------------------------------------\n\n"
 
     prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
@@ -2830,6 +2831,9 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
 2. {tone_inst}
 """
     rule_n = 3
+    if consideracoes:
+        prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
+        rule_n += 1
     
     if greeting_info:
         prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase com: {greeting_info} {reviewer_name},\n"
@@ -2853,7 +2857,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
         completion = client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
+                {"role": "system", "content": system_inst},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -2934,10 +2938,11 @@ def add_review():
 
         prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
         
-        # ==========================================================
-        # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
-        # ==========================================================
-        prompt += build_relevant_context(client, clean_comment, "", consideracoes, global_context=contexto_final)
+        if rating <= 3 and contexto_final:
+            prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
+            prompt += "INSTRUÇÃO CRÍTICA: Use esta caixa de contexto apenas nesta avaliação negativa e somente se a informação couber naturalmente no assunto relatado pelo cliente. Caso contrário, ignore-a. Não force detalhes do negócio, propaganda ou justificativas sem relação com a avaliação.\n"
+            prompt += f"Contexto: {contexto_final}\n"
+            prompt += "---------------------------------------\n\n"
 
         prompt += f"""AVALIAÇÃO RECEBIDA:
 - Cliente: {reviewer_name}
@@ -2950,6 +2955,9 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
 2. {tone_inst}
 """
         rule_n = 3
+        if consideracoes:
+            prompt += f"{rule_n}. OBSERVAÇÃO EXTRA DO GESTOR PARA ESTA RESPOSTA ESPECÍFICA: {consideracoes} (Incorpore esta instrução na sua resposta de forma natural).\n"
+            rule_n += 1
         
         if settings.get('default_greeting'):
             prompt += f"{rule_n}. SAUDAÇÃO INICIAL: Comece a frase exatamente com \"{settings['default_greeting']} {reviewer_name},\"\n"
@@ -2972,7 +2980,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
             completion = client.with_options(timeout=30.0).chat.completions.create(
                 model="gpt-4o-mini", 
                 messages=[
-                    {"role": "system", "content": system_inst + "\n" + REVIEW_CONTEXT_POLICY},
+                    {"role": "system", "content": system_inst},
                     {"role": "user", "content": prompt}
                 ]
             )

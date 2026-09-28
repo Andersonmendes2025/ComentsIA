@@ -76,21 +76,54 @@ def test_ifood_passes_local_and_account_context_to_selection(monkeypatch):
     assert 'Música ao vivo' not in calls.call_args.kwargs['messages'][1]['content']
 
 
-def test_google_generation_receives_both_contexts_but_only_passes_selected_to_writer(monkeypatch):
+@pytest.mark.parametrize('stars', [4, 5])
+def test_google_positive_review_uses_old_prompt_without_context(monkeypatch, stars):
     import main
     from google_auto import _generate_reply_for
 
     client = MagicMock()
     calls = client.with_options.return_value.chat.completions.create
-    calls.side_effect = [completion('{"indices": [0]}'), completion('Obrigado por elogiar o acesso!')]
+    calls.return_value = completion('Obrigado por elogiar o acesso!')
     monkeypatch.setattr(main, 'client', client)
     monkeypatch.setattr(main, 'get_user_settings', lambda _: {'contexto_personalizado': 'Música ao vivo às sextas.'})
     location = SimpleNamespace(contexto_personalizado='Entrada com rampa de acesso.')
-    # Campos opcionais usados na identidade do estabelecimento.
-    result = _generate_reply_for('test', 5, 'Acesso fácil.', 'Ana', False, location)
+    result = _generate_reply_for('test', stars, 'Acesso fácil.', 'Ana', False, location)
     assert result == 'Obrigado por elogiar o acesso!'
-    selection = calls.call_args_list[0].kwargs['messages'][1]['content']
-    writer = calls.call_args_list[1].kwargs['messages'][1]['content']
-    assert 'Música ao vivo' in selection
-    assert 'rampa de acesso' in writer
-    assert 'Música ao vivo' not in writer
+    assert calls.call_count == 1
+    prompt = calls.call_args.kwargs['messages'][1]['content']
+    assert 'Música ao vivo' not in prompt
+    assert 'rampa de acesso' not in prompt
+    assert 'TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas' in prompt
+
+
+def test_google_negative_review_uses_old_prompt_with_local_context(monkeypatch):
+    import main
+    from google_auto import _generate_reply_for
+
+    client = MagicMock()
+    calls = client.with_options.return_value.chat.completions.create
+    calls.return_value = completion('Sentimos muito pelo problema de acesso.')
+    monkeypatch.setattr(main, 'client', client)
+    monkeypatch.setattr(main, 'get_user_settings', lambda _: {'contexto_personalizado': 'Música ao vivo às sextas.'})
+    location = SimpleNamespace(contexto_personalizado='Entrada com rampa de acesso.')
+    result = _generate_reply_for('test', 2, 'A entrada estava bloqueada.', 'Ana', False, location)
+    assert result == 'Sentimos muito pelo problema de acesso.'
+    prompt = calls.call_args.kwargs['messages'][1]['content']
+    assert 'Entrada com rampa de acesso' in prompt
+    assert 'Música ao vivo' not in prompt
+    assert 'somente se couber naturalmente' in prompt
+    assert 'TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas' in prompt
+    assert calls.call_count == 1
+
+
+def test_google_negative_review_uses_account_context_without_local_context(monkeypatch):
+    import main
+    from google_auto import _generate_reply_for
+
+    client = MagicMock()
+    calls = client.with_options.return_value.chat.completions.create
+    calls.return_value = completion('Sentimos muito pelo problema.')
+    monkeypatch.setattr(main, 'client', client)
+    monkeypatch.setattr(main, 'get_user_settings', lambda _: {'contexto_personalizado': 'A entrada possui rampa.'})
+    _generate_reply_for('test', 1, 'A entrada estava bloqueada.', 'Ana', False)
+    assert 'A entrada possui rampa.' in calls.call_args.kwargs['messages'][1]['content']
