@@ -697,34 +697,34 @@
     const lang = document.getElementById('reply_lang').value;
     const hiper = document.getElementById('hiper_compreensiva').checked;
     const consideracoes = document.getElementById('consideracoes').value;
+    const previousReply = document.getElementById('reply-text').value;
+    btnNew.disabled = true;
 
     try {
-      const res = await fetch('/generate_reply', {
+      const res = await fetch('/suggest_reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ review_id: internalId, tone: tone, lang: lang, hiper: hiper, consideracoes: consideracoes })
+        body: JSON.stringify({ review_id: internalId, tone: tone, idioma: lang, hiper_compreensiva: hiper, consideracoes: consideracoes })
       });
 
-      const data = await res.json();
-      document.getElementById('reply-text').value = data.reply || '';
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !data.suggested_reply) {
+        throw new Error(data.error || `Não foi possível gerar a resposta (HTTP ${res.status}).`);
+      }
+      document.getElementById('reply-text').value = data.suggested_reply;
 
       loadingAI.style.display = 'none';
       replyArea.style.display = 'block';
       btnNew.style.display = 'inline-block';
-
-      if (data.hiper_restante !== undefined) {
-        const total = {{ PLANOS[user_plano]['hiper_dia']|tojson if user_plano in PLANOS else 0 }};
-        setBadge('hiper-restante', total - data.hiper_restante, total);
-      }
-      if (data.consideracoes_restante !== undefined) {
-        const total2 = {{ PLANOS[user_plano]['consideracoes_dia']|tojson if user_plano in PLANOS else 0 }};
-        setBadge('consideracoes-restante', total2 - data.consideracoes_restante, total2);
-      }
+      carregarContadores();
 
     } catch (e) {
       loadingAI.style.display = 'none';
       replyArea.style.display = 'block';
-      toast("{{ t('common.error') }}", "danger");
+      document.getElementById('reply-text').value = previousReply;
+      toast(e.message || "{{ t('common.error') }}", "danger");
+    } finally {
+      btnNew.disabled = false;
     }
   }
 
