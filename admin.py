@@ -1,8 +1,6 @@
 # admin.py
 from __future__ import annotations
 
-from services.pricing import get_price, get_price_id, clear_price_cache
-
 import calendar
 import math
 from datetime import date, datetime, timedelta
@@ -148,12 +146,31 @@ def require_perm(perm: str, mode: str = "read"):
 PLAN_KEYS = ["free", "pro", "pro_anual", "business", "business_anual"]
 
 
-def get_plan_prices() -> dict:
-    return {key: get_price(key) for key in PLAN_KEYS}
+@lru_cache(maxsize=1)
+def get_plan_prices() -> Dict[str, Dict[str, int | str]]:
+    defaults = {
+        "free": {"price_cents": 0, "currency": "BRL"},
+        "pro": {"price_cents": 4999, "currency": "BRL"},
+        "pro_anual": {"price_cents": 49900, "currency": "BRL"},
+        "business": {"price_cents": 7999, "currency": "BRL"},
+        "business_anual": {"price_cents": 79900, "currency": "BRL"},
+    }
+    rows = PlanPrice.query.all()
+    if not rows:
+        return defaults
+    out = {}
+    for r in rows:
+        out[r.plan_key] = {
+            "price_cents": int(r.price_cents),
+            "currency": r.currency or "BRL",
+        }
+    for k, v in defaults.items():
+        out.setdefault(k, v)
+    return out
 
 
 def invalidate_price_cache():
-    clear_price_cache()
+    get_plan_prices.cache_clear()
 
 
 def format_brl_cents(cents: int) -> str:
@@ -388,7 +405,40 @@ def pricing():
     if request.method == "POST":
         if not user_can(_get_current_user_id(), "pricing.edit", "write"):
             abort(403)
-        flash("Os preços são definidos no Stripe; a edição local está desativada.", "info")
+        for plan_key in PLAN_KEYS:
+            cents_str = request.form.get(f"{plan_key}_cents")
+            reais_str = request.form.get(f"{plan_key}_reais")
+            cents = None
+            if cents_str:
+                try:
+                    cents = int(cents_str)
+                except ValueError:
+                    pass
+            if cents is None and reais_str:
+                try:
+                    cleaned = reais_str.replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+                    val = float(cleaned)
+                    cents = int(round(val * 100))
+                except ValueError:
+                    pass
+            if cents is None:
+                continue
+            row = PlanPrice.query.filter_by(plan_key=plan_key).first()
+            if not row:
+                row = PlanPrice(plan_key=plan_key, price_cents=cents)
+                db.session.add(row)
+            else:
+                row.price_cents = cents
+        db.session.add(
+            AdminActionLog(
+                admin_user_id=_get_current_user_id(),
+                action="pricing_update",
+                meta={"source": "admin_pricing"},
+            )
+        )
+        db.session.commit()
+        invalidate_price_cache()
+        flash("Tabela oficial de preços atualizada com sucesso!", "success")
         return redirect(url_for("admin.pricing"))
     return render_template(
         "admin_pricing.html",
@@ -633,21 +683,54 @@ def finance_delete(item_id):
     return redirect(url_for("admin.finance_items"))
 
 
+@lru_cache(maxsize=1)
 def get_historical_sync_prices():
-    return {str(days): get_price(f"retro_{days}") for days in (30, 60, 90, 180)}
+    defaults = {
+        "30": {"price_cents": 990, "currency": "BRL"},
+        "60": {"price_cents": 1490, "currency": "BRL"},
+        "90": {"price_cents": 1990, "currency": "BRL"},
+        "180": {"price_cents": 3490, "currency": "BRL"},
+    }
+    rows = HistoricalSyncPrice.query.all()
+    if not rows:
+        return defaults
+    out = {}
+    for r in rows:
+        out[r.period] = {
+            "price_cents": r.price_cents,
+            "currency": r.currency or "BRL"
+        }
+    for p, v in defaults.items():
+        out.setdefault(p, v)
+    return out
 
 
 def invalidate_historical_cache():
-    clear_price_cache()
+    get_historical_sync_prices.cache_clear()
 
 
 @admin_bp.route("/pricing/historical", methods=["GET", "POST"])
 @require_perm("pricing.view", "read")
 def admin_historical_pricing():
+    # A edição desses preços já acontece embutida em /admin/pricing (form
+    # "Sincronização Retroativa"); esta rota só processa o POST e volta pra lá.
     if request.method == "POST":
         if not user_can(_get_current_user_id(), "pricing.edit", "write"):
             abort(403)
-        flash("Os preços são definidos no Stripe; a edição local está desativada.", "info")
+        for period in ["30", "60", "90", "180"]:
+            field_name = f"price_{period}"
+            value = request.form.get(field_name)
+            if not value:
+                continue
+            value_cents = int(float(value.replace(",", ".")) * 100)
+            row = HistoricalSyncPrice.query.filter_by(period=period).first()
+            if not row:
+                row = HistoricalSyncPrice(period=period)
+            row.price_cents = value_cents
+            db.session.add(row)
+        db.session.commit()
+        invalidate_historical_cache()
+        flash("Preços atualizados!", "success")
     return redirect(url_for("admin.pricing"))
 
 
@@ -1426,12 +1509,12 @@ def company_create():
 import os
 
 STRIPE_PRICE_IDS = {
-    "pro_mensal": get_price_id("pro_mensal"),
-    "pro_anual": get_price_id("pro_anual"),
-    "business_mensal": get_price_id("business_mensal"),
-    "business_anual": get_price_id("business_anual"),
-    "retro_30": get_price_id("retro_30"),
-    "retro_60": get_price_id("retro_60"),
-    "retro_90": get_price_id("retro_90"),
-    "retro_180": get_price_id("retro_180"),
+    "pro_mensal": os.getenv("STRIPE_PRICE_PRO_MENSAL"),
+    "pro_anual": os.getenv("STRIPE_PRICE_PRO_ANUAL"),
+    "business_mensal": os.getenv("STRIPE_PRICE_BUSINESS_MENSAL"),
+    "business_anual": os.getenv("STRIPE_PRICE_BUSINESS_ANUAL"),
+    "retro_30": os.getenv("STRIPE_PRICE_RETRO_30"),
+    "retro_60": os.getenv("STRIPE_PRICE_RETRO_60"),
+    "retro_90": os.getenv("STRIPE_PRICE_RETRO_90"),
+    "retro_180": os.getenv("STRIPE_PRICE_RETRO_180"),
 }

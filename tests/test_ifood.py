@@ -204,50 +204,134 @@ def test_rota_integracoes_logado(client, ifood_setup):
     assert b"Google Meu Neg" in response.data
 
 
-def test_ver_loja_ifood_dashboard_nao_consulta_financeiro(client, ifood_setup):
-    _, _, merchant = ifood_setup
+def test_ver_loja_ifood_dashboard(client, ifood_setup):
+    user, settings, merchant = ifood_setup
     with client.session_transaction() as sess:
         sess["user_info"] = {"id": "test_ifood_user", "email": "ifood_tester@comentsia.com.br", "name": "Tester iFood"}
         sess["credentials"] = {"token": "dummy"}
 
-    with patch("ifood_auto.requests.get", side_effect=AssertionError("Consulta iFood inesperada")):
-        response = client.get(f"/ifood/loja/{merchant.id}")
-
+    response = client.get(f"/ifood/loja/{merchant.id}")
     assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    assert "Avaliações Recentes no iFood" in html
-    assert "Distribuição de Avaliações" in html
-    assert "Respondidas" in html
-    assert "Faturamento" not in html
-    assert "Ticket Médio" not in html
-    assert "Dados financeiros indisponíveis" not in html
+    assert b"iFood Merchant Store Hub" in response.data
+    assert b"Faturamento" in response.data
+    assert b"Ticket M" in response.data
+    # Sem token real a API financeira nao responde, entao o painel precisa
+    # assumir isso na cara em vez de preencher com numero estimado.
+    assert "Dados financeiros indisponíveis".encode() in response.data
 
 
-def test_metricas_ifood_usam_apenas_avaliacoes(app, ifood_setup):
+def test_dashboard_ifood_nunca_inventa_numeros(app, ifood_setup):
+    """
+    Regressao: o painel exibia faturamento, pedidos, ticket medio e ate um
+    historico de 6 meses totalmente fabricados quando a API financeira do
+    iFood nao respondia (ticket fixo de R$ 54,90, minimo de 60 pedidos e uma
+    curva de crescimento inventada). Homologacao do iFood a vista: nenhum
+    numero pode aparecer sem ter vindo da API.
+    """
     from ifood_auto import calcular_metricas_loja_ifood
 
     with app.app_context():
-        _, _, merchant = ifood_setup
-        with patch("ifood_auto.requests.get", side_effect=AssertionError("Consulta iFood inesperada")):
-            metrics = calcular_metricas_loja_ifood(merchant)
-        assert metrics["total_reviews"] == metrics["respondidas"] + metrics["pendentes"]
-        assert set(metrics) == {
-            "total_reviews", "respondidas", "pendentes", "avg_rating",
-            "taxa_resposta", "dist_estrelas",
-        }
-        assert set(metrics["dist_estrelas"]) == {1, 2, 3, 4, 5}
+        user, settings, merchant = ifood_setup
+        m = calcular_metricas_loja_ifood(merchant)
+
+        # Sem dados da API, tudo zerado e sinalizado como indisponivel.
+        assert m["financeiro_disponivel"] is False
+        assert m["faturamento_periodo"] == 0.0
+        assert m["liquido_periodo"] == 0.0
+        assert m["pedidos_periodo"] == 0
+        assert m["ticket_medio"] == 0.0
+
+        # Os graficos ficam vazios: nada de serie historica sintetica.
+        for serie in m["graficos"].values():
+            assert serie == [], f"grafico preenchido sem dado da API: {serie}"
+
+        # Valores que eram cravados no codigo antigo nao podem reaparecer.
+        assert m["ticket_medio"] != 54.90
+        assert m["pedidos_periodo"] != 60
 
 
-def test_cron_ifood_sincroniza_avaliacoes_sem_consultar_financeiro(app, ifood_setup):
-    from ifood_auto import run_ifood_daily_sync
+def test_faturamento_ifood_usa_campos_corretos_da_api(app, ifood_setup):
+    """
+    O faturamento bruto e `bag + deliveryFee`. O `serviceFee` vem NEGATIVO na
+    API (e taxa cobrada da loja, nao receita) e por isso fica de fora; somar
+    os tres, como era feito antes, dava um numero que nao era nem o bruto nem
+    o liquido. O liquido sai de `billingSummary.saleBalance`.
+
+    Os valores abaixo sao de uma venda real do ambiente de homologacao.
+    """
+    from ifood_auto import fetch_ifood_financial_sales
+
+    venda = {
+        "currentStatus": "CONCLUDED",
+        "createdAt": "2025-08-03T23:01:49.767444Z",
+        "saleGrossValue": {"bag": 59.80, "deliveryFee": 0, "serviceFee": -0.99},
+        "billingSummary": {"saleBalance": 50.71},
+    }
+    cancelada = {
+        "currentStatus": "CANCELLED",
+        "createdAt": "2025-08-03T10:00:00.000000Z",
+        "saleGrossValue": {"bag": 100.0, "deliveryFee": 10.0, "serviceFee": -1.0},
+        "billingSummary": {"saleBalance": 90.0},
+    }
 
     with app.app_context():
-        _, _, merchant = ifood_setup
-        with patch("ifood_auto.sync_merchant_reviews", return_value={"success": True}) as sync, \
-             patch("ifood_auto.get_valid_merchant_token", side_effect=AssertionError("Token financeiro inesperado")), \
-             patch("ifood_auto.requests.get", side_effect=AssertionError("Consulta iFood inesperada")):
-            run_ifood_daily_sync(app)
-        sync.assert_any_call(merchant.id, auto_reply=merchant.auto_reply_enabled)
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sales": [venda, cancelada]}
+
+            r = fetch_ifood_financial_sales("tok", "merchant-uuid", days=8)
+
+        assert r["success"] is True
+        assert r["total_pedidos"] == 1          # a cancelada nao entra
+        assert r["cancelados"] == 1
+        assert r["faturamento"] == 59.80        # bag + deliveryFee
+        assert r["faturamento"] != 58.81        # a formula antiga, com serviceFee
+        assert r["liquido"] == 50.71            # billingSummary.saleBalance
+        assert r["ticket_medio"] == 59.80
+
+        # Serie diaria montada a partir das vendas reais, sem interpolacao.
+        assert r["por_dia"] == [
+            {"data": "2025-08-03", "pedidos": 1, "faturamento": 59.80, "liquido": 50.71}
+        ]
+
+
+def test_fetch_financial_sales_respeita_limite_de_8_dias(app):
+    """A API Sales do iFood recusa intervalos maiores que 8 dias."""
+    from ifood_auto import fetch_ifood_financial_sales
+    from datetime import date
+
+    with app.app_context():
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"sales": []}
+
+            fetch_ifood_financial_sales("tok", "merchant-uuid", days=180)
+
+            params = mock_get.call_args.kwargs["params"]
+
+        ini = date.fromisoformat(params["beginSalesDate"])
+        fim = date.fromisoformat(params["endSalesDate"])
+        assert (fim - ini).days <= 7, f"intervalo de {(fim - ini).days + 1} dias excede o limite da API"
+
+
+def test_fetch_financial_sales_falha_sem_inventar(app):
+    """Erro da API nao pode virar numero: tudo zerado e success=False."""
+    from ifood_auto import fetch_ifood_financial_sales
+
+    with app.app_context():
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 403
+            mock_get.return_value.text = "forbidden"
+
+            r = fetch_ifood_financial_sales("tok", "merchant-uuid")
+
+        assert r["success"] is False
+        assert r["erro"] == "sem_permissao_financeiro"
+        assert r["faturamento"] == 0.0
+        assert r["liquido"] == 0.0
+        assert r["ticket_medio"] == 0.0
+        assert r["total_pedidos"] == 0
+        assert r["por_dia"] == []
 
 
 def test_reviews_filter_ifood(client, ifood_setup):
@@ -261,6 +345,62 @@ def test_reviews_filter_ifood(client, ifood_setup):
 
     response = client.get(f"/reviews?origem=ifood", follow_redirects=True)
     assert response.status_code == 200
+
+
+# Resposta real da API Sales do iFood (ambiente de homologacao), usada para
+# provar que o painel se preenche sozinho assim que a loja tiver vendas.
+VENDA_REAL_IFOOD = {
+    "id": "e27111e9-c985-4004-bafd-974742ff3444",
+    "createdAt": "2025-08-01T18:22:10.000000Z",
+    "currentStatus": "CONCLUDED",
+    "saleGrossValue": {"bag": 59.8, "deliveryFee": 0, "serviceFee": -0.99},
+    "benefits": {"totalValue": 10},
+    "payments": {"methods": [{"method": "PIX", "value": 50.79, "liability": "IFOOD"}]},
+    "billingSummary": {
+        "saleBalance": 50.71,
+        "billingEntries": [
+            {"name": "ORDER_PAYMENT", "value": 50.79},
+            {"name": "PAYMENT_TRANSACTION_FEE", "value": -1.91},
+            {"name": "SERVICE_FEE", "value": -0.99},
+            {"name": "ORDER_COMMISSION", "value": -7.18},
+            {"name": "IFOOD_SUBSIDY", "value": 10},
+        ],
+    },
+}
+
+
+def test_painel_preenche_sozinho_quando_a_api_tem_venda(client, ifood_setup):
+    """
+    O painel nao depende de nenhuma acao manual nem de dado salvo antes: ele
+    consulta a API Financeira a cada carregamento. Este teste simula a loja
+    passando a ter uma venda e confere que os valores aparecem na tela, com a
+    resposta real do iFood, sem tocar em mais nada.
+    """
+    user, settings, merchant = ifood_setup
+
+    with client.session_transaction() as sess:
+        sess["user_info"] = {"id": "test_ifood_user", "email": "ifood_tester@comentsia.com.br", "name": "Tester iFood"}
+        sess["credentials"] = {"token": "dummy"}
+
+    # Antes: a API nao tem nada e o painel assume isso.
+    with patch("requests.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"sales": []}
+        antes = client.get(f"/ifood/loja/{merchant.id}").get_data(as_text=True)
+
+    assert "Dados financeiros indisponíveis" in antes
+    assert "59,80" not in antes
+
+    # Depois: a loja passou a ter uma venda. Nada mais mudou.
+    with patch("requests.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {"sales": [VENDA_REAL_IFOOD]}
+        depois = client.get(f"/ifood/loja/{merchant.id}").get_data(as_text=True)
+
+    assert "Dados financeiros indisponíveis" not in depois
+    assert "59,80" in depois, "faturamento bruto nao chegou ao painel"
+    assert "50,71" in depois, "liquido a receber nao chegou ao painel"
+    assert "Dados financeiros lidos direto da API do iFood" in depois
 
 
 def test_sync_diario_cobre_lojas_ativas_e_ignora_desconectadas(app, ifood_setup):

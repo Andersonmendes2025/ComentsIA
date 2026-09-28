@@ -20,8 +20,8 @@
       "offers": {
         "@type": "AggregateOffer",
         "priceCurrency": "BRL",
-        "lowPrice": "{{ price_decimal('free') }}",
-        "highPrice": "{{ price_decimal('business_anual') }}",
+        "lowPrice": "{{ '%.2f'|format(PLANOS['free'].preco) }}",
+        "highPrice": "{{ '%.2f'|format(PLANOS['business_anual'].preco) }}",
         "offerCount": "{{ PLANOS|length }}"
       },
       "aggregateRating": {
@@ -695,7 +695,7 @@
           <span class="badge position-absolute top-0 start-50 translate-middle rounded-pill px-3 py-1 bg-primary text-white shadow">Mais Escolhido</span>
           <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 align-self-start mb-2">Profissional</span>
           <h4 class="fw-bold text-dark mb-1">Pro</h4>
-          <div class="fs-2 fw-bold text-dark my-2">{{ price_label('pro') }}<small class="fs-6 text-muted">/mês</small></div>
+          <div class="fs-2 fw-bold text-dark my-2">R$ 49,99<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Respostas com IA Ilimitadas</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Automação Google Meu Negócio</li>
@@ -710,7 +710,7 @@
         <div class="pricing-mini-card">
           <span class="badge bg-light text-secondary border align-self-start mb-2">Multiunidades</span>
           <h4 class="fw-bold text-dark mb-1">Business</h4>
-          <div class="fs-2 fw-bold text-dark my-2">{{ price_label('business') }}<small class="fs-6 text-muted">/mês</small></div>
+          <div class="fs-2 fw-bold text-dark my-2">R$ 79,99<small class="fs-6 text-muted">/mês</small></div>
           <ul class="list-unstyled text-muted small mt-2 mb-4 flex-grow-1">
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Gestão de Filiais & Redes (Matriz)</li>
             <li class="mb-2"><i class="bi bi-check2 text-primary me-2 fw-bold"></i>Relatórios Executivos em PDF</li>

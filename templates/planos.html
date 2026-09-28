@@ -21,21 +21,21 @@
     {
       "@type": "Offer",
       "name": "Plano Gratuito",
-      "price": "{{ price_decimal('free') }}",
+      "price": "{{ '%.2f'|format(planos['free'].preco) }}",
       "priceCurrency": "BRL",
       "description": "Até {{ planos['free'].avaliacoes_mes }} avaliações por mês, sem automação nem relatórios em PDF."
     },
     {
       "@type": "Offer",
       "name": "Plano Pro",
-      "price": "{{ price_decimal('pro') }}",
+      "price": "{{ '%.2f'|format(planos['pro'].preco) }}",
       "priceCurrency": "BRL",
       "description": "Automação 24h no Google, até {{ planos['pro'].avaliacoes_mes }} avaliações/mês e relatório executivo em PDF."
     },
     {
       "@type": "Offer",
       "name": "Plano Business",
-      "price": "{{ price_decimal('business') }}",
+      "price": "{{ '%.2f'|format(planos['business'].preco) }}",
       "priceCurrency": "BRL",
       "description": "Avaliações e relatórios ilimitados, Painel Matriz para redes e franquias."
     }
@@ -376,8 +376,8 @@
             {% endif %}
           </div>
           <div class="plan-card-name">{{ t('pricing_page.pro_plan') }}</div>
-          <div class="plan-card-price">{{ price_label('pro') }}<small>{{ t('pricing_page.month_unit') }}</small></div>
-          <div class="plan-card-sub">{{ t('pricing_page.pro_annual_sub', price=price_label('pro_anual')) }}</div>
+          <div class="plan-card-price">R$ {{ '%.0f'|format(planos['pro'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="plan-card-sub">{{ t('pricing_page.pro_annual_sub', price='%.0f'|format(planos['pro_anual'].preco)) }}</div>
         </div>
 
         <div class="plan-card-divider"></div>
@@ -424,8 +424,8 @@
             <span class="plan-badge-pill badge-biz-pill">{{ t('pricing_page.biz_badge') }}</span>
           {% endif %}
           <div class="plan-card-name">{{ t('pricing_page.business_plan') }}</div>
-          <div class="plan-card-price">{{ price_label('business') }}<small>{{ t('pricing_page.month_unit') }}</small></div>
-          <div class="plan-card-sub">{{ t('pricing_page.biz_annual_sub', price=price_label('business_anual')) }}</div>
+          <div class="plan-card-price">R$ {{ '%.0f'|format(planos['business'].preco) }}<small>{{ t('pricing_page.month_unit') }}</small></div>
+          <div class="plan-card-sub">{{ t('pricing_page.biz_annual_sub', price='%.0f'|format(planos['business_anual'].preco)) }}</div>
         </div>
 
         <div class="plan-card-divider"></div>
@@ -489,7 +489,7 @@
             </div>
             <div>
               <div class="addon-pill-name">Mercado Livre</div>
-              <div class="addon-pill-price">+ {{ price_label('addon_mercadolivre') }}<small>/mês</small></div>
+              <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
             </div>
           </div>
 
@@ -500,7 +500,7 @@
             </div>
             <div>
               <div class="addon-pill-name">iFood Delivery</div>
-              <div class="addon-pill-price">+ {{ price_label('addon_ifood') }}<small>/mês</small></div>
+              <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
             </div>
           </div>
         </div>

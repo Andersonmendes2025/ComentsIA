@@ -145,8 +145,7 @@ def escolher_ficha_google():
     if not user_id:
         return redirect(url_for("authorize"))
 
-    from services.pricing import price_amount
-    PRECO_ADDON_FMT = price_amount("addon_slot")
+    PRECO_ADDON_FMT = "29,90"  # só pra exibir no front
 
     settings = UserSettings.query.filter_by(user_id=user_id).first()
     limits = _get_gbp_limits(settings)
@@ -1125,13 +1124,8 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
             assinatura += f"\n{manager_name}"
 
         prompt = ""
-        if stars <= 3 and contexto:
-            prompt += (
-                "🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: Use a caixa de contexto apenas "
-                "nesta avaliação negativa e somente se couber naturalmente no "
-                "assunto relatado pelo cliente. Se não couber, ignore-a. "
-                f"Contexto: {contexto}\n\n"
-            )
+        if contexto:
+            prompt += f"🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: {contexto}\n\n"
 
         prompt += f"""Você é um especialista em sucesso e experiência do cliente da empresa "{business_name}".
 Avaliação recebida:

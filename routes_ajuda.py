@@ -26,7 +26,6 @@ from flask import (
 from flask_login import current_user, login_required
 
 from models import UserSettings, db
-from services.pricing import price_label
 
 ajuda_bp = Blueprint("ajuda", __name__)
 
@@ -48,7 +47,7 @@ _SYSTEM_PROMPT = f"""Você é o Assistente Virtual oficial e multilíngue do Com
 Sua missão é:
 1. Ajudar os usuários a entenderem e usarem todas as funcionalidades do sistema com linguagem simples, acolhedora e didática
 2. Responder dúvidas sobre a plataforma, configurações, relatórios, pesquisas, planos e integrações com base no manual oficial
-3. Explicar como integrar o iFood Delivery (Add-on mensal, pareamento no portal.ifood.com.br/apps/code, sincronização de avaliações e respostas com IA para gastronomia)
+3. Explicar como integrar o iFood Delivery (Add-on de R$ 29,90/mês, pareamento no portal.ifood.com.br/apps/code, sincronização de pedidos e IA para gastronomia)
 4. Explicar com clareza as regras do Google Business Profile (especialmente sobre Grupos de Fichas)
 5. Abrir chamados de suporte técnico quando necessário.
 
@@ -165,14 +164,7 @@ def _chamar_gemini(messages: List[Dict], user_info: Dict) -> Dict[str, Any]:
         try:
             model = genai.GenerativeModel(
                 model_name=m_name,
-                system_instruction=_SYSTEM_PROMPT + "\nPREÇOS OFICIAIS (prevalecem sobre valores do manual):\n" + "\n".join(
-                    f"{key}: {price_label(key)} / {period}"
-                    for key, period in [("pro", "mês"), ("pro_anual", "ano"),
-                                        ("business", "mês"), ("business_anual", "ano"),
-                                        ("addon_slot", "mês"), ("addon_ifood", "mês"),
-                                        ("addon_mercadolivre", "mês"),
-                                        *[(f"retro_{d}", "pagamento único") for d in (30, 60, 90, 180)]]
-                ),
+                system_instruction=_SYSTEM_PROMPT,
                 tools=_TOOLS,
             )
             chat = model.start_chat(history=history)

@@ -1,4 +1,3 @@
-from services.pricing import get_price, price_label, price_amount, price_decimal
 # --- std/3rd-party ---
 # --- LOGGING GLOBAL (colocar antes de qualquer outro import) ---
 import logging
@@ -444,6 +443,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 PLANOS = {
     "free": {
         "nome": "Gratuito",
+        "preco": 0,
         "avaliacoes_mes": 20,
         "hiper_dia": 0,
         "consideracoes_dia": 0,
@@ -455,6 +455,7 @@ PLANOS = {
     },
     "pro": {
         "nome": "Pro",
+        "preco": 49.99,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -466,6 +467,7 @@ PLANOS = {
     },
     "pro_anual": {
         "nome": "Pro Anual",
+        "preco": 499.00,
         "avaliacoes_mes": 200,
         "hiper_dia": 2,
         "consideracoes_dia": 2,
@@ -478,6 +480,7 @@ PLANOS = {
     },
     "business": {
         "nome": "Business",
+        "preco": 79.99,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -489,6 +492,7 @@ PLANOS = {
     },
     "business_anual": {
         "nome": "Business Anual",
+        "preco": 799.00,
         "avaliacoes_mes": None,
         "hiper_dia": None,
         "consideracoes_dia": None,
@@ -866,11 +870,6 @@ from markupsafe import escape
 # Certifique-se de inicializar no setup do app:
 # csrf = CSRFProtect(app)
 
-
-
-@app.context_processor
-def inject_official_prices():
-    return {"price_label": price_label, "price_amount": price_amount, "price_decimal": price_decimal}
 
 
 @app.route("/planos", methods=["GET"])
@@ -2814,9 +2813,12 @@ def suggest_reply():
 
     prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
     
-    if star_rating <= 3 and contexto_final:
+    # ==========================================================
+    # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
+    # ==========================================================
+    if contexto_final:
         prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-        prompt += "INSTRUÇÃO CRÍTICA: Use esta caixa de contexto apenas nesta avaliação negativa e somente se a informação couber naturalmente no assunto relatado pelo cliente. Caso contrário, ignore-a. Não force detalhes do negócio, propaganda ou justificativas sem relação com a avaliação.\n"
+        prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
         prompt += f"Contexto: {contexto_final}\n"
         prompt += "---------------------------------------\n\n"
 
@@ -2938,9 +2940,12 @@ def add_review():
 
         prompt = f"Você é um especialista em sucesso e experiência do cliente da empresa '{business}'.\n\n"
         
-        if rating <= 3 and contexto_final:
+        # ==========================================================
+        # 🛡️ BLINDAGEM DE USO EXCESSIVO DE CONTEXTO
+        # ==========================================================
+        if contexto_final:
             prompt += "--- BASE DE CONHECIMENTO DA EMPRESA ---\n"
-            prompt += "INSTRUÇÃO CRÍTICA: Use esta caixa de contexto apenas nesta avaliação negativa e somente se a informação couber naturalmente no assunto relatado pelo cliente. Caso contrário, ignore-a. Não force detalhes do negócio, propaganda ou justificativas sem relação com a avaliação.\n"
+            prompt += "INSTRUÇÃO CRÍTICA: Os dados abaixo são apenas informações de fundo sobre o negócio. Você é estritamente PROIBIDO de mencionar, repetir ou justificar sua resposta usando essas informações de contexto, A MENOS QUE o cliente tenha tocado EXATAMENTE nesse assunto na avaliação dele. Seja natural e foque APENAS em responder ao que o cliente disse.\n"
             prompt += f"Contexto: {contexto_final}\n"
             prompt += "---------------------------------------\n\n"
 
@@ -3277,7 +3282,12 @@ def analyze_reviews():
     # ===========================
     prompt = ""
 
-    # Análises agregadas devem refletir apenas os relatos dos clientes.
+    if settings.get("contexto_personalizado"):
+        contexto = settings["contexto_personalizado"].strip()
+        prompt += (
+            "INSTRUÇÃO PRIORITÁRIA: Use o contexto da empresa abaixo como referência principal.\n"
+            f"Contexto: {contexto}\n\n"
+        )
 
     prompt += f"""
 Você é um analista profissional de satisfação do cliente.

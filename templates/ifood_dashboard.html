@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Avaliações da Loja iFood - {{ merchant.name }} | ComentsIA{% endblock %}
+{% block title %}Dashboard da Loja iFood - {{ merchant.name }} | ComentsIA{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -113,45 +113,166 @@
     </div>
   </div>
 
-  <!-- Indicadores calculados apenas das avaliações sincronizadas -->
+  <!-- KPIS PRINCIPAIS -->
+  {% if metricas.financeiro_disponivel %}
+  <div class="alert alert-light border rounded-4 d-flex align-items-center gap-2 py-2 px-3 mb-3 small text-muted">
+    <i class="bi bi-shield-check text-success"></i>
+    Dados financeiros lidos direto da API do iFood — período de
+    <strong class="text-dark">{{ metricas.periodo_inicio[8:10] }}/{{ metricas.periodo_inicio[5:7] }}</strong>
+    a
+    <strong class="text-dark">{{ metricas.periodo_fim[8:10] }}/{{ metricas.periodo_fim[5:7] }}</strong>
+    ({{ metricas.periodo_dias }} dias, limite máximo da API).
+    {% if metricas.cancelados_periodo %}
+      {{ metricas.cancelados_periodo }} pedido(s) cancelado(s) foram excluídos dos totais.
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-      <div class="stat-card-ifood blue">
-        <span class="text-muted small fw-bold text-uppercase">Avaliações</span>
-        <div class="h3 fw-bold text-dark mt-2 mb-0">{{ metricas.total_reviews }}</div>
-      </div>
-    </div>
+    <!-- Card 1: Faturamento do período -->
     <div class="col-6 col-lg-3">
       <div class="stat-card-ifood green">
-        <span class="text-muted small fw-bold text-uppercase">Respondidas</span>
-        <div class="h3 fw-bold text-dark mt-2 mb-0">{{ metricas.respondidas }}</div>
-        {% if metricas.taxa_resposta is not none %}
-          <span class="text-muted small">{{ metricas.taxa_resposta }}% das avaliações</span>
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Faturamento do Período</span>
+          <div class="icon-bubble-ifood bg-success-subtle text-success">
+            <i class="bi bi-currency-dollar"></i>
+          </div>
+        </div>
+        {% if metricas.financeiro_disponivel %}
+          <div class="h3 fw-bold text-dark mb-1">
+            R$ {{ "{:,.2f}".format(metricas.faturamento_periodo).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+          </div>
+          <span class="text-muted small">
+            Líquido a receber:
+            R$ {{ "{:,.2f}".format(metricas.liquido_periodo).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+          </span>
+        {% else %}
+          <div class="h3 fw-bold text-muted mb-1">—</div>
+          <span class="text-muted small">Sem dados</span>
         {% endif %}
       </div>
     </div>
-    <div class="col-6 col-lg-3">
-      <div class="stat-card-ifood yellow">
-        <span class="text-muted small fw-bold text-uppercase">Pendentes</span>
-        <div class="h3 fw-bold text-dark mt-2 mb-0">{{ metricas.pendentes }}</div>
-      </div>
-    </div>
+
+    <!-- Card 2: Pedidos concluídos -->
     <div class="col-6 col-lg-3">
       <div class="stat-card-ifood red">
-        <span class="text-muted small fw-bold text-uppercase">Nota Média das Avaliações</span>
-        <div class="h3 fw-bold text-dark mt-2 mb-0">
-          {{ metricas.avg_rating if metricas.avg_rating is not none else '—' }}
-          {% if metricas.avg_rating is not none %}<span class="fs-6 text-warning">★</span>{% endif %}
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Pedidos Concluídos</span>
+          <div class="icon-bubble-ifood bg-danger-subtle text-danger">
+            <i class="bi bi-bag-check-fill"></i>
+          </div>
         </div>
+        {% if metricas.financeiro_disponivel %}
+          <div class="h3 fw-bold text-dark mb-1">
+            {{ "{:,}".format(metricas.pedidos_periodo).replace(',', '.') }}
+            <span class="fs-6 text-muted fw-normal">pedidos</span>
+          </div>
+          <span class="text-muted small">No período consultado</span>
+        {% else %}
+          <div class="h3 fw-bold text-muted mb-1">—</div>
+          <span class="text-muted small">Sem dados</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Card 3: Ticket médio -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood yellow">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Ticket Médio</span>
+          <div class="icon-bubble-ifood bg-warning-subtle text-warning">
+            <i class="bi bi-receipt"></i>
+          </div>
+        </div>
+        {% if metricas.financeiro_disponivel %}
+          <div class="h3 fw-bold text-dark mb-1">
+            R$ {{ "{:,.2f}".format(metricas.ticket_medio).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+          </div>
+          <span class="text-muted small">Faturamento ÷ pedidos concluídos</span>
+        {% else %}
+          <div class="h3 fw-bold text-muted mb-1">—</div>
+          <span class="text-muted small">Sem dados</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Card 4: Nota média / reputação -->
+    <div class="col-6 col-lg-3">
+      <div class="stat-card-ifood blue">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <span class="text-muted small fw-bold text-uppercase">Nota Média iFood</span>
+          <div class="icon-bubble-ifood bg-primary-subtle text-primary">
+            <i class="bi bi-star-fill text-warning"></i>
+          </div>
+        </div>
+        {% if metricas.avg_rating is not none %}
+          <div class="h3 fw-bold text-dark mb-1">
+            {{ metricas.avg_rating }} <span class="fs-6 text-warning">★</span>
+          </div>
+          <span class="badge bg-primary-subtle text-primary small rounded-pill px-2 py-0.5">
+            {{ metricas.taxa_resposta }}% respondidas com IA
+          </span>
+        {% else %}
+          <div class="h3 fw-bold text-muted mb-1">—</div>
+          <span class="text-muted small">Nenhuma avaliação ainda</span>
+        {% endif %}
       </div>
     </div>
   </div>
 
+  {% if not metricas.financeiro_disponivel %}
+  <div class="alert alert-warning border-0 rounded-4 d-flex align-items-start gap-3 mb-4">
+    <i class="bi bi-info-circle-fill fs-5"></i>
+    <div>
+      <div class="fw-bold mb-1">Dados financeiros indisponíveis</div>
+      <div class="small">
+        {% if metricas.financeiro_erro == 'sem_token' %}
+          A loja precisa ser reconectada ao iFood para liberar a consulta.
+        {% elif metricas.financeiro_erro == 'sem_permissao_financeiro' %}
+          Esta loja não tem o módulo financeiro liberado pelo iFood.
+        {% elif metricas.financeiro_erro in ('erro_api', 'falha_conexao', 'resposta_invalida') %}
+          Não foi possível consultar a API financeira do iFood no momento. Tente novamente mais tarde.
+        {% else %}
+          Não há vendas registradas no período consultado
+          ({{ metricas.periodo_dias }} dias, limite máximo da API do iFood).
+        {% endif %}
+        Nenhum valor é estimado neste painel — mostramos apenas o que a API do iFood retorna.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- GRÁFICOS -->
   <div class="row g-4 mb-4">
-    <div class="col-12">
+    {% if metricas.financeiro_disponivel %}
+    <!-- Gráfico 1: Faturamento e pedidos por dia (dados reais da API) -->
+    <div class="col-lg-7">
       <div class="chart-card-ifood">
-        <h5 class="fw-bold text-dark mb-1">Distribuição de Avaliações</h5>
-        <p class="text-muted small">Proporção por estrelas de satisfação</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Vendas &amp; Faturamento por Dia</h5>
+            <small class="text-muted">Bruto, líquido a receber e volume de pedidos</small>
+          </div>
+          <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1 fw-bold small">
+            {{ metricas.periodo_dias }} dias
+          </span>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="chartFaturamentoVendas"></canvas>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Gráfico: Distribuição de estrelas (vem das avaliações no banco) -->
+    <div class="{% if metricas.financeiro_disponivel %}col-lg-5{% else %}col-12{% endif %}">
+      <div class="chart-card-ifood">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="fw-bold text-dark mb-0">Distribuição de Avaliações</h5>
+            <small class="text-muted">Proporção por estrelas de satisfação</small>
+          </div>
+        </div>
         <div style="height: 290px;">
           <canvas id="chartDistribuicaoEstrelas"></canvas>
         </div>
@@ -225,8 +346,70 @@
 <!-- SCRIPT DOS GRÁFICOS (CHART.JS) -->
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+  const labels = {{ metricas.graficos.labels | tojson }};
+  const faturamento = {{ metricas.graficos.faturamento | tojson }};
+  const liquido = {{ metricas.graficos.liquido | tojson }};
+  const pedidos = {{ metricas.graficos.pedidos | tojson }};
   const dist = {{ metricas.dist_estrelas | tojson }};
 
+  // Formata "2025-08-22" como "22/08" para o eixo X.
+  const labelsBr = labels.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
+
+  // Gráfico 1: faturamento, líquido e pedidos por dia.
+  // Só é renderizado quando a API financeira devolveu vendas.
+  const elFat = document.getElementById('chartFaturamentoVendas');
+  if (elFat) {
+    new Chart(elFat.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: labelsBr,
+        datasets: [
+          {
+            label: 'Faturamento bruto (R$)',
+            data: faturamento,
+            backgroundColor: 'rgba(234, 29, 44, 0.85)',
+            borderRadius: 8,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Líquido a receber (R$)',
+            data: liquido,
+            backgroundColor: 'rgba(16, 185, 129, 0.75)',
+            borderRadius: 8,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Pedidos',
+            data: pedidos,
+            type: 'line',
+            borderColor: '#3b82f6',
+            backgroundColor: '#3b82f6',
+            tension: 0.35,
+            pointRadius: 4,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') }
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { precision: 0 }
+          }
+        }
+      }
+    });
+  }
+  
   // Distribuição de estrelas — vem das avaliações gravadas no banco.
   // Os valores são usados como estão: uma loja sem avaliações mostra o aviso
   // de "sem dados" no lugar do gráfico, em vez de uma distribuição fictícia.

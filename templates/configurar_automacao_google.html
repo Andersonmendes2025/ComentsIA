@@ -212,7 +212,7 @@
         <div class="d-flex flex-wrap gap-3 justify-content-center">
           {% for dias in [30, 60, 90, 180] %}
             {% set p = historical[dias|string] %}
-            {% set valor = price_amount("retro_" ~ dias) %}
+            {% set valor = "%.2f"|format(p.price_cents / 100) %}
 
             <div class="historico-card d-flex flex-column align-items-stretch border rounded-3 p-3 shadow-sm position-relative bg-white text-start">
               
