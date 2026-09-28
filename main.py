@@ -85,7 +85,7 @@ from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from googleapiclient.discovery import build
 from markupsafe import Markup
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sqlalchemy import desc, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -2900,6 +2900,22 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
             registrar_uso_consideracoes(user_id)
 
         return jsonify({"success": True, "suggested_reply": suggested_reply, "reply": suggested_reply})
+    except RateLimitError as exc:
+        try:
+            error_code = exc.response.json().get("error", {}).get("code")
+        except (AttributeError, ValueError, TypeError):
+            error_code = None
+        if error_code == "credit_balance_exhausted":
+            logging.error("suggest_reply: créditos da API OpenAI esgotados")
+            return jsonify({
+                "success": False,
+                "error": "Os créditos da API OpenAI acabaram. Verifique o saldo e o faturamento do projeto configurado.",
+            }), 503
+        logging.warning("suggest_reply: limite de solicitações da API OpenAI atingido")
+        return jsonify({
+            "success": False,
+            "error": "A API de IA está recebendo solicitações demais. Tente novamente em instantes.",
+        }), 503
     except Exception:
         logging.exception("suggest_reply: falha na IA")
         return jsonify({"success": False, "error": "Erro de conexão com a Inteligência Artificial."})

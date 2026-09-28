@@ -2,8 +2,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import httpx
 import main
 import pytest
+from openai import RateLimitError
 from models import Review, db
 
 
@@ -71,3 +73,28 @@ def test_consideracoes_count_endpoint_exists_for_reviews_page(monkeypatch):
         response = browser.get("/get_consideracoes_count")
     assert response.status_code == 200
     assert response.json == {"success": True, "usos_restantes_consideracoes": main.PLANOS["pro"]["consideracoes_dia"]}
+
+
+def test_rewrite_explains_exhausted_openai_credits(monkeypatch):
+    main.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
+    ai = MagicMock()
+    response = httpx.Response(
+        429,
+        request=httpx.Request("POST", "https://api.openai.com/v1/chat/completions"),
+        json={"error": {"type": "insufficient_quota", "code": "credit_balance_exhausted"}},
+    )
+    ai.with_options.return_value.chat.completions.create.side_effect = RateLimitError(
+        "No credits remaining", response=response, body=response.json()
+    )
+    monkeypatch.setattr(main, "client", ai)
+    monkeypatch.setattr(main, "get_user_settings", lambda _: {})
+
+    with main.app.test_client() as browser:
+        with browser.session_transaction() as session:
+            session["credentials"] = {"token": "test"}
+            session["user_info"] = {"id": "rewrite_credit_test_user"}
+        result = browser.post("/suggest_reply", json={"review_text": "Gostei do atendimento."})
+
+    assert result.status_code == 503
+    assert result.json["success"] is False
+    assert "créditos da API OpenAI acabaram" in result.json["error"]
