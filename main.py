@@ -2274,6 +2274,31 @@ def get_hiper_count():
         return jsonify(success=False, error="Falha ao obter contagem.")
 
 
+@app.route("/get_consideracoes_count")
+@limiter.limit("10 per minute")
+def get_consideracoes_count():
+    if "credentials" not in session:
+        return jsonify(success=False, error="Não autenticado."), 401
+
+    user_id = (session.get("user_info") or {}).get("id")
+    if not user_id:
+        return jsonify(success=False, error="Usuário não identificado."), 401
+
+    try:
+        plano = get_user_plan(user_id)
+        limite = PLANOS.get(plano, {}).get("consideracoes_dia")
+        if limite is None:
+            return jsonify(success=True, usos_restantes_consideracoes=None)
+        uso = ConsideracoesUso.query.filter_by(
+            user_id=user_id, data_uso=get_data_hoje_brt()
+        ).first()
+        usados = uso.quantidade_usos if uso else 0
+        return jsonify(success=True, usos_restantes_consideracoes=max(0, int(limite) - int(usados)))
+    except Exception:
+        logging.exception("Erro ao calcular consideracoes_count para %s", user_id)
+        return jsonify(success=False, error="Falha ao obter contagem."), 500
+
+
 @app.template_filter("b64encode")
 def b64encode_filter(data):
     try:
@@ -2721,6 +2746,7 @@ def reviews():
     
 
 @app.route("/suggest_reply", methods=["POST"])
+@app.route("/generate_reply", methods=["POST"])
 @limiter.limit("15/minute")
 def suggest_reply():
     if "credentials" not in flask.session:
@@ -2769,7 +2795,7 @@ def suggest_reply():
         return jsonify({"success": False, "error": "A avaliação está sem texto. A IA precisa ler os comentários."})
 
     tone = (data.get("tone") or "profissional").strip().lower()
-    hiper_compreensiva = bool(data.get("hiper_compreensiva"))
+    hiper_compreensiva = bool(data.get("hiper_compreensiva", data.get("hiper", False)))
     consideracoes = (data.get("consideracoes") or "").strip()
 
     if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
@@ -2806,7 +2832,7 @@ def suggest_reply():
     tone = (data.get("tone") or default_tone).strip().lower()
 
     default_idioma = (loc.idioma_resposta if loc and loc.idioma_resposta else None) or settings.get("idioma_resposta") or "Português (Brasil)"
-    idioma = (data.get("idioma") or default_idioma).strip()
+    idioma = (data.get("idioma") or data.get("lang") or default_idioma).strip()
 
     system_inst, prompt_lang_rule = get_language_instructions(idioma)
     tone_inst = get_tone_instructions(tone)
@@ -2873,7 +2899,7 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
         if consideracoes:
             registrar_uso_consideracoes(user_id)
 
-        return jsonify({"success": True, "suggested_reply": suggested_reply})
+        return jsonify({"success": True, "suggested_reply": suggested_reply, "reply": suggested_reply})
     except Exception:
         logging.exception("suggest_reply: falha na IA")
         return jsonify({"success": False, "error": "Erro de conexão com a Inteligência Artificial."})
