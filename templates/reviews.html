@@ -749,22 +749,24 @@
     btnLoading.classList.remove('d-none');
 
     try {
-      const res = await fetch('/send_reply', {
+      if (!externalId || externalId === 'None') {
+        throw new Error('Esta avaliação não possui um identificador do Google para publicação.');
+      }
+      const res = await fetch(`/auto/editar_reply/${encodeURIComponent(externalId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ external_id: externalId, internal_id: internalId, reply: replyText, is_edit: currentIsEdit })
+        body: JSON.stringify({ reply_text: replyText })
       });
 
-      const data = await res.json();
-      if (data.ok) {
-        toast("✅ " + (data.message || "{{ t('common.success') }}"), "success");
-        replyModal.hide();
-        setTimeout(() => window.location.reload(), 800);
-      } else {
-        toast(data.error || "{{ t('common.error') }}", "danger");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || `Não foi possível publicar a resposta (HTTP ${res.status}).`);
       }
+      toast("✅ " + (data.message || "{{ t('common.success') }}"), "success");
+      replyModal.hide();
+      setTimeout(() => window.location.reload(), 800);
     } catch (e) {
-      toast("{{ t('common.error') }}", "danger");
+      toast(e.message || "{{ t('common.error') }}", "danger");
     } finally {
       btnText.classList.remove('d-none');
       btnLoading.classList.add('d-none');
