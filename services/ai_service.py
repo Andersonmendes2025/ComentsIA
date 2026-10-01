@@ -374,3 +374,17 @@ def generate_claude_response(
         logging.error(f"[Claude AI] Erro ao chamar Anthropic Claude: {e}")
     return None
 
+
+
+def get_reply_length_instructions(is_hiper: bool) -> str:
+    """Uma única regra de extensão para sugestões e automação Google."""
+    if is_hiper:
+        return (
+            "MODO HIPER COMPREENSIVO: escreva de 8 a 15 frases completas no corpo "
+            "da resposta, em 3 a 5 parágrafos, sem contar saudação, assinatura e contato. "
+            "Aprofunde a escuta e a empatia; responda a cada ponto efetivamente citado. "
+            "Esta regra de extensão prevalece sobre pedidos de brevidade do tom de voz. "
+            "Não repita ideias para alongar, não invente fatos, providências já tomadas, "
+            "promessas, compensações ou problemas que o cliente não relatou."
+        )
+    return "Escreva de 3 a 5 frases focadas no que o cliente disse, sem inventar fatos ou promessas."

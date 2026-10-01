@@ -720,9 +720,11 @@ def get_data_hoje_brt():
 def usuario_pode_usar_resposta_especial(user_id):
     hoje = get_data_hoje_brt()
     plano = get_user_plan(user_id)
-    hiper_limite = PLANOS.get(plano, {}).get("hiper_dia")
+    hiper_limite = PLANOS.get(plano, {}).get("hiper_dia", 0)
     if hiper_limite is None:
         return True  # Ilimitado no Business
+    if hiper_limite <= 0:
+        return False
     uso = RespostaEspecialUso.query.filter_by(user_id=user_id, data_uso=hoje).first()
     return not uso or (uso.quantidade_usos or 0) < hiper_limite
 
@@ -2772,6 +2774,7 @@ def suggest_reply():
         get_tone_instructions,
         get_language_instructions,
         limpar_resposta_ia,
+        get_reply_length_instructions,
     )
 
     review = None
@@ -2795,7 +2798,7 @@ def suggest_reply():
         return jsonify({"success": False, "error": "A avaliação está sem texto. A IA precisa ler os comentários."})
 
     tone = (data.get("tone") or "profissional").strip().lower()
-    hiper_compreensiva = bool(data.get("hiper_compreensiva", data.get("hiper", False)))
+    hiper_compreensiva = str(data.get("hiper_compreensiva", data.get("hiper", False))).lower() in {"true", "1", "on"}
     consideracoes = (data.get("consideracoes") or "").strip()
 
     if hiper_compreensiva and not usuario_pode_usar_resposta_especial(user_id):
@@ -2875,11 +2878,9 @@ REGRAS ESTRITAS DE RESPOSTA (Siga rigorosamente todas):
         
     prompt += f"""{rule_n}. ASSINATURA FINAL EXATA: Assine ao final exatamente assim:
 {assinatura}
-{rule_n+1}. TAMANHO E CONTEÚDO: Escreva entre 3 e 5 frases focadas no que o cliente disse. Nunca use a palavra "Atenciosamente".
+{rule_n+1}. TAMANHO E CONTEÚDO: {get_reply_length_instructions(hiper_compreensiva)} Nunca use a palavra "Atenciosamente".
 {rule_n+2}. FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela (saudação, despedida, contato ou assinatura) entre aspas duplas ("") ou simples (''). Não use blocos de código ou formatação markdown. Entregue apenas o texto limpo, corrido e pronto para publicação direta.
 """
-    if hiper_compreensiva:
-        prompt += f"\n🚨 ATENÇÃO - MODO HIPER COMPREENSIVO ATIVADO: Ignore a regra de tamanho acima. Escreva uma resposta longa, de 8 a 15 frases. Mostre escuta ativa profunda, empatia absoluta e responda detalhadamente a cada elogio ou crítica."
 
     try:
         completion = client.with_options(timeout=30.0).chat.completions.create(

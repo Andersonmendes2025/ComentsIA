@@ -533,6 +533,8 @@
   const replyModal = new bootstrap.Modal(document.getElementById('replyModal'));
 
   let currentIsEdit = false;
+  let generationSerial = 0;
+  let generationPending = false;
 
   function toast(msg, type="info") {
     if (typeof showToast === "function") return showToast(msg, type);
@@ -543,6 +545,13 @@
   const hiperCheck = document.getElementById('hiper_compreensiva');
   const toggleCons = document.getElementById('toggleConsideracoes');
   const blocoCons  = document.getElementById('bloco-consideracoes');
+
+  if (hiperCheck) {
+    hiperCheck.addEventListener("change", () => {
+      const id = document.getElementById("current-internal-id").value;
+      if (id && !hiperCheck.disabled) generateReply(id);
+    });
+  }
 
   if (toggleCons) {
       toggleCons.addEventListener('click', () => {
@@ -645,6 +654,9 @@
   }
 
   function openReplyModal(internalId, externalId, currentReply, isEdit, locationTone, locationLang) {
+    generationSerial += 1;
+    generationPending = false;
+    hiperCheck.checked = false;
     document.getElementById('current-external-id').value = externalId;
     document.getElementById('current-internal-id').value = internalId;
 
@@ -686,6 +698,8 @@
   }
 
   async function generateReply(internalId) {
+    const serial = ++generationSerial;
+    generationPending = true;
     const loadingAI = document.getElementById('loading-ai');
     const replyArea = document.getElementById('reply-area');
     const btnNew = document.getElementById('btnNewSuggestion');
@@ -708,6 +722,7 @@
       });
 
       const data = await res.json().catch(() => ({}));
+      if (serial !== generationSerial) return;
       if (!res.ok || !data.success || !data.suggested_reply) {
         throw new Error(data.error || `Não foi possível gerar a resposta (HTTP ${res.status}).`);
       }
@@ -719,12 +734,16 @@
       carregarContadores();
 
     } catch (e) {
+      if (serial !== generationSerial) return;
       loadingAI.style.display = 'none';
       replyArea.style.display = 'block';
       document.getElementById('reply-text').value = previousReply;
       toast(e.message || "{{ t('common.error') }}", "danger");
     } finally {
-      btnNew.disabled = false;
+      if (serial === generationSerial) {
+        generationPending = false;
+        btnNew.disabled = false;
+      }
     }
   }
 
@@ -734,6 +753,10 @@
   }
 
   async function sendReply() {
+    if (generationPending) {
+      toast("Aguarde a IA terminar de reescrever antes de publicar.", "warning");
+      return;
+    }
     const externalId = document.getElementById('current-external-id').value;
     const internalId = document.getElementById('current-internal-id').value;
     const replyText = document.getElementById('reply-text').value;

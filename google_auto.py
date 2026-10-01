@@ -1096,7 +1096,7 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
     try:
         from main import client as openai_client
         from main import get_user_settings
-        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions, limpar_resposta_ia
+        from services.ai_service import limpar_texto_review, get_tone_instructions, get_language_instructions, limpar_resposta_ia, get_reply_length_instructions
 
         settings = get_user_settings(user_id)
         clean_text = limpar_texto_review(text)
@@ -1125,7 +1125,10 @@ def _generate_reply_for(user_id: str, stars: int, text: str, reviewer_name: str,
 
         prompt = ""
         if contexto:
-            prompt += f"🚨 INSTRUÇÃO DE CONTEXTO DA LOJA: {contexto}\n\n"
+            prompt += ("BASE DE CONHECIMENTO: use somente informações pertinentes ao assunto "
+                       "efetivamente citado pelo cliente. Não introduza temas alheios, "
+                       "não invente fatos nem providências já tomadas.\n")
+            prompt += f"Contexto da loja: {contexto}\n\n"
 
         prompt += f"""Você é um especialista em sucesso e experiência do cliente da empresa "{business_name}".
 Avaliação recebida:
@@ -1151,11 +1154,9 @@ REGRAS ESTRITAS DE RESPOSTA:
 
         prompt += f"""{rule_num}. ASSINATURA EXATA:
 {assinatura}
-{rule_num+1}. TAMANHO: Escreva de 3 a 5 frases focadas e humanizadas. Nunca use a palavra "Atenciosamente".
+{rule_num+1}. TAMANHO: {get_reply_length_instructions(is_hiper_enabled)} Nunca use a palavra "Atenciosamente".
 {rule_num+2}. FORMATAÇÃO LIMPA (SEM ASPAS): É terminantemente PROIBIDO colocar a resposta ou partes dela (saudação, despedida, contato ou assinatura) entre aspas duplas ("") ou simples (''). Não use blocos de código ou markdown. Entregue apenas o texto corrido e pronto para publicação direta.
 """
-        if is_hiper_enabled:
-            prompt += "\n\n🚨 MODO HIPER COMPREENSIVO: Ignore a regra de tamanho e escreva de 8 a 15 frases com escuta ativa profunda e empatia total."
 
         cp = openai_client.with_options(timeout=30.0).chat.completions.create(
             model="gpt-4o-mini",
@@ -1167,7 +1168,7 @@ REGRAS ESTRITAS DE RESPOSTA:
         return limpar_resposta_ia(cp.choices[0].message.content or "")
     except Exception:
         logging.exception("[gbp] Falha na geração da resposta com IA")
-        return "Obrigado pelo seu feedback! Estamos sempre à disposição."
+        return ""
 
 
 @google_auto_bp.route("/location/<path:location_id>/settings", methods=["GET", "POST"])
@@ -2062,6 +2063,9 @@ def run_sync_for_user(user_id: str) -> int:
                 is_hiper_enabled=is_hiper,
                 location_db_obj=ficha_db,
             )
+            if not reply or not reply.strip():
+                logging.warning("[gbp] Resposta vazia: publicação adiada até uma nova sincronização.")
+                continue
 
             _upsert_review(
                 user_id=user_id,
@@ -2202,6 +2206,9 @@ def run_sync_last_48h(user_id: str) -> int:
                 is_hiper_enabled=is_hiper,
                 location_db_obj=ficha_db,
             )
+            if not reply or not reply.strip():
+                logging.warning("[gbp] Resposta vazia: publicação adiada até uma nova sincronização.")
+                continue
 
             _upsert_review(
                 user_id=user_id,
@@ -2336,6 +2343,9 @@ def run_sync_historical(user_id: str, period: str) -> int:
                 is_hiper_enabled=is_hiper,
                 location_db_obj=ficha_db,
             )
+            if not reply or not reply.strip():
+                logging.warning("[gbp] Resposta vazia: publicação adiada até uma nova sincronização.")
+                continue
 
             _upsert_review(
                 user_id=user_id,
