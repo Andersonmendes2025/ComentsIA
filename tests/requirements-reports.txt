@@ -1,0 +1,3 @@
+# Install with the application requirements before running report tests.
+pytest>=8
+pypdf>=5

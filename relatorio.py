@@ -6,6 +6,7 @@ gráficos executivos de alta fidelidade visual (300 DPI) e inteligência estrat�
 """
 
 import io
+import gc
 import os
 import re
 import tempfile
@@ -13,9 +14,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 import pandas as pd
 import pytz
@@ -149,90 +148,95 @@ class RelatorioAvaliacoes:
         - Painel Esquerdo: Evolução da Nota Média por Mês (Linha com preenchimento suave)
         - Painel Direito: Distribuição de Avaliações por Estrelas (Barras horizontais com % e contagem)
         """
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.2), dpi=300)
-        fig.patch.set_facecolor("#ffffff")
+        # Render at the actual printed size (180 x 70 mm), at 300 DPI.
+        # The former 14-inch canvas allocated nearly four times as many pixels.
+        fig = Figure(figsize=(180 / 25.4, 70 / 25.4), dpi=300)
+        try:
+            ax1, ax2 = fig.subplots(1, 2)
+            fig.patch.set_facecolor("#ffffff")
 
-        # ----------------------------------------------------
-        # 1. GRÁFICO DE EVOLUÇÃO TEMPORAL
-        # ----------------------------------------------------
-        ax1.set_facecolor("#f8fafc")
-        ax1.grid(True, linestyle="--", alpha=0.5, color="#cbd5e1", zorder=1)
+            # ----------------------------------------------------
+            # 1. GRÁFICO DE EVOLUÇÃO TEMPORAL
+            # ----------------------------------------------------
+            ax1.set_facecolor("#f8fafc")
+            ax1.grid(True, linestyle="--", alpha=0.5, color="#cbd5e1", zorder=1)
 
-        tem_dados_tempo = False
-        if not self.df.empty and "data" in self.df.columns and not self.df["nota"].dropna().empty:
-            data_local = self.df["data"].dt.tz_convert("America/Sao_Paulo")
-            df_temp = self.df.copy()
-            df_temp["mes_ano"] = data_local.dt.to_period("M")
-            serie_mensal = df_temp.groupby("mes_ano")["nota"].mean().dropna()
+            tem_dados_tempo = False
+            if not self.df.empty and "data" in self.df.columns and not self.df["nota"].dropna().empty:
+                data_local = self.df["data"].dt.tz_convert("America/Sao_Paulo")
+                meses = data_local.dt.tz_localize(None).dt.to_period("M")
+                serie_mensal = self.df["nota"].groupby(meses).mean().dropna()
 
-            if len(serie_mensal) > 0:
-                tem_dados_tempo = True
-                labels_mes = [p.strftime("%b/%y").capitalize() for p in serie_mensal.index]
-                valores_mes = serie_mensal.values
+                if len(serie_mensal) > 0:
+                    tem_dados_tempo = True
+                    labels_mes = [p.strftime("%b/%y").capitalize() for p in serie_mensal.index]
+                    valores_mes = serie_mensal.values
 
-                x_indices = np.arange(len(labels_mes))
-                ax1.plot(x_indices, valores_mes, color="#1a73e8", linewidth=2.8, marker="o", markersize=6,
-                         markerfacecolor="#ffffff", markeredgecolor="#1a73e8", markeredgewidth=2.2, zorder=3)
-                ax1.fill_between(x_indices, valores_mes, self.media_oficial * 0.7, color="#1a73e8", alpha=0.08, zorder=2)
+                    x_indices = np.arange(len(labels_mes))
+                    ax1.plot(x_indices, valores_mes, color="#1a73e8", linewidth=1.4, marker="o", markersize=3,
+                             markerfacecolor="#ffffff", markeredgecolor="#1a73e8", markeredgewidth=1.1, zorder=3)
+                    ax1.fill_between(x_indices, valores_mes, self.media_oficial * 0.7, color="#1a73e8", alpha=0.08, zorder=2)
 
-                ax1.axhline(self.media_oficial, color="#10b981", linestyle=":", linewidth=1.5, alpha=0.8,
-                            label=f"Media Geral ({self.media_oficial:.2f})", zorder=2)
+                    ax1.axhline(self.media_oficial, color="#10b981", linestyle=":", linewidth=1.5, alpha=0.8,
+                                label=f"Media Geral ({self.media_oficial:.2f})", zorder=2)
 
-                for xi, yi in zip(x_indices, valores_mes):
-                    ax1.annotate(f"{yi:.2f}", (xi, yi), textcoords="offset points", xytext=(0, 9),
-                                 ha="center", fontsize=9, fontweight="bold", color="#1e293b")
+                    for xi, yi in zip(x_indices, valores_mes):
+                        ax1.annotate(f"{yi:.2f}", (xi, yi), textcoords="offset points", xytext=(0, 5),
+                                     ha="center", fontsize=4.95, fontweight="bold", color="#1e293b")
 
-                ax1.set_xticks(x_indices)
-                ax1.set_xticklabels(labels_mes, fontsize=9, color="#475569")
-                min_y = max(1.0, float(min(valores_mes)) - 0.4)
-                max_y = min(5.3, float(max(valores_mes)) + 0.4)
-                ax1.set_ylim(min_y, max_y)
-                ax1.legend(loc="lower right", fontsize=8.5, framealpha=0.9)
+                    ax1.set_xticks(x_indices)
+                    ax1.set_xticklabels(labels_mes, fontsize=4.95, color="#475569")
+                    min_y = max(1.0, float(min(valores_mes)) - 0.4)
+                    max_y = min(5.3, float(max(valores_mes)) + 0.4)
+                    ax1.set_ylim(min_y, max_y)
+                    ax1.legend(loc="lower right", fontsize=4.68, framealpha=0.9)
 
-        if not tem_dados_tempo:
-            ax1.text(0.5, 0.5, "Dados temporais insuficientes", ha="center", va="center", color="#94a3b8", fontsize=11)
-            ax1.set_ylim(1, 5)
+            if not tem_dados_tempo:
+                ax1.text(0.5, 0.5, "Dados temporais insuficientes", ha="center", va="center", color="#94a3b8", fontsize=6.05)
+                ax1.set_ylim(1, 5)
 
-        ax1.set_title("Evolucao da Nota Media por Mes", fontsize=12, fontweight="bold", color="#1e293b", pad=12)
-        ax1.set_ylabel("Nota Media (1 a 5)", fontsize=9.5, color="#64748b")
-        for spine in ["top", "right", "left", "bottom"]:
-            ax1.spines[spine].set_color("#e2e8f0")
+            ax1.set_title("Evolucao da Nota Media por Mes", fontsize=6.6, fontweight="bold", color="#1e293b", pad=6)
+            ax1.set_ylabel("Nota Media (1 a 5)", fontsize=5.23, color="#64748b")
+            for spine in ["top", "right", "left", "bottom"]:
+                ax1.spines[spine].set_color("#e2e8f0")
 
-        # ----------------------------------------------------
-        # 2. GRÁFICO DE DISTRIBUIÇÃO POR ESTRELAS
-        # ----------------------------------------------------
-        ax2.set_facecolor("#f8fafc")
-        ax2.grid(True, linestyle="--", alpha=0.5, color="#cbd5e1", axis="x", zorder=1)
+            # ----------------------------------------------------
+            # 2. GRÁFICO DE DISTRIBUIÇÃO POR ESTRELAS
+            # ----------------------------------------------------
+            ax2.set_facecolor("#f8fafc")
+            ax2.grid(True, linestyle="--", alpha=0.5, color="#cbd5e1", axis="x", zorder=1)
 
-        estrelas_labels = ["5 Estrelas", "4 Estrelas", "3 Estrelas", "2 Estrelas", "1 Estrela"]
-        cores_estrelas = ["#10b981", "#06b6d4", "#f59e0b", "#f97316", "#ef4444"]
-        contagens = [self.star_counts[5], self.star_counts[4], self.star_counts[3], self.star_counts[2], self.star_counts[1]]
-        percentuais = [self.star_pcts[5], self.star_pcts[4], self.star_pcts[3], self.star_pcts[2], self.star_pcts[1]]
+            estrelas_labels = ["5 Estrelas", "4 Estrelas", "3 Estrelas", "2 Estrelas", "1 Estrela"]
+            cores_estrelas = ["#10b981", "#06b6d4", "#f59e0b", "#f97316", "#ef4444"]
+            contagens = [self.star_counts[5], self.star_counts[4], self.star_counts[3], self.star_counts[2], self.star_counts[1]]
+            percentuais = [self.star_pcts[5], self.star_pcts[4], self.star_pcts[3], self.star_pcts[2], self.star_pcts[1]]
 
-        y_pos = np.arange(len(estrelas_labels))
-        bars = ax2.barh(y_pos, contagens, color=cores_estrelas, height=0.55, edgecolor="none", zorder=2)
-        ax2.set_yticks(y_pos)
-        ax2.set_yticklabels(estrelas_labels, fontsize=9.5, fontweight="600", color="#334155")
-        ax2.invert_yaxis()
+            y_pos = np.arange(len(estrelas_labels))
+            bars = ax2.barh(y_pos, contagens, color=cores_estrelas, height=0.55, edgecolor="none", zorder=2)
+            ax2.set_yticks(y_pos)
+            ax2.set_yticklabels(estrelas_labels, fontsize=5.23, fontweight="600", color="#334155")
+            ax2.invert_yaxis()
 
-        max_c = max(contagens) if contagens and max(contagens) > 0 else 1
-        for bar, count, pct in zip(bars, contagens, percentuais):
-            width = bar.get_width()
-            ax2.text(width + (max_c * 0.03), bar.get_y() + bar.get_height() / 2,
-                     f"{count} ({pct:.1f}%)", ha="left", va="center", fontsize=9, fontweight="bold", color="#1e293b")
+            max_c = max(contagens) if contagens and max(contagens) > 0 else 1
+            for bar, count, pct in zip(bars, contagens, percentuais):
+                width = bar.get_width()
+                ax2.text(width + (max_c * 0.03), bar.get_y() + bar.get_height() / 2,
+                         f"{count} ({pct:.1f}%)", ha="left", va="center", fontsize=4.95, fontweight="bold", color="#1e293b")
 
-        ax2.set_xlim(0, max_c * 1.32)
-        ax2.set_title("Distribuicao de Avaliacoes por Estrelas", fontsize=12, fontweight="bold", color="#1e293b", pad=12)
-        ax2.set_xlabel("Quantidade de Avaliacoes", fontsize=9.5, color="#64748b")
-        for spine in ["top", "right", "left", "bottom"]:
-            ax2.spines[spine].set_color("#e2e8f0")
+            ax2.set_xlim(0, max_c * 1.32)
+            ax2.set_title("Distribuicao de Avaliacoes por Estrelas", fontsize=6.6, fontweight="bold", color="#1e293b", pad=6)
+            ax2.set_xlabel("Quantidade de Avaliacoes", fontsize=5.23, color="#64748b")
+            for spine in ["top", "right", "left", "bottom"]:
+                ax2.spines[spine].set_color("#e2e8f0")
 
-        plt.tight_layout(pad=2.5)
-        grafico_path = os.path.join(output_dir, "painel_executivo_kpi.png")
-        plt.savefig(grafico_path, dpi=300, bbox_inches="tight")
-        plt.close()
-
-        return grafico_path
+            fig.tight_layout(pad=1.0)
+            grafico_path = os.path.join(output_dir, "painel_executivo_kpi.jpg")
+            # JPEG is embedded directly by FPDF, avoiding PNG alpha-mask copies.
+            fig.savefig(grafico_path, dpi=300, facecolor="white",
+                        pil_kwargs={"quality": 95, "subsampling": 0})
+            return grafico_path
+        finally:
+            fig.clear()
 
     # ============================================================
     # GERAÇÃO DO PDF CORPORATIVO COM FPDF
@@ -268,9 +272,10 @@ class RelatorioAvaliacoes:
             logo_bytes = self.settings.get("logo")
             if logo_bytes:
                 try:
-                    img = Image.open(io.BytesIO(logo_bytes))
                     logo_path = os.path.join(tmpdir, "logo_empresa.png")
-                    img.save(logo_path, "PNG")
+                    with Image.open(io.BytesIO(logo_bytes)) as img:
+                        img.thumbnail((720, 240))
+                        img.save(logo_path, "PNG")
                     pdf.image(logo_path, x=15, y=y_start, h=16)
                     pdf.set_xy(75, y_start)
                 except Exception:
@@ -339,6 +344,8 @@ class RelatorioAvaliacoes:
             # PAINEL GRÁFICO EXECUTIVO (300 DPI)
             # ==========================================
             grafico_path = self.gerar_painel_graficos_executivos(tmpdir)
+            # Release cyclic Matplotlib objects before FPDF loads the image.
+            gc.collect()
             largura_grafico = 180
             pdf.image(grafico_path, x=15, y=pdf.get_y(), w=largura_grafico)
             pdf.ln(70)
@@ -412,8 +419,9 @@ AMOSTRA DE COMENTARIOS REAIS DO PERIODO ({total_com_texto} com texto):
 {amostra_comentarios if amostra_comentarios else "Nenhum comentario descritivo em texto no periodo analisado. Apenas pontuacoes por estrelas."}
 """
 
+            client = None
             try:
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=40, max_retries=0)
                 completion = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
@@ -428,13 +436,16 @@ AMOSTRA DE COMENTARIOS REAIS DO PERIODO ({total_com_texto} com texto):
                         {"role": "user", "content": prompt_ai}
                     ],
                     temperature=0.3,
-                    timeout=90,
+                    timeout=40,
+                    max_tokens=2000,
                 )
                 conteudo_analise = (completion.choices[0].message.content or "").strip()
+                if not conteudo_analise:
+                    raise ValueError("A analise retornou vazia")
             except Exception as ex_ai:
                 logging.exception("Falha na chamada do GPT-4o para relatório: %s", ex_ai)
                 obs_qualitativa = (
-                    f"Com base nas {total_com_texto} avaliacoes com texto registradas, as manifestacoes demonstram consistencia com a nota media de {self.media_oficial:.2f}."
+                    f"A analise qualitativa esta temporariamente indisponivel. Foram registradas {total_com_texto} avaliacoes com texto; nenhuma conclusao qualitativa foi inferida."
                     if total_com_texto > 0 else
                     "Os dados textuais disponiveis no periodo sao insuficientes para diagnosticar aspectos operacionais detalhados, pois o volume registrado consiste em pontuacoes por estrelas sem comentarios descritivos."
                 )
@@ -452,6 +463,10 @@ AMOSTRA DE COMENTARIOS REAIS DO PERIODO ({total_com_texto} com texto):
                     f"PLANO DE ACAO E RECOMENDACOES ESTRATEGICAS\n"
                     f"Manter o monitoramento continuo das avaliacoes, priorizar respostas ativas aos clientes e incentivar a coleta de feedbacks detalhados."
                 )
+
+            finally:
+                if client is not None:
+                    client.close()
 
             texto_limpo = limpa_markdown(conteudo_analise)
             linhas = texto_limpo.split("\n")
@@ -495,7 +510,7 @@ AMOSTRA DE COMENTARIOS REAIS DO PERIODO ({total_com_texto} com texto):
                     pdf.set_font("Helvetica", "", 9.5)
                     pdf.set_text_color(*COLOR_DARK)
                     safe_text = seguro_latin1(linha_str)
-                    pdf.multi_cell(0, 5, safe_text)
+                    pdf.multi_cell(0, 5, safe_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
                     pdf.ln(1)
 
             # ==========================================
