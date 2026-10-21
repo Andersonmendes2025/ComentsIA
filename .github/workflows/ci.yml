@@ -27,6 +27,12 @@ jobs:
           pip install -r requirements.txt
           python -m pip install pytest
 
+      - name: Configure isolated test credentials
+        run: |
+          echo "ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> "$GITHUB_ENV"
+
       - name: Run Tests
+        env:
+          OPENAI_API_KEY: sk-test-only-no-api-calls
         run: |
           python -m pytest tests/test_claude.py tests/test_ai_service.py tests/test_matriz_security.py
