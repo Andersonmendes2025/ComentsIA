@@ -28,4 +28,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest tests/test_claude.py tests/test_ai_service.py
+          pytest tests/test_claude.py tests/test_ai_service.py tests/test_matriz_security.py
