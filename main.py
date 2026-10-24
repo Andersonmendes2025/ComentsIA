@@ -43,6 +43,7 @@ import json
 import logging
 import os
 import sys
+import uuid
 from collections import Counter
 from datetime import datetime, timedelta
 from functools import wraps
@@ -325,6 +326,7 @@ csp_policy = {
         "https://cdn.jsdelivr.net",
         "https://www.googletagmanager.com",
         "https://www.google-analytics.com",
+        "https://connect.facebook.net",
         "'unsafe-inline'",  # se você tiver scripts inline (GA, etc.)
     ],
     "style-src": [
@@ -337,9 +339,15 @@ csp_policy = {
         "data:",
         "https://lh3.googleusercontent.com",
         "https://www.google-analytics.com",
+        "https://www.facebook.com",
     ],
     "font-src": ["'self'", "https://cdn.jsdelivr.net"],
-    "connect-src": ["'self'", "https://www.google-analytics.com"],
+    "connect-src": [
+        "'self'",
+        "https://www.google-analytics.com",
+        "https://www.facebook.com",
+        "https://connect.facebook.net",
+    ],
     "frame-ancestors": "'none'",
 }
 use_https = os.getenv("FLASK_ENV") == "production"
@@ -1182,7 +1190,8 @@ def inject_user_flags():
         user=user_info,
         is_pro_plan=is_pro_plan,
         is_business_plan=is_business_plan,
-        user_plano=plano_atual  # 🚀 Variável garantida em 100% dos HTMLs
+        user_plano=plano_atual,  # 🚀 Variável garantida em 100% dos HTMLs
+        meta_registration_event_id=session.pop("meta_complete_registration_event_id", None),
     )
 
 
@@ -3407,6 +3416,12 @@ def settings():
             "contexto_personalizado": request.form.get("contexto_personalizado")
         }
 
+        previous_settings = get_user_settings(user_id)
+        registration_was_complete = bool(
+            previous_settings.get("business_name")
+            and previous_settings.get("terms_accepted")
+        )
+
         # Logo (imagem) — valida extensão, mimetype e tamanho
         ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
         ALLOWED_MIMETYPES = {"image/png", "image/jpeg"}
@@ -3435,6 +3450,10 @@ def settings():
 
         if not settings_data["terms_accepted"]:
             flash("Você precisa aceitar os Termos e Condições para continuar.", "warning")
+            return redirect(url_for("settings"))
+
+        if not settings_data["business_name"]:
+            flash("Informe o Nome da Empresa para concluir o cadastro.", "warning")
             return redirect(url_for("settings"))
 
         # Salva as configurações
@@ -3474,6 +3493,8 @@ def settings():
             logging.exception("settings: erro ao marcar e-mail de boas-vindas")
 
         session["terms_accepted"] = True
+        if not registration_was_complete:
+            session["meta_complete_registration_event_id"] = uuid.uuid4().hex
         flash("Configurações salvas com sucesso!", "success")
         return redirect(url_for("index"))
 
