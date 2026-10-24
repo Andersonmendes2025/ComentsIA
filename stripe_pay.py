@@ -59,6 +59,60 @@ def _duracao_dias_from_product_key(product_key: str) -> int:
     if product_key.endswith("_anual"): return 365
     return 30
 
+def _stripe_value(obj, key, default=None):
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+def _subscription_period_end(subscription):
+    period_end = _stripe_value(subscription, "current_period_end")
+    if period_end:
+        return datetime.utcfromtimestamp(period_end)
+
+    items = _stripe_value(_stripe_value(subscription, "items", {}), "data", []) or []
+    item_periods = [
+        _stripe_value(item, "current_period_end")
+        for item in items
+        if _stripe_value(item, "current_period_end")
+    ]
+    return datetime.utcfromtimestamp(max(item_periods)) if item_periods else None
+
+def _invoice_subscription_id(invoice):
+    subscription_id = _stripe_value(invoice, "subscription")
+    if subscription_id:
+        return subscription_id
+
+    parent = _stripe_value(invoice, "parent", {})
+    details = _stripe_value(parent, "subscription_details", {})
+    return _stripe_value(details, "subscription")
+
+def reconcile_main_subscriptions(user_id=None):
+    query = UserSettings.query.filter(UserSettings.stripe_subscription_id.isnot(None))
+    if user_id:
+        query = query.filter_by(user_id=str(user_id))
+
+    updated = 0
+    failed = 0
+    for settings in query.all():
+        try:
+            subscription = stripe.Subscription.retrieve(settings.stripe_subscription_id)
+            status = _stripe_value(subscription, "status")
+            period_end = _subscription_period_end(subscription)
+            if status in {"active", "trialing"} and period_end:
+                settings.plano_ate = period_end
+                items = _stripe_value(_stripe_value(subscription, "items", {}), "data", []) or []
+                if items:
+                    settings.stripe_subscription_item_id = _stripe_value(items[0], "id")
+                updated += 1
+        except Exception:
+            failed += 1
+            logging.exception("[stripe] Falha ao reconciliar assinatura de %s", settings.user_id)
+
+    db.session.commit()
+    return {"updated": updated, "failed": failed}
+
 # -----------------------
 # HELPERS DE CRÉDITO RETROATIVO (RESTAURADOS)
 # -----------------------
@@ -481,7 +535,7 @@ def success():
                 settings.stripe_subscription_item_id = sub.items.data[0].id
             settings.plano = _plano_from_product_key(tx.plan_key)
             try:
-                settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
+                settings.plano_ate = _subscription_period_end(sub) or (agora_brt() + timedelta(days=30))
             except Exception:
                 settings.plano_ate = agora_brt() + timedelta(days=30)
 
@@ -532,7 +586,7 @@ def addon_success():
         if subscription_id:
             try:
                 sub = stripe.Subscription.retrieve(subscription_id)
-                until = datetime.utcfromtimestamp(sub.current_period_end)
+                until = _subscription_period_end(sub)
             except Exception:
                 pass
 
@@ -591,9 +645,9 @@ def stripe_webhook():
 
     # 🚀 O BLOCO NOVO FICA AQUI:
     # ✅ Pagamento de fatura de assinatura (renovação/mensalidade ou compra de slot extra)
-    if event["type"] == "invoice.payment_succeeded":
+    if event["type"] in {"invoice.payment_succeeded", "invoice.paid"}:
         invoice = event["data"]["object"]
-        sub_id = invoice.get("subscription")
+        sub_id = _invoice_subscription_id(invoice)
         customer_id = invoice.get("customer")
 
         if customer_id:
@@ -602,7 +656,7 @@ def stripe_webhook():
                 # Se for a assinatura principal, atualiza a validade do plano
                 if sub_id and settings.stripe_subscription_id == sub_id:
                     sub = stripe.Subscription.retrieve(sub_id)
-                    settings.plano_ate = datetime.utcfromtimestamp(sub.current_period_end)
+                    settings.plano_ate = _subscription_period_end(sub)
 
                 # 🔄 CONTA TODOS OS SLOTS EXTRAS ATIVOS DO CLIENTE
                 # Isso impede erros caso o slot extra seja uma assinatura separada no Stripe
@@ -618,14 +672,14 @@ def stripe_webhook():
                             has_ifood = True
                             settings.addon_ifood_subscription_id = s.id
                             try:
-                                settings.addon_ifood_until = datetime.utcfromtimestamp(s.current_period_end)
+                                settings.addon_ifood_until = _subscription_period_end(s)
                             except Exception:
                                 pass
                         if item.price.id == STRIPE_PRICE_ADDON_MERCADOLIVRE:
                             has_ml = True
                             settings.addon_mercadolivre_subscription_id = s.id
                             try:
-                                settings.addon_mercadolivre_until = datetime.utcfromtimestamp(s.current_period_end)
+                                settings.addon_mercadolivre_until = _subscription_period_end(s)
                             except Exception:
                                 pass
 
@@ -688,3 +742,14 @@ def stripe_webhook():
                     db.session.commit()
     # Stripe só precisa saber que você recebeu o evento
     return jsonify({"status": "ok"})
+
+
+@stripe_bp.route("/cron/reconcile/<token>", methods=["GET", "POST"])
+def reconcile_subscriptions_cron(token):
+    expected = os.getenv("CRON_SECRET_TOKEN")
+    if not expected or token != expected:
+        return jsonify({"success": False, "error": "Acesso negado"}), 403
+
+    user_id = request.args.get("user_id")
+    result = reconcile_main_subscriptions(user_id=user_id)
+    return jsonify({"success": result["failed"] == 0, **result})
