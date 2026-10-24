@@ -20,7 +20,7 @@
     "change_language": "Language"
   },
   "footer": {
-    "description": "Artificial Intelligence for automated reputation management and smart review replies on Google Business Profile, iFood, and customer care channels.",
+    "description": "Artificial Intelligence for automated reputation management and smart review replies on Google Business Profile and customer care channels.",
     "secure": "SSL Secured & Official OAuth 2.0",
     "quick_links": "Quick Links",
     "integrations": "Integrations",
@@ -303,11 +303,11 @@
     "cat_4_desc": "Sentiment analysis, charts, and report history.",
     "cat_5_title": "5. iFood & Delivery",
     "cat_5_desc": "Code-based connection, automatic order replies, and Add-on.",
-    "cat_6_title": "6. Surveys & Multi-Location",
+    "cat_6_title": "5. Surveys & Multi-Location",
     "cat_6_desc": "NPS via QR Code on tables and franchise network management.",
     "chat_title": "ComentsIA Virtual Assistant",
     "chat_subtitle": "Ask questions or open a human support ticket",
-    "chat_placeholder": "Ask a question about ComentsIA or iFood...",
+    "chat_placeholder": "Ask a question about ComentsIA...",
     "chat_send": "Send",
     "open_ticket": "Open Support Ticket"
   },

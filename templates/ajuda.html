@@ -180,16 +180,6 @@
     </div>
 
     <div class="col-md-4">
-      <div class="card category-card p-4" onclick="showSection('ifood_integracao')">
-        <div class="category-icon bg-danger bg-opacity-10 text-danger">
-          <i class="bi bi-bag-heart-fill"></i>
-        </div>
-        <h5 class="fw-bold">{{ t('help.cat_5_title') }}</h5>
-        <p class="text-muted small mb-0">{{ t('help.cat_5_desc') }}</p>
-      </div>
-    </div>
-
-    <div class="col-md-4">
       <div class="card category-card p-4" onclick="showSection('pesquisas_matriz')">
         <div class="category-icon bg-secondary bg-opacity-10 text-secondary">
           <i class="bi bi-qr-code-scan"></i>
@@ -232,9 +222,6 @@
         <button class="nav-link text-start" id="nav-relatorios" onclick="showSection('relatorios')">
           <i class="bi bi-file-earmark-pdf me-2"></i> {{ t('help.cat_4_title') }}
         </button>
-        <button class="nav-link text-start" id="nav-ifood_integracao" onclick="showSection('ifood_integracao')">
-          <i class="bi bi-bag-heart-fill me-2 text-danger"></i> {{ t('help.cat_5_title') }}
-        </button>
         <button class="nav-link text-start" id="nav-pesquisas_matriz" onclick="showSection('pesquisas_matriz')">
           <i class="bi bi-qr-code-scan me-2"></i> {{ t('help.cat_6_title') }}
         </button>
@@ -273,7 +260,6 @@
     primeiro_acesso: `{{ guias.primeiro_acesso | safe | replace('`', '\\`') }}`,
     google_business: `{{ guias.google_business | safe | replace('`', '\\`') }}`,
     configuracao_ia: `{{ guias.configuracao_ia | safe | replace('`', '\\`') }}`,
-    ifood_integracao: `{{ guias.ifood_integracao | safe | replace('`', '\\`') }}`,
     relatorios: `{{ guias.relatorios | safe | replace('`', '\\`') }}`,
     pesquisas_matriz: `{{ guias.pesquisas_matriz | safe | replace('`', '\\`') }}`,
     planos_cobranca: `{{ guias.planos_cobranca | safe | replace('`', '\\`') }}`

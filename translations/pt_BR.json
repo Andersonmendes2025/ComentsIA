@@ -20,7 +20,7 @@
     "change_language": "Idioma"
   },
   "footer": {
-    "description": "Inteligência Artificial para gestão automatizada de reputação e respostas inteligentes no Google Business Profile, iFood e canais de atendimento.",
+    "description": "Inteligência Artificial para gestão automatizada de reputação e respostas inteligentes no Google Business Profile e canais de atendimento.",
     "secure": "SSL Seguro e OAuth 2.0 Oficial",
     "quick_links": "Links Rápidos",
     "integrations": "Integrações",
@@ -303,11 +303,11 @@
     "cat_4_desc": "Análise de sentimento, gráficos e histórico de relatórios.",
     "cat_5_title": "5. iFood & Delivery",
     "cat_5_desc": "Conexão via código, respostas automáticas para pedidos e Add-on.",
-    "cat_6_title": "6. Pesquisas e Matriz",
+    "cat_6_title": "5. Pesquisas e Matriz",
     "cat_6_desc": "NPS via QR Code nas mesas e gestão de redes/filiais.",
     "chat_title": "Assistente Virtual ComentsIA",
     "chat_subtitle": "Tire dúvidas ou abra um chamado de suporte humano",
-    "chat_placeholder": "Faça uma pergunta sobre a ComentsIA ou iFood...",
+    "chat_placeholder": "Faça uma pergunta sobre a ComentsIA...",
     "chat_send": "Enviar",
     "open_ticket": "Abrir Chamado de Suporte"
   },

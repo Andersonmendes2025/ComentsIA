@@ -200,7 +200,7 @@ def test_rota_integracoes_logado(client, ifood_setup):
 
     response = client.get("/integracoes")
     assert response.status_code == 200
-    assert b"iFood Delivery" in response.data
+    assert b"iFood Delivery" not in response.data
     assert b"Google Meu Neg" in response.data
 
 
@@ -522,7 +522,7 @@ def test_reconectar_reaproveita_loja_existente(app, ifood_setup):
 
 
 def test_integracoes_nao_lista_loja_desconectada(client, ifood_setup):
-    """Loja desconectada continua no banco, mas nao pode aparecer como conectada."""
+    """Lojas iFood ficam ocultas no front e continuam preservadas no banco."""
     user, settings, merchant = ifood_setup
     merchant_db_id = merchant.id
 
@@ -531,7 +531,7 @@ def test_integracoes_nao_lista_loja_desconectada(client, ifood_setup):
         sess["credentials"] = {"token": "dummy"}
 
     resp = client.get("/integracoes")
-    assert merchant.name.encode() in resp.data
+    assert merchant.name.encode() not in resp.data
 
     client.post(f"/ifood/desconectar/{merchant_db_id}")
 

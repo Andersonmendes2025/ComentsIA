@@ -15,7 +15,7 @@
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web, Cloud, Windows, macOS, Android, iOS",
       "url": "https://comentsia.com.br",
-      "description": "Plataforma SaaS de Inteligência Artificial para gestão automatizada de reputação, monitoramento e respostas inteligentes no Google Business Profile, iFood e Mercado Livre.",
+      "description": "Plataforma SaaS de Inteligência Artificial para gestão automatizada de reputação, monitoramento e respostas inteligentes no Google Business Profile e Mercado Livre.",
       "image": "https://comentsia.com.br/static/logo-symbol.png",
       "offers": {
         "@type": "AggregateOffer",
@@ -33,7 +33,6 @@
       },
       "featureList": [
         "Respostas Automatizadas com GPT-4o e Gemini para Google Meu Negócio",
-        "Sincronização e Respostas de Avaliações no iFood",
         "Monitoramento de Reputação e Resposta Pré e Pós-Venda no Mercado Livre",
         "Calibragem de 5 Tons de Voz Corporativos",
         "Detecção e Resposta Multilíngue Automática",
@@ -57,12 +56,12 @@
           "name": "O que é o ComentsIA?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "O ComentsIA é uma plataforma que utiliza inteligência artificial avançada (GPT-4o e Gemini) para monitorar, analisar e responder automaticamente avaliações no Google Meu Negócio, iFood e perguntas no Mercado Livre, respeitando o tom de voz e diretrizes da sua empresa."
+            "text": "O ComentsIA é uma plataforma que utiliza inteligência artificial avançada (GPT-4o e Gemini) para monitorar, analisar e responder automaticamente avaliações no Google Meu Negócio e perguntas no Mercado Livre, respeitando o tom de voz e diretrizes da sua empresa."
           }
         },
         {
           "@type": "Question",
-          "name": "Como a IA responde as avaliações no Google e iFood?",
+          "name": "Como a IA responde as avaliações no Google?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "A IA analisa o sentimento, contexto e estrelas da avaliação do cliente, detecta o idioma original e gera uma resposta personalizada e profissional de acordo com o tom de voz escolhido (Profissional, Amigável, Empático, Direto ou Luxo)."
@@ -81,7 +80,7 @@
           "name": "É seguro conectar minhas contas?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Sim, todas as integrações utilizam conexões oficiais com autenticação OAuth 2.0 dos provedores (Google, iFood e Mercado Livre) com criptografia em repouso AES-256."
+            "text": "Sim, todas as integrações utilizam conexões oficiais com autenticação OAuth 2.0 dos provedores (Google e Mercado Livre) com criptografia em repouso AES-256."
           }
         }
       ]
@@ -448,7 +447,6 @@
                 <select id="auditInputCanal" class="form-select rounded-3 py-2 shadow-none">
                   <option value="google">Google Meu Negócio</option>
                   <option value="mercadolivre">Mercado Livre</option>
-                  <option value="ifood">iFood Delivery</option>
                 </select>
               </div>
               <div class="col-sm-6">
@@ -911,16 +909,6 @@
               {% for fil in filiais %}
                 <option value="filial:{{ fil.id }}" {% if filtro_ficha == 'filial:' ~ fil.id %}selected{% endif %}>
                   🏬 Filial: {{ fil.nome }}
-                </option>
-              {% endfor %}
-            </optgroup>
-          {% endif %}
-
-          {% if ifood_merchants %}
-            <optgroup label="iFood Delivery">
-              {% for m in ifood_merchants %}
-                <option value="ifood:{{ m.id }}" {% if filtro_ficha == 'ifood:' ~ m.id %}selected{% endif %}>
-                  🍔 {{ m.name or ('Loja iFood #' ~ m.id) }}
                 </option>
               {% endfor %}
             </optgroup>

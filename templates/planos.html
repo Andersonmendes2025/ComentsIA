@@ -2,7 +2,7 @@
 {% block title %}Planos & Preços - ComentsIA{% endblock %}
 
 {% block extra_head %}
-<meta name="description" content="Conheça os planos e preços do ComentsIA: automação de avaliações Google Meu Negócio, iFood e Mercado Livre com Inteligência Artificial.">
+<meta name="description" content="Conheça os planos e preços do ComentsIA: automação de avaliações Google Meu Negócio e Mercado Livre com Inteligência Artificial.">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -12,7 +12,7 @@
   "@context": "https://schema.org",
   "@type": "Product",
   "name": "ComentsIA - Planos de Assinatura",
-  "description": "Planos e preços para automação de respostas no Google Business, iFood e Mercado Livre.",
+  "description": "Planos e preços para automação de respostas no Google Business e Mercado Livre.",
   "brand": {
     "@type": "Brand",
     "name": "ComentsIA"
@@ -489,17 +489,6 @@
             </div>
             <div>
               <div class="addon-pill-name">Mercado Livre</div>
-              <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
-            </div>
-          </div>
-
-          <!-- Card iFood -->
-          <div class="addon-pill-card flex-grow-1">
-            <div class="addon-pill-icon-box">
-              <img src="{{ url_for('static', filename='ifood-logo.png') }}" alt="iFood" class="addon-logo-img rounded-2">
-            </div>
-            <div>
-              <div class="addon-pill-name">iFood Delivery</div>
               <div class="addon-pill-price">+ R$ 29,90<small>/mês</small></div>
             </div>
           </div>
