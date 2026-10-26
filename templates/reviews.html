@@ -152,19 +152,11 @@
         </button>
         {% endif %}
 
-        {% if user.id == 'apetitte.lanches@gmail.com' %}
-        <button type="button" id="btnImportReviews" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" onclick="importReviewsWithoutPublishing()">
-          <i class="bi bi-cloud-download me-1"></i>
-          <span id="importReviewsText">Buscar avaliações no Google</span>
-          <span id="importReviewsLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Importando...</span>
-        </button>
-        {% else %}
         <button type="button" id="btnReconcile" class="btn btn-light fw-semibold border shadow-sm" style="border-radius: 14px;" onclick="reconcileSelectedLocation()">
           <i class="bi bi-arrow-repeat me-1"></i>
           <span id="reconcileText">{{ t('reviews.sync_google') }}</span>
           <span id="reconcileLoading" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>{{ t('reviews.syncing') }}</span>
         </button>
-        {% endif %}
 
       </div>
     </div>
@@ -603,41 +595,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', carregarContadores);
-
-  // A conta Apetitte importa e revisa antes de qualquer publicação.
-  async function importReviewsWithoutPublishing() {
-    const value = (document.getElementById('fichaSelect')?.value || '').trim();
-    const locationId = Number.parseInt(value, 10);
-    if (!Number.isSafeInteger(locationId) || locationId <= 0) {
-      toast('Selecione a ficha Apetitte Lanches antes de buscar.', 'warning');
-      return;
-    }
-    const button = document.getElementById('btnImportReviews');
-    const label = document.getElementById('importReviewsText');
-    const loading = document.getElementById('importReviewsLoading');
-    button.disabled = true;
-    label.classList.add('d-none');
-    loading.classList.remove('d-none');
-    try {
-      const res = await fetch(`/auto/google/importar-avaliacoes/${locationId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({})
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Não foi possível importar as avaliações.');
-      }
-      toast(`Google: ${data.encontradas} verificadas, ${data.novas} novas. Nenhuma resposta foi publicada.`, 'success');
-      window.location.assign(`/reviews?ficha=${locationId}&origem=google&status=pendente`);
-    } catch (error) {
-      toast(error.message || 'Falha ao buscar avaliações.', 'danger');
-    } finally {
-      button.disabled = false;
-      label.classList.remove('d-none');
-      loading.classList.add('d-none');
-    }
-  }
 
   async function reconcileSelectedLocation() {
     const sel = document.getElementById('fichaSelect');
