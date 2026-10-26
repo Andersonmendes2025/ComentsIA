@@ -58,17 +58,39 @@ def get_current_user_id():
     return ui.get("id", "").lower()
 
 
+def _clear_filial_context():
+    session.pop("viewing_filial", None)
+    session.pop("filial_name", None)
+    session.pop("matriz_back_url", None)
+
+
 def get_context_user_id():
-    return session.get("viewing_filial") or get_current_user_id()
+    user_id = get_current_user_id()
+    filial_id = session.get("viewing_filial")
+    if filial_id:
+        if user_id and is_parent_of(user_id, filial_id):
+            return filial_id
+        _clear_filial_context()
+    return user_id
 
 
 def is_parent_of(parent_user_id: str, child_user_id: str) -> bool:
+    if not parent_user_id or not child_user_id or parent_user_id == child_user_id:
+        return False
     return (
         FilialVinculo.query.filter_by(
-            parent_user_id=parent_user_id, child_user_id=child_user_id
+            parent_user_id=parent_user_id,
+            child_user_id=child_user_id,
+            status="aceito",
         ).first()
         is not None
     )
+
+
+@matriz_bp.before_app_request
+def revalidate_viewing_filial():
+    if session.get("viewing_filial"):
+        get_context_user_id()
 
 
 def get_filiais_ids(parent_user_id: str):
@@ -492,7 +514,7 @@ def ver_convites():
     return render_template("convites.html", convites=convites, historico=historico)
 
 
-@matriz_bp.route("/convites/aceitar/<int:vinculo_id>")
+@matriz_bp.route("/convites/aceitar/<int:vinculo_id>", methods=["POST"])
 def aceitar_convite(vinculo_id):
     if not require_login():
         return redirect(url_for("authorize"))
@@ -504,8 +526,8 @@ def aceitar_convite(vinculo_id):
         flash("Você não tem permissão para aceitar este convite.", "danger")
         return redirect(url_for("matriz.ver_convites"))
 
-    if convite.status == "aceito":
-        flash("Você já aceitou esse convite anteriormente.", "info")
+    if convite.status != "pendente":
+        flash("Este convite não está mais pendente.", "warning")
         return redirect(url_for("matriz.ver_convites"))
 
     convite.status = "aceito"
@@ -527,7 +549,12 @@ def recusar_convite(vinculo_id):
         flash("Você não tem permissão para recusar este convite.", "danger")
         return redirect(url_for("matriz.ver_convites"))
 
-    db.session.delete(convite)
+    if convite.status != "pendente":
+        flash("Este convite não está mais pendente.", "warning")
+        return redirect(url_for("matriz.ver_convites"))
+
+    convite.status = "recusado"
+    convite.data_aceite = None
     db.session.commit()
     flash("Convite recusado com sucesso.", "info")
     return redirect(url_for("matriz.ver_convites"))
