@@ -79,6 +79,9 @@ GBP_SCOPE = "https://www.googleapis.com/auth/business.manage"
 # mais avaliações do que isso entre duas execuções do cron.
 MAX_REVIEWS_SYNC_AUTOMATICO = 10
 
+# Conta piloto: importa as avaliações para revisão na aplicação, sem publicar respostas.
+GBP_IMPORT_ONLY_USERS = frozenset({"apetitte.lanches@gmail.com"})
+
 RATING_MAP = {
     "ONE": 1,
     "TWO": 2,
@@ -2093,7 +2096,80 @@ def run_sync_for_user(user_id: str) -> int:
     return total_processadas
 
 
+def _import_gbp_reviews_without_reply(user_id: str, location: GoogleLocation) -> dict:
+    """Importa todas as avaliações desta ficha para o app, sem gerar/publicar respostas."""
+    if location.user_id != user_id or not location.is_active:
+        raise ValueError("Ficha não pertence à conta ou está inativa.")
+    creds = _get_persisted_credentials(user_id) or _get_session_credentials()
+    if not creds:
+        raise RuntimeError("Conta Google desconectada. Reconecte antes de importar.")
+    if not location.account_id or not location.location_id:
+        raise RuntimeError("Ficha Google sem identificadores válidos.")
+
+    reviews = _list_reviews(creds, location.account_id, location.location_id)
+    inserted, updated = 0, 0
+    for review_data in reviews:
+        review_id = (review_data.get("reviewId") or "").strip()
+        if not review_id:
+            continue
+        existing = Review.query.filter_by(user_id=user_id, external_id=review_id).first()
+        google_reply = (review_data.get("reviewReply") or {}).get("comment") or ""
+        _upsert_review(
+            user_id=user_id,
+            r=review_data,
+            reply_text=google_reply,
+            location_name=f"locations/{_extract_id(location.location_id)}",
+        )
+        saved = Review.query.filter_by(user_id=user_id, external_id=review_id).first()
+        if not saved:
+            logging.error("[gbp] Avaliação %s não foi salva durante a importação.", review_id)
+            continue
+        if existing:
+            updated += 1
+        else:
+            inserted += 1
+    return {"encontradas": len(reviews), "novas": inserted, "atualizadas": updated}
+
+
+@google_auto_bp.route("/google/importar-avaliacoes/<int:location_db_id>", methods=["POST"])
+def importar_avaliacoes_google_sem_publicar(location_db_id: int):
+    """Busca somente a ficha escolhida da conta piloto; a publicação continua manual."""
+    user_info = session.get("user_info") or {}
+    user_id = user_info.get("id")
+    if not user_id:
+        return jsonify({"ok": False, "error": "Faça login para importar."}), 401
+    if user_id not in GBP_IMPORT_ONLY_USERS:
+        return jsonify({"ok": False, "error": "Importação manual indisponível para esta conta."}), 403
+
+    location = GoogleLocation.query.filter_by(
+        id=location_db_id, user_id=user_id, is_active=True
+    ).first()
+    if not location:
+        return jsonify({"ok": False, "error": "Ficha ativa não encontrada."}), 404
+
+    try:
+        counts = _import_gbp_reviews_without_reply(user_id, location)
+        return jsonify({"ok": True, **counts}), 200
+    except (RuntimeError, ValueError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        logging.exception("[gbp] Falha ao importar avaliações para revisão (user=%s).", user_id)
+        return jsonify({"ok": False, "error": "Falha ao consultar o Google. Tente novamente."}), 500
+
+
 def run_sync_last_48h(user_id: str) -> int:
+    if user_id in GBP_IMPORT_ONLY_USERS:
+        # Nesta conta, até o cron das 18h importa sem responder/publicar.
+        # Outras contas seguem a automação habitual, sem alteração.
+        try:
+            fichas = GoogleLocation.query.filter_by(user_id=user_id, is_active=True).all()
+            for ficha in fichas:
+                stats = _import_gbp_reviews_without_reply(user_id, ficha)
+                logging.info("[gbp] Importação sem publicação (%s): %s", user_id, stats)
+        except Exception:
+            logging.exception("[gbp] Importação sem publicação falhou para %s", user_id)
+        return 0
+
     try:
         from main import registrar_uso_resposta_especial, usuario_pode_usar_resposta_especial
     except ImportError:
