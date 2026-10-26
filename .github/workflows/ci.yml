@@ -25,7 +25,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          python -m pip install pytest
 
       - name: Run Tests
         run: |
-          pytest tests/test_claude.py tests/test_ai_service.py
+          python -m py_compile google_auto.py
+          ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') OPENAI_API_KEY=sk-test-local-only PYTHONPATH=. python -m pytest tests/test_claude.py tests/test_ai_service.py
