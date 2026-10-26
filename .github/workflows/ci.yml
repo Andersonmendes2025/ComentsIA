@@ -30,4 +30,4 @@ jobs:
       - name: Run Tests
         run: |
           python -m py_compile google_auto.py
-          ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') PYTHONPATH=. python -m pytest tests/test_claude.py tests/test_ai_service.py
+          ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') OPENAI_API_KEY=sk-test-local-only PYTHONPATH=. python -m pytest tests/test_claude.py tests/test_ai_service.py
