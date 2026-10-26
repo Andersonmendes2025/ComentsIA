@@ -29,4 +29,5 @@ jobs:
 
       - name: Run Tests
         run: |
-          PYTHONPATH=. python -m pytest tests/test_claude.py tests/test_ai_service.py
+          python -m py_compile google_auto.py
+          ENCRYPTION_KEY=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') PYTHONPATH=. python -m pytest tests/test_claude.py tests/test_ai_service.py
